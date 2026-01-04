@@ -13,10 +13,18 @@ from app.integrations.tesla.exceptions import TeslaAuthError
 
 
 class TeslaAuth:
-    """Tesla OAuth 2.0 authentication handler (Fleet API)."""
+    """Tesla OAuth 2.0 authentication handler (Fleet API).
 
-    AUTH_URL = "https://auth.tesla.com/oauth2/v3/authorize"
-    TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token"
+    China region uses .cn domains.
+    """
+
+    # China region URLs
+    AUTH_URL = "https://auth.tesla.cn/oauth2/v3/authorize"
+    TOKEN_URL = "https://auth.tesla.cn/oauth2/v3/token"
+
+    # International URLs (for reference)
+    # AUTH_URL = "https://auth.tesla.com/oauth2/v3/authorize"
+    # TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token"
 
     # Fleet API 权限范围
     SCOPES = [

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     TESLA_CLIENT_SECRET: str = ""
     TESLA_TOKEN_ENCRYPTION_KEY: str = ""
     TESLA_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/tesla/callback"
+    TESLA_ACCESS_TOKEN: str = ""
+    TESLA_REFRESH_TOKEN: str = ""
 
     # Tencent Map API
     TENCENT_MAP_KEY: str = ""
