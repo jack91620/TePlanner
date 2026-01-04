@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    WORKERS: int = 1
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./teplanner.db"
@@ -25,14 +30,19 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Tesla API
+    # Owner API (非官方，作为备用)
     TESLA_API_BASE_URL: str = "https://owner-api.teslamotors.com"
+    # Fleet API (官方)
+    TESLA_FLEET_API_BASE_URL: str = "https://fleet-api.prd.na.vn.cloud.tesla.com"
     TESLA_CLIENT_ID: str = ""
     TESLA_CLIENT_SECRET: str = ""
     TESLA_TOKEN_ENCRYPTION_KEY: str = ""
+    TESLA_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/tesla/callback"
 
     # Tencent Map API
     TENCENT_MAP_KEY: str = ""
     TENCENT_MAP_SECRET: str = ""
+    TENCENT_MAP_API_KEY: str = ""  # Alias for TENCENT_MAP_KEY
 
     # WeChat
     WECHAT_APP_ID: str = ""

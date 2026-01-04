@@ -1,180 +1,180 @@
-# TePlanner Architecture
+# TePlanner 架构设计
 
-## System Overview
+## 系统概览
 
-```
+```text
 +-------------------+     +-------------------+     +-------------------+
-|   WeChat Mini     |     |   FastAPI         |     |   External        |
-|   Program         | --> |   Backend         | --> |   Services        |
-|   (Frontend)      |     |   (API Server)    |     |                   |
+|   微信小程序       |     |   FastAPI         |     |   外部服务         |
+|   (前端)          | --> |   后端            | --> |                   |
+|                   |     |   (API服务器)      |     |                   |
 +-------------------+     +-------------------+     +-------------------+
                                    |
                                    v
                           +-------------------+
                           |   PostgreSQL      |
-                          |   (Database)      |
+                          |   (数据库)        |
                           +-------------------+
 ```
 
-## Component Details
+## 组件详情
 
-### Frontend (WeChat Mini Program)
+### 前端 (微信小程序)
 
-```
+```text
 miniprogram/
 ├── pages/
-│   ├── index/          # Route planning form
-│   ├── route-result/   # Planning results
-│   ├── station-detail/ # Charging station info
-│   ├── vehicle-binding/# Tesla OAuth flow
-│   ├── profile/        # User settings
-│   └── settings/       # App preferences
+│   ├── index/          # 路线规划表单
+│   ├── route-result/   # 规划结果展示
+│   ├── station-detail/ # 充电站详情
+│   ├── vehicle-binding/# Tesla OAuth 绑定流程
+│   ├── profile/        # 用户设置
+│   └── settings/       # 应用设置
 ├── utils/
-│   ├── api.js          # HTTP client
-│   └── util.js         # Helper functions
+│   ├── api.js          # HTTP 客户端
+│   └── util.js         # 工具函数
 └── config/
-    └── index.js        # Environment config
+    └── index.js        # 环境配置
 ```
 
-### Backend (FastAPI)
+### 后端 (FastAPI)
 
-```
+```text
 backend/
 ├── app/
-│   ├── api/v1/         # API endpoints
-│   │   ├── auth.py     # Authentication
-│   │   ├── vehicles.py # Vehicle management
-│   │   ├── routes.py   # Route planning
-│   │   └── charging.py # Charging stations
-│   ├── core/           # Core utilities
-│   │   ├── security.py # JWT, encryption
+│   ├── api/v1/         # API 接口
+│   │   ├── auth.py     # 认证相关
+│   │   ├── vehicles.py # 车辆管理
+│   │   ├── routes.py   # 路线规划
+│   │   └── charging.py # 充电站
+│   ├── core/           # 核心工具
+│   │   ├── security.py # JWT、加密
 │   │   └── exceptions.py
-│   ├── models/         # SQLAlchemy models
-│   ├── schemas/        # Pydantic schemas
-│   ├── services/       # Business logic
+│   ├── models/         # SQLAlchemy 模型
+│   ├── schemas/        # Pydantic 模式
+│   ├── services/       # 业务逻辑
 │   │   ├── route_planner.py
 │   │   └── energy_model.py
-│   └── integrations/   # External APIs
-│       ├── tesla/      # Tesla API client
-│       └── tencent_map/ # Map services
+│   └── integrations/   # 外部 API
+│       ├── tesla/      # Tesla API 客户端
+│       └── tencent_map/ # 地图服务
 └── tests/
 ```
 
-## Data Flow
+## 数据流
 
-### Route Planning Request
+### 路线规划请求
 
-```
-1. User inputs origin, destination
-2. Mini program sends POST /routes/plan
-3. Backend fetches vehicle battery level (if linked)
-4. Backend calculates energy consumption
-5. Backend queries Tencent Map for route
-6. Backend determines charging stops needed
-7. Response returned with route + charging plan
-```
-
-### Tesla OAuth Flow
-
-```
-1. User taps "Connect Tesla"
-2. Mini program requests OAuth URL from backend
-3. Backend generates state, returns Tesla auth URL
-4. User opens URL in web-view, logs into Tesla
-5. Tesla redirects to callback with code
-6. Backend exchanges code for tokens
-7. Backend fetches and stores vehicle info
-8. Mini program shows success, vehicle data
+```text
+1. 用户输入出发地、目的地
+2. 小程序发送 POST /routes/plan 请求
+3. 后端获取车辆电量（如已绑定）
+4. 后端计算能耗
+5. 后端调用腾讯地图获取路线
+6. 后端确定所需充电站点
+7. 返回路线和充电计划
 ```
 
-## Database Schema
+### Tesla OAuth 流程
 
-### Users Table
+```text
+1. 用户点击"绑定Tesla"
+2. 小程序向后端请求 OAuth URL
+3. 后端生成 state，返回 Tesla 授权链接
+4. 用户在 web-view 中打开链接，登录Tesla
+5. Tesla 重定向回调并携带授权码
+6. 后端用授权码换取令牌
+7. 后端获取并存储车辆信息
+8. 小程序显示绑定成功及车辆数据
+```
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | INT | Primary key |
-| wechat_openid | VARCHAR(64) | WeChat identifier |
-| tesla_access_token | TEXT | Encrypted |
-| tesla_refresh_token | TEXT | Encrypted |
-| created_at | TIMESTAMP | |
-| updated_at | TIMESTAMP | |
+## 数据库设计
 
-### Vehicles Table
+### 用户表 (users)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | INT | Primary key |
-| user_id | INT | Foreign key |
-| tesla_id | VARCHAR(64) | Tesla's ID |
-| vin | VARCHAR(17) | Vehicle VIN |
-| display_name | VARCHAR(64) | User's name for car |
-| car_type | VARCHAR(32) | model3, modely, etc. |
-| battery_capacity_kwh | FLOAT | Battery size |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| wechat_openid | VARCHAR(64) | 微信标识 |
+| tesla_access_token | TEXT | 加密存储 |
+| tesla_refresh_token | TEXT | 加密存储 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
 
-### Trips Table
+### 车辆表 (vehicles)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | INT | Primary key |
-| user_id | INT | Foreign key |
-| origin_name | VARCHAR(128) | |
-| origin_lat/lng | FLOAT | |
-| destination_name | VARCHAR(128) | |
-| destination_lat/lng | FLOAT | |
-| initial_soc | INT | Starting battery % |
-| route_data | JSON | Full route info |
-| charging_stops | JSON | Charging plan |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| user_id | INT | 外键 |
+| tesla_id | VARCHAR(64) | Tesla 车辆ID |
+| vin | VARCHAR(17) | 车架号 |
+| display_name | VARCHAR(64) | 用户命名 |
+| car_type | VARCHAR(32) | model3, modely 等 |
+| battery_capacity_kwh | FLOAT | 电池容量 |
 
-## External Service Integration
+### 行程表 (trips)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| user_id | INT | 外键 |
+| origin_name | VARCHAR(128) | 出发地名称 |
+| origin_lat/lng | FLOAT | 出发地坐标 |
+| destination_name | VARCHAR(128) | 目的地名称 |
+| destination_lat/lng | FLOAT | 目的地坐标 |
+| initial_soc | INT | 出发电量 % |
+| route_data | JSON | 完整路线信息 |
+| charging_stops | JSON | 充电计划 |
+
+## 外部服务集成
 
 ### Tesla API
 
-- Owner API for MVP (unofficial)
-- Fleet API for production (official, pending approval)
-- Handles: Vehicle data, battery status, wake-up
+- MVP阶段使用 Owner API（非官方）
+- 生产环境使用 Fleet API（官方，待审批）
+- 功能: 车辆数据、电量状态、唤醒
 
-### Tencent Map API
+### 腾讯地图 API
 
-- Geocoding (address to coordinates)
-- Reverse geocoding (coordinates to address)
-- Driving route calculation
-- POI search (charging stations)
+- 地理编码（地址转坐标）
+- 逆地理编码（坐标转地址）
+- 驾车路线规划
+- POI 搜索（充电站）
 
-## Deployment Architecture
+## 部署架构
 
-### Development
+### 开发环境
 
-```
-Local machine:
-- Backend: uvicorn (localhost:8000)
-- Database: SQLite or local PostgreSQL
-- Mini program: WeChat DevTools
-```
-
-### Production (Serverless)
-
-```
-Tencent Cloud:
-- API: SCF (Serverless Cloud Function)
-- Database: TencentDB for PostgreSQL
-- Storage: COS (Cloud Object Storage)
-- CDN: For static assets
+```text
+本地机器:
+- 后端: uvicorn (localhost:8000)
+- 数据库: SQLite 或本地 PostgreSQL
+- 小程序: 微信开发者工具
 ```
 
-## Security Measures
+### 生产环境 (Serverless)
 
-1. **Authentication**: JWT tokens with short expiry
-2. **Token Encryption**: Fernet symmetric encryption for Tesla tokens
-3. **HTTPS**: All API calls encrypted
-4. **Input Validation**: Pydantic schema validation
-5. **Rate Limiting**: Protect against abuse
-6. **CORS**: Restrict origins
+```text
+腾讯云:
+- API: SCF (云函数)
+- 数据库: TencentDB for PostgreSQL
+- 存储: COS (对象存储)
+- CDN: 静态资源加速
+```
 
-## Scalability Considerations
+## 安全措施
 
-1. **Stateless Backend**: Easy horizontal scaling
-2. **Database Indexing**: On frequently queried columns
-3. **Caching**: Redis for vehicle status, route calculations
-4. **Async I/O**: FastAPI + httpx for non-blocking calls
-5. **Connection Pooling**: SQLAlchemy async sessions
+1. **认证**: JWT Token，短有效期
+2. **Token 加密**: Fernet 对称加密存储 Tesla Token
+3. **HTTPS**: 所有 API 调用加密传输
+4. **输入验证**: Pydantic 模式验证
+5. **速率限制**: 防止滥用
+6. **CORS**: 限制来源域名
+
+## 可扩展性考虑
+
+1. **无状态后端**: 便于水平扩展
+2. **数据库索引**: 在高频查询字段上建立索引
+3. **缓存**: Redis 缓存车辆状态和路线计算
+4. **异步 I/O**: FastAPI + httpx 非阻塞调用
+5. **连接池**: SQLAlchemy 异步会话管理

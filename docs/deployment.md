@@ -1,51 +1,50 @@
-# TePlanner Deployment Guide
+# TePlanner 部署指南
 
-## Prerequisites
+## 前置要求
 
 - Python 3.11+
 - PostgreSQL 14+
-- Docker (optional, for containerized deployment)
-- Tencent Cloud account (for production)
-- WeChat Mini Program developer account
+- Docker（可选，用于容器化部署）
+- 腾讯云账号（生产环境）
+- 微信小程序开发者账号
 
-## Local Development Setup
+## 本地开发环境
 
-### 1. Backend Setup
+### 1. 后端配置
 
 ```bash
-# Clone repository
+# 克隆仓库
 cd TePlanner/backend
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
+# 创建 conda 环境
+conda create -n teplanner python=3.11 -y
+conda activate teplanner
 
-# Install dependencies
+# 安装依赖
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
-# Copy environment template
+# 复制环境变量模板
 cp ../.env.example .env
-# Edit .env with your configuration
+# 编辑 .env 填入配置
 
-# Run database migrations
+# 运行数据库迁移
 alembic upgrade head
 
-# Start development server
+# 启动开发服务器
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2. Environment Variables
+### 2. 环境变量配置
 
-Create `.env` file with:
+创建 `.env` 文件:
 
 ```env
-# App
+# 应用配置
 DEBUG=true
 SECRET_KEY=your-secret-key-here
 
-# Database
+# 数据库
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/teplanner
 
 # Tesla API
@@ -53,34 +52,34 @@ TESLA_API_BASE_URL=https://owner-api.teslamotors.com
 TESLA_CLIENT_ID=your-client-id
 TESLA_TOKEN_ENCRYPTION_KEY=your-fernet-key
 
-# Tencent Map
+# 腾讯地图
 TENCENT_MAP_API_KEY=your-tencent-map-key
 
-# WeChat
+# 微信
 WECHAT_APP_ID=your-wechat-appid
 WECHAT_APP_SECRET=your-wechat-secret
 ```
 
-### 3. Mini Program Setup
+### 3. 小程序配置
 
 ```bash
-# Open WeChat DevTools
-# Import project: TePlanner/miniprogram
+# 打开微信开发者工具
+# 导入项目: TePlanner/miniprogram
 
-# Update config/index.js with your API URL
-# Update project.config.json with your AppID
+# 更新 config/index.js 中的 API 地址
+# 更新 project.config.json 中的 AppID
 ```
 
-## Docker Deployment
+## Docker 部署
 
-### Build Image
+### 构建镜像
 
 ```bash
 cd TePlanner/backend
 docker build -t teplanner-backend:latest .
 ```
 
-### Run Container
+### 运行容器
 
 ```bash
 docker run -d \
@@ -91,7 +90,7 @@ docker run -d \
   teplanner-backend:latest
 ```
 
-### Docker Compose (Development)
+### Docker Compose (开发环境)
 
 ```yaml
 # docker-compose.yml
@@ -120,97 +119,97 @@ volumes:
   postgres_data:
 ```
 
-## Production Deployment (Tencent Cloud)
+## 生产环境部署 (腾讯云)
 
-### 1. Serverless Cloud Function (SCF)
+### 1. 云函数 (SCF)
 
 ```bash
-# Install Serverless Framework
+# 安装 Serverless Framework
 npm install -g serverless
 
-# Deploy
+# 部署
 cd TePlanner/backend
 serverless deploy
 ```
 
-### 2. Database (TencentDB)
+### 2. 数据库 (TencentDB)
 
-1. Create PostgreSQL instance in Tencent Cloud console
-2. Configure VPC and security groups
-3. Update DATABASE_URL in SCF environment
+1. 在腾讯云控制台创建 PostgreSQL 实例
+2. 配置 VPC 和安全组
+3. 更新云函数中的 DATABASE_URL
 
-### 3. CDN Configuration
+### 3. CDN 配置
 
-1. Create COS bucket for static assets
-2. Configure CDN pointing to COS
-3. Enable HTTPS with certificate
+1. 创建 COS 存储桶用于静态资源
+2. 配置 CDN 指向 COS
+3. 启用 HTTPS 证书
 
-### 4. Domain Setup
+### 4. 域名配置
 
-1. Register domain (if not owned)
-2. Configure DNS to point to SCF/CDN
-3. Enable HTTPS certificate
+1. 注册域名（如未拥有）
+2. 配置 DNS 指向 SCF/CDN
+3. 启用 HTTPS 证书
 
-## Mini Program Deployment
+## 小程序发布
 
-### 1. Development Version
+### 1. 开发版本
 
-- Use WeChat DevTools preview feature
-- Scan QR code with WeChat
+- 使用微信开发者工具的预览功能
+- 用微信扫描二维码预览
 
-### 2. Production Release
+### 2. 正式发布
 
-```bash
-# In WeChat DevTools:
-1. Click "Upload" button
-2. Fill in version number and description
-3. Submit for review in MP admin console
-4. Wait for approval (usually 1-3 days)
-5. Release to production
+```text
+在微信开发者工具中:
+1. 点击"上传"按钮
+2. 填写版本号和描述
+3. 在小程序管理后台提交审核
+4. 等待审核通过（通常1-3天）
+5. 发布上线
 ```
 
-## Monitoring
+## 监控运维
 
-### Health Check
+### 健康检查
 
 ```bash
 curl https://api.teplanner.com/health
-# Response: {"status": "healthy", "version": "0.1.0"}
+# 响应: {"status": "healthy", "version": "0.1.0"}
 ```
 
-### Logs
+### 日志查看
 
-- SCF: View in Tencent Cloud console
+- SCF: 在腾讯云控制台查看
 - Docker: `docker logs teplanner-api`
-- Local: Check terminal output
+- 本地: 查看终端输出
 
-### Metrics
+### 监控指标
 
-- API response times
-- Error rates
-- Tesla API call success rate
-- Active users
+- API 响应时间
+- 错误率
+- Tesla API 调用成功率
+- 活跃用户数
 
-## Troubleshooting
+## 故障排查
 
-### Common Issues
+### 常见问题
 
-1. **Database connection failed**
-   - Check DATABASE_URL format
-   - Verify network connectivity
-   - Check credentials
+1. **数据库连接失败**
+   - 检查 DATABASE_URL 格式
+   - 验证网络连通性
+   - 检查用户名密码
 
-2. **Tesla API 401 errors**
-   - Token may be expired, refresh needed
-   - Check TESLA_CLIENT_ID configuration
+2. **Tesla API 401 错误**
+   - Token 可能已过期，需要刷新
+   - 检查 TESLA_CLIENT_ID 配置
 
-3. **Mini program network errors**
-   - Verify API domain is in whitelist
-   - Check HTTPS certificate validity
+3. **小程序网络请求失败**
+   - 确认 API 域名在小程序白名单中
+   - 检查 HTTPS 证书有效性
 
-### Support
+### 获取支持
 
-For issues, create a GitHub issue with:
-- Error message
-- Steps to reproduce
-- Environment details
+如有问题，请在 GitHub 创建 Issue，并提供:
+- 错误信息
+- 复现步骤
+- 环境信息

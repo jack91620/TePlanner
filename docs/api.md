@@ -1,101 +1,107 @@
-# TePlanner API Documentation
+# TePlanner API 文档
 
-## Overview
+## 概述
 
-TePlanner provides a RESTful API for route planning with Tesla vehicle integration.
+TePlanner 提供 RESTful API，用于 Tesla 车辆集成的路线规划。
 
-Base URL: `https://api.teplanner.com/api/v1`
+基础 URL: `https://api.teplanner.com/api/v1`
 
-## Authentication
+## 认证
 
-All authenticated endpoints require a JWT token in the Authorization header:
+所有需要认证的接口都需要在请求头中携带 JWT Token:
 
-```
+```text
 Authorization: Bearer <token>
 ```
 
-## Endpoints
+## 接口列表
 
-### Auth
+### 认证相关
 
-#### WeChat Login
+#### 微信登录
 
-```
+```text
 POST /auth/wechat/login
 ```
 
-Request:
+请求体:
+
 ```json
 {
-  "code": "wechat_login_code"
+  "code": "微信登录code"
 }
 ```
 
-Response:
+响应:
+
 ```json
 {
   "token": "jwt_token",
   "user": {
     "id": 1,
-    "nickname": "User",
+    "nickname": "用户昵称",
     "has_tesla_linked": false
   }
 }
 ```
 
-#### Tesla OAuth Authorization URL
+#### 获取 Tesla OAuth 授权链接
 
-```
+```text
 GET /auth/tesla/authorize
 ```
 
-Response:
+响应:
+
 ```json
 {
   "url": "https://auth.tesla.com/oauth2/v3/authorize?...",
-  "state": "random_state_string"
+  "state": "随机状态字符串"
 }
 ```
 
-#### Tesla OAuth Callback
+#### Tesla OAuth 回调
 
-```
+```text
 POST /auth/tesla/callback
 ```
 
-Request:
+请求体:
+
 ```json
 {
-  "code": "oauth_code",
-  "state": "state_from_authorize"
+  "code": "oauth授权码",
+  "state": "授权时返回的state"
 }
 ```
 
-Response:
+响应:
+
 ```json
 {
   "vehicle": {
     "id": 1,
-    "display_name": "My Tesla",
+    "display_name": "我的特斯拉",
     "vin": "5YJ3E...",
     "battery_level": 80
   }
 }
 ```
 
-### Vehicles
+### 车辆相关
 
-#### Get Current Vehicle Status
+#### 获取当前车辆状态
 
-```
+```text
 GET /vehicles/current/status
 ```
 
-Response:
+响应:
+
 ```json
 {
   "id": 1,
-  "display_name": "My Tesla",
+  "display_name": "我的特斯拉",
   "state": "online",
   "battery_level": 80,
   "battery_range_km": 320,
@@ -105,44 +111,57 @@ Response:
 }
 ```
 
-#### List User Vehicles
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int | 车辆ID |
+| display_name | string | 车辆名称 |
+| state | string | 状态: online/asleep/offline |
+| battery_level | int | 电量百分比 (0-100) |
+| battery_range_km | float | 续航里程 (公里) |
+| charging_state | string | 充电状态 |
+| latitude | float | 纬度 |
+| longitude | float | 经度 |
 
-```
+#### 获取用户车辆列表
+
+```text
 GET /vehicles
 ```
 
-Response:
+响应:
+
 ```json
 {
   "vehicles": [
     {
       "id": 1,
       "tesla_id": "123456",
-      "display_name": "My Model 3",
+      "display_name": "我的 Model 3",
       "vin": "5YJ3E..."
     }
   ]
 }
 ```
 
-### Routes
+### 路线规划
 
-#### Plan Route
+#### 规划路线
 
-```
+```text
 POST /routes/plan
 ```
 
-Request:
+请求体:
+
 ```json
 {
   "origin": {
-    "name": "Shanghai",
+    "name": "上海",
     "latitude": 31.2304,
     "longitude": 121.4737
   },
   "destination": {
-    "name": "Hangzhou",
+    "name": "杭州",
     "latitude": 30.2741,
     "longitude": 120.1551
   },
@@ -152,11 +171,20 @@ Request:
 }
 ```
 
-Response:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| origin | object | 是 | 出发地 |
+| destination | object | 是 | 目的地 |
+| initial_soc | int | 是 | 当前电量百分比 |
+| target_arrival_soc | int | 否 | 到达时最低电量，默认20 |
+| vehicle_id | int | 否 | 车辆ID |
+
+响应:
+
 ```json
 {
-  "origin": { "name": "Shanghai", "latitude": 31.2304, "longitude": 121.4737 },
-  "destination": { "name": "Hangzhou", "latitude": 30.2741, "longitude": 120.1551 },
+  "origin": { "name": "上海", "latitude": 31.2304, "longitude": 121.4737 },
+  "destination": { "name": "杭州", "latitude": 30.2741, "longitude": 120.1551 },
   "total_distance_km": 175.5,
   "total_duration_minutes": 150,
   "driving_duration_minutes": 130,
@@ -164,8 +192,8 @@ Response:
   "charging_stops": [
     {
       "station_id": "sc_001",
-      "station_name": "Tesla Supercharger Jiaxing",
-      "location": { "name": "Jiaxing Service Area", "latitude": 30.7522, "longitude": 120.7586 },
+      "station_name": "特斯拉超级充电站 嘉兴",
+      "location": { "name": "嘉兴服务区", "latitude": 30.7522, "longitude": 120.7586 },
       "arrival_soc": 25,
       "departure_soc": 60,
       "charging_duration_minutes": 20,
@@ -178,26 +206,30 @@ Response:
 }
 ```
 
-### Charging Stations
+### 充电站
 
-#### Search Nearby Stations
+#### 搜索附近充电站
 
-```
+```text
 GET /charging/stations/nearby
 ```
 
-Query Parameters:
-- `latitude` (required): Center latitude
-- `longitude` (required): Center longitude
-- `radius_km` (optional): Search radius, default 50
+查询参数:
 
-Response:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| latitude | float | 是 | 中心点纬度 |
+| longitude | float | 是 | 中心点经度 |
+| radius_km | int | 否 | 搜索半径(公里)，默认50 |
+
+响应:
+
 ```json
 {
   "stations": [
     {
       "id": "sc_001",
-      "name": "Tesla Supercharger Jiaxing",
+      "name": "特斯拉超级充电站 嘉兴",
       "type": "supercharger",
       "latitude": 30.7522,
       "longitude": 120.7586,
@@ -209,21 +241,24 @@ Response:
 }
 ```
 
-## Error Responses
+## 错误响应
 
-All errors follow this format:
+所有错误响应格式如下:
 
 ```json
 {
-  "detail": "Error message here",
+  "detail": "错误信息",
   "code": "ERROR_CODE"
 }
 ```
 
-Common error codes:
-- `401`: Unauthorized - Invalid or expired token
-- `403`: Forbidden - Insufficient permissions
-- `404`: Not Found - Resource not found
-- `408`: Request Timeout - Vehicle offline
-- `422`: Validation Error - Invalid request data
-- `500`: Internal Server Error
+常见错误码:
+
+| 状态码 | 说明 |
+|--------|------|
+| 401 | 未授权 - Token无效或已过期 |
+| 403 | 禁止访问 - 权限不足 |
+| 404 | 未找到 - 资源不存在 |
+| 408 | 请求超时 - 车辆离线 |
+| 422 | 验证错误 - 请求数据无效 |
+| 500 | 服务器内部错误 |

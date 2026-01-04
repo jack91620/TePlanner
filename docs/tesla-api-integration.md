@@ -1,78 +1,78 @@
-# Tesla API Integration Guide
+# Tesla API 集成指南
 
-## Overview
+## 概述
 
-TePlanner supports two Tesla API approaches:
+TePlanner 支持两种 Tesla API 方案:
 
-1. **Tesla Owner API** (Non-official) - Used in MVP phase
-2. **Tesla Fleet API** (Official) - Target for production
+1. **Tesla Owner API** (非官方) - MVP阶段使用
+2. **Tesla Fleet API** (官方) - 生产环境目标
 
-## MVP: Tesla Owner API
+## MVP阶段: Tesla Owner API
 
-### Authentication Flow
+### 认证流程
 
-The Owner API uses OAuth 2.0 with PKCE:
+Owner API 使用 OAuth 2.0 + PKCE 流程:
 
+```text
+1. 用户点击"绑定Tesla账号"
+2. 应用跳转到Tesla授权页面
+3. 用户登录Tesla账号并授权
+4. Tesla重定向回调并携带授权码
+5. 后端用授权码换取访问令牌
+6. 访问令牌加密存储，用于后续API调用
 ```
-1. User clicks "Connect Tesla Account"
-2. App redirects to Tesla auth URL
-3. User logs in to Tesla account
-4. Tesla redirects back with authorization code
-5. Backend exchanges code for access token
-6. Access token stored (encrypted) for API calls
-```
 
-### Endpoints Used
+### 使用的接口
 
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /api/1/vehicles` | List user's vehicles |
-| `GET /api/1/vehicles/{id}/vehicle_data` | Get battery, location, etc. |
-| `POST /api/1/vehicles/{id}/wake_up` | Wake sleeping vehicle |
+| 接口 | 用途 |
+|------|------|
+| `GET /api/1/vehicles` | 获取用户车辆列表 |
+| `GET /api/1/vehicles/{id}/vehicle_data` | 获取电量、位置等数据 |
+| `POST /api/1/vehicles/{id}/wake_up` | 唤醒休眠车辆 |
 
-### Token Management
+### Token 管理
 
-- Access tokens expire in 8 hours
-- Refresh tokens used for renewal
-- Tokens encrypted at rest using Fernet symmetric encryption
+- 访问令牌有效期约8小时
+- 使用刷新令牌续期
+- 令牌使用 Fernet 对称加密存储
 
-### Rate Limiting
+### 速率限制
 
-- Respect Tesla's rate limits
-- Implement exponential backoff on 429 responses
-- Cache vehicle data where appropriate
+- 遵守 Tesla 的速率限制
+- 遇到 429 响应时使用指数退避重试
+- 适当缓存车辆数据
 
-## Future: Tesla Fleet API
+## 未来: Tesla Fleet API
 
-### Requirements
+### 申请要求
 
-1. Register with Tesla Developer Portal
-2. Submit application for Fleet API access
-3. Complete security review
-4. Implement required security measures
+1. 在 Tesla Developer Portal 注册
+2. 提交 Fleet API 访问申请
+3. 通过安全审核
+4. 实现必要的安全措施
 
-### Differences from Owner API
+### 与 Owner API 的区别
 
-| Aspect | Owner API | Fleet API |
-|--------|-----------|-----------|
-| Official Support | No | Yes |
-| Rate Limits | Unofficial | Documented |
-| Long-term Stability | Unknown | Guaranteed |
-| Required Auth | OAuth 2.0 | Partner Token + OAuth 2.0 |
+| 方面 | Owner API | Fleet API |
+|------|-----------|-----------|
+| 官方支持 | 否 | 是 |
+| 速率限制 | 非官方 | 有文档说明 |
+| 长期稳定性 | 不确定 | 有保障 |
+| 认证方式 | OAuth 2.0 | Partner Token + OAuth 2.0 |
 
-### Migration Plan
+### 迁移计划
 
-1. Apply for Fleet API access immediately
-2. Build abstraction layer for easy switching
-3. Test Fleet API in staging environment
-4. Gradual rollout to production
+1. 立即申请 Fleet API 访问权限
+2. 构建抽象层便于切换
+3. 在测试环境验证 Fleet API
+4. 逐步迁移到生产环境
 
-## Security Considerations
+## 安全措施
 
-### Token Storage
+### Token 存储
 
 ```python
-# Tokens are encrypted before database storage
+# Token 在存入数据库前会被加密
 from cryptography.fernet import Fernet
 
 class TokenEncryption:
@@ -83,30 +83,30 @@ class TokenEncryption:
         return self.fernet.decrypt(encrypted.encode()).decode()
 ```
 
-### Best Practices
+### 最佳实践
 
-1. Never log access tokens
-2. Use HTTPS for all API calls
-3. Implement token rotation
-4. Monitor for unusual API usage patterns
-5. Provide user controls for data access
+1. 永远不要记录访问令牌
+2. 所有 API 调用使用 HTTPS
+3. 实现令牌轮换机制
+4. 监控异常的 API 使用模式
+5. 提供用户数据访问控制
 
-## Error Handling
+## 错误处理
 
-### Common Errors
+### 常见错误
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| 401 Unauthorized | Token expired | Refresh token |
-| 408 Timeout | Vehicle asleep | Call wake_up first |
-| 429 Too Many Requests | Rate limited | Exponential backoff |
-| 503 Service Unavailable | Tesla API down | Retry with backoff |
+| 错误 | 原因 | 解决方案 |
+|------|------|----------|
+| 401 Unauthorized | Token 已过期 | 刷新 Token |
+| 408 Timeout | 车辆休眠中 | 先调用 wake_up |
+| 429 Too Many Requests | 超过速率限制 | 指数退避重试 |
+| 503 Service Unavailable | Tesla API 故障 | 重试并退避 |
 
-### Vehicle Wake-up Flow
+### 车辆唤醒流程
 
 ```python
 async def ensure_vehicle_awake(client, vehicle_id):
-    """Ensure vehicle is awake before data requests."""
+    """确保车辆处于唤醒状态后再请求数据"""
     max_attempts = 5
     for attempt in range(max_attempts):
         data = await client.get_vehicle_data(vehicle_id)
@@ -114,14 +114,14 @@ async def ensure_vehicle_awake(client, vehicle_id):
             return data
 
         await client.wake_up(vehicle_id)
-        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+        await asyncio.sleep(2 ** attempt)  # 指数退避
 
     raise TeslaVehicleOfflineError(vehicle_id)
 ```
 
-## Data Models
+## 数据模型
 
-### Vehicle Data Structure
+### 车辆数据结构
 
 ```python
 class VehicleData(BaseModel):
@@ -135,36 +135,36 @@ class VehicleData(BaseModel):
     vehicle_config: Optional[VehicleConfig]
 ```
 
-### Charge State
+### 充电状态
 
 ```python
 class ChargeState(BaseModel):
     battery_level: int  # 0-100
-    battery_range: float  # miles
+    battery_range: float  # 英里
     charging_state: str  # Charging, Complete, Disconnected
-    charge_rate: float  # miles/hour
-    time_to_full_charge: float  # hours
+    charge_rate: float  # 英里/小时
+    time_to_full_charge: float  # 小时
 ```
 
-## Testing
+## 测试
 
-### Mock API for Development
+### 开发环境 Mock API
 
-Use mock responses during development to avoid hitting real Tesla API:
+开发时使用 Mock 响应，避免调用真实 Tesla API:
 
 ```python
-# In tests/conftest.py
+# 在 tests/conftest.py 中
 @pytest.fixture
 def mock_tesla_client():
     with patch('app.integrations.tesla.client.TeslaClient') as mock:
         mock.return_value.get_vehicles.return_value = {
-            "response": [{"id": "123", "display_name": "Test Tesla"}]
+            "response": [{"id": "123", "display_name": "测试车辆"}]
         }
         yield mock
 ```
 
-## References
+## 参考资料
 
-- [Tesla API Unofficial Documentation](https://tesla-api.timdorr.com/)
+- [Tesla API 非官方文档](https://tesla-api.timdorr.com/)
 - [Tesla Developer Platform](https://developer.tesla.com/)
 - [OAuth 2.0 PKCE RFC](https://datatracker.ietf.org/doc/html/rfc7636)
