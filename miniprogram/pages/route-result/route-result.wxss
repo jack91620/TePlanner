@@ -1,0 +1,276 @@
+/* pages/route-result/route-result.wxss */
+
+.summary-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+  color: #ffffff;
+}
+
+.route-endpoints {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.endpoint {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.endpoint-icon {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+}
+
+.endpoint-icon.origin {
+  background: #2ecc71;
+}
+
+.endpoint-icon.dest {
+  background: #e63946;
+}
+
+.endpoint-name {
+  font-size: 28rpx;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-line {
+  width: 60rpx;
+  height: 2rpx;
+  background: rgba(255, 255, 255, 0.3);
+  margin: 0 20rpx;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 20rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.1);
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+  display: block;
+  margin-top: 8rpx;
+}
+
+/* Warning Card */
+.warning-card {
+  background: #fff3cd;
+  border-left: 8rpx solid #f39c12;
+}
+
+.warning-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16rpx;
+}
+
+.warning-item:last-child {
+  margin-bottom: 0;
+}
+
+.warning-icon {
+  width: 36rpx;
+  height: 36rpx;
+  background: #f39c12;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: bold;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  font-size: 28rpx;
+  color: #856404;
+  line-height: 1.5;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+}
+
+.stop-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.stop-item:last-child {
+  border-bottom: none;
+}
+
+.stop-marker {
+  width: 48rpx;
+  height: 48rpx;
+  background: var(--primary-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.stop-number {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.stop-content {
+  flex: 1;
+}
+
+.stop-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.stop-details {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 8rpx;
+}
+
+.stop-type {
+  font-size: 24rpx;
+  color: var(--primary-color);
+  background: rgba(230, 57, 70, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 4rpx;
+}
+
+.stop-distance {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.stop-soc {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.soc-arrow {
+  margin: 0 8rpx;
+  color: var(--text-muted);
+}
+
+.charge-time {
+  margin-left: 8rpx;
+  color: var(--text-muted);
+}
+
+.stop-arrow {
+  color: var(--text-muted);
+  font-size: 28rpx;
+  align-self: center;
+}
+
+/* Success Card */
+.success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #d4edda;
+  border-left: 8rpx solid #2ecc71;
+}
+
+.success-icon {
+  width: 80rpx;
+  height: 80rpx;
+  background: #2ecc71;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+}
+
+.success-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #155724;
+  margin-bottom: 8rpx;
+}
+
+.success-desc {
+  font-size: 28rpx;
+  color: #155724;
+}
+
+/* Time Breakdown */
+.time-breakdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.time-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+}
+
+.time-item.total {
+  font-weight: 600;
+}
+
+.time-label {
+  color: var(--text-secondary);
+}
+
+.time-value {
+  color: var(--text-primary);
+}
+
+.time-divider {
+  height: 1rpx;
+  background: var(--border-color);
+  margin: 8rpx 0;
+}
+
+/* Bottom Actions */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+/* Add padding at bottom for fixed button */
+.container {
+  padding-bottom: 150rpx;
+}

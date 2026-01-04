@@ -1,0 +1,94 @@
+<!--pages/settings/settings.wxml-->
+<view class="container">
+  <view class="card">
+    <view class="section-title">Route Planning</view>
+
+    <view class="setting-item">
+      <view class="setting-info">
+        <text class="setting-label">Target Arrival SOC</text>
+        <text class="setting-desc">Minimum battery at destination</text>
+      </view>
+      <view class="setting-value">
+        <text>{{settings.targetArrivalSoc}}%</text>
+      </view>
+    </view>
+    <slider
+      value="{{settings.targetArrivalSoc}}"
+      min="10"
+      max="50"
+      step="5"
+      activeColor="#e63946"
+      bindchange="onTargetSocChange"
+    />
+
+    <view class="setting-item">
+      <view class="setting-info">
+        <text class="setting-label">Minimum Charging SOC</text>
+        <text class="setting-desc">Start charging when below this</text>
+      </view>
+      <view class="setting-value">
+        <text>{{settings.minChargingSoc}}%</text>
+      </view>
+    </view>
+    <slider
+      value="{{settings.minChargingSoc}}"
+      min="5"
+      max="30"
+      step="5"
+      activeColor="#e63946"
+      bindchange="onMinSocChange"
+    />
+  </view>
+
+  <view class="card">
+    <view class="section-title">Charger Preferences</view>
+
+    <view class="setting-item">
+      <view class="setting-info">
+        <text class="setting-label">Prefer Superchargers</text>
+        <text class="setting-desc">Prioritize Tesla Superchargers</text>
+      </view>
+      <switch
+        checked="{{settings.preferSupercharger}}"
+        color="#e63946"
+        bindchange="onPreferSuperchargerChange"
+      />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">Display</view>
+
+    <view class="setting-item">
+      <view class="setting-info">
+        <text class="setting-label">Distance Unit</text>
+      </view>
+      <picker
+        mode="selector"
+        range="{{distanceUnits}}"
+        value="{{settings.distanceUnitIndex}}"
+        bindchange="onDistanceUnitChange"
+      >
+        <text class="picker-value">{{distanceUnits[settings.distanceUnitIndex]}}</text>
+      </picker>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">About</view>
+
+    <view class="setting-item" bindtap="showPrivacyPolicy">
+      <view class="setting-info">
+        <text class="setting-label">Privacy Policy</text>
+      </view>
+      <text class="setting-arrow">></text>
+    </view>
+
+    <view class="setting-item" bindtap="showTerms">
+      <view class="setting-info">
+        <text class="setting-label">Terms of Service</text>
+      </view>
+      <text class="setting-arrow">></text>
+    </view>
+  </view>
+</view>

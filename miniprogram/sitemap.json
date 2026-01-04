@@ -1,0 +1,9 @@
+{
+  "desc": "Site map for TePlanner mini program",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

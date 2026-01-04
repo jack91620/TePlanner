@@ -1,0 +1,141 @@
+/* pages/profile/profile.wxss */
+
+.user-card {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  margin-right: 30rpx;
+  background: var(--border-color);
+}
+
+.user-info {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.user-status {
+  font-size: 26rpx;
+  color: #2ecc71;
+}
+
+.user-status.not-connected {
+  color: var(--text-muted);
+}
+
+/* Vehicle Info */
+.vehicle-info-card {
+  margin-bottom: 24rpx;
+}
+
+.vehicle-main {
+  margin-bottom: 20rpx;
+}
+
+.vehicle-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.vehicle-type {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.vehicle-stats {
+  display: flex;
+  gap: 40rpx;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.refresh-btn {
+  margin-top: 16rpx;
+}
+
+/* Bind Card */
+.bind-card {
+  display: flex;
+  align-items: center;
+}
+
+.bind-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  flex: 1;
+}
+
+.bind-desc {
+  font-size: 26rpx;
+  color: var(--text-muted);
+  margin-right: 16rpx;
+}
+
+.bind-arrow {
+  color: var(--text-muted);
+  font-size: 28rpx;
+}
+
+/* Menu */
+.menu-card {
+  padding: 0;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-text {
+  font-size: 30rpx;
+}
+
+.menu-text.danger {
+  color: var(--error-color);
+}
+
+.menu-arrow {
+  color: var(--text-muted);
+  font-size: 28rpx;
+}
+
+/* Version */
+.version-info {
+  text-align: center;
+  padding: 40rpx;
+  color: var(--text-muted);
+  font-size: 24rpx;
+}

@@ -1,0 +1,43 @@
+/* pages/settings/settings.wxss */
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+}
+
+.setting-info {
+  flex: 1;
+}
+
+.setting-label {
+  font-size: 30rpx;
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.setting-desc {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.setting-value {
+  font-size: 30rpx;
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.setting-arrow {
+  color: var(--text-muted);
+  font-size: 28rpx;
+}
+
+.picker-value {
+  font-size: 30rpx;
+  color: var(--primary-color);
+}
+
+slider {
+  margin: 10rpx 0 20rpx;
+}

@@ -1,0 +1,41 @@
+<!--pages/station-detail/station-detail.wxml-->
+<view class="container">
+  <view class="card">
+    <view class="station-header">
+      <text class="station-name">{{station.station_name}}</text>
+      <view class="station-type {{station.charger_type}}">{{station.charger_type}}</view>
+    </view>
+
+    <view class="station-address">
+      <text>{{station.location.name}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">Charging Plan</view>
+    <view class="charge-plan">
+      <view class="plan-item">
+        <text class="plan-label">Arrive at</text>
+        <text class="plan-value">{{station.arrival_soc}}%</text>
+      </view>
+      <view class="plan-item">
+        <text class="plan-label">Charge to</text>
+        <text class="plan-value">{{station.departure_soc}}%</text>
+      </view>
+      <view class="plan-item">
+        <text class="plan-label">Duration</text>
+        <text class="plan-value">{{station.charging_duration_minutes}} min</text>
+      </view>
+      <view class="plan-item">
+        <text class="plan-label">Distance</text>
+        <text class="plan-value">{{station.distance_from_start_km}} km</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-actions">
+    <button class="btn btn-primary" bindtap="navigateToStation">
+      Navigate Here
+    </button>
+  </view>
+</view>

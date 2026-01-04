@@ -1,0 +1,95 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- Vehicle Status Card -->
+  <view class="card vehicle-card" wx:if="{{hasVehicle}}">
+    <view class="vehicle-header flex-between">
+      <view class="vehicle-info">
+        <text class="vehicle-name">{{vehicle.displayName}}</text>
+        <text class="vehicle-status {{vehicle.state === 'online' ? 'status-online' : ''}}">
+          {{vehicle.state === 'online' ? 'Online' : 'Offline'}}
+        </text>
+      </view>
+      <view class="battery-info">
+        <text class="battery-level">{{vehicle.batteryLevel}}%</text>
+        <view class="battery-bar">
+          <view class="battery-fill" style="width: {{vehicle.batteryLevel}}%"></view>
+        </view>
+        <text class="battery-range">{{vehicle.rangeKm}} km</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Bind Vehicle Prompt -->
+  <view class="card bind-prompt" wx:else bindtap="goToBindVehicle">
+    <image class="tesla-icon" src="/assets/icons/tesla-logo.png" mode="aspectFit"></image>
+    <text class="bind-text">Bind Tesla Account</text>
+    <text class="bind-desc">Get real-time battery status</text>
+  </view>
+
+  <!-- Route Planning Form -->
+  <view class="card planning-form">
+    <view class="section-title">Route Planning</view>
+
+    <!-- Origin -->
+    <view class="location-input" bindtap="chooseOrigin">
+      <view class="location-icon origin-icon"></view>
+      <view class="location-text">
+        <text wx:if="{{origin}}">{{origin.name}}</text>
+        <text wx:else class="placeholder">Choose starting point</text>
+      </view>
+      <view class="location-action" catchtap="useCurrentLocation">
+        <text class="use-current">Use current location</text>
+      </view>
+    </view>
+
+    <!-- Destination -->
+    <view class="location-input" bindtap="chooseDestination">
+      <view class="location-icon dest-icon"></view>
+      <view class="location-text">
+        <text wx:if="{{destination}}">{{destination.name}}</text>
+        <text wx:else class="placeholder">Choose destination</text>
+      </view>
+    </view>
+
+    <!-- SOC Input (if no vehicle bound) -->
+    <view class="soc-input" wx:if="{{!hasVehicle}}">
+      <text class="input-label">Current Battery Level</text>
+      <slider
+        value="{{currentSoc}}"
+        min="0"
+        max="100"
+        show-value
+        activeColor="#e63946"
+        bindchange="onSocChange"
+      />
+    </view>
+
+    <!-- Plan Button -->
+    <button
+      class="btn btn-primary plan-btn"
+      bindtap="planRoute"
+      disabled="{{!canPlan}}"
+    >
+      Plan Route
+    </button>
+  </view>
+
+  <!-- Recent Trips -->
+  <view class="card" wx:if="{{recentTrips.length > 0}}">
+    <view class="section-title">Recent</view>
+    <view
+      class="recent-trip"
+      wx:for="{{recentTrips}}"
+      wx:key="id"
+      bindtap="loadTrip"
+      data-trip="{{item}}"
+    >
+      <view class="trip-route">
+        <text class="trip-origin">{{item.originName}}</text>
+        <text class="trip-arrow">-></text>
+        <text class="trip-dest">{{item.destinationName}}</text>
+      </view>
+      <text class="trip-distance">{{item.distanceKm}} km</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,51 @@
+<!--pages/vehicle-binding/vehicle-binding.wxml-->
+<view class="container">
+  <!-- Intro -->
+  <view class="intro">
+    <image class="tesla-logo" src="/assets/icons/tesla-logo.png" mode="aspectFit"></image>
+    <text class="intro-title">Connect Tesla Account</text>
+    <text class="intro-desc">Link your Tesla account to get real-time battery status and optimize route planning</text>
+  </view>
+
+  <!-- Benefits -->
+  <view class="card">
+    <view class="section-title">Benefits</view>
+    <view class="benefit-list">
+      <view class="benefit-item">
+        <view class="benefit-icon">1</view>
+        <view class="benefit-content">
+          <text class="benefit-title">Real-time Battery Status</text>
+          <text class="benefit-desc">Get accurate SOC data from your vehicle</text>
+        </view>
+      </view>
+      <view class="benefit-item">
+        <view class="benefit-icon">2</view>
+        <view class="benefit-content">
+          <text class="benefit-title">Precise Range Estimation</text>
+          <text class="benefit-desc">Based on your actual vehicle configuration</text>
+        </view>
+      </view>
+      <view class="benefit-item">
+        <view class="benefit-icon">3</view>
+        <view class="benefit-content">
+          <text class="benefit-title">Optimal Charging Stops</text>
+          <text class="benefit-desc">Recommendations tailored to your battery</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Privacy Notice -->
+  <view class="card privacy-card">
+    <text class="privacy-title">Privacy & Security</text>
+    <text class="privacy-text">We only access your vehicle's battery status and location. We never store your Tesla password or control your vehicle remotely.</text>
+  </view>
+
+  <!-- Bind Button -->
+  <view class="bottom-actions">
+    <button class="btn btn-primary" bindtap="startBinding" loading="{{loading}}">
+      Connect Tesla Account
+    </button>
+    <text class="skip-link" bindtap="skipBinding">Skip for now</text>
+  </view>
+</view>
