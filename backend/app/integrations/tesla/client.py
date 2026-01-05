@@ -688,12 +688,21 @@ class TeslaClient:
     # Convenience methods for common data access
     async def get_charge_state(self, vehicle_tag: str) -> Dict[str, Any]:
         """Get vehicle charge state."""
-        data = await self.get_vehicle_data(vehicle_tag)
+        data = await self.get_vehicle_data(
+            vehicle_tag,
+            endpoints=["charge_state"],
+        )
         return data.get("response", {}).get("charge_state", {})
 
     async def get_drive_state(self, vehicle_tag: str) -> Dict[str, Any]:
-        """Get vehicle drive state (location, heading, speed)."""
-        data = await self.get_vehicle_data(vehicle_tag)
+        """Get vehicle drive state (location, heading, speed).
+
+        Uses location_data endpoint to ensure GPS coordinates are included.
+        """
+        data = await self.get_vehicle_data(
+            vehicle_tag,
+            endpoints=["location_data", "drive_state"],
+        )
         return data.get("response", {}).get("drive_state", {})
 
     async def get_vehicle_config(self, vehicle_tag: str) -> Dict[str, Any]:
