@@ -6,55 +6,170 @@ Page({
   data: {
     hasVehicle: false,
     vehicle: null,
+    vehicleState: null,
     origin: null,
     destination: null,
     currentSoc: 80,
     recentTrips: [],
-    canPlan: false
+    canPlan: false,
+    loading: false,
+    showVehicleCard: true
   },
 
   onLoad() {
-    this.checkVehicleStatus();
     this.loadRecentTrips();
   },
 
-  onShow() {
-    // Refresh vehicle status when page shows
-    if (app.globalData.hasVehicleBound) {
-      this.refreshVehicleStatus();
-    }
+  async onShow() {
+    // Check login and vehicle status
+    await this.initializeState();
   },
 
-  checkVehicleStatus() {
-    const hasVehicle = app.globalData.hasVehicleBound;
-    this.setData({
-      hasVehicle,
-      vehicle: app.globalData.currentVehicle
-    });
+  async initializeState() {
+    const token = wx.getStorageSync('token');
+
+    if (!token) {
+      // Not logged in
+      this.setData({
+        hasVehicle: false,
+        vehicle: null,
+        vehicleState: null
+      });
+      return;
+    }
+
+    // Check Tesla binding status
+    const hasTesla = await app.checkTeslaStatus();
+
+    if (hasTesla) {
+      // Fetch vehicle list
+      const vehicles = await app.fetchVehicles();
+
+      if (vehicles.length > 0) {
+        const vehicle = vehicles[0];
+        this.setData({
+          hasVehicle: true,
+          vehicle: vehicle
+        });
+
+        // Try to get vehicle state (might be asleep)
+        await this.fetchVehicleState(vehicle.id);
+      } else {
+        this.setData({
+          hasVehicle: true,
+          vehicle: null
+        });
+      }
+    } else {
+      this.setData({
+        hasVehicle: false,
+        vehicle: null
+      });
+    }
+
     this.updateCanPlan();
   },
 
-  refreshVehicleStatus() {
+  async fetchVehicleState(vehicleId) {
     const token = wx.getStorageSync('token');
     if (!token) return;
 
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/vehicles/${vehicleId}/state`,
+        method: 'GET',
+        header: {
+          'Authorization': `Bearer ${token}`
+        },
+        success: (res) => {
+          if (res.statusCode === 200) {
+            const state = res.data;
+            this.setData({
+              vehicleState: state,
+              currentSoc: state.battery_level || 80
+            });
+
+            // If we have location, set as origin
+            if (state.latitude && state.longitude) {
+              this.setVehicleAsOrigin(state);
+            }
+          } else if (res.statusCode === 503) {
+            // Vehicle offline
+            this.setData({
+              vehicleState: { state: 'offline' }
+            });
+          }
+          resolve();
+        },
+        fail: () => resolve()
+      });
+    });
+  },
+
+  setVehicleAsOrigin(state) {
+    // Reverse geocode the vehicle location
     wx.request({
-      url: `${app.globalData.apiBaseUrl}/vehicles/current/status`,
-      method: 'GET',
+      url: `${app.globalData.apiBaseUrl}/routes/reverse-geocode`,
+      method: 'POST',
+      data: {
+        latitude: state.latitude,
+        longitude: state.longitude
+      },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.setData({
+            origin: {
+              name: res.data.address || 'Vehicle Location',
+              latitude: state.latitude,
+              longitude: state.longitude
+            }
+          });
+          this.updateCanPlan();
+        }
+      }
+    });
+  },
+
+  async wakeVehicle() {
+    const { vehicle } = this.data;
+    if (!vehicle) return;
+
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+
+    wx.showLoading({ title: 'Waking vehicle...' });
+
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/vehicles/${vehicle.id}/wake`,
+      method: 'POST',
       header: {
         'Authorization': `Bearer ${token}`
       },
       success: (res) => {
+        wx.hideLoading();
         if (res.statusCode === 200) {
-          const vehicle = res.data;
-          app.globalData.currentVehicle = vehicle;
-          this.setData({
-            hasVehicle: true,
-            vehicle,
-            currentSoc: vehicle.batteryLevel || 80
+          wx.showToast({
+            title: res.data.message,
+            icon: 'success'
           });
-          this.updateCanPlan();
+
+          // Retry fetching state after a delay
+          setTimeout(() => {
+            this.fetchVehicleState(vehicle.id);
+          }, 5000);
+        } else {
+          wx.showToast({
+            title: 'Failed to wake vehicle',
+            icon: 'none'
+          });
         }
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({
+          title: 'Network error',
+          icon: 'none'
+        });
       }
     });
   },
@@ -65,9 +180,25 @@ Page({
   },
 
   goToBindVehicle() {
-    wx.navigateTo({
-      url: '/pages/vehicle-binding/vehicle-binding'
-    });
+    const token = wx.getStorageSync('token');
+
+    if (!token) {
+      // Need to login first
+      app.login().then(() => {
+        wx.navigateTo({
+          url: '/pages/vehicle-binding/vehicle-binding'
+        });
+      }).catch(() => {
+        wx.showToast({
+          title: 'Please login first',
+          icon: 'none'
+        });
+      });
+    } else {
+      wx.navigateTo({
+        url: '/pages/vehicle-binding/vehicle-binding'
+      });
+    }
   },
 
   chooseOrigin() {
@@ -104,7 +235,6 @@ Page({
     wx.getLocation({
       type: 'gcj02',
       success: (res) => {
-        // Reverse geocode to get address
         this.reverseGeocode(res.latitude, res.longitude);
       },
       fail: () => {
@@ -116,11 +246,22 @@ Page({
     });
   },
 
+  useVehicleLocation() {
+    const { vehicleState } = this.data;
+    if (vehicleState && vehicleState.latitude && vehicleState.longitude) {
+      this.setVehicleAsOrigin(vehicleState);
+    } else {
+      wx.showToast({
+        title: 'Vehicle location not available',
+        icon: 'none'
+      });
+    }
+  },
+
   reverseGeocode(latitude, longitude) {
-    // Use Tencent Map API for reverse geocoding
     wx.request({
-      url: `${app.globalData.apiBaseUrl}/map/reverse-geocode`,
-      method: 'GET',
+      url: `${app.globalData.apiBaseUrl}/routes/reverse-geocode`,
+      method: 'POST',
       data: { latitude, longitude },
       success: (res) => {
         if (res.statusCode === 200) {
@@ -135,7 +276,6 @@ Page({
         }
       },
       fail: () => {
-        // Fallback to generic name
         this.setData({
           origin: {
             name: 'Current Location',
@@ -170,7 +310,8 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: 'Planning...' });
+    this.setData({ loading: true });
+    wx.showLoading({ title: 'Planning route...' });
 
     const token = wx.getStorageSync('token');
 
@@ -183,20 +324,23 @@ Page({
       },
       data: {
         origin: {
-          name: origin.name,
           latitude: origin.latitude,
-          longitude: origin.longitude
+          longitude: origin.longitude,
+          address: origin.name
         },
         destination: {
-          name: destination.name,
           latitude: destination.latitude,
-          longitude: destination.longitude
+          longitude: destination.longitude,
+          address: destination.name
         },
-        initial_soc: vehicle ? vehicle.batteryLevel : currentSoc,
-        vehicle_id: vehicle ? vehicle.id : null
+        current_soc: currentSoc,
+        vehicle_id: vehicle ? vehicle.id : null,
+        car_type: vehicle ? this.getCarType(vehicle.model) : 'model_y_long_range'
       },
       success: (res) => {
         wx.hideLoading();
+        this.setData({ loading: false });
+
         if (res.statusCode === 200) {
           // Save to recent trips
           this.saveToRecentTrips(origin, destination, res.data);
@@ -214,12 +358,23 @@ Page({
       },
       fail: () => {
         wx.hideLoading();
+        this.setData({ loading: false });
         wx.showToast({
           title: 'Network error',
           icon: 'none'
         });
       }
     });
+  },
+
+  getCarType(model) {
+    const modelMap = {
+      'Model Y': 'model_y_long_range',
+      'Model 3': 'model_3_long_range',
+      'Model S': 'model_s_long_range',
+      'Model X': 'model_x_long_range'
+    };
+    return modelMap[model] || 'model_y_long_range';
   },
 
   saveToRecentTrips(origin, destination, routeData) {
@@ -248,5 +403,27 @@ Page({
       destination: trip.destination
     });
     this.updateCanPlan();
+  },
+
+  swapLocations() {
+    const { origin, destination } = this.data;
+    if (origin && destination) {
+      this.setData({
+        origin: destination,
+        destination: origin
+      });
+    }
+  },
+
+  toggleVehicleCard() {
+    this.setData({
+      showVehicleCard: !this.data.showVehicleCard
+    });
+  },
+
+  onPullDownRefresh() {
+    this.initializeState().then(() => {
+      wx.stopPullDownRefresh();
+    });
   }
 });

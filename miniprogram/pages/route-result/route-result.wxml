@@ -1,5 +1,22 @@
 <!--pages/route-result/route-result.wxml-->
 <view class="container">
+  <!-- Map View -->
+  <view class="map-container">
+    <map
+      id="routeMap"
+      class="route-map"
+      latitude="{{routeData.origin.lat}}"
+      longitude="{{routeData.origin.lng}}"
+      scale="10"
+      markers="{{markers}}"
+      polyline="{{polyline}}"
+      show-location="{{false}}"
+      enable-scroll="{{true}}"
+      enable-zoom="{{true}}"
+      bindmarkertap="onMarkerTap"
+    />
+  </view>
+
   <!-- Route Summary -->
   <view class="card summary-card">
     <view class="route-endpoints">
@@ -20,8 +37,12 @@
         <text class="stat-label">km</text>
       </view>
       <view class="stat">
-        <text class="stat-value">{{formatDuration(routeData.total_duration_minutes)}}</text>
-        <text class="stat-label">total</text>
+        <text class="stat-value">{{routeData.total_duration_minutes}}</text>
+        <text class="stat-label">min</text>
+      </view>
+      <view class="stat">
+        <text class="stat-value">{{routeData.num_charging_stops}}</text>
+        <text class="stat-label">stops</text>
       </view>
       <view class="stat">
         <text class="stat-value">{{routeData.arrival_soc}}%</text>
@@ -31,7 +52,7 @@
   </view>
 
   <!-- Warnings -->
-  <view class="card warning-card" wx:if="{{routeData.warnings.length > 0}}">
+  <view class="card warning-card" wx:if="{{routeData.warnings && routeData.warnings.length > 0}}">
     <view class="warning-item" wx:for="{{routeData.warnings}}" wx:key="index">
       <text class="warning-icon">!</text>
       <text class="warning-text">{{item}}</text>
@@ -39,7 +60,7 @@
   </view>
 
   <!-- Charging Stops -->
-  <view class="card" wx:if="{{routeData.charging_stops.length > 0}}">
+  <view class="card" wx:if="{{routeData.charging_stops && routeData.charging_stops.length > 0}}">
     <view class="section-title">Charging Stops ({{routeData.charging_stops.length}})</view>
 
     <view class="timeline">
@@ -54,26 +75,28 @@
           <text class="stop-number">{{index + 1}}</text>
         </view>
         <view class="stop-content">
-          <text class="stop-name">{{item.station_name}}</text>
+          <text class="stop-name">{{item.name}}</text>
           <view class="stop-details">
-            <text class="stop-type">{{item.charger_type}}</text>
-            <text class="stop-distance">{{item.distance_from_start_km}} km from start</text>
+            <text class="stop-operator" wx:if="{{item.operator}}">{{item.operator}}</text>
+            <text class="stop-distance">{{item.distance_from_start_km}} km</text>
           </view>
           <view class="stop-soc">
-            <text>{{item.arrival_soc}}%</text>
-            <text class="soc-arrow">-></text>
-            <text>{{item.departure_soc}}%</text>
+            <text class="soc-value arrival">{{item.arrival_soc}}%</text>
+            <text class="soc-arrow">→</text>
+            <text class="soc-value departure">{{item.departure_soc}}%</text>
             <text class="charge-time">({{item.charging_duration_minutes}} min)</text>
           </view>
         </view>
-        <view class="stop-arrow">></view>
+        <view class="stop-arrow">›</view>
       </view>
     </view>
   </view>
 
   <!-- No Charging Needed -->
-  <view class="card success-card" wx:if="{{routeData.charging_stops.length === 0 && routeData.arrival_soc >= 20}}">
-    <text class="success-icon">OK</text>
+  <view class="card success-card" wx:if="{{!routeData.charging_stops || routeData.charging_stops.length === 0}}">
+    <view class="success-icon-wrapper">
+      <text class="success-icon">✓</text>
+    </view>
     <text class="success-text">No charging needed!</text>
     <text class="success-desc">You will arrive with {{routeData.arrival_soc}}% battery</text>
   </view>
@@ -84,24 +107,37 @@
     <view class="time-breakdown">
       <view class="time-item">
         <text class="time-label">Driving</text>
-        <text class="time-value">{{formatDuration(routeData.driving_duration_minutes)}}</text>
+        <text class="time-value">{{routeData.driving_duration_minutes}} min</text>
       </view>
-      <view class="time-item">
+      <view class="time-item" wx:if="{{routeData.charging_duration_minutes > 0}}">
         <text class="time-label">Charging</text>
-        <text class="time-value">{{formatDuration(routeData.charging_duration_minutes)}}</text>
+        <text class="time-value">{{routeData.charging_duration_minutes}} min</text>
       </view>
       <view class="time-divider"></view>
       <view class="time-item total">
         <text class="time-label">Total</text>
-        <text class="time-value">{{formatDuration(routeData.total_duration_minutes)}}</text>
+        <text class="time-value">{{routeData.total_duration_minutes}} min</text>
       </view>
     </view>
   </view>
 
-  <!-- Navigate Button -->
+  <!-- Bottom Actions -->
   <view class="bottom-actions">
-    <button class="btn btn-primary" bindtap="startNavigation">
-      Start Navigation
+    <view class="action-row">
+      <button class="btn btn-secondary" bindtap="shareRoute">
+        Share
+      </button>
+      <button class="btn btn-secondary" bindtap="startNavigation">
+        Navigate
+      </button>
+    </view>
+    <button
+      class="btn btn-primary btn-full {{sendingToCar ? 'loading' : ''}}"
+      bindtap="sendToVehicle"
+      disabled="{{sendingToCar}}"
+    >
+      <text wx:if="{{!sendingToCar}}">Send to Tesla</text>
+      <text wx:else>Sending...</text>
     </button>
   </view>
 </view>

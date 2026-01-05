@@ -87,3 +87,4 @@ secrets.json
 
 # Plan files
 .claude/
+backend/.server.pid

@@ -8,7 +8,8 @@ App({
     userInfo: null,
     hasVehicleBound: false,
     currentVehicle: null,
-    apiBaseUrl: 'https://api.teplanner.com/api/v1', // Replace with actual API URL
+    apiBaseUrl: 'https://api.teplanner.cloud/api/v1', // Production API
+    // apiBaseUrl: 'http://82.156.248.135:8000/api/v1', // Development API
   },
 
   onLaunch() {
@@ -56,15 +57,26 @@ App({
             wx.request({
               url: `${this.globalData.apiBaseUrl}/auth/wechat/login`,
               method: 'POST',
+              header: {
+                'Content-Type': 'application/json'
+              },
               data: { code: res.code },
               success: (response) => {
                 if (response.statusCode === 200) {
-                  const { token, user } = response.data;
-                  wx.setStorageSync('token', token);
-                  this.globalData.userInfo = user;
-                  resolve(user);
+                  const data = response.data;
+                  // Store access token
+                  wx.setStorageSync('token', data.access_token);
+                  wx.setStorageSync('userId', data.user_id);
+
+                  this.globalData.userInfo = {
+                    id: data.user_id,
+                    openid: data.openid
+                  };
+                  this.globalData.hasVehicleBound = data.has_tesla_linked;
+
+                  resolve(this.globalData.userInfo);
                 } else {
-                  reject(new Error('Login failed'));
+                  reject(new Error(response.data.detail || 'Login failed'));
                 }
               },
               fail: reject
@@ -74,6 +86,59 @@ App({
           }
         },
         fail: reject
+      });
+    });
+  },
+
+  // Get Tesla link status
+  checkTeslaStatus() {
+    const token = wx.getStorageSync('token');
+    const userId = wx.getStorageSync('userId');
+
+    if (!token || !userId) return Promise.resolve(false);
+
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${this.globalData.apiBaseUrl}/auth/tesla/status?user_id=${userId}`,
+        method: 'GET',
+        success: (res) => {
+          if (res.statusCode === 200) {
+            this.globalData.hasVehicleBound = res.data.linked && !res.data.expired;
+            resolve(this.globalData.hasVehicleBound);
+          } else {
+            resolve(false);
+          }
+        },
+        fail: () => resolve(false)
+      });
+    });
+  },
+
+  // Fetch user's vehicles
+  fetchVehicles() {
+    const token = wx.getStorageSync('token');
+    if (!token) return Promise.resolve([]);
+
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${this.globalData.apiBaseUrl}/vehicles/`,
+        method: 'GET',
+        header: {
+          'Authorization': `Bearer ${token}`
+        },
+        success: (res) => {
+          if (res.statusCode === 200) {
+            const vehicles = res.data.vehicles || [];
+            if (vehicles.length > 0) {
+              this.globalData.currentVehicle = vehicles[0];
+              this.globalData.hasVehicleBound = true;
+            }
+            resolve(vehicles);
+          } else {
+            resolve([]);
+          }
+        },
+        fail: () => resolve([])
       });
     });
   }

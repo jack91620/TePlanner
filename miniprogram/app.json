@@ -4,6 +4,7 @@
     "pages/route-result/route-result",
     "pages/station-detail/station-detail",
     "pages/vehicle-binding/vehicle-binding",
+    "pages/webview/webview",
     "pages/profile/profile",
     "pages/settings/settings"
   ],
