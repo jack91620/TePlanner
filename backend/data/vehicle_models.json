@@ -1,84 +1,72 @@
 {
   "model3": {
     "name": "Model 3",
-    "variants": {
-      "standard": {
-        "battery_capacity_kwh": 60,
-        "efficiency_wh_per_km": 140,
-        "range_km": 430
-      },
-      "long_range": {
-        "battery_capacity_kwh": 82,
-        "efficiency_wh_per_km": 145,
-        "range_km": 565
-      },
-      "performance": {
-        "battery_capacity_kwh": 82,
-        "efficiency_wh_per_km": 155,
-        "range_km": 530
-      }
-    },
-    "default_variant": "standard",
     "battery_capacity_kwh": 60,
-    "efficiency_wh_per_km": 140
+    "consumption_wh_per_km": 140
+  },
+  "model_3_standard_range": {
+    "name": "Model 3 Standard Range",
+    "battery_capacity_kwh": 60,
+    "consumption_wh_per_km": 140
+  },
+  "model_3_long_range": {
+    "name": "Model 3 Long Range",
+    "battery_capacity_kwh": 82,
+    "consumption_wh_per_km": 145
+  },
+  "model_3_performance": {
+    "name": "Model 3 Performance",
+    "battery_capacity_kwh": 82,
+    "consumption_wh_per_km": 155
   },
   "modely": {
     "name": "Model Y",
-    "variants": {
-      "standard": {
-        "battery_capacity_kwh": 60,
-        "efficiency_wh_per_km": 155,
-        "range_km": 390
-      },
-      "long_range": {
-        "battery_capacity_kwh": 82,
-        "efficiency_wh_per_km": 160,
-        "range_km": 510
-      },
-      "performance": {
-        "battery_capacity_kwh": 82,
-        "efficiency_wh_per_km": 170,
-        "range_km": 480
-      }
-    },
-    "default_variant": "standard",
     "battery_capacity_kwh": 60,
-    "efficiency_wh_per_km": 155
+    "consumption_wh_per_km": 155
+  },
+  "model_y_standard_range": {
+    "name": "Model Y Standard Range",
+    "battery_capacity_kwh": 60,
+    "consumption_wh_per_km": 155
+  },
+  "model_y_long_range": {
+    "name": "Model Y Long Range",
+    "battery_capacity_kwh": 82,
+    "consumption_wh_per_km": 160
+  },
+  "model_y_performance": {
+    "name": "Model Y Performance",
+    "battery_capacity_kwh": 82,
+    "consumption_wh_per_km": 170
   },
   "models": {
     "name": "Model S",
-    "variants": {
-      "long_range": {
-        "battery_capacity_kwh": 100,
-        "efficiency_wh_per_km": 180,
-        "range_km": 555
-      },
-      "plaid": {
-        "battery_capacity_kwh": 100,
-        "efficiency_wh_per_km": 195,
-        "range_km": 515
-      }
-    },
-    "default_variant": "long_range",
     "battery_capacity_kwh": 100,
-    "efficiency_wh_per_km": 180
+    "consumption_wh_per_km": 180
+  },
+  "model_s_long_range": {
+    "name": "Model S Long Range",
+    "battery_capacity_kwh": 100,
+    "consumption_wh_per_km": 180
+  },
+  "model_s_plaid": {
+    "name": "Model S Plaid",
+    "battery_capacity_kwh": 100,
+    "consumption_wh_per_km": 195
   },
   "modelx": {
     "name": "Model X",
-    "variants": {
-      "long_range": {
-        "battery_capacity_kwh": 100,
-        "efficiency_wh_per_km": 195,
-        "range_km": 510
-      },
-      "plaid": {
-        "battery_capacity_kwh": 100,
-        "efficiency_wh_per_km": 210,
-        "range_km": 475
-      }
-    },
-    "default_variant": "long_range",
     "battery_capacity_kwh": 100,
-    "efficiency_wh_per_km": 195
+    "consumption_wh_per_km": 195
+  },
+  "model_x_long_range": {
+    "name": "Model X Long Range",
+    "battery_capacity_kwh": 100,
+    "consumption_wh_per_km": 195
+  },
+  "model_x_plaid": {
+    "name": "Model X Plaid",
+    "battery_capacity_kwh": 100,
+    "consumption_wh_per_km": 210
   }
 }
