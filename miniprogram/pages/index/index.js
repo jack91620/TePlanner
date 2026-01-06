@@ -103,8 +103,7 @@ Page({
       that.fetchVehicleState(vehicle.id);
       that.loadRecentTrips();
 
-    }).catch(function(err) {
-      console.error("Failed to check vehicle status:", err);
+    }).catch(function() {
       that.setData({ hasVehicle: false, "loading.vehicle": false });
     });
   },
@@ -242,8 +241,7 @@ Page({
     }).then(function(stations) {
       that.setData({ nearbyStations: stations || [] });
       that.updateStationMarkers(stations || []);
-    }).catch(function(err) {
-      console.error("Failed to load stations:", err);
+    }).catch(function() {
       that.setData({ nearbyStations: [] });
     }).finally(function() {
       that.setData({ "loading.stations": false });
@@ -373,8 +371,7 @@ Page({
         // No results, try geocode
         that.fallbackGeocode(keyword);
       }
-    }).catch(function(err) {
-      console.error("Search failed:", err);
+    }).catch(function() {
       that.fallbackGeocode(keyword);
     });
   },
@@ -522,8 +519,7 @@ Page({
       that.setData({ routeData: routeData });
       that.drawRoute(routeData);
       that.saveRecentTrip(dest);
-    }).catch(function(err) {
-      console.error("Failed to plan route:", err);
+    }).catch(function() {
       wx.showToast({ title: "路线规划失败", icon: "none" });
       that.setData({ pageState: "idle" });
     }).finally(function() {
@@ -657,9 +653,8 @@ Page({
     }).then(function() {
       wx.hideLoading();
       wx.showToast({ title: "已发送到车辆", icon: "success" });
-    }).catch(function(err) {
+    }).catch(function() {
       wx.hideLoading();
-      console.error("Failed to send navigation:", err);
       wx.showToast({ title: "发送失败", icon: "none" });
     });
   },
@@ -746,9 +741,8 @@ Page({
       app.login().then(function() {
         wx.hideLoading();
         that.navigateToTeslaAuth();
-      }).catch(function(err) {
+      }).catch(function() {
         wx.hideLoading();
-        console.error("Login failed:", err);
         wx.showToast({ title: "登录失败", icon: "none" });
       });
     } else {
