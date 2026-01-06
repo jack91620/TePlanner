@@ -141,6 +141,7 @@ class RoutePlanner:
         min_arrival_soc: int = DEFAULT_ARRIVAL_SOC,
         min_charging_soc: int = DEFAULT_MIN_SOC,
         target_charging_soc: int = DEFAULT_TARGET_SOC,
+        vehicle_range_km: Optional[float] = None,
     ) -> RoutePlanResult:
         """Plan a route with optimal charging stops.
 
@@ -152,6 +153,8 @@ class RoutePlanner:
             min_arrival_soc: Minimum SOC at destination
             min_charging_soc: Minimum SOC before stopping to charge
             target_charging_soc: Target SOC after charging
+            vehicle_range_km: Actual vehicle range at 100% SOC (from Tesla API)
+                             If provided, overrides car_type based calculations
 
         Returns:
             RoutePlanResult with optimized charging stops
@@ -183,11 +186,16 @@ class RoutePlanner:
             pass
 
         # Step 3: Calculate energy consumption
-        consumption = self.energy_model.calculate_consumption(
-            distance_km=total_distance_km,
-            car_type=car_type,
-        )
-        soc_consumed = consumption["soc_consumed"]
+        if vehicle_range_km and vehicle_range_km > 0:
+            # Use actual range from Tesla API - more accurate
+            soc_consumed = (total_distance_km / vehicle_range_km) * 100
+        else:
+            # Fallback to car_type based calculation
+            consumption = self.energy_model.calculate_consumption(
+                distance_km=total_distance_km,
+                car_type=car_type,
+            )
+            soc_consumed = consumption["soc_consumed"]
         direct_arrival_soc = initial_soc - int(soc_consumed)
 
         warnings = []
@@ -221,6 +229,7 @@ class RoutePlanner:
             min_charging_soc=min_charging_soc,
             target_charging_soc=target_charging_soc,
             min_arrival_soc=min_arrival_soc,
+            vehicle_range_km=vehicle_range_km,
         )
 
         # Calculate total charging time
@@ -232,6 +241,7 @@ class RoutePlanner:
             total_distance_km=total_distance_km,
             charging_stops=charging_stops,
             car_type=car_type,
+            vehicle_range_km=vehicle_range_km,
         )
 
         if final_arrival_soc < min_arrival_soc:
@@ -271,6 +281,7 @@ class RoutePlanner:
         min_charging_soc: int,
         target_charging_soc: int,
         min_arrival_soc: int,
+        vehicle_range_km: Optional[float] = None,
     ) -> List[ChargingStop]:
         """Find optimal charging stops along the route.
 
@@ -289,16 +300,23 @@ class RoutePlanner:
             min_charging_soc: Minimum SOC before charging
             target_charging_soc: Target SOC after charging
             min_arrival_soc: Target arrival SOC
+            vehicle_range_km: Actual vehicle range at 100% SOC (from Tesla API)
 
         Returns:
             List of charging stops
         """
         map_client = await self._get_map_client()
 
-        # Get vehicle specs
-        specs = self.energy_model.get_vehicle_specs(car_type)
-        battery_capacity = specs["battery_capacity_kwh"]
-        consumption_per_km = specs["consumption_wh_per_km"] / 1000  # Convert to kWh/km
+        # Calculate max range based on vehicle_range_km or car_type specs
+        if vehicle_range_km and vehicle_range_km > 0:
+            # Use actual range from Tesla API - calculate max range directly from SOC
+            full_range_km = vehicle_range_km
+        else:
+            # Fallback to car_type based calculation
+            specs = self.energy_model.get_vehicle_specs(car_type)
+            battery_capacity = specs.get("battery_capacity_kwh", 60)
+            consumption_per_km = specs.get("consumption_wh_per_km", 150) / 1000
+            full_range_km = battery_capacity / consumption_per_km
 
         charging_stops = []
         current_soc = initial_soc
@@ -307,14 +325,12 @@ class RoutePlanner:
         while distance_traveled < total_distance_km:
             # Calculate how far we can go with current SOC
             usable_soc = current_soc - min_charging_soc
-            usable_energy = battery_capacity * (usable_soc / 100)
-            max_range_km = usable_energy / consumption_per_km
+            max_range_km = full_range_km * (usable_soc / 100)
 
             remaining_distance = total_distance_km - distance_traveled
 
-            # Check if we can reach destination
-            energy_to_destination = remaining_distance * consumption_per_km
-            soc_to_destination = (energy_to_destination / battery_capacity) * 100
+            # Check if we can reach destination using range-based calculation
+            soc_to_destination = (remaining_distance / full_range_km) * 100
 
             if current_soc - soc_to_destination >= min_arrival_soc:
                 # Can reach destination without more charging
@@ -368,25 +384,23 @@ class RoutePlanner:
             station_lat = station_location.get("lat", target_point[0])
             station_lng = station_location.get("lng", target_point[1])
 
-            # Calculate distance to station
-            distance_to_station = self._calculate_distance(
-                origin[0] if not charging_stops else charging_stops[-1].latitude,
-                origin[1] if not charging_stops else charging_stops[-1].longitude,
-                station_lat,
-                station_lng,
-            )
+            # Use target_distance as station's approximate position along route
+            # (since that's where we searched for it)
+            station_distance = target_distance
 
-            # Approximate station's position along route
-            station_distance = distance_traveled + distance_to_station
+            # Calculate the driving distance from last position to station
+            segment_distance = station_distance - distance_traveled
 
-            # Calculate arrival SOC at station
-            energy_used = distance_to_station * consumption_per_km
-            arrival_soc_at_station = current_soc - int((energy_used / battery_capacity) * 100)
+            # Calculate arrival SOC at station using range-based calculation
+            soc_used = (segment_distance / full_range_km) * 100
+            arrival_soc_at_station = current_soc - int(soc_used)
             arrival_soc_at_station = max(0, arrival_soc_at_station)
 
             # Calculate charging time (rough estimate)
+            # Assume average battery capacity of 70kWh for charging time calculation
+            estimated_battery_kwh = 70
             soc_to_add = target_charging_soc - arrival_soc_at_station
-            energy_to_add = battery_capacity * (soc_to_add / 100)
+            energy_to_add = estimated_battery_kwh * (soc_to_add / 100)
             charging_minutes = int((energy_to_add / self.DEFAULT_CHARGING_POWER_KW) * 60)
 
             charging_stop = ChargingStop(
@@ -482,6 +496,7 @@ class RoutePlanner:
         total_distance_km: float,
         charging_stops: List[ChargingStop],
         car_type: str,
+        vehicle_range_km: Optional[float] = None,
     ) -> int:
         """Calculate the final SOC at destination.
 
@@ -490,16 +505,24 @@ class RoutePlanner:
             total_distance_km: Total route distance
             charging_stops: List of charging stops
             car_type: Vehicle type
+            vehicle_range_km: Actual vehicle range at 100% SOC (from Tesla API)
 
         Returns:
             Final SOC percentage
         """
+        def calc_soc_consumed(distance_km: float) -> float:
+            """Calculate SOC consumed for a given distance."""
+            if vehicle_range_km and vehicle_range_km > 0:
+                return (distance_km / vehicle_range_km) * 100
+            else:
+                consumption = self.energy_model.calculate_consumption(
+                    distance_km=distance_km,
+                    car_type=car_type,
+                )
+                return consumption["soc_consumed"]
+
         if not charging_stops:
-            consumption = self.energy_model.calculate_consumption(
-                distance_km=total_distance_km,
-                car_type=car_type,
-            )
-            return max(0, initial_soc - int(consumption["soc_consumed"]))
+            return max(0, initial_soc - int(calc_soc_consumed(total_distance_km)))
 
         # Calculate SOC at each segment
         current_soc = initial_soc
@@ -507,22 +530,14 @@ class RoutePlanner:
 
         for stop in charging_stops:
             segment_distance = stop.distance_from_start_km - previous_distance
-            consumption = self.energy_model.calculate_consumption(
-                distance_km=segment_distance,
-                car_type=car_type,
-            )
-            current_soc -= int(consumption["soc_consumed"])
+            current_soc -= int(calc_soc_consumed(segment_distance))
             current_soc = stop.departure_soc  # Charge to departure SOC
             previous_distance = stop.distance_from_start_km
 
         # Final segment to destination
         final_segment = total_distance_km - previous_distance
         if final_segment > 0:
-            consumption = self.energy_model.calculate_consumption(
-                distance_km=final_segment,
-                car_type=car_type,
-            )
-            current_soc -= int(consumption["soc_consumed"])
+            current_soc -= int(calc_soc_consumed(final_segment))
 
         return max(0, current_soc)
 

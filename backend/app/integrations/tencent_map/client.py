@@ -284,14 +284,50 @@ class TencentMapClient:
             }
 
         route = routes[0]
+
+        # Decode delta-encoded polyline
+        raw_polyline = route.get("polyline", [])
+        decoded_polyline = self._decode_polyline(raw_polyline)
+
         return {
             "distance": route.get("distance", 0),  # meters
             "duration": route.get("duration", 0),  # seconds
-            "polyline": route.get("polyline", []),
+            "polyline": decoded_polyline,
             "steps": route.get("steps", []),
             "waypoints": result.get("waypoints", []),
             "taxi_cost": route.get("taxi_cost", {}),
         }
+
+    def _decode_polyline(self, raw_polyline: List) -> List[Tuple[float, float]]:
+        """Decode Tencent Map delta-encoded polyline.
+
+        The format is:
+        - First two values are the starting lat/lng
+        - Subsequent pairs are delta values (offset * 1e6)
+
+        Args:
+            raw_polyline: Flat array of encoded values
+
+        Returns:
+            List of (lat, lng) tuples
+        """
+        if not raw_polyline or len(raw_polyline) < 2:
+            return []
+
+        points = []
+
+        # First point is absolute coordinates
+        lat = raw_polyline[0]
+        lng = raw_polyline[1]
+        points.append((lat, lng))
+
+        # Remaining points are delta-encoded
+        for i in range(2, len(raw_polyline) - 1, 2):
+            lat += raw_polyline[i] / 1e6
+            lng += raw_polyline[i + 1] / 1e6
+            points.append((lat, lng))
+
+        return points
 
     async def calculate_route_with_charging(
         self,

@@ -107,6 +107,7 @@ async def plan_route(
     origin_lat = None
     origin_lng = None
     current_soc = request.current_soc or 100
+    vehicle_actual_range_km = None  # Will be calculated from Tesla API if available
 
     # Get origin from request or vehicle
     if request.origin:
@@ -147,10 +148,19 @@ async def plan_route(
                     origin_lat = drive_state.get("latitude")
                     origin_lng = drive_state.get("longitude")
 
-                    # Also get SOC if not provided
+                    # Get SOC if not provided
                     if request.current_soc is None:
                         current_soc = charge_state.get("usable_battery_level") or \
                                      charge_state.get("battery_level") or 100
+
+                    # Calculate actual range from Tesla data for more accurate planning
+                    battery_level = charge_state.get("battery_level")
+                    battery_range_miles = charge_state.get("ideal_battery_range") or charge_state.get("battery_range")
+                    if battery_level and battery_range_miles and battery_level > 0:
+                        # Calculate full range in km
+                        full_range_km = (battery_range_miles / (battery_level / 100)) * 1.60934
+                        # Store for route planning
+                        vehicle_actual_range_km = full_range_km
         except Exception as e:
             # Fall through to error
             pass
@@ -170,6 +180,7 @@ async def plan_route(
                 initial_soc=current_soc,
                 car_type=request.car_type,
                 min_arrival_soc=request.min_arrival_soc,
+                vehicle_range_km=vehicle_actual_range_km,  # Use actual range from Tesla API
             )
 
             # Save to database if user is authenticated
