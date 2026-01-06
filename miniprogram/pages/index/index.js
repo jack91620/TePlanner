@@ -108,22 +108,10 @@ Page({
       console.error("Failed to get vehicle state:", err);
       var errorMsg = err.message || "";
 
-      // Check if vehicle is offline
+      // Check if vehicle is offline, auto wake it
       if (errorMsg.indexOf("offline") !== -1 || errorMsg.indexOf("asleep") !== -1) {
         that.setData({ vehicleOffline: true });
-        wx.showModal({
-          title: "车辆休眠中",
-          content: "您的车辆目前处于休眠状态，是否尝试唤醒？",
-          confirmText: "唤醒",
-          cancelText: "稍后",
-          success: function(res) {
-            if (res.confirm) {
-              that.wakeUpVehicle();
-            } else {
-              that.initMapFromDevice();
-            }
-          }
-        });
+        that.wakeAndFetchState(vehicleId);
       } else {
         // Other errors, use device location
         that.initMapFromDevice();
@@ -131,27 +119,41 @@ Page({
     });
   },
 
-  wakeUpVehicle: function() {
+  wakeAndFetchState: function(vehicleId) {
     var that = this;
-    var vehicle = this.data.vehicle;
-    if (!vehicle) return;
 
     that.setData({ "loading.waking": true });
-    wx.showLoading({ title: "正在唤醒车辆..." });
+    wx.showLoading({ title: "正在连接车辆..." });
 
-    api.wakeVehicle(vehicle.id).then(function() {
-      wx.hideLoading();
-      wx.showToast({ title: "唤醒成功", icon: "success" });
-      that.setData({ vehicleOffline: false, "loading.waking": false });
-
-      // Wait a moment then fetch state
+    api.wakeVehicle(vehicleId).then(function() {
+      // Wait for vehicle to wake up, then fetch state
       setTimeout(function() {
-        that.fetchVehicleState(vehicle.id);
-      }, 2000);
+        api.getVehicleState(vehicleId).then(function(state) {
+          wx.hideLoading();
+          that.setData({
+            vehicleState: state,
+            vehicleOffline: false,
+            "loading.waking": false,
+            departureSOC: state.battery_level || 80
+          });
+
+          if (state.latitude && state.longitude) {
+            that.setData({
+              mapCenter: { latitude: state.latitude, longitude: state.longitude }
+            });
+            that.updateVehicleMarker(state);
+            that.loadNearbyStations();
+          }
+        }).catch(function(err) {
+          wx.hideLoading();
+          console.error("Failed to get state after wake:", err);
+          that.setData({ "loading.waking": false });
+          that.initMapFromDevice();
+        });
+      }, 3000);
     }).catch(function(err) {
       wx.hideLoading();
-      console.error("Failed to wake up vehicle:", err);
-      wx.showToast({ title: "唤醒失败", icon: "none" });
+      console.error("Failed to wake vehicle:", err);
       that.setData({ "loading.waking": false });
       that.initMapFromDevice();
     });
