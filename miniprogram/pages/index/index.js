@@ -360,7 +360,8 @@ Page({
     if (this.mapCtx) {
       this.mapCtx.includePoints({
         points: routeData.polyline,
-        padding: [80, 40, 200, 40]
+        padding: [80, 40, 200, 40],
+        fail: function() {}
       });
     }
   },
@@ -533,7 +534,8 @@ Page({
       if (this.mapCtx) {
         this.mapCtx.moveToLocation({
           latitude: this.data.vehicleState.latitude,
-          longitude: this.data.vehicleState.longitude
+          longitude: this.data.vehicleState.longitude,
+          fail: function() {} // 开发者工具不支持此API
         });
       }
     } else if (this.data.vehicle) {
