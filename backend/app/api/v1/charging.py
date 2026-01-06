@@ -114,6 +114,13 @@ async def search_nearby_stations(
         type: 充电站类型
         radius: 搜索半径，默认50公里
     """
+    from app.config import settings
+
+    # Check if API key is configured
+    if not settings.TENCENT_MAP_KEY and not settings.TENCENT_MAP_API_KEY:
+        # Return empty result if no API key
+        return StationSearchResponse(count=0, stations=[])
+
     try:
         async with TencentMapClient() as client:
             # Different search based on type
@@ -159,7 +166,10 @@ async def search_nearby_stations(
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"搜索充电站失败: {str(e)}")
+        # Log error but return empty result instead of 500
+        import logging
+        logging.error(f"搜索充电站失败: {str(e)}")
+        return StationSearchResponse(count=0, stations=[])
 
 
 @router.get("/stations", response_model=StationSearchResponse)
