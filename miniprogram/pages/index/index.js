@@ -127,13 +127,12 @@ Page({
         that.loadNearbyStations();
       }
     }).catch(function(err) {
-      console.error("Failed to get vehicle state:", err);
       var errorMsg = err.message || "";
 
       // Check if vehicle is offline, auto wake it
       if (errorMsg.indexOf("offline") !== -1 || errorMsg.indexOf("asleep") !== -1) {
         that.setData({ vehicleOffline: true });
-        that.wakeAndFetchState(vehicleId);
+        that.wakeAndFetchState(vehicleId, 0);
       } else {
         // Other errors, use device location
         that.initMapFromDevice();
@@ -141,14 +140,21 @@ Page({
     });
   },
 
-  wakeAndFetchState: function(vehicleId) {
+  wakeAndFetchState: function(vehicleId, retryCount) {
     var that = this;
+    var maxRetries = 3;
+    retryCount = retryCount || 0;
 
-    that.setData({ "loading.waking": true });
-    wx.showLoading({ title: "正在连接车辆..." });
+    if (retryCount === 0) {
+      that.setData({ "loading.waking": true });
+      wx.showLoading({ title: "正在唤醒车辆..." });
+    }
 
     api.wakeVehicle(vehicleId).then(function() {
-      // Wait for vehicle to wake up, then fetch state
+      // Tesla takes time to wake up, wait longer on each retry
+      var waitTime = 5000 + (retryCount * 3000);
+      wx.showLoading({ title: "等待车辆响应..." });
+
       setTimeout(function() {
         api.getVehicleState(vehicleId).then(function(state) {
           wx.hideLoading();
@@ -167,15 +173,23 @@ Page({
             that.loadNearbyStations();
           }
         }).catch(function(err) {
-          wx.hideLoading();
-          console.error("Failed to get state after wake:", err);
-          that.setData({ "loading.waking": false });
-          that.initMapFromDevice();
+          var errorMsg = err.message || "";
+
+          // If still offline, retry
+          if ((errorMsg.indexOf("offline") !== -1 || errorMsg.indexOf("asleep") !== -1) && retryCount < maxRetries) {
+            wx.showLoading({ title: "重试中 (" + (retryCount + 1) + "/" + maxRetries + ")..." });
+            that.wakeAndFetchState(vehicleId, retryCount + 1);
+          } else {
+            // Max retries reached or other error
+            wx.hideLoading();
+            that.setData({ "loading.waking": false });
+            wx.showToast({ title: "车辆暂时无法连接", icon: "none" });
+            that.initMapFromDevice();
+          }
         });
-      }, 3000);
+      }, waitTime);
     }).catch(function(err) {
       wx.hideLoading();
-      console.error("Failed to wake vehicle:", err);
       that.setData({ "loading.waking": false });
       that.initMapFromDevice();
     });
