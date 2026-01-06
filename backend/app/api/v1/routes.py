@@ -66,6 +66,7 @@ class RoutePlanResponse(BaseModel):
     num_charging_stops: int
     initial_soc: int
     arrival_soc: int
+    polyline: List[dict] = []
     warnings: List[str] = []
 
 
@@ -205,6 +206,12 @@ async def plan_route(
                 await db.refresh(route_plan)
                 route_id = route_plan.id
 
+            # Convert polyline from [(lat, lng), ...] to [{"latitude": lat, "longitude": lng}, ...]
+            polyline_formatted = [
+                {"latitude": p[0], "longitude": p[1]}
+                for p in (result.polyline or [])
+            ]
+
             return RoutePlanResponse(
                 route_id=route_id,
                 origin=result.to_dict()["origin"],
@@ -231,6 +238,7 @@ async def plan_route(
                 num_charging_stops=len(result.charging_stops),
                 initial_soc=result.initial_soc,
                 arrival_soc=result.arrival_soc,
+                polyline=polyline_formatted,
                 warnings=result.warnings,
             )
 
