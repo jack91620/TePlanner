@@ -34,6 +34,7 @@
   height: calc(100% - 48rpx);
   overflow: hidden;
   padding: 0 32rpx;
+  box-sizing: border-box;
 }
 
 /* Tesla Dark Theme Colors */

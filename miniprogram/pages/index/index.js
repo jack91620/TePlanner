@@ -568,5 +568,18 @@ Page({
   navigateToTeslaAuth: function() {
     // Navigate to Tesla binding page
     wx.navigateTo({ url: "/pages/vehicle-binding/vehicle-binding" });
+  },
+
+  setDestinationAndPlan: function(destination) {
+    // Called from search page when destination is selected
+    this.setData({
+      destination: {
+        name: destination.name,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        address: destination.address
+      }
+    });
+    this.planRoute();
   }
 });

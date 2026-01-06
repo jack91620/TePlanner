@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/search/search",
     "pages/route-result/route-result",
     "pages/station-detail/station-detail",
     "pages/vehicle-binding/vehicle-binding",
