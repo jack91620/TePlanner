@@ -93,6 +93,62 @@
       </cover-view>
     </map>
 
+    <!-- Search Overlay -->
+    <view class="search-overlay" wx:if="{{pageState === 'searching'}}">
+      <view class="search-panel">
+        <!-- Search Input -->
+        <view class="search-input-box">
+          <image class="search-icon" src="/assets/icons/search.png" mode="aspectFit" />
+          <view class="search-input-wrapper">
+            <text class="search-label">导航</text>
+            <input
+              class="search-input"
+              type="text"
+              placeholder=""
+              value="{{searchKeyword}}"
+              bindinput="onSearchInput"
+              bindconfirm="onSearchConfirm"
+              focus="{{searchFocus}}"
+              confirm-type="search"
+            />
+          </view>
+          <view class="search-close" bindtap="closeSearch">
+            <text>X</text>
+          </view>
+        </view>
+
+        <!-- Search Results -->
+        <scroll-view class="search-results" scroll-y="{{true}}" wx:if="{{searchResults.length > 0}}">
+          <view
+            class="search-result-item"
+            wx:for="{{searchResults}}"
+            wx:key="id"
+            bindtap="onSearchResultTap"
+            data-item="{{item}}"
+          >
+            <view class="result-content">
+              <text class="result-name">{{item.name}}</text>
+              <text class="result-address">{{item.address}}</text>
+            </view>
+            <view class="result-distance">
+              <image class="distance-icon" src="/assets/icons/location.png" mode="aspectFit" />
+              <text class="distance-text">{{item.distance || '--'}} km</text>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- Loading -->
+        <view class="search-loading" wx:if="{{searchLoading}}">
+          <text>搜索中...</text>
+        </view>
+
+        <!-- Empty State -->
+        <view class="search-empty" wx:if="{{!searchLoading && searchKeyword && searchResults.length === 0 && searchDone}}">
+          <text>未找到相关地点</text>
+        </view>
+      </view>
+    </view>
+
     <!-- Bottom Draggable Panel -->
     <draggable-panel
       panelState="{{panelState}}"
@@ -100,6 +156,7 @@
       halfHeight="{{400}}"
       expandedHeight="{{700}}"
       bind:statechange="onPanelStateChange"
+      wx:if="{{pageState !== 'searching'}}"
     >
       <!-- Search Bar -->
       <search-bar

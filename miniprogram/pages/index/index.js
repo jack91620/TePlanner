@@ -37,7 +37,13 @@ Page({
     activeStationFilter: "supercharger",
     destination: null,
     routeData: null,
-    loading: { vehicle: true, stations: false, route: false, waking: false }
+    loading: { vehicle: true, stations: false, route: false, waking: false },
+    // Search state
+    searchKeyword: "",
+    searchResults: [],
+    searchLoading: false,
+    searchFocus: false,
+    searchDone: false
   },
 
   onLoad: function() {
@@ -284,7 +290,110 @@ Page({
   },
 
   onSearchTap: function() {
-    wx.navigateTo({ url: "/pages/search/search" });
+    this.setData({
+      pageState: "searching",
+      searchKeyword: "",
+      searchResults: [],
+      searchFocus: true,
+      searchDone: false
+    });
+  },
+
+  closeSearch: function() {
+    this.setData({
+      pageState: "idle",
+      searchKeyword: "",
+      searchResults: [],
+      searchFocus: false,
+      searchDone: false
+    });
+  },
+
+  onSearchInput: function(e) {
+    var keyword = e.detail.value;
+    this.setData({ searchKeyword: keyword, searchDone: false });
+
+    // Debounce search
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+    }
+
+    if (keyword.trim().length >= 2) {
+      var that = this;
+      this.searchTimer = setTimeout(function() {
+        that.doSearch(keyword);
+      }, 300);
+    } else {
+      this.setData({ searchResults: [] });
+    }
+  },
+
+  onSearchConfirm: function() {
+    var keyword = this.data.searchKeyword.trim();
+    if (keyword) {
+      this.doSearch(keyword);
+    }
+  },
+
+  doSearch: function(keyword) {
+    var that = this;
+    that.setData({ searchLoading: true });
+
+    // Use Tencent Map suggestion API
+    var vehicleLocation = this.data.vehicleState;
+    var location = "";
+    if (vehicleLocation && vehicleLocation.latitude) {
+      location = vehicleLocation.latitude + "," + vehicleLocation.longitude;
+    } else {
+      location = this.data.mapCenter.latitude + "," + this.data.mapCenter.longitude;
+    }
+
+    api.searchPlaces(keyword, location).then(function(results) {
+      that.setData({
+        searchResults: results || [],
+        searchLoading: false,
+        searchDone: true
+      });
+    }).catch(function(err) {
+      console.error("Search failed:", err);
+      // Fallback to geocode
+      api.geocode(keyword).then(function(result) {
+        if (result && result.location) {
+          that.setData({
+            searchResults: [{
+              id: "geo_1",
+              name: result.title || keyword,
+              address: result.address || keyword,
+              latitude: result.location.lat,
+              longitude: result.location.lng,
+              distance: "--"
+            }],
+            searchLoading: false,
+            searchDone: true
+          });
+        } else {
+          that.setData({ searchResults: [], searchLoading: false, searchDone: true });
+        }
+      }).catch(function() {
+        that.setData({ searchResults: [], searchLoading: false, searchDone: true });
+      });
+    });
+  },
+
+  onSearchResultTap: function(e) {
+    var item = e.currentTarget.dataset.item;
+    this.setData({
+      pageState: "idle",
+      searchKeyword: "",
+      searchResults: [],
+      destination: {
+        name: item.name,
+        address: item.address,
+        latitude: item.latitude,
+        longitude: item.longitude
+      }
+    });
+    this.planRoute();
   },
 
   onStationTap: function(e) {

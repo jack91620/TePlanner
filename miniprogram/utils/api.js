@@ -211,6 +211,30 @@ function reverseGeocode(latitude, longitude) {
   return post('/routes/reverse-geocode?latitude=' + latitude + '&longitude=' + longitude);
 }
 
+/**
+ * Search places by keyword
+ * @param {string} keyword - Search keyword
+ * @param {string} location - Center location "lat,lng"
+ * @returns {Promise<Array>} List of places
+ */
+function searchPlaces(keyword, location) {
+  return get('/routes/search', {
+    keyword: keyword,
+    location: location
+  }).then(function(res) {
+    return (res.results || []).map(function(item) {
+      return {
+        id: item.id,
+        name: item.title || item.name,
+        address: item.address,
+        latitude: item.location ? item.location.lat : item.latitude,
+        longitude: item.location ? item.location.lng : item.longitude,
+        distance: item.distance_km ? Math.round(item.distance_km) : item._distance ? Math.round(item._distance / 1000) : null
+      };
+    });
+  });
+}
+
 // ============ Charging Stations API ============
 
 /**
@@ -341,6 +365,7 @@ module.exports = {
   planRoute: planRoute,
   geocode: geocode,
   reverseGeocode: reverseGeocode,
+  searchPlaces: searchPlaces,
   // Charging API
   getNearbyStations: getNearbyStations,
   getStationDetail: getStationDetail,

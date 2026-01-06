@@ -569,3 +569,95 @@ async def reverse_geocode(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Reverse geocoding failed: {str(e)}",
         )
+
+
+@router.get("/search")
+async def search_places(
+    keyword: str,
+    location: Optional[str] = None,
+):
+    """Search for places by keyword.
+
+    Args:
+        keyword: Search keyword (e.g., city name, POI name)
+        location: Optional center location "lat,lng" for distance calculation
+
+    Returns:
+        List of matching places with name, address, location and distance
+    """
+    from app.config import settings
+
+    # Check if API key is configured
+    if not settings.TENCENT_MAP_KEY and not settings.TENCENT_MAP_API_KEY:
+        return {"results": []}
+
+    try:
+        async with TencentMapClient() as client:
+            # Parse center location for distance calculation
+            center_lat, center_lng = None, None
+            if location:
+                try:
+                    parts = location.split(",")
+                    center_lat = float(parts[0])
+                    center_lng = float(parts[1])
+                except (ValueError, IndexError):
+                    pass
+
+            # Use suggestion API or search nearby
+            if center_lat and center_lng:
+                pois = await client.search_nearby(
+                    latitude=center_lat,
+                    longitude=center_lng,
+                    keyword=keyword,
+                    radius=500000,  # 500km radius
+                    page_size=10,
+                )
+            else:
+                # Fallback to geocode for the keyword
+                result = await client.geocode(keyword)
+                if result and result.get("location"):
+                    loc = result["location"]
+                    return {
+                        "results": [{
+                            "id": "geo_1",
+                            "title": result.get("title", keyword),
+                            "name": result.get("title", keyword),
+                            "address": result.get("address", keyword),
+                            "location": {"lat": loc.get("lat"), "lng": loc.get("lng")},
+                            "distance_km": None,
+                        }]
+                    }
+                return {"results": []}
+
+            # Format results
+            results = []
+            for poi in pois:
+                loc = poi.get("location", {})
+                lat = loc.get("lat", 0)
+                lng = loc.get("lng", 0)
+
+                # Calculate distance if center provided
+                distance_km = None
+                if center_lat and center_lng and lat and lng:
+                    import math
+                    R = 6371
+                    dlat = math.radians(lat - center_lat)
+                    dlng = math.radians(lng - center_lng)
+                    a = math.sin(dlat/2)**2 + math.cos(math.radians(center_lat)) * math.cos(math.radians(lat)) * math.sin(dlng/2)**2
+                    distance_km = round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+
+                results.append({
+                    "id": poi.get("id", ""),
+                    "title": poi.get("title", ""),
+                    "name": poi.get("title", ""),
+                    "address": poi.get("address", ""),
+                    "location": {"lat": lat, "lng": lng},
+                    "distance_km": distance_km,
+                })
+
+            return {"results": results}
+
+    except Exception as e:
+        import logging
+        logging.error(f"Place search failed: {str(e)}")
+        return {"results": []}
