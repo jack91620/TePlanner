@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import logging
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -10,6 +12,21 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.config import settings
+
+# Configure logging with timestamp
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+# Also configure uvicorn access logs
+uvicorn_access = logging.getLogger("uvicorn.access")
+uvicorn_access.handlers = []
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
+uvicorn_access.addHandler(handler)
 
 
 @asynccontextmanager
