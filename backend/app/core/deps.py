@@ -122,8 +122,12 @@ async def get_tesla_client(
             detail="Tesla account not linked. Please authorize Tesla first.",
         )
 
-    # Check if token is expired
-    if tesla_token.expires_at < datetime.now(timezone.utc):
+    # Check if token is expired (handle None expires_at)
+    is_expired = (
+        tesla_token.expires_at is None or
+        tesla_token.expires_at < datetime.now(timezone.utc)
+    )
+    if is_expired:
         # Try to refresh the token
         try:
             from app.integrations.tesla import TeslaAuth
