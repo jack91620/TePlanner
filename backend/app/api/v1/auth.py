@@ -118,7 +118,7 @@ async def validate_token(
     has_vehicle_bound = (
         tesla_token is not None
         and tesla_token.expires_at
-        and tesla_token.expires_at > datetime.now(timezone.utc)
+        and tesla_token.expires_at > datetime.utcnow()
     )
 
     return {
@@ -298,7 +298,7 @@ async def tesla_callback(
                 )
                 existing_token = result.scalar_one_or_none()
 
-                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
                 try:
                     encrypted_access = encryption.encrypt(access_token)
@@ -373,7 +373,7 @@ async def tesla_callback_post(
         # Store in database if user_id provided
         if target_user_id:
             encryption = TokenEncryption()
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
             try:
                 encrypted_access = encryption.encrypt(access_token)
@@ -448,7 +448,7 @@ async def tesla_refresh_token(
 
             if existing_token:
                 encryption = TokenEncryption()
-                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
                 try:
                     existing_token.access_token = encryption.encrypt(new_access_token)
@@ -503,7 +503,7 @@ async def tesla_link_status(
     if token.expires_at is None:
         is_expired = True
     else:
-        is_expired = token.expires_at < datetime.now(timezone.utc)
+        is_expired = token.expires_at < datetime.utcnow()
 
     return {
         "linked": True,

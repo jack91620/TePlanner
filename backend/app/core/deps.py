@@ -125,7 +125,7 @@ async def get_tesla_client(
     # Check if token is expired (handle None expires_at)
     is_expired = (
         tesla_token.expires_at is None or
-        tesla_token.expires_at < datetime.now(timezone.utc)
+        tesla_token.expires_at < datetime.utcnow()
     )
     if is_expired:
         # Try to refresh the token
@@ -141,7 +141,7 @@ async def get_tesla_client(
             # Update token in database
             tesla_token.access_token = encryption.encrypt(new_tokens["access_token"])
             tesla_token.refresh_token = encryption.encrypt(new_tokens["refresh_token"])
-            tesla_token.expires_at = datetime.now(timezone.utc) + \
+            tesla_token.expires_at = datetime.utcnow() + \
                 timedelta(seconds=new_tokens.get("expires_in", 3600))
             await db.commit()
 
