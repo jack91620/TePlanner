@@ -36,13 +36,19 @@ class StationSearchResponse(BaseModel):
     stations: List[ChargingStation]
 
 
-def _parse_station_from_poi(poi: dict, center_lat: float = None, center_lng: float = None) -> ChargingStation:
+def _parse_station_from_poi(
+    poi: dict,
+    center_lat: float = None,
+    center_lng: float = None,
+    station_type: str = None,
+) -> ChargingStation:
     """Parse a charging station from Tencent Map POI data.
 
     Args:
         poi: POI data from Tencent Map API.
         center_lat: Center latitude for distance calculation.
         center_lng: Center longitude for distance calculation.
+        station_type: Station type to set.
 
     Returns:
         ChargingStation object.
@@ -89,6 +95,7 @@ def _parse_station_from_poi(poi: dict, center_lat: float = None, center_lng: flo
         distance_km=round(distance_km, 2) if distance_km else None,
         operator=operator,
         category=poi.get("category", ""),
+        type=station_type,
     )
 
 
@@ -137,10 +144,10 @@ async def search_nearby_stations(
                     radius=int(radius * 1000),
                 )
 
+            station_type = type if type != "all" else "charger"
             stations = []
             for poi in pois:
-                station = _parse_station_from_poi(poi, latitude, longitude)
-                station.type = type if type != "all" else "charger"
+                station = _parse_station_from_poi(poi, latitude, longitude, station_type)
                 stations.append(station)
 
             # Sort by distance
