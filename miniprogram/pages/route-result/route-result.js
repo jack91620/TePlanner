@@ -49,10 +49,11 @@ Page({
         id: 0,
         latitude: routeData.origin.lat,
         longitude: routeData.origin.lng,
-        title: routeData.origin.name || 'Origin',
+        title: routeData.origin.name || '起点',
         iconPath: '/assets/icons/origin-marker.png',
-        width: 32,
-        height: 32
+        width: 36,
+        height: 36,
+        anchor: { x: 0.5, y: 1 }
       });
       points.push({
         latitude: routeData.origin.lat,
@@ -69,15 +70,17 @@ Page({
           longitude: stop.longitude,
           title: stop.name,
           iconPath: '/assets/icons/charging-marker.png',
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
+          anchor: { x: 0.5, y: 1 },
           callout: {
-            content: `${stop.name}\nArrive: ${stop.arrival_soc}% -> ${stop.departure_soc}%`,
-            display: 'BYCLICK',
+            content: `${stop.name}\n到达: ${stop.arrival_soc}% → ${stop.departure_soc}%`,
+            display: 'ALWAYS',
             fontSize: 12,
             borderRadius: 8,
             padding: 8,
-            bgColor: '#ffffff'
+            bgColor: '#ffffff',
+            color: '#333333'
           }
         });
         points.push({
@@ -93,10 +96,11 @@ Page({
         id: 999,
         latitude: routeData.destination.lat,
         longitude: routeData.destination.lng,
-        title: routeData.destination.name || 'Destination',
+        title: routeData.destination.name || '终点',
         iconPath: '/assets/icons/destination-marker.png',
-        width: 32,
-        height: 32
+        width: 36,
+        height: 36,
+        anchor: { x: 0.5, y: 1 }
       });
       points.push({
         latitude: routeData.destination.lat,
@@ -104,14 +108,26 @@ Page({
       });
     }
 
-    // Create polyline
-    const polyline = [];
-    if (points.length >= 2) {
+    // Create polyline from backend data
+    let polyline = [];
+
+    // 优先使用后端返回的实际路线数据
+    if (routeData.polyline && routeData.polyline.length > 0) {
+      // 后端返回的是 [{latitude, longitude}, ...] 格式的数组
+      polyline.push({
+        points: routeData.polyline,  // 已经是正确格式
+        color: '#3478F6',  // 蓝色
+        width: 6,
+        dottedLine: false,
+        arrowLine: true
+      });
+    } else if (points.length >= 2) {
+      // 降级：使用标记点直线连接
       polyline.push({
         points: points,
         color: '#e63946',
         width: 4,
-        dottedLine: false
+        dottedLine: true  // 虚线表示这是简化路线
       });
     }
 
