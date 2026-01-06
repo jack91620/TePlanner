@@ -552,7 +552,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: calc(env(safe-area-inset-top) + 88rpx);
+  padding-top: calc(env(safe-area-inset-top) + 180rpx);
 }
 
 .search-input-box {
