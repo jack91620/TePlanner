@@ -397,7 +397,7 @@ async def navigate_saved_route(
         )
 
 
-@router.get("/{route_id}", response_model=RoutePlanResponse)
+@router.get("/saved/{route_id}", response_model=RoutePlanResponse)
 async def get_route(
     route_id: int,
     user: User = Depends(get_current_user),
