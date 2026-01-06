@@ -26,6 +26,7 @@ class ChargingStation(BaseModel):
     price_per_kwh: Optional[float] = None
     open_hours: Optional[str] = None
     category: Optional[str] = None
+    type: Optional[str] = None
 
 
 class StationSearchResponse(BaseModel):
@@ -89,6 +90,69 @@ def _parse_station_from_poi(poi: dict, center_lat: float = None, center_lng: flo
         operator=operator,
         category=poi.get("category", ""),
     )
+
+
+@router.get("/nearby", response_model=StationSearchResponse)
+async def search_nearby_stations(
+    latitude: float = Query(..., description="中心点纬度"),
+    longitude: float = Query(..., description="中心点经度"),
+    type: Optional[str] = Query("all", description="类型: supercharger/destination/service/all"),
+    radius: float = Query(50, description="搜索半径(公里)"),
+):
+    """搜索附近充电站 (前端兼容接口).
+
+    Args:
+        latitude: 中心点纬度
+        longitude: 中心点经度
+        type: 充电站类型
+        radius: 搜索半径，默认50公里
+    """
+    try:
+        async with TencentMapClient() as client:
+            # Different search based on type
+            if type == "supercharger":
+                pois = await client.search_nearby(
+                    latitude=latitude,
+                    longitude=longitude,
+                    keyword="特斯拉超级充电",
+                    radius=int(radius * 1000),
+                )
+            elif type == "destination":
+                pois = await client.search_nearby(
+                    latitude=latitude,
+                    longitude=longitude,
+                    keyword="特斯拉目的地充电",
+                    radius=int(radius * 1000),
+                )
+            elif type == "service":
+                pois = await client.search_service_areas(
+                    latitude=latitude,
+                    longitude=longitude,
+                    radius=int(radius * 1000),
+                )
+            else:
+                pois = await client.search_charging_stations(
+                    latitude=latitude,
+                    longitude=longitude,
+                    radius=int(radius * 1000),
+                )
+
+            stations = []
+            for poi in pois:
+                station = _parse_station_from_poi(poi, latitude, longitude)
+                station.type = type if type != "all" else "charger"
+                stations.append(station)
+
+            # Sort by distance
+            stations.sort(key=lambda s: s.distance_km or 999)
+
+            return StationSearchResponse(
+                count=len(stations),
+                stations=stations,
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"搜索充电站失败: {str(e)}")
 
 
 @router.get("/stations", response_model=StationSearchResponse)

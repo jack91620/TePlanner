@@ -9,6 +9,7 @@ Page({
     hasVehicle: false,
     vehicle: null,
     vehicleState: null,
+    vehicleOffline: false,
     departureSOC: 80,
     mapCenter: { latitude: 39.9042, longitude: 116.4074 },
     mapScale: 14,
@@ -20,7 +21,7 @@ Page({
     activeStationFilter: "supercharger",
     destination: null,
     routeData: null,
-    loading: { vehicle: true, stations: false, route: false }
+    loading: { vehicle: true, stations: false, route: false, waking: false }
   },
 
   onLoad: function() {
@@ -92,6 +93,7 @@ Page({
     api.getVehicleState(vehicleId).then(function(state) {
       that.setData({
         vehicleState: state,
+        vehicleOffline: false,
         departureSOC: state.battery_level || 80
       });
 
@@ -104,7 +106,53 @@ Page({
       }
     }).catch(function(err) {
       console.error("Failed to get vehicle state:", err);
-      // Try to get location from device instead
+      var errorMsg = err.message || "";
+
+      // Check if vehicle is offline
+      if (errorMsg.indexOf("offline") !== -1 || errorMsg.indexOf("asleep") !== -1) {
+        that.setData({ vehicleOffline: true });
+        wx.showModal({
+          title: "车辆休眠中",
+          content: "您的车辆目前处于休眠状态，是否尝试唤醒？",
+          confirmText: "唤醒",
+          cancelText: "稍后",
+          success: function(res) {
+            if (res.confirm) {
+              that.wakeUpVehicle();
+            } else {
+              that.initMapFromDevice();
+            }
+          }
+        });
+      } else {
+        // Other errors, use device location
+        that.initMapFromDevice();
+      }
+    });
+  },
+
+  wakeUpVehicle: function() {
+    var that = this;
+    var vehicle = this.data.vehicle;
+    if (!vehicle) return;
+
+    that.setData({ "loading.waking": true });
+    wx.showLoading({ title: "正在唤醒车辆..." });
+
+    api.wakeVehicle(vehicle.id).then(function() {
+      wx.hideLoading();
+      wx.showToast({ title: "唤醒成功", icon: "success" });
+      that.setData({ vehicleOffline: false, "loading.waking": false });
+
+      // Wait a moment then fetch state
+      setTimeout(function() {
+        that.fetchVehicleState(vehicle.id);
+      }, 2000);
+    }).catch(function(err) {
+      wx.hideLoading();
+      console.error("Failed to wake up vehicle:", err);
+      wx.showToast({ title: "唤醒失败", icon: "none" });
+      that.setData({ "loading.waking": false });
       that.initMapFromDevice();
     });
   },
