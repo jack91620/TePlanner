@@ -528,9 +528,11 @@ Page({
   },
 
   drawRoute: function(routeData) {
+    var markers = this.buildRouteMarkers(routeData);
+
     if (!routeData || !routeData.polyline || routeData.polyline.length === 0) {
       // No polyline, just show markers
-      this.drawRouteMarkers(routeData);
+      this.setData({ markers: markers });
       return;
     }
 
@@ -541,8 +543,11 @@ Page({
       arrowLine: true
     };
 
-    this.drawRouteMarkers(routeData);
-    this.setData({ polylines: [polyline] });
+    // Set markers and polylines together to avoid batching issues
+    this.setData({
+      markers: markers,
+      polylines: [polyline]
+    });
 
     if (this.mapCtx) {
       this.mapCtx.includePoints({
@@ -553,7 +558,7 @@ Page({
     }
   },
 
-  drawRouteMarkers: function(routeData) {
+  buildRouteMarkers: function(routeData) {
     var chargingMarkers = (routeData.charging_stops || []).map(function(stop, index) {
       return {
         id: 200 + index,
@@ -577,11 +582,9 @@ Page({
     };
 
     var vehicleMarker = this.data.markers.find(function(m) { return m.id === 1; });
-    var markers = vehicleMarker
+    return vehicleMarker
       ? [vehicleMarker].concat(chargingMarkers).concat([destMarker])
       : chargingMarkers.concat([destMarker]);
-
-    this.setData({ markers: markers });
   },
 
   saveRecentTrip: function(dest) {
