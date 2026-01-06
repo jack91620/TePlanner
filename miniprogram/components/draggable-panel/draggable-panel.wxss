@@ -1,0 +1,52 @@
+.draggable-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #171717;
+  border-radius: 24rpx 24rpx 0 0;
+  z-index: 100;
+  transition: height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.5);
+}
+
+.draggable-panel.dragging {
+  transition: none;
+}
+
+.drag-handle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24rpx 0 16rpx 0;
+  cursor: grab;
+}
+
+.drag-bar {
+  width: 72rpx;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4rpx;
+}
+
+.panel-content {
+  height: calc(100% - 48rpx);
+  overflow: hidden;
+  padding: 0 32rpx;
+}
+
+/* Tesla Dark Theme Colors */
+.draggable-panel {
+  --tesla-bg: #171717;
+  --tesla-bg-secondary: #242424;
+  --tesla-bg-tertiary: #2a2a2a;
+  --tesla-text-primary: #ffffff;
+  --tesla-text-secondary: rgba(255, 255, 255, 0.7);
+  --tesla-text-tertiary: rgba(255, 255, 255, 0.5);
+  --tesla-accent: #e82127;
+  --tesla-accent-blue: #3e6ae1;
+  --tesla-border: rgba(255, 255, 255, 0.1);
+  --tesla-success: #34c759;
+  --tesla-warning: #ff9500;
+}

@@ -2,34 +2,34 @@
 <view class="container">
   <!-- Intro -->
   <view class="intro">
-    <image class="tesla-logo" src="/assets/icons/tesla-logo.png" mode="aspectFit"></image>
-    <text class="intro-title">Connect Tesla Account</text>
-    <text class="intro-desc">Link your Tesla account to get real-time battery status and optimize route planning</text>
+    <view class="tesla-logo-placeholder">T</view>
+    <text class="intro-title">连接 Tesla 账户</text>
+    <text class="intro-desc">连接你的 Tesla 账户，获取实时电池状态并优化路线规划</text>
   </view>
 
   <!-- Benefits -->
   <view class="card">
-    <view class="section-title">Benefits</view>
+    <view class="section-title">连接后可获取</view>
     <view class="benefit-list">
       <view class="benefit-item">
         <view class="benefit-icon">1</view>
         <view class="benefit-content">
-          <text class="benefit-title">Real-time Battery Status</text>
-          <text class="benefit-desc">Get accurate SOC data from your vehicle</text>
+          <text class="benefit-title">实时电池状态</text>
+          <text class="benefit-desc">从车辆获取精确的电量数据</text>
         </view>
       </view>
       <view class="benefit-item">
         <view class="benefit-icon">2</view>
         <view class="benefit-content">
-          <text class="benefit-title">Precise Range Estimation</text>
-          <text class="benefit-desc">Based on your actual vehicle configuration</text>
+          <text class="benefit-title">精准续航估算</text>
+          <text class="benefit-desc">基于你的实际车辆配置</text>
         </view>
       </view>
       <view class="benefit-item">
         <view class="benefit-icon">3</view>
         <view class="benefit-content">
-          <text class="benefit-title">Optimal Charging Stops</text>
-          <text class="benefit-desc">Recommendations tailored to your battery</text>
+          <text class="benefit-title">最优充电规划</text>
+          <text class="benefit-desc">根据电量定制充电方案</text>
         </view>
       </view>
     </view>
@@ -37,15 +37,15 @@
 
   <!-- Privacy Notice -->
   <view class="card privacy-card">
-    <text class="privacy-title">Privacy & Security</text>
-    <text class="privacy-text">We only access your vehicle's battery status and location. We never store your Tesla password or control your vehicle remotely.</text>
+    <text class="privacy-title">隐私与安全</text>
+    <text class="privacy-text">我们仅访问车辆的电池状态和位置信息，不会存储你的 Tesla 密码，也不会远程控制你的车辆。</text>
   </view>
 
   <!-- Bind Button -->
   <view class="bottom-actions">
     <button class="btn btn-primary" bindtap="startBinding" loading="{{loading}}">
-      Connect Tesla Account
+      连接 Tesla 账户
     </button>
-    <text class="skip-link" bindtap="skipBinding">Skip for now</text>
+    <text class="skip-link" bindtap="skipBinding">暂时跳过</text>
   </view>
 </view>

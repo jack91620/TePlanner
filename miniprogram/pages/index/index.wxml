@@ -1,95 +1,270 @@
-<!--pages/index/index.wxml-->
-<view class="container">
-  <!-- Vehicle Status Card -->
-  <view class="card vehicle-card" wx:if="{{hasVehicle}}">
-    <view class="vehicle-header flex-between">
-      <view class="vehicle-info">
-        <text class="vehicle-name">{{vehicle.displayName}}</text>
-        <text class="vehicle-status {{vehicle.state === 'online' ? 'status-online' : ''}}">
-          {{vehicle.state === 'online' ? 'Online' : 'Offline'}}
-        </text>
-      </view>
-      <view class="battery-info">
-        <text class="battery-level">{{vehicle.batteryLevel}}%</text>
-        <view class="battery-bar">
-          <view class="battery-fill" style="width: {{vehicle.batteryLevel}}%"></view>
+<view class="page-container">
+  <!-- Not Connected: Full Screen Login Prompt -->
+  <view class="login-screen" wx:if="{{!hasVehicle && !loading.vehicle}}">
+    <view class="login-content">
+      <view class="tesla-logo-placeholder">T</view>
+      <text class="login-title">TePlanner</text>
+      <text class="login-subtitle">Tesla 智能充电路线规划</text>
+
+      <view class="login-features">
+        <view class="feature-row">
+          <image src="/assets/icons/location.png" class="feature-icon" />
+          <text class="feature-text">获取车辆实时位置</text>
         </view>
-        <text class="battery-range">{{vehicle.rangeKm}} km</text>
+        <view class="feature-row">
+          <image src="/assets/icons/lightning.png" class="feature-icon" />
+          <text class="feature-text">读取当前电池电量</text>
+        </view>
+        <view class="feature-row">
+          <image src="/assets/icons/route.png" class="feature-icon" />
+          <text class="feature-text">智能规划充电路线</text>
+        </view>
+        <view class="feature-row">
+          <image src="/assets/icons/destination-marker.png" class="feature-icon" />
+          <text class="feature-text">发送导航到车辆</text>
+        </view>
       </view>
+
+      <button class="btn btn-tesla login-btn" bindtap="goToBindVehicle">
+        连接 Tesla 账户
+      </button>
+
+      <text class="login-hint">连接后即可使用完整功能</text>
     </view>
   </view>
 
-  <!-- Bind Vehicle Prompt -->
-  <view class="card bind-prompt" wx:else bindtap="goToBindVehicle">
-    <image class="tesla-icon" src="/assets/icons/tesla-logo.png" mode="aspectFit"></image>
-    <text class="bind-text">Bind Tesla Account</text>
-    <text class="bind-desc">Get real-time battery status</text>
+  <!-- Loading State -->
+  <view class="loading-screen" wx:if="{{loading.vehicle}}">
+    <view class="loading-spinner large"></view>
+    <text class="loading-text">正在连接...</text>
   </view>
 
-  <!-- Route Planning Form -->
-  <view class="card planning-form">
-    <view class="section-title">Route Planning</view>
+  <!-- Connected: Map and Navigation -->
+  <view class="main-content" wx:if="{{hasVehicle && !loading.vehicle}}">
+    <!-- Full Screen Map -->
+    <map
+      id="mainMap"
+      class="full-map"
+      latitude="{{mapCenter.latitude}}"
+      longitude="{{mapCenter.longitude}}"
+      scale="{{mapScale}}"
+      markers="{{markers}}"
+      polyline="{{polylines}}"
+      show-location="{{false}}"
+      enable-scroll="{{true}}"
+      enable-zoom="{{true}}"
+      enable-rotate="{{false}}"
+      bindmarkertap="onMarkerTap"
+      bindregionchange="onRegionChange"
+      bindtap="onMapTap"
+    >
+      <!-- Top Overlay using cover-view -->
+      <cover-view class="map-top-overlay">
+        <!-- Back Button (shown during route preview) -->
+        <cover-view
+          class="back-btn"
+          wx:if="{{pageState === 'route_preview'}}"
+          bindtap="cancelRoute"
+        >
+          <cover-image src="/assets/icons/back.png" class="back-icon" />
+        </cover-view>
 
-    <!-- Origin -->
-    <view class="location-input" bindtap="chooseOrigin">
-      <view class="location-icon origin-icon"></view>
-      <view class="location-text">
-        <text wx:if="{{origin}}">{{origin.name}}</text>
-        <text wx:else class="placeholder">Choose starting point</text>
-      </view>
-      <view class="location-action" catchtap="useCurrentLocation">
-        <text class="use-current">Use current location</text>
-      </view>
-    </view>
+        <!-- Location Name (shown during route preview) -->
+        <cover-view class="location-name-badge" wx:if="{{pageState === 'route_preview' && destination}}">
+          <cover-view class="location-name-text">{{destination.name}}</cover-view>
+        </cover-view>
 
-    <!-- Destination -->
-    <view class="location-input" bindtap="chooseDestination">
-      <view class="location-icon dest-icon"></view>
-      <view class="location-text">
-        <text wx:if="{{destination}}">{{destination.name}}</text>
-        <text wx:else class="placeholder">Choose destination</text>
-      </view>
-    </view>
+        <!-- Tesla Connection Status -->
+        <cover-view class="connection-status" bindtap="onConnectionTap">
+          <cover-view class="status-dot {{hasVehicle ? 'connected' : ''}}"></cover-view>
+          <cover-view class="status-text">{{vehicle.display_name || vehicle.displayName || 'Tesla'}}</cover-view>
+        </cover-view>
+      </cover-view>
 
-    <!-- SOC Input (if no vehicle bound) -->
-    <view class="soc-input" wx:if="{{!hasVehicle}}">
-      <text class="input-label">Current Battery Level</text>
-      <slider
-        value="{{currentSoc}}"
-        min="0"
-        max="100"
-        show-value
-        activeColor="#e63946"
-        bindchange="onSocChange"
+      <!-- Right Side Controls -->
+      <cover-view class="map-right-controls">
+        <cover-view class="control-btn" bindtap="onNavigationTap">
+          <cover-image src="/assets/icons/route.png" class="control-icon" />
+        </cover-view>
+        <cover-view class="control-btn" bindtap="centerOnVehicle">
+          <cover-image src="/assets/icons/location.png" class="control-icon" />
+        </cover-view>
+      </cover-view>
+    </map>
+
+    <!-- Bottom Draggable Panel -->
+    <draggable-panel
+      panelState="{{panelState}}"
+      collapsedHeight="{{140}}"
+      halfHeight="{{400}}"
+      expandedHeight="{{700}}"
+      bind:statechange="onPanelStateChange"
+    >
+      <!-- Search Bar -->
+      <search-bar
+        placeholder="导航"
+        disabled="{{true}}"
+        bind:tap="onSearchTap"
       />
-    </view>
 
-    <!-- Plan Button -->
-    <button
-      class="btn btn-primary plan-btn"
-      bindtap="planRoute"
-      disabled="{{!canPlan}}"
-    >
-      Plan Route
-    </button>
-  </view>
-
-  <!-- Recent Trips -->
-  <view class="card" wx:if="{{recentTrips.length > 0}}">
-    <view class="section-title">Recent</view>
-    <view
-      class="recent-trip"
-      wx:for="{{recentTrips}}"
-      wx:key="id"
-      bindtap="loadTrip"
-      data-trip="{{item}}"
-    >
-      <view class="trip-route">
-        <text class="trip-origin">{{item.originName}}</text>
-        <text class="trip-arrow">-></text>
-        <text class="trip-dest">{{item.destinationName}}</text>
+      <!-- Tab Switcher -->
+      <view class="tabs" wx:if="{{pageState === 'idle'}}">
+        <view
+          class="tab {{activeTab === 'recent' ? 'active' : ''}}"
+          bindtap="switchTab"
+          data-tab="recent"
+        >
+          最近
+        </view>
+        <view
+          class="tab {{activeTab === 'nearby' ? 'active' : ''}}"
+          bindtap="switchTab"
+          data-tab="nearby"
+        >
+          附近
+        </view>
       </view>
-      <text class="trip-distance">{{item.distanceKm}} km</text>
-    </view>
+
+      <!-- Recent Trips Tab -->
+      <view class="tab-content" wx:if="{{pageState === 'idle' && activeTab === 'recent'}}">
+        <scroll-view
+          class="recent-list"
+          scroll-y="{{panelState === 'expanded'}}"
+        >
+          <!-- Date Group -->
+          <view class="date-group" wx:if="{{recentTrips.length > 0}}">
+            <text class="date-label">昨天</text>
+          </view>
+
+          <view
+            class="recent-item"
+            wx:for="{{recentTrips}}"
+            wx:key="id"
+            bindtap="onRecentTap"
+            data-trip="{{item}}"
+          >
+            <view class="recent-info">
+              <text class="recent-name">{{item.destinationName}}</text>
+              <text class="recent-address">{{item.destinationAddress || ''}}</text>
+            </view>
+            <view class="recent-distance">
+              <image src="/assets/icons/location.png" class="location-icon" />
+              <text>{{item.distanceKm}} km</text>
+            </view>
+          </view>
+
+          <view class="empty-hint" wx:if="{{recentTrips.length === 0}}">
+            <text>暂无最近行程</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- Nearby Stations Tab -->
+      <view class="tab-content" wx:if="{{pageState === 'idle' && activeTab === 'nearby'}}">
+        <!-- Station Filter -->
+        <station-filter
+          activeFilter="{{activeStationFilter}}"
+          bind:change="onFilterChange"
+        />
+
+        <!-- Station List -->
+        <scroll-view
+          class="station-list"
+          scroll-y="{{panelState === 'expanded'}}"
+          enable-flex="{{true}}"
+        >
+          <charging-station-item
+            wx:for="{{nearbyStations}}"
+            wx:key="id"
+            station="{{item}}"
+            bind:tap="onStationTap"
+          />
+
+          <view class="loading-more" wx:if="{{loading.stations}}">
+            <view class="loading-spinner"></view>
+          </view>
+
+          <view class="empty-hint" wx:if="{{!loading.stations && nearbyStations.length === 0}}">
+            <text>附近没有找到充电站</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- Route Preview Panel -->
+      <view class="route-panel" wx:if="{{pageState === 'route_preview'}}">
+        <view class="route-header">
+          <view class="route-action" bindtap="startNavigation">
+            <text class="action-text">立即出发</text>
+            <text class="action-arrow">></text>
+          </view>
+          <text class="edit-link" bindtap="editRoute">编辑行程</text>
+        </view>
+
+        <scroll-view class="route-stops" scroll-y="{{true}}">
+          <!-- Origin (Vehicle Location) -->
+          <view class="route-stop origin">
+            <view class="stop-icon origin-icon">
+              <view class="origin-dot"></view>
+            </view>
+            <view class="stop-info">
+              <text class="stop-name">车辆位置</text>
+              <view class="stop-meta">
+                <view class="battery-indicator">
+                  <view class="battery-fill" style="width: {{departureSOC}}%"></view>
+                </view>
+                <text class="soc-text">{{departureSOC}}%</text>
+                <text class="soc-edit" bindtap="editDepartureSOC">  设定出发电量</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Charging Stops -->
+          <view
+            class="route-stop charging"
+            wx:for="{{routeData.charging_stops}}"
+            wx:key="id"
+          >
+            <view class="stop-icon charging-icon">
+              <image src="/assets/icons/lightning.png" class="lightning" />
+            </view>
+            <view class="stop-info">
+              <text class="stop-name">{{item.name}}</text>
+              <view class="stop-meta">
+                <view class="battery-indicator">
+                  <view class="battery-fill" style="width: {{item.arrival_soc}}%"></view>
+                </view>
+                <text class="soc-text">{{item.arrival_soc}}%</text>
+                <text class="charge-time">  {{item.charging_duration}}分</text>
+                <text class="arrival-time">  {{item.arrival_time}}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Destination -->
+          <view class="route-stop destination" wx:if="{{routeData && routeData.destination}}">
+            <view class="stop-icon dest-icon">
+              <image src="/assets/icons/destination-marker.png" class="dest-pin" />
+            </view>
+            <view class="stop-info">
+              <text class="stop-name">{{routeData.destination.name}}</text>
+              <view class="stop-meta" wx:if="{{routeData.arrival_soc}}">
+                <view class="battery-indicator">
+                  <view class="battery-fill" style="width: {{routeData.arrival_soc}}%"></view>
+                </view>
+                <text class="soc-text">{{routeData.arrival_soc}}%</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- Send to Vehicle Button -->
+        <view class="route-actions">
+          <button class="btn btn-tesla send-btn" bindtap="sendToVehicle">
+            发送到车辆  {{routeData.total_duration}}  {{routeData.total_distance}} km
+          </button>
+          <view class="cancel-btn" bindtap="cancelRoute">取消</view>
+        </view>
+      </view>
+    </draggable-panel>
   </view>
 </view>

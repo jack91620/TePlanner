@@ -1,0 +1,17 @@
+<view class="search-bar" bindtap="onTap">
+  <view class="search-icon">
+    <image src="/assets/icons/search.png" mode="aspectFit" />
+  </view>
+  <input
+    wx:if="{{!disabled}}"
+    class="search-input"
+    type="text"
+    placeholder="{{placeholder}}"
+    placeholder-class="search-placeholder"
+    value="{{value}}"
+    bindinput="onInput"
+    bindconfirm="onConfirm"
+    focus="{{focus}}"
+  />
+  <text wx:else class="search-placeholder">{{placeholder}}</text>
+</view>

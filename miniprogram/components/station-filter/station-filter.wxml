@@ -1,0 +1,36 @@
+<view class="filter-container">
+  <view
+    class="filter-chip {{activeFilter === item.key ? 'active' : ''}}"
+    wx:for="{{filters}}"
+    wx:key="key"
+    data-key="{{item.key}}"
+    bindtap="onFilterTap"
+  >
+    <text>{{item.label}}</text>
+    <view class="dropdown-icon" wx:if="{{showDropdown && index === 0}}">
+      <text class="arrow">▾</text>
+    </view>
+  </view>
+
+  <!-- Filter Options Dropdown -->
+  <view class="filter-dropdown" wx:if="{{showOptions}}">
+    <view class="dropdown-header">
+      <text class="dropdown-title">类型</text>
+      <view class="close-btn" bindtap="closeOptions">×</view>
+    </view>
+    <view class="dropdown-options">
+      <view
+        class="option-item {{item.active ? 'active' : ''}}"
+        wx:for="{{allFilters}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onOptionTap"
+      >
+        <text>{{item.label}}</text>
+        <view class="option-check" wx:if="{{item.active}}">
+          <text>●</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

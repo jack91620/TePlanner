@@ -5,18 +5,20 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.security import TokenEncryption, create_access_token
+from app.core.security import TokenEncryption, create_access_token, decode_access_token
 from app.db.models import TeslaToken, User
 from app.db.session import get_db
 from app.integrations.tesla import TeslaAuth
 from app.services.wechat import WeChatClient, WeChatAPIError
 
 router = APIRouter()
+security = HTTPBearer(auto_error=False)
 
 # Temporary storage for OAuth state and code_verifier (use Redis in production)
 _oauth_states: dict = {}
@@ -62,6 +64,72 @@ class UserInfoResponse(BaseModel):
     avatar_url: Optional[str] = None
     has_tesla_linked: bool = False
     tesla_vehicles_count: int = 0
+
+
+@router.get("/validate")
+async def validate_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    """Validate JWT token and return user info.
+
+    Used by Mini Program on startup to check if stored token is still valid.
+
+    Returns:
+        User info and Tesla link status
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    token = credentials.credentials
+    payload = decode_access_token(token)
+
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    # Query user
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Check Tesla link status
+    result = await db.execute(
+        select(TeslaToken).where(TeslaToken.user_id == user.id)
+    )
+    tesla_token = result.scalar_one_or_none()
+    has_vehicle_bound = (
+        tesla_token is not None
+        and tesla_token.expires_at
+        and tesla_token.expires_at > datetime.now(timezone.utc)
+    )
+
+    return {
+        "user": {
+            "id": user.id,
+            "openid": user.openid,
+            "nickname": user.nickname,
+            "avatar_url": user.avatar_url,
+        },
+        "hasVehicleBound": has_vehicle_bound,
+    }
 
 
 @router.post("/wechat/login", response_model=WeChatLoginResponse)

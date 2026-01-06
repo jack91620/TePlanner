@@ -1,4 +1,9 @@
 {
-  "navigationBarTitleText": "路线规划",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "draggable-panel": "/components/draggable-panel/draggable-panel",
+    "search-bar": "/components/search-bar/search-bar",
+    "station-filter": "/components/station-filter/station-filter",
+    "charging-station-item": "/components/charging-station-item/charging-station-item"
+  }
 }

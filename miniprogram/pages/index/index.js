@@ -1,429 +1,520 @@
-// pages/index/index.js
-
-const app = getApp();
+// Tesla-style Index Page
+var app = getApp();
+var api = require("../../utils/api");
 
 Page({
   data: {
+    pageState: "idle",
+    panelState: "half",
     hasVehicle: false,
     vehicle: null,
     vehicleState: null,
-    origin: null,
-    destination: null,
-    currentSoc: 80,
+    departureSOC: 80,
+    mapCenter: { latitude: 39.9042, longitude: 116.4074 },
+    mapScale: 14,
+    markers: [],
+    polylines: [],
+    activeTab: "recent",
+    nearbyStations: [],
     recentTrips: [],
-    canPlan: false,
-    loading: false,
-    showVehicleCard: true
+    activeStationFilter: "supercharger",
+    destination: null,
+    routeData: null,
+    loading: { vehicle: true, stations: false, route: false }
   },
 
-  onLoad() {
-    this.loadRecentTrips();
+  onLoad: function() {
+    this.mapCtx = null;
   },
 
-  async onShow() {
-    // Check login and vehicle status
-    await this.initializeState();
+  onShow: function() {
+    this.checkVehicleStatus();
   },
 
-  async initializeState() {
-    const token = wx.getStorageSync('token');
+  onReady: function() {
+    // Map context will be created after vehicle is connected
+  },
 
+  initMapContext: function() {
+    if (!this.mapCtx) {
+      this.mapCtx = wx.createMapContext("mainMap");
+    }
+  },
+
+  checkVehicleStatus: function() {
+    var that = this;
+    var token = wx.getStorageSync("token");
+
+    // If no token, show login screen
     if (!token) {
-      // Not logged in
-      this.setData({
-        hasVehicle: false,
-        vehicle: null,
-        vehicleState: null
-      });
+      that.setData({ hasVehicle: false, "loading.vehicle": false });
       return;
     }
 
-    // Check Tesla binding status
-    const hasTesla = await app.checkTeslaStatus();
+    that.setData({ "loading.vehicle": true });
 
-    if (hasTesla) {
-      // Fetch vehicle list
-      const vehicles = await app.fetchVehicles();
-
-      if (vehicles.length > 0) {
-        const vehicle = vehicles[0];
-        this.setData({
-          hasVehicle: true,
-          vehicle: vehicle
-        });
-
-        // Try to get vehicle state (might be asleep)
-        await this.fetchVehicleState(vehicle.id);
-      } else {
-        this.setData({
-          hasVehicle: true,
-          vehicle: null
-        });
+    // Check Tesla link status first
+    api.checkTeslaStatus().then(function(status) {
+      if (!status.linked || status.expired) {
+        that.setData({ hasVehicle: false, "loading.vehicle": false });
+        return;
       }
-    } else {
-      this.setData({
-        hasVehicle: false,
-        vehicle: null
+
+      // Tesla is linked, get vehicles
+      return api.getVehicles();
+    }).then(function(vehicles) {
+      if (!vehicles || vehicles.length === 0) {
+        that.setData({ hasVehicle: false, "loading.vehicle": false });
+        return;
+      }
+
+      var vehicle = vehicles[0];
+      that.setData({
+        hasVehicle: true,
+        vehicle: vehicle,
+        "loading.vehicle": false
       });
+
+      // Initialize map and fetch data
+      that.initMapContext();
+      that.fetchVehicleState(vehicle.id);
+      that.loadRecentTrips();
+
+    }).catch(function(err) {
+      console.error("Failed to check vehicle status:", err);
+      that.setData({ hasVehicle: false, "loading.vehicle": false });
+    });
+  },
+
+  fetchVehicleState: function(vehicleId) {
+    var that = this;
+
+    api.getVehicleState(vehicleId).then(function(state) {
+      that.setData({
+        vehicleState: state,
+        departureSOC: state.battery_level || 80
+      });
+
+      if (state.latitude && state.longitude) {
+        that.setData({
+          mapCenter: { latitude: state.latitude, longitude: state.longitude }
+        });
+        that.updateVehicleMarker(state);
+        that.loadNearbyStations();
+      }
+    }).catch(function(err) {
+      console.error("Failed to get vehicle state:", err);
+      // Try to get location from device instead
+      that.initMapFromDevice();
+    });
+  },
+
+  initMapFromDevice: function() {
+    var that = this;
+    wx.getLocation({
+      type: "gcj02",
+      success: function(res) {
+        that.setData({
+          mapCenter: { latitude: res.latitude, longitude: res.longitude }
+        });
+        that.loadNearbyStations();
+      },
+      fail: function() {
+        console.log("Failed to get device location");
+      }
+    });
+  },
+
+  updateVehicleMarker: function(state) {
+    var vehicleMarker = {
+      id: 1,
+      latitude: state.latitude,
+      longitude: state.longitude,
+      iconPath: "/assets/icons/tesla-car-marker.png",
+      width: 40,
+      height: 40,
+      anchor: { x: 0.5, y: 0.5 },
+      rotate: state.heading || 0
+    };
+    var markers = this.data.markers.filter(function(m) { return m.id !== 1; });
+    markers.unshift(vehicleMarker);
+    this.setData({ markers: markers });
+  },
+
+  loadNearbyStations: function() {
+    var that = this;
+    var center = this.data.mapCenter;
+    var filter = this.data.activeStationFilter;
+
+    that.setData({ "loading.stations": true });
+
+    api.getNearbyStations({
+      latitude: center.latitude,
+      longitude: center.longitude,
+      type: filter,
+      radius: 50
+    }).then(function(stations) {
+      that.setData({ nearbyStations: stations || [] });
+      that.updateStationMarkers(stations || []);
+    }).catch(function(err) {
+      console.error("Failed to load stations:", err);
+      that.setData({ nearbyStations: [] });
+    }).finally(function() {
+      that.setData({ "loading.stations": false });
+    });
+  },
+
+  updateStationMarkers: function(stations) {
+    var that = this;
+    var vehicleMarker = this.data.markers.find(function(m) { return m.id === 1; });
+    var stationMarkers = stations.map(function(station, index) {
+      var iconPath = "/assets/icons/supercharger.png";
+      if (station.type === "destination") {
+        iconPath = "/assets/icons/destination-charger.png";
+      } else if (station.type === "service") {
+        iconPath = "/assets/icons/service-center.png";
+      }
+      return {
+        id: 100 + index,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        iconPath: iconPath,
+        width: 32,
+        height: 32,
+        anchor: { x: 0.5, y: 1 },
+        callout: {
+          content: station.name,
+          display: "BYCLICK",
+          bgColor: "#242424",
+          color: "#ffffff",
+          fontSize: 12,
+          borderRadius: 8,
+          padding: 8
+        },
+        stationData: station
+      };
+    });
+    var markers = vehicleMarker ? [vehicleMarker].concat(stationMarkers) : stationMarkers;
+    that.setData({ markers: markers });
+  },
+
+  loadRecentTrips: function() {
+    var trips = wx.getStorageSync("recent_trips") || [];
+    this.setData({ recentTrips: trips });
+  },
+
+  switchTab: function(e) {
+    var tab = e.currentTarget.dataset.tab;
+    this.setData({ activeTab: tab });
+  },
+
+  onFilterChange: function(e) {
+    this.setData({ activeStationFilter: e.detail.key || e.detail.filter });
+    this.loadNearbyStations();
+  },
+
+  onPanelStateChange: function(e) {
+    this.setData({ panelState: e.detail.state });
+  },
+
+  onSearchTap: function() {
+    wx.navigateTo({ url: "/pages/search/search" });
+  },
+
+  onStationTap: function(e) {
+    var station = e.detail.station;
+    this.navigateToStation(station);
+  },
+
+  navigateToStation: function(station) {
+    this.setData({
+      destination: {
+        name: station.name,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        address: station.address
+      }
+    });
+    this.planRoute();
+  },
+
+  onRecentTap: function(e) {
+    var trip = e.currentTarget.dataset.trip;
+    this.setData({
+      destination: {
+        name: trip.destinationName,
+        latitude: trip.latitude,
+        longitude: trip.longitude,
+        address: trip.destinationAddress
+      }
+    });
+    this.planRoute();
+  },
+
+  planRoute: function() {
+    var that = this;
+    var dest = this.data.destination;
+    if (!dest) return;
+
+    that.setData({
+      "loading.route": true,
+      pageState: "route_preview",
+      panelState: "half"
+    });
+
+    var origin = null;
+    if (this.data.vehicleState && this.data.vehicleState.latitude) {
+      origin = {
+        latitude: this.data.vehicleState.latitude,
+        longitude: this.data.vehicleState.longitude
+      };
+    } else {
+      origin = this.data.mapCenter;
     }
 
-    this.updateCanPlan();
-  },
-
-  async fetchVehicleState(vehicleId) {
-    const token = wx.getStorageSync('token');
-    if (!token) return;
-
-    return new Promise((resolve) => {
-      wx.request({
-        url: `${app.globalData.apiBaseUrl}/vehicles/${vehicleId}/state`,
-        method: 'GET',
-        header: {
-          'Authorization': `Bearer ${token}`
-        },
-        success: (res) => {
-          if (res.statusCode === 200) {
-            const state = res.data;
-            this.setData({
-              vehicleState: state,
-              currentSoc: state.battery_level || 80
-            });
-
-            // If we have location, set as origin
-            if (state.latitude && state.longitude) {
-              this.setVehicleAsOrigin(state);
-            }
-          } else if (res.statusCode === 503) {
-            // Vehicle offline
-            this.setData({
-              vehicleState: { state: 'offline' }
-            });
-          }
-          resolve();
-        },
-        fail: () => resolve()
-      });
+    api.planRoute({
+      origin: origin,
+      destination: dest,
+      current_soc: this.data.departureSOC,
+      vehicle_id: this.data.vehicle ? this.data.vehicle.id : null
+    }).then(function(routeData) {
+      that.setData({ routeData: routeData });
+      that.drawRoute(routeData);
+      that.saveRecentTrip(dest);
+    }).catch(function(err) {
+      console.error("Failed to plan route:", err);
+      wx.showToast({ title: "路线规划失败", icon: "none" });
+      that.setData({ pageState: "idle" });
+    }).finally(function() {
+      that.setData({ "loading.route": false });
     });
   },
 
-  setVehicleAsOrigin(state) {
-    // Reverse geocode the vehicle location
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}/routes/reverse-geocode`,
-      method: 'POST',
-      data: {
-        latitude: state.latitude,
-        longitude: state.longitude
-      },
-      success: (res) => {
-        if (res.statusCode === 200) {
-          this.setData({
-            origin: {
-              name: res.data.address || 'Vehicle Location',
-              latitude: state.latitude,
-              longitude: state.longitude
-            }
-          });
-          this.updateCanPlan();
+  drawRoute: function(routeData) {
+    if (!routeData || !routeData.polyline || routeData.polyline.length === 0) {
+      // No polyline, just show markers
+      this.drawRouteMarkers(routeData);
+      return;
+    }
+
+    var polyline = {
+      points: routeData.polyline,
+      color: "#3e6ae1",
+      width: 6,
+      arrowLine: true
+    };
+
+    this.drawRouteMarkers(routeData);
+    this.setData({ polylines: [polyline] });
+
+    if (this.mapCtx) {
+      this.mapCtx.includePoints({
+        points: routeData.polyline,
+        padding: [80, 40, 200, 40]
+      });
+    }
+  },
+
+  drawRouteMarkers: function(routeData) {
+    var chargingMarkers = (routeData.charging_stops || []).map(function(stop, index) {
+      return {
+        id: 200 + index,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        iconPath: "/assets/icons/charging-marker.png",
+        width: 36,
+        height: 36,
+        anchor: { x: 0.5, y: 1 }
+      };
+    });
+
+    var destMarker = {
+      id: 300,
+      latitude: routeData.destination.latitude,
+      longitude: routeData.destination.longitude,
+      iconPath: "/assets/icons/destination-marker.png",
+      width: 36,
+      height: 44,
+      anchor: { x: 0.5, y: 1 }
+    };
+
+    var vehicleMarker = this.data.markers.find(function(m) { return m.id === 1; });
+    var markers = vehicleMarker
+      ? [vehicleMarker].concat(chargingMarkers).concat([destMarker])
+      : chargingMarkers.concat([destMarker]);
+
+    this.setData({ markers: markers });
+  },
+
+  saveRecentTrip: function(dest) {
+    var that = this;
+    var trips = wx.getStorageSync("recent_trips") || [];
+
+    // Remove duplicate
+    trips = trips.filter(function(t) {
+      return t.destinationName !== dest.name;
+    });
+
+    // Add new trip at beginning
+    trips.unshift({
+      id: Date.now(),
+      destinationName: dest.name,
+      destinationAddress: dest.address,
+      latitude: dest.latitude,
+      longitude: dest.longitude,
+      distanceKm: that.data.routeData ? that.data.routeData.total_distance : 0,
+      timestamp: Date.now()
+    });
+
+    // Keep only 10 recent trips
+    trips = trips.slice(0, 10);
+
+    wx.setStorageSync("recent_trips", trips);
+    this.setData({ recentTrips: trips });
+  },
+
+  cancelRoute: function() {
+    this.setData({
+      pageState: "idle",
+      panelState: "half",
+      destination: null,
+      routeData: null,
+      polylines: []
+    });
+    this.loadNearbyStations();
+  },
+
+  startNavigation: function() {
+    var dest = this.data.destination;
+    if (!dest) return;
+
+    wx.openLocation({
+      latitude: dest.latitude,
+      longitude: dest.longitude,
+      name: dest.name,
+      address: dest.address || ""
+    });
+  },
+
+  sendToVehicle: function() {
+    var that = this;
+    if (!this.data.hasVehicle || !this.data.vehicle) {
+      wx.showToast({ title: "请先连接车辆", icon: "none" });
+      return;
+    }
+
+    var dest = this.data.destination;
+    if (!dest) return;
+
+    wx.showLoading({ title: "发送中..." });
+
+    api.sendNavigation(this.data.vehicle.id, {
+      latitude: dest.latitude,
+      longitude: dest.longitude,
+      name: dest.name
+    }).then(function() {
+      wx.hideLoading();
+      wx.showToast({ title: "已发送到车辆", icon: "success" });
+    }).catch(function(err) {
+      wx.hideLoading();
+      console.error("Failed to send navigation:", err);
+      wx.showToast({ title: "发送失败", icon: "none" });
+    });
+  },
+
+  editRoute: function() {
+    wx.navigateTo({
+      url: "/pages/route-edit/route-edit?routeData=" + encodeURIComponent(JSON.stringify(this.data.routeData))
+    });
+  },
+
+  editDepartureSOC: function() {
+    var that = this;
+    wx.showActionSheet({
+      itemList: ["50%", "60%", "70%", "80%", "90%", "100%"],
+      success: function(res) {
+        var socValues = [50, 60, 70, 80, 90, 100];
+        that.setData({ departureSOC: socValues[res.tapIndex] });
+        if (that.data.destination) {
+          that.planRoute();
         }
       }
     });
   },
 
-  async wakeVehicle() {
-    const { vehicle } = this.data;
-    if (!vehicle) return;
+  onMarkerTap: function(e) {
+    var markerId = e.markerId;
+    var marker = this.data.markers.find(function(m) { return m.id === markerId; });
+    if (marker && marker.stationData) {
+      this.navigateToStation(marker.stationData);
+    }
+  },
 
-    const token = wx.getStorageSync('token');
-    if (!token) return;
+  onRegionChange: function(e) {
+    // Could update nearby stations based on new region
+  },
 
-    wx.showLoading({ title: 'Waking vehicle...' });
+  onMapTap: function() {
+    if (this.data.panelState === "expanded") {
+      this.setData({ panelState: "half" });
+    }
+  },
 
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}/vehicles/${vehicle.id}/wake`,
-      method: 'POST',
-      header: {
-        'Authorization': `Bearer ${token}`
-      },
-      success: (res) => {
-        wx.hideLoading();
-        if (res.statusCode === 200) {
-          wx.showToast({
-            title: res.data.message,
-            icon: 'success'
-          });
+  onConnectionTap: function() {
+    if (this.data.hasVehicle) {
+      wx.navigateTo({ url: "/pages/vehicle/vehicle" });
+    }
+  },
 
-          // Retry fetching state after a delay
-          setTimeout(() => {
-            this.fetchVehicleState(vehicle.id);
-          }, 5000);
-        } else {
-          wx.showToast({
-            title: 'Failed to wake vehicle',
-            icon: 'none'
-          });
+  onNavigationTap: function() {
+    // Open navigation/route functions
+    this.onSearchTap();
+  },
+
+  centerOnVehicle: function() {
+    var that = this;
+    if (this.data.vehicleState && this.data.vehicleState.latitude) {
+      this.setData({
+        mapCenter: {
+          latitude: this.data.vehicleState.latitude,
+          longitude: this.data.vehicleState.longitude
         }
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({
-          title: 'Network error',
-          icon: 'none'
+      });
+      if (this.mapCtx) {
+        this.mapCtx.moveToLocation({
+          latitude: this.data.vehicleState.latitude,
+          longitude: this.data.vehicleState.longitude
         });
       }
-    });
+    } else if (this.data.vehicle) {
+      // Refresh vehicle state
+      this.fetchVehicleState(this.data.vehicle.id);
+    }
   },
 
-  loadRecentTrips() {
-    const trips = wx.getStorageSync('recentTrips') || [];
-    this.setData({ recentTrips: trips.slice(0, 5) });
-  },
+  goToBindVehicle: function() {
+    var that = this;
 
-  goToBindVehicle() {
-    const token = wx.getStorageSync('token');
-
+    // First ensure user is logged in
+    var token = wx.getStorageSync("token");
     if (!token) {
       // Need to login first
-      app.login().then(() => {
-        wx.navigateTo({
-          url: '/pages/vehicle-binding/vehicle-binding'
-        });
-      }).catch(() => {
-        wx.showToast({
-          title: 'Please login first',
-          icon: 'none'
-        });
+      wx.showLoading({ title: "登录中..." });
+      app.login().then(function() {
+        wx.hideLoading();
+        that.navigateToTeslaAuth();
+      }).catch(function(err) {
+        wx.hideLoading();
+        console.error("Login failed:", err);
+        wx.showToast({ title: "登录失败", icon: "none" });
       });
     } else {
-      wx.navigateTo({
-        url: '/pages/vehicle-binding/vehicle-binding'
-      });
+      this.navigateToTeslaAuth();
     }
   },
 
-  chooseOrigin() {
-    wx.chooseLocation({
-      success: (res) => {
-        this.setData({
-          origin: {
-            name: res.name || res.address,
-            latitude: res.latitude,
-            longitude: res.longitude
-          }
-        });
-        this.updateCanPlan();
-      }
-    });
-  },
-
-  chooseDestination() {
-    wx.chooseLocation({
-      success: (res) => {
-        this.setData({
-          destination: {
-            name: res.name || res.address,
-            latitude: res.latitude,
-            longitude: res.longitude
-          }
-        });
-        this.updateCanPlan();
-      }
-    });
-  },
-
-  useCurrentLocation() {
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        this.reverseGeocode(res.latitude, res.longitude);
-      },
-      fail: () => {
-        wx.showToast({
-          title: 'Failed to get location',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
-  useVehicleLocation() {
-    const { vehicleState } = this.data;
-    if (vehicleState && vehicleState.latitude && vehicleState.longitude) {
-      this.setVehicleAsOrigin(vehicleState);
-    } else {
-      wx.showToast({
-        title: 'Vehicle location not available',
-        icon: 'none'
-      });
-    }
-  },
-
-  reverseGeocode(latitude, longitude) {
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}/routes/reverse-geocode`,
-      method: 'POST',
-      data: { latitude, longitude },
-      success: (res) => {
-        if (res.statusCode === 200) {
-          this.setData({
-            origin: {
-              name: res.data.address || 'Current Location',
-              latitude,
-              longitude
-            }
-          });
-          this.updateCanPlan();
-        }
-      },
-      fail: () => {
-        this.setData({
-          origin: {
-            name: 'Current Location',
-            latitude,
-            longitude
-          }
-        });
-        this.updateCanPlan();
-      }
-    });
-  },
-
-  onSocChange(e) {
-    this.setData({ currentSoc: e.detail.value });
-  },
-
-  updateCanPlan() {
-    const { origin, destination } = this.data;
-    this.setData({
-      canPlan: !!(origin && destination)
-    });
-  },
-
-  planRoute() {
-    const { origin, destination, currentSoc, vehicle } = this.data;
-
-    if (!origin || !destination) {
-      wx.showToast({
-        title: 'Please select locations',
-        icon: 'none'
-      });
-      return;
-    }
-
-    this.setData({ loading: true });
-    wx.showLoading({ title: 'Planning route...' });
-
-    const token = wx.getStorageSync('token');
-
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}/routes/plan`,
-      method: 'POST',
-      header: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json'
-      },
-      data: {
-        origin: {
-          latitude: origin.latitude,
-          longitude: origin.longitude,
-          address: origin.name
-        },
-        destination: {
-          latitude: destination.latitude,
-          longitude: destination.longitude,
-          address: destination.name
-        },
-        current_soc: currentSoc,
-        vehicle_id: vehicle ? vehicle.id : null,
-        car_type: vehicle ? this.getCarType(vehicle.model) : 'model_y_long_range'
-      },
-      success: (res) => {
-        wx.hideLoading();
-        this.setData({ loading: false });
-
-        if (res.statusCode === 200) {
-          // Save to recent trips
-          this.saveToRecentTrips(origin, destination, res.data);
-
-          // Navigate to result page
-          wx.navigateTo({
-            url: `/pages/route-result/route-result?data=${encodeURIComponent(JSON.stringify(res.data))}`
-          });
-        } else {
-          wx.showToast({
-            title: res.data.detail || 'Planning failed',
-            icon: 'none'
-          });
-        }
-      },
-      fail: () => {
-        wx.hideLoading();
-        this.setData({ loading: false });
-        wx.showToast({
-          title: 'Network error',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
-  getCarType(model) {
-    const modelMap = {
-      'Model Y': 'model_y_long_range',
-      'Model 3': 'model_3_long_range',
-      'Model S': 'model_s_long_range',
-      'Model X': 'model_x_long_range'
-    };
-    return modelMap[model] || 'model_y_long_range';
-  },
-
-  saveToRecentTrips(origin, destination, routeData) {
-    const trips = wx.getStorageSync('recentTrips') || [];
-    const newTrip = {
-      id: Date.now(),
-      originName: origin.name,
-      destinationName: destination.name,
-      distanceKm: routeData.total_distance_km,
-      origin,
-      destination
-    };
-
-    // Add to beginning, keep max 10
-    trips.unshift(newTrip);
-    if (trips.length > 10) trips.pop();
-
-    wx.setStorageSync('recentTrips', trips);
-    this.setData({ recentTrips: trips.slice(0, 5) });
-  },
-
-  loadTrip(e) {
-    const trip = e.currentTarget.dataset.trip;
-    this.setData({
-      origin: trip.origin,
-      destination: trip.destination
-    });
-    this.updateCanPlan();
-  },
-
-  swapLocations() {
-    const { origin, destination } = this.data;
-    if (origin && destination) {
-      this.setData({
-        origin: destination,
-        destination: origin
-      });
-    }
-  },
-
-  toggleVehicleCard() {
-    this.setData({
-      showVehicleCard: !this.data.showVehicleCard
-    });
-  },
-
-  onPullDownRefresh() {
-    this.initializeState().then(() => {
-      wx.stopPullDownRefresh();
-    });
+  navigateToTeslaAuth: function() {
+    // Navigate to Tesla binding page
+    wx.navigateTo({ url: "/pages/vehicle-binding/vehicle-binding" });
   }
 });
