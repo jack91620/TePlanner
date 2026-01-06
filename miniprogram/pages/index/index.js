@@ -349,34 +349,86 @@ Page({
     }
 
     api.searchPlaces(keyword, location).then(function(results) {
-      that.setData({
-        searchResults: results || [],
-        searchLoading: false,
-        searchDone: true
-      });
+      if (results && results.length > 0) {
+        that.setData({
+          searchResults: results,
+          searchLoading: false,
+          searchDone: true
+        });
+      } else {
+        // No results, try geocode
+        that.fallbackGeocode(keyword);
+      }
     }).catch(function(err) {
       console.error("Search failed:", err);
-      // Fallback to geocode
-      api.geocode(keyword).then(function(result) {
-        if (result && result.location) {
-          that.setData({
-            searchResults: [{
-              id: "geo_1",
-              name: result.title || keyword,
-              address: result.address || keyword,
-              latitude: result.location.lat,
-              longitude: result.location.lng,
-              distance: "--"
-            }],
-            searchLoading: false,
-            searchDone: true
-          });
-        } else {
-          that.setData({ searchResults: [], searchLoading: false, searchDone: true });
-        }
-      }).catch(function() {
+      that.fallbackGeocode(keyword);
+    });
+  },
+
+  fallbackGeocode: function(keyword) {
+    var that = this;
+
+    api.geocode(keyword).then(function(result) {
+      if (result && result.location) {
+        that.setData({
+          searchResults: [{
+            id: "geo_1",
+            name: result.title || keyword,
+            address: result.address || keyword,
+            latitude: result.location.lat,
+            longitude: result.location.lng,
+            distance: "--"
+          }],
+          searchLoading: false,
+          searchDone: true
+        });
+      } else {
+        // All failed, offer to use map picker
         that.setData({ searchResults: [], searchLoading: false, searchDone: true });
-      });
+        that.offerMapPicker(keyword);
+      }
+    }).catch(function() {
+      that.setData({ searchResults: [], searchLoading: false, searchDone: true });
+      that.offerMapPicker(keyword);
+    });
+  },
+
+  offerMapPicker: function(keyword) {
+    var that = this;
+    wx.showModal({
+      title: "未找到结果",
+      content: "是否打开地图手动选择位置？",
+      confirmText: "打开地图",
+      success: function(res) {
+        if (res.confirm) {
+          that.openMapPicker();
+        }
+      }
+    });
+  },
+
+  openMapPicker: function() {
+    var that = this;
+    wx.chooseLocation({
+      success: function(res) {
+        if (res.name) {
+          that.setData({
+            pageState: "idle",
+            searchKeyword: "",
+            searchResults: [],
+            destination: {
+              name: res.name,
+              address: res.address,
+              latitude: res.latitude,
+              longitude: res.longitude
+            }
+          });
+          that.planRoute();
+        }
+      },
+      fail: function() {
+        that.closeSearch();
+      }
     });
   },
 
