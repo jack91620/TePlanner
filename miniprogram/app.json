@@ -10,15 +10,15 @@
     "pages/settings/settings"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#1a1a2e",
+    "navigationBarBackgroundColor": "#171717",
     "navigationBarTitleText": "TePlanner",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#f5f5f5"
+    "backgroundColor": "#171717"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#e63946",
-    "backgroundColor": "#ffffff",
+    "color": "#666666",
+    "selectedColor": "#3e6ae1",
+    "backgroundColor": "#171717",
     "borderStyle": "black",
     "list": [
       {

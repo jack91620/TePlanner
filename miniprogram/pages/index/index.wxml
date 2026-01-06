@@ -54,6 +54,7 @@
       enable-scroll="{{true}}"
       enable-zoom="{{true}}"
       enable-rotate="{{false}}"
+      setting="{{mapSetting}}"
       bindmarkertap="onMarkerTap"
       bindregionchange="onRegionChange"
       bindtap="onMapTap"
