@@ -64,6 +64,20 @@
   margin-bottom: 24px;
 }
 
+.error-icon-placeholder {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  background: #ee0a24;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
 .error-text {
   color: #666;
   font-size: 16px;

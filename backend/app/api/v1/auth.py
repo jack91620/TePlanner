@@ -495,10 +495,15 @@ async def tesla_link_status(
     if not token:
         return {
             "linked": False,
+            "expired": False,
             "message": "Tesla account not linked",
         }
 
-    is_expired = token.expires_at < datetime.now(timezone.utc)
+    # Handle case where expires_at might be None
+    if token.expires_at is None:
+        is_expired = True
+    else:
+        is_expired = token.expires_at < datetime.now(timezone.utc)
 
     return {
         "linked": True,

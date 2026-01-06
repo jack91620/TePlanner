@@ -16,9 +16,9 @@
   </view>
 
   <view wx:if="{{error}}" class="error-container">
-    <image class="error-icon" src="/assets/icons/error.png" mode="aspectFit" />
+    <view class="error-icon-placeholder">!</view>
     <text class="error-text">{{errorMessage}}</text>
-    <button class="retry-btn" bindtap="retry">Retry</button>
-    <button class="back-btn" bindtap="goBack">Go Back</button>
+    <button class="retry-btn" bindtap="retry">重试</button>
+    <button class="back-btn" bindtap="goBack">返回</button>
   </view>
 </view>

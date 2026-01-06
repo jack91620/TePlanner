@@ -1,51 +1,122 @@
 <!--pages/vehicle-binding/vehicle-binding.wxml-->
 <view class="container">
-  <!-- Intro -->
-  <view class="intro">
-    <view class="tesla-logo-placeholder">T</view>
-    <text class="intro-title">连接 Tesla 账户</text>
-    <text class="intro-desc">连接你的 Tesla 账户，获取实时电池状态并优化路线规划</text>
-  </view>
 
-  <!-- Benefits -->
-  <view class="card">
-    <view class="section-title">连接后可获取</view>
-    <view class="benefit-list">
-      <view class="benefit-item">
-        <view class="benefit-icon">1</view>
-        <view class="benefit-content">
-          <text class="benefit-title">实时电池状态</text>
-          <text class="benefit-desc">从车辆获取精确的电量数据</text>
+  <!-- Step 1: Intro -->
+  <block wx:if="{{step === 'intro'}}">
+    <!-- Intro -->
+    <view class="intro">
+      <view class="tesla-logo-placeholder">T</view>
+      <text class="intro-title">连接 Tesla 账户</text>
+      <text class="intro-desc">连接你的 Tesla 账户，获取实时电池状态并优化路线规划</text>
+    </view>
+
+    <!-- Benefits -->
+    <view class="card">
+      <view class="section-title">连接后可获取</view>
+      <view class="benefit-list">
+        <view class="benefit-item">
+          <view class="benefit-icon">1</view>
+          <view class="benefit-content">
+            <text class="benefit-title">实时电池状态</text>
+            <text class="benefit-desc">从车辆获取精确的电量数据</text>
+          </view>
         </view>
-      </view>
-      <view class="benefit-item">
-        <view class="benefit-icon">2</view>
-        <view class="benefit-content">
-          <text class="benefit-title">精准续航估算</text>
-          <text class="benefit-desc">基于你的实际车辆配置</text>
+        <view class="benefit-item">
+          <view class="benefit-icon">2</view>
+          <view class="benefit-content">
+            <text class="benefit-title">精准续航估算</text>
+            <text class="benefit-desc">基于你的实际车辆配置</text>
+          </view>
         </view>
-      </view>
-      <view class="benefit-item">
-        <view class="benefit-icon">3</view>
-        <view class="benefit-content">
-          <text class="benefit-title">最优充电规划</text>
-          <text class="benefit-desc">根据电量定制充电方案</text>
+        <view class="benefit-item">
+          <view class="benefit-icon">3</view>
+          <view class="benefit-content">
+            <text class="benefit-title">最优充电规划</text>
+            <text class="benefit-desc">根据电量定制充电方案</text>
+          </view>
         </view>
       </view>
     </view>
-  </view>
 
-  <!-- Privacy Notice -->
-  <view class="card privacy-card">
-    <text class="privacy-title">隐私与安全</text>
-    <text class="privacy-text">我们仅访问车辆的电池状态和位置信息，不会存储你的 Tesla 密码，也不会远程控制你的车辆。</text>
-  </view>
+    <!-- Privacy Notice -->
+    <view class="card privacy-card">
+      <text class="privacy-title">隐私与安全</text>
+      <text class="privacy-text">我们仅访问车辆的电池状态和位置信息，不会存储你的 Tesla 密码，也不会远程控制你的车辆。</text>
+    </view>
 
-  <!-- Bind Button -->
-  <view class="bottom-actions">
-    <button class="btn btn-primary" bindtap="startBinding" loading="{{loading}}">
-      连接 Tesla 账户
-    </button>
-    <text class="skip-link" bindtap="skipBinding">暂时跳过</text>
-  </view>
+    <!-- Bind Button -->
+    <view class="bottom-actions">
+      <button class="btn btn-primary" bindtap="startBinding" loading="{{loading}}">
+        连接 Tesla 账户
+      </button>
+      <text class="skip-link" bindtap="skipBinding">暂时跳过</text>
+    </view>
+  </block>
+
+  <!-- Step 2: Waiting for OAuth -->
+  <block wx:if="{{step === 'waiting'}}">
+    <view class="waiting-container">
+      <view class="waiting-icon">
+        <view class="waiting-icon-inner"></view>
+      </view>
+      <text class="waiting-title">等待授权</text>
+      <text class="waiting-desc">请在手机浏览器中完成 Tesla 账户授权</text>
+
+      <view class="steps-guide">
+        <view class="step-item">
+          <view class="step-num">1</view>
+          <text class="step-text">打开手机浏览器</text>
+        </view>
+        <view class="step-item">
+          <view class="step-num">2</view>
+          <text class="step-text">粘贴并访问授权链接</text>
+        </view>
+        <view class="step-item">
+          <view class="step-num">3</view>
+          <text class="step-text">登录 Tesla 账户并授权</text>
+        </view>
+        <view class="step-item">
+          <view class="step-num">4</view>
+          <text class="step-text">返回此页面</text>
+        </view>
+      </view>
+
+      <view class="waiting-actions">
+        <button class="btn btn-secondary" bindtap="copyUrl">
+          再次复制链接
+        </button>
+        <button class="btn btn-primary" bindtap="checkBindingStatus">
+          检查授权状态
+        </button>
+        <text class="cancel-link" bindtap="retry">取消授权</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- Step 3: Success -->
+  <block wx:if="{{step === 'success'}}">
+    <view class="result-container">
+      <view class="success-icon">
+        <text class="success-check">OK</text>
+      </view>
+      <text class="result-title">连接成功</text>
+      <text class="result-desc">Tesla 账户已成功连接，即将返回首页...</text>
+    </view>
+  </block>
+
+  <!-- Step 4: Error -->
+  <block wx:if="{{step === 'error'}}">
+    <view class="result-container">
+      <view class="error-icon">
+        <text class="error-mark">!</text>
+      </view>
+      <text class="result-title">连接失败</text>
+      <text class="result-desc">{{errorMessage}}</text>
+      <view class="error-actions">
+        <button class="btn btn-primary" bindtap="retry">重试</button>
+        <text class="skip-link" bindtap="skipBinding">返回</text>
+      </view>
+    </view>
+  </block>
+
 </view>
