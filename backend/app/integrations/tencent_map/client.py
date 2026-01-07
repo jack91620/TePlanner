@@ -166,30 +166,41 @@ class TencentMapClient:
         )
         return data.get("data", [])
 
+    # 沿途搜索专用 KEY（需单独申请开通）
+    ALONGBY_API_KEY = "A35BZ-JPUWU-K5YVN-GH4OF-MB2WZ-UZFWY"
+
     async def search_along_route(
         self,
         polyline: str,
-        keyword: str = "充电站",
-        max_distance: int = 3000,
+        keyword: str = "服务区",
     ) -> List[Dict[str, Any]]:
-        """Search for POIs along a route.
+        """沿路线搜索 POI（使用 alongby 接口）。
 
         Args:
-            polyline: Route polyline string (lat,lng;lat,lng;...)
-            keyword: Search keyword (e.g., "充电站").
-            max_distance: Max distance from route in meters.
+            polyline: 路线坐标串 "lat,lng,lat,lng,..." (逗号分隔)
+            keyword: 搜索关键词（服务区/充电站/加油站等）
+                支持的关键词: 充电站、厕所、停车场、购物、加油站、
+                银行ATM、加气站、便利店、服务区、汽车维修、中石油、中石化
 
         Returns:
             List of POI results along the route.
         """
-        data = await self._request(
-            "/ws/place/v1/search",
-            params={
-                "keyword": keyword,
-                "boundary": f"along({polyline},{max_distance})",
-            },
-        )
-        return data.get("data", [])
+        # 沿途搜索使用专用 KEY
+        client = await self._get_client()
+        params = {
+            "keyword": keyword,
+            "polyline": polyline,
+            "key": self.ALONGBY_API_KEY,
+        }
+
+        response = await client.get("/ws/place/v1/alongby", params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("status") != 0:
+            raise Exception(f"Tencent Map alongby API error: {data.get('message')}")
+
+        return data.get("result", [])
 
     async def search_charging_stations(
         self,
@@ -236,6 +247,108 @@ class TencentMapClient:
             keyword="服务区",
             radius=radius,
         )
+
+    async def search_service_area_charging_along_route(
+        self,
+        polyline: str,
+    ) -> List[Dict[str, Any]]:
+        """沿路线搜索充电站。
+
+        直接使用 alongby 接口搜索"充电站"，
+        因为是沿路线搜索，结果自然就是高速沿途的充电站。
+
+        Args:
+            polyline: 路线坐标串 "lat,lng,lat,lng,..." (逗号分隔)
+
+        Returns:
+            充电站列表，每个元素包含:
+            - id: 充电站ID
+            - title: 充电站名称
+            - location: 位置 {lat, lng}
+            - address: 地址
+        """
+        # 直接搜索沿途充电站（分段搜索以避免 URL 过长）
+        stations = await self._search_along_route_segmented(
+            polyline=polyline,
+            keyword="充电站",
+        )
+
+        result = []
+        seen_ids = set()  # 去重
+
+        for station in stations:
+            station_id = station.get("id")
+            if station_id in seen_ids:
+                continue
+            seen_ids.add(station_id)
+
+            result.append({
+                "id": station_id,
+                "title": station.get("title"),
+                "location": station.get("location", {}),
+                "address": station.get("address"),
+            })
+
+        return result
+
+    async def _search_along_route_segmented(
+        self,
+        polyline: str,
+        keyword: str = "服务区",
+    ) -> List[Dict[str, Any]]:
+        """分段沿途搜索 POI（避免 URL 过长）。
+
+        将长 polyline 分成多段，分别搜索后合并结果。
+
+        Args:
+            polyline: 路线坐标串 "lat,lng,lat,lng,..." (逗号分隔)
+            keyword: 搜索关键词
+
+        Returns:
+            合并后的 POI 结果列表
+        """
+        # 解析 polyline 为坐标点列表
+        coords = polyline.split(",")
+        points = []
+        for i in range(0, len(coords) - 1, 2):
+            try:
+                lat = float(coords[i])
+                lng = float(coords[i + 1])
+                points.append((lat, lng))
+            except (ValueError, IndexError):
+                continue
+
+        if not points:
+            return []
+
+        # 每段最多 40 个点（约 80 个坐标值），确保 URL 不会过长
+        max_points_per_segment = 40
+        all_results = []
+
+        for start_idx in range(0, len(points), max_points_per_segment - 5):
+            # 每段有 5 个点的重叠，确保不遗漏服务区
+            end_idx = min(start_idx + max_points_per_segment, len(points))
+            segment_points = points[start_idx:end_idx]
+
+            if len(segment_points) < 2:
+                continue
+
+            # 构建该段的 polyline 字符串
+            segment_polyline = ",".join(
+                f"{lat:.6f},{lng:.6f}" for lat, lng in segment_points
+            )
+
+            try:
+                results = await self.search_along_route(
+                    polyline=segment_polyline,
+                    keyword=keyword,
+                )
+                all_results.extend(results)
+            except Exception as e:
+                print(f"分段搜索失败 (段 {start_idx}-{end_idx}): {e}")
+                continue
+
+        return all_results
 
     async def get_driving_route_detailed(
         self,

@@ -285,10 +285,11 @@ class RoutePlanner:
     ) -> List[ChargingStop]:
         """Find optimal charging stops along the route.
 
-        Uses a greedy algorithm:
-        1. Calculate how far we can drive before needing to charge
-        2. Find charging stations near that point
-        3. Select the best one and repeat
+        Uses a two-step approach:
+        1. First, search for all service areas with charging facilities along the route
+        2. Then, use greedy algorithm to select optimal charging points based on range
+
+        This ensures all charging stops are at highway service areas.
 
         Args:
             origin: Start point
@@ -303,126 +304,120 @@ class RoutePlanner:
             vehicle_range_km: Actual vehicle range at 100% SOC (from Tesla API)
 
         Returns:
-            List of charging stops
+            List of charging stops (all at highway service areas)
         """
         map_client = await self._get_map_client()
 
         # Calculate max range based on vehicle_range_km or car_type specs
         if vehicle_range_km and vehicle_range_km > 0:
-            # Use actual range from Tesla API - calculate max range directly from SOC
             full_range_km = vehicle_range_km
         else:
-            # Fallback to car_type based calculation
             specs = self.energy_model.get_vehicle_specs(car_type)
             battery_capacity = specs.get("battery_capacity_kwh", 60)
             consumption_per_km = specs.get("consumption_wh_per_km", 150) / 1000
             full_range_km = battery_capacity / consumption_per_km
 
+        # Step 1: 先搜索整条路线沿途有充电设施的服务区
+        polyline_str = self._build_polyline_string(polyline)
+        service_areas = []
+
+        if polyline_str:
+            try:
+                service_areas = await map_client.search_service_area_charging_along_route(
+                    polyline=polyline_str
+                )
+            except Exception as e:
+                print(f"搜索沿途服务区失败: {e}")
+
+        # 计算每个服务区距离起点的距离
+        for area in service_areas:
+            area["distance_from_start_km"] = self._calculate_distance_along_route(
+                polyline, area.get("location", {}), total_distance_km
+            )
+
+        # 按距离排序
+        service_areas.sort(key=lambda x: x.get("distance_from_start_km", 0))
+
+        # 如果没有找到服务区，返回空列表
+        if not service_areas:
+            return []
+
+        # Step 2: 根据剩余续航从服务区列表中选择最优充电点
         charging_stops = []
         current_soc = initial_soc
         distance_traveled = 0
 
         while distance_traveled < total_distance_km:
-            # Calculate how far we can go with current SOC
+            # 计算当前电量能开多远
             usable_soc = current_soc - min_charging_soc
             max_range_km = full_range_km * (usable_soc / 100)
 
             remaining_distance = total_distance_km - distance_traveled
 
-            # Check if we can reach destination using range-based calculation
+            # 检查是否能直接到达目的地
             soc_to_destination = (remaining_distance / full_range_km) * 100
-
             if current_soc - soc_to_destination >= min_arrival_soc:
-                # Can reach destination without more charging
-                break
+                break  # 可以到达，不需要更多充电
 
-            # Need to charge - find a station
-            target_distance = distance_traveled + max_range_km * 0.8  # 80% of max range
+            # 从服务区列表中找到在可达范围内的最远服务区（贪心策略）
+            best_area = None
+            for area in service_areas:
+                area_distance = area.get("distance_from_start_km", 0)
+                # 服务区在当前位置之后，且在可达范围的90%以内
+                if area_distance > distance_traveled + 10:  # 至少前进 10km
+                    if area_distance <= distance_traveled + max_range_km * 0.9:
+                        best_area = area  # 取最远的那个（贪心）
 
-            if target_distance >= total_distance_km:
-                target_distance = total_distance_km * 0.7  # Charge at 70% of total distance
+            if not best_area:
+                # 没有找到合适的服务区，尝试找最近的一个
+                for area in service_areas:
+                    area_distance = area.get("distance_from_start_km", 0)
+                    if area_distance > distance_traveled + 10:
+                        best_area = area
+                        break
 
-            # Find point along route at target distance
-            target_point = self._get_point_at_distance(
-                polyline, distance_traveled, target_distance, total_distance_km
-            )
+            if not best_area:
+                break  # 没有更多可用的服务区
 
-            if target_point is None:
-                break
+            # 获取服务区信息
+            area_location = best_area.get("location", {})
+            station_lat = area_location.get("lat", 0)
+            station_lng = area_location.get("lng", 0)
+            station_distance = best_area.get("distance_from_start_km", 0)
 
-            # Search for charging stations near this point
-            try:
-                stations = await map_client.search_charging_stations(
-                    latitude=target_point[0],
-                    longitude=target_point[1],
-                    radius=20000,  # 20km radius
-                )
-            except Exception:
-                stations = []
-
-            if not stations:
-                # Try searching at midpoint
-                midpoint = self._get_point_at_distance(
-                    polyline, 0, total_distance_km / 2, total_distance_km
-                )
-                if midpoint:
-                    try:
-                        stations = await map_client.search_charging_stations(
-                            latitude=midpoint[0],
-                            longitude=midpoint[1],
-                            radius=30000,
-                        )
-                    except Exception:
-                        pass
-
-            if not stations:
-                break
-
-            # Select best station (closest to target point)
-            best_station = stations[0]
-            station_location = best_station.get("location", {})
-            station_lat = station_location.get("lat", target_point[0])
-            station_lng = station_location.get("lng", target_point[1])
-
-            # Use target_distance as station's approximate position along route
-            # (since that's where we searched for it)
-            station_distance = target_distance
-
-            # Calculate the driving distance from last position to station
+            # 计算到达该服务区时的电量
             segment_distance = station_distance - distance_traveled
-
-            # Calculate arrival SOC at station using range-based calculation
             soc_used = (segment_distance / full_range_km) * 100
             arrival_soc_at_station = current_soc - int(soc_used)
             arrival_soc_at_station = max(0, arrival_soc_at_station)
 
-            # Calculate charging time (rough estimate)
-            # Assume average battery capacity of 70kWh for charging time calculation
+            # 计算充电时长（估算）
             estimated_battery_kwh = 70
             soc_to_add = target_charging_soc - arrival_soc_at_station
             energy_to_add = estimated_battery_kwh * (soc_to_add / 100)
             charging_minutes = int((energy_to_add / self.DEFAULT_CHARGING_POWER_KW) * 60)
 
+            # 创建充电站记录
             charging_stop = ChargingStop(
-                station_id=best_station.get("id", f"station_{len(charging_stops)}"),
-                name=best_station.get("title", "充电站"),
+                station_id=best_area.get("id", f"service_area_{len(charging_stops)}"),
+                name=best_area.get("title", "服务区充电站"),
                 latitude=station_lat,
                 longitude=station_lng,
                 distance_from_start_km=round(station_distance, 1),
                 arrival_soc=arrival_soc_at_station,
                 departure_soc=target_charging_soc,
                 charging_duration_minutes=charging_minutes,
-                operator=self._extract_operator(best_station.get("title", "")),
-                address=best_station.get("address", ""),
+                operator=self._extract_operator(best_area.get("title", "")),
+                address=best_area.get("address", ""),
             )
 
             charging_stops.append(charging_stop)
 
-            # Update state
+            # 更新状态
             distance_traveled = station_distance
             current_soc = target_charging_soc
 
-            # Prevent infinite loop
+            # 防止无限循环
             if len(charging_stops) >= 10:
                 break
 
@@ -556,3 +551,83 @@ class RoutePlanner:
         elif "蔚来" in name or "NIO" in name.upper():
             return "蔚来换电站"
         return None
+
+    def _build_polyline_string(self, polyline: List) -> str:
+        """构建 alongby API 需要的 polyline 字符串。
+
+        Args:
+            polyline: 路线点列表，可以是 (lat, lng) 元组或 {lat, lng} 字典
+
+        Returns:
+            逗号分隔的坐标串 "lat,lng,lat,lng,..."
+            采样后约 200 个坐标点（client 会进行分段搜索）
+        """
+        if not polyline:
+            return ""
+
+        # 采样以控制坐标点数量
+        # client.py 的 _search_along_route_segmented 会自动分段搜索
+        # 200 个点可以较好地表示长途路线
+        max_points = 200
+        sample_step = max(1, len(polyline) // max_points)
+        sampled_points = polyline[::sample_step][:max_points]
+
+        coords = []
+        for point in sampled_points:
+            if isinstance(point, dict):
+                lat = point.get("lat", 0)
+                lng = point.get("lng", 0)
+            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                lat, lng = point[0], point[1]
+            else:
+                continue
+            # 保留 6 位小数
+            coords.append(f"{lat:.6f},{lng:.6f}")
+
+        return ",".join(coords)
+
+    def _calculate_distance_along_route(
+        self,
+        polyline: List,
+        location: dict,
+        total_distance_km: float,
+    ) -> float:
+        """计算某个位置沿路线距离起点的距离。
+
+        通过在 polyline 中找到最近的点，然后估算距离。
+
+        Args:
+            polyline: 路线点列表
+            location: 目标位置 {lat, lng}
+            total_distance_km: 总路线距离
+
+        Returns:
+            距离起点的公里数
+        """
+        if not polyline or not location:
+            return 0
+
+        target_lat = location.get("lat", 0)
+        target_lng = location.get("lng", 0)
+
+        # 找到 polyline 中距离目标位置最近的点
+        min_distance = float("inf")
+        closest_index = 0
+
+        for i, point in enumerate(polyline):
+            if isinstance(point, dict):
+                p_lat = point.get("lat", 0)
+                p_lng = point.get("lng", 0)
+            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                p_lat, p_lng = point[0], point[1]
+            else:
+                continue
+
+            dist = self._calculate_distance(target_lat, target_lng, p_lat, p_lng)
+            if dist < min_distance:
+                min_distance = dist
+                closest_index = i
+
+        # 根据在 polyline 中的位置估算距离
+        fraction = closest_index / max(1, len(polyline) - 1)
+        return fraction * total_distance_km
