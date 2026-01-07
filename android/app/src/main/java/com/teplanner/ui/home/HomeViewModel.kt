@@ -99,13 +99,13 @@ class HomeViewModel @Inject constructor(
                 }
 
                 // Get vehicles
-                val vehicles = backendApi.getVehicles()
-                if (vehicles.isEmpty()) {
+                val vehiclesResponse = backendApi.getVehicles()
+                if (vehiclesResponse.vehicles.isEmpty()) {
                     _uiState.update { it.copy(isLoading = false, vehicleConnected = false) }
                     return@launch
                 }
 
-                val vehicle = vehicles.first()
+                val vehicle = vehiclesResponse.vehicles.first()
                 currentVehicleId = vehicle.id
 
                 // Try to get vehicle state
@@ -123,7 +123,7 @@ class HomeViewModel @Inject constructor(
                             vehicleLocation = location,
                             departureSOC = state.batteryLevel ?: 80,
                             vehicleDisplayState = VehicleDisplayState(
-                                displayName = vehicle.displayName,
+                                displayName = vehicle.displayName ?: "My Tesla",
                                 stateText = getStateText(vehicle.state, state.chargingState),
                                 batteryLevel = state.batteryLevel ?: 0,
                                 rangeKm = state.batteryRange?.toInt() ?: 0
@@ -141,12 +141,13 @@ class HomeViewModel @Inject constructor(
 
                 } catch (e: Exception) {
                     // Vehicle might be offline
+                    android.util.Log.d("HomeViewModel", "Failed to get vehicle state: ${e.message}")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             vehicleConnected = true,
                             vehicleDisplayState = VehicleDisplayState(
-                                displayName = vehicle.displayName,
+                                displayName = vehicle.displayName ?: "My Tesla",
                                 stateText = "Offline",
                                 batteryLevel = 0,
                                 rangeKm = 0

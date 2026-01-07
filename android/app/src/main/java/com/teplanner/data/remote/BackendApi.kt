@@ -1,6 +1,11 @@
 package com.teplanner.data.remote
 
-import com.teplanner.data.model.*
+import com.teplanner.data.model.ChargingPlanRequest
+import com.teplanner.data.model.ChargingPlanResponse
+import com.teplanner.data.model.ChargingStation
+import com.teplanner.data.model.Vehicle
+import com.teplanner.data.model.VehicleState
+import com.teplanner.data.model.VehiclesResponse
 import retrofit2.http.*
 
 /**
@@ -36,7 +41,7 @@ interface BackendApi {
     // ============ Vehicles ============
 
     @GET("vehicles/")
-    suspend fun getVehicles(): List<Vehicle>
+    suspend fun getVehicles(): VehiclesResponse
 
     @GET("vehicles/{id}/state")
     suspend fun getVehicleState(@Path("id") vehicleId: String): VehicleState
@@ -114,6 +119,12 @@ data class TeslaStatusResponse(
 data class WakeResponse(
     val success: Boolean,
     val state: String? = null
+)
+
+data class Location(
+    val latitude: Double,
+    val longitude: Double,
+    val name: String? = null
 )
 
 data class NavigationRequest(

@@ -3,6 +3,17 @@ package com.teplanner.data.model
 import com.google.gson.annotations.SerializedName
 
 /**
+ * Response wrapper for vehicles list
+ */
+data class VehiclesResponse(
+    @SerializedName("count")
+    val count: Int,
+
+    @SerializedName("vehicles")
+    val vehicles: List<Vehicle>
+)
+
+/**
  * Tesla vehicle information
  */
 data class Vehicle(
@@ -10,19 +21,25 @@ data class Vehicle(
     val id: String,
 
     @SerializedName("vehicle_id")
-    val vehicleId: Long,
+    val vehicleId: Long? = null,
 
     @SerializedName("vin")
-    val vin: String,
+    val vin: String? = null,
 
     @SerializedName("display_name")
-    val displayName: String,
+    val displayName: String? = null,
+
+    @SerializedName("model")
+    val model: String? = null,
 
     @SerializedName("state")
-    val state: String, // "online", "asleep", "offline"
+    val state: String = "offline", // "online", "asleep", "offline"
 
     @SerializedName("in_service")
     val inService: Boolean = false,
+
+    @SerializedName("is_primary")
+    val isPrimary: Boolean = false,
 
     @SerializedName("color")
     val color: String? = null,
