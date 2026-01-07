@@ -97,18 +97,35 @@ class VehicleBindingViewModel @Inject constructor(
 
             if (pageContent != null && pageContent.isNotBlank()) {
                 try {
-                    // Try to parse as JSON
-                    val jsonContent = pageContent.trim()
+                    // Handle escaped JSON from JavaScript (e.g., {\"token\":\"xxx\"})
+                    var jsonContent = pageContent.trim()
+                    // Unescape JSON if needed
+                    if (jsonContent.contains("\\\"")) {
+                        jsonContent = jsonContent.replace("\\\"", "\"")
+                            .replace("\\\\", "\\")
+                    }
+                    android.util.Log.d("VehicleBinding", "Cleaned JSON content: $jsonContent")
+
                     if (jsonContent.startsWith("{")) {
                         val json = gson.fromJson(jsonContent, JsonObject::class.java)
-                        // Look for common token field names
+                        // Look for token field
                         authToken = json.get("token")?.asString
                             ?: json.get("access_token")?.asString
                             ?: json.get("auth_token")?.asString
-                        // Look for user_id
-                        userId = json.get("user_id")?.asString
-                            ?: json.get("userId")?.asString
-                        android.util.Log.d("VehicleBinding", "Parsed from JSON: authToken=$authToken, userId=$userId")
+                        // Look for user_id (can be int or string)
+                        val userIdElement = json.get("user_id")
+                        userId = when {
+                            userIdElement == null -> null
+                            userIdElement.isJsonPrimitive -> {
+                                if (userIdElement.asJsonPrimitive.isNumber) {
+                                    userIdElement.asInt.toString()
+                                } else {
+                                    userIdElement.asString
+                                }
+                            }
+                            else -> null
+                        }
+                        android.util.Log.d("VehicleBinding", "Parsed from JSON: authToken=${authToken?.take(20)}..., userId=$userId")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("VehicleBinding", "Failed to parse page content as JSON: ${e.message}")
@@ -119,14 +136,16 @@ class VehicleBindingViewModel @Inject constructor(
             if (authToken != null) {
                 settingsDataStore.setAuthToken(authToken)
                 android.util.Log.d("VehicleBinding", "Auth token stored successfully")
+            } else {
+                android.util.Log.d("VehicleBinding", "No auth token found in response")
             }
 
-            // Store user_id if found
+            // Store user_id if found (update if different from what we have)
             if (userId != null) {
                 settingsDataStore.setUserId(userId)
-                android.util.Log.d("VehicleBinding", "User ID stored successfully: $userId")
+                android.util.Log.d("VehicleBinding", "User ID stored/updated: $userId")
             } else {
-                android.util.Log.d("VehicleBinding", "No user_id found in response")
+                android.util.Log.d("VehicleBinding", "No user_id found in callback response")
             }
 
             // Mark Tesla as linked

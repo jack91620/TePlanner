@@ -511,12 +511,22 @@ async def tesla_callback(
 
                 await db.commit()
 
+        # Generate JWT token for the user
+        jwt_token = None
+        if user_id:
+            expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+            jwt_token = create_access_token(
+                data={"sub": str(user_id)},
+                expires_delta=timedelta(minutes=expires_minutes),
+            )
+
         # Return success page for WebView
         return HTMLResponse(
             content=_render_callback_page(
                 success=True,
                 message="Tesla account linked successfully!",
-                access_token=access_token if not user_id else None,  # Only return if not stored
+                user_id=user_id,
+                jwt_token=jwt_token,
             ),
         )
 
@@ -725,7 +735,8 @@ async def tesla_test():
 def _render_callback_page(
     success: bool,
     message: str,
-    access_token: Optional[str] = None,
+    user_id: Optional[int] = None,
+    jwt_token: Optional[str] = None,
 ) -> str:
     """Render HTML callback page for WebView.
 
@@ -756,6 +767,14 @@ def _render_callback_page(
         </script>
         """
 
+    # Generate JSON data for Android to extract
+    import json
+    auth_data_json = json.dumps({
+        "success": success,
+        "user_id": user_id,
+        "token": jwt_token,
+    }) if success and jwt_token else ""
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -763,6 +782,7 @@ def _render_callback_page(
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Tesla Authorization</title>
+        <script id="auth-data" type="application/json">{auth_data_json}</script>
         <style>
             * {{
                 margin: 0;

@@ -257,9 +257,15 @@ private fun TeslaWebView(
 
                             android.util.Log.d("TeslaWebView", "Callback page loaded, extracting response...")
 
-                            // Inject JavaScript to get the page content
+                            // Inject JavaScript to get the auth-data JSON from the script tag
                             view?.evaluateJavascript(
-                                "(function() { return document.body ? document.body.innerText : ''; })()"
+                                """(function() {
+                                    var authDataScript = document.getElementById('auth-data');
+                                    if (authDataScript && authDataScript.textContent) {
+                                        return authDataScript.textContent;
+                                    }
+                                    return document.body ? document.body.innerText : '';
+                                })()"""
                             ) { result ->
                                 android.util.Log.d("TeslaWebView", "Page content: $result")
 
