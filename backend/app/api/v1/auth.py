@@ -11,7 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.security import TokenEncryption, create_access_token, decode_access_token
+from app.core.security import (
+    TokenEncryption,
+    create_access_token,
+    decode_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.db.models import TeslaToken, User
 from app.db.session import get_db
 from app.integrations.tesla import TeslaAuth
@@ -38,6 +44,34 @@ class WeChatLoginResponse(BaseModel):
     expires_in: int
     user_id: int
     openid: str
+    has_tesla_linked: bool = False
+
+
+# Email/Password auth models (for Android)
+class EmailRegisterRequest(BaseModel):
+    """Email registration request."""
+
+    email: str
+    password: str
+    nickname: Optional[str] = None
+
+
+class EmailLoginRequest(BaseModel):
+    """Email login request."""
+
+    email: str
+    password: str
+
+
+class EmailAuthResponse(BaseModel):
+    """Email auth response."""
+
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    user_id: int
+    email: str
+    nickname: Optional[str] = None
     has_tesla_linked: bool = False
 
 
@@ -214,28 +248,182 @@ async def wechat_login(
         )
 
 
-@router.get("/tesla/authorize", response_model=TeslaAuthResponse)
+# ============ Email/Password Auth (for Android) ============
+
+
+@router.post("/register", response_model=EmailAuthResponse)
+async def email_register(
+    request: EmailRegisterRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Register a new user with email and password.
+
+    For Android and other non-WeChat clients.
+
+    Args:
+        request: Email, password, and optional nickname
+        db: Database session
+
+    Returns:
+        JWT access token and user info
+    """
+    # Check if email already exists
+    result = await db.execute(
+        select(User).where(User.email == request.email)
+    )
+    existing_user = result.scalar_one_or_none()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    # Create new user
+    password_hash = get_password_hash(request.password)
+    user = User(
+        email=request.email,
+        password_hash=password_hash,
+        nickname=request.nickname or request.email.split("@")[0],
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    # Create JWT token
+    expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email},
+        expires_delta=timedelta(minutes=expires_minutes),
+    )
+
+    return EmailAuthResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=expires_minutes * 60,
+        user_id=user.id,
+        email=user.email,
+        nickname=user.nickname,
+        has_tesla_linked=False,
+    )
+
+
+@router.post("/login", response_model=EmailAuthResponse)
+async def email_login(
+    request: EmailLoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Login with email and password.
+
+    For Android and other non-WeChat clients.
+
+    Args:
+        request: Email and password
+        db: Database session
+
+    Returns:
+        JWT access token and user info
+    """
+    # Find user by email
+    result = await db.execute(
+        select(User).where(User.email == request.email)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    # Verify password
+    if not verify_password(request.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    # Check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is disabled",
+        )
+
+    # Check if Tesla is linked
+    result = await db.execute(
+        select(TeslaToken).where(TeslaToken.user_id == user.id)
+    )
+    has_tesla = result.scalar_one_or_none() is not None
+
+    # Create JWT token
+    expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email},
+        expires_delta=timedelta(minutes=expires_minutes),
+    )
+
+    return EmailAuthResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=expires_minutes * 60,
+        user_id=user.id,
+        email=user.email,
+        nickname=user.nickname,
+        has_tesla_linked=has_tesla,
+    )
+
+
+class TeslaAuthResponseWithUser(BaseModel):
+    """Tesla authorization URL response with user_id."""
+
+    url: str
+    state: str
+    user_id: Optional[int] = None
+
+
+@router.get("/tesla/authorize")
 async def tesla_authorize(
     user_id: Optional[int] = Query(None, description="User ID to link Tesla to"),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get Tesla OAuth authorization URL.
 
+    If user_id is not provided, creates an anonymous user (for testing).
+
     Returns:
-        Authorization URL and state for CSRF protection
+        Authorization URL, state for CSRF protection, and user_id
     """
+    import uuid
+
+    created_user_id = user_id
+
+    # If no user_id provided, create an anonymous user
+    if not user_id:
+        anonymous_email = f"android_{uuid.uuid4().hex[:8]}@test.local"
+        new_user = User(
+            email=anonymous_email,
+            nickname="Test User",
+        )
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+        created_user_id = new_user.id
+
     auth = TeslaAuth()
     result = auth.get_authorization_url()
 
-    # Store state -> code_verifier mapping (and optionally user_id)
+    # Store state -> code_verifier mapping with user_id
     _oauth_states[result["state"]] = {
         "code_verifier": result["code_verifier"],
-        "user_id": user_id,
+        "user_id": created_user_id,
     }
 
-    return TeslaAuthResponse(
-        url=result["url"],
-        state=result["state"],
-    )
+    return {
+        "url": result["url"],
+        "state": result["state"],
+        "user_id": created_user_id,
+    }
 
 
 @router.get("/tesla/callback")

@@ -29,8 +29,13 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    openid = Column(String(64), unique=True, nullable=False, index=True)
+    # WeChat login fields
+    openid = Column(String(64), unique=True, nullable=True, index=True)
     unionid = Column(String(64), unique=True, nullable=True)
+    # Email/password login fields (for Android)
+    email = Column(String(128), unique=True, nullable=True, index=True)
+    password_hash = Column(String(256), nullable=True)
+    # Common fields
     nickname = Column(String(64), nullable=True)
     avatar_url = Column(String(512), nullable=True)
     phone = Column(String(20), nullable=True)
