@@ -782,7 +782,6 @@ def _render_callback_page(
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Tesla Authorization</title>
-        <script id="auth-data" type="application/json">{auth_data_json}</script>
         <style>
             * {{
                 margin: 0;
@@ -853,6 +852,7 @@ def _render_callback_page(
                 {"Returning to app..." if success else "Please close this page and try again."}
             </div>
         </div>
+        <div id="auth-data" style="display:none;">{auth_data_json}</div>
         {js_code}
     </body>
     </html>

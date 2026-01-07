@@ -257,12 +257,12 @@ private fun TeslaWebView(
 
                             android.util.Log.d("TeslaWebView", "Callback page loaded, extracting response...")
 
-                            // Inject JavaScript to get the auth-data JSON from the script tag
+                            // Inject JavaScript to get the auth-data JSON from the hidden div
                             view?.evaluateJavascript(
                                 """(function() {
-                                    var authDataScript = document.getElementById('auth-data');
-                                    if (authDataScript && authDataScript.textContent) {
-                                        return authDataScript.textContent;
+                                    var authDataDiv = document.getElementById('auth-data');
+                                    if (authDataDiv && authDataDiv.textContent && authDataDiv.textContent.trim().startsWith('{')) {
+                                        return authDataDiv.textContent.trim();
                                     }
                                     return document.body ? document.body.innerText : '';
                                 })()"""
