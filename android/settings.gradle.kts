@@ -17,7 +17,8 @@ dependencyResolutionManagement {
         mavenCentral()
         // AMap SDK repository (高德地图)
         maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven { url = uri("https://maven.aliyun.com/repository/releases") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
         maven { url = uri("https://jitpack.io") }
     }
 }

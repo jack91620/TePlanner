@@ -31,13 +31,13 @@ fun HomeTabRow(
             .padding(bottom = 16.dp)
     ) {
         TabItem(
-            text = "Recent",
+            text = "最近",
             isSelected = selectedTab == HomeTab.RECENT,
             onClick = { onTabSelected(HomeTab.RECENT) },
             modifier = Modifier.weight(1f)
         )
         TabItem(
-            text = "Nearby",
+            text = "附近",
             isSelected = selectedTab == HomeTab.NEARBY,
             onClick = { onTabSelected(HomeTab.NEARBY) },
             modifier = Modifier.weight(1f)

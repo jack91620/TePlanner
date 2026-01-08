@@ -1,5 +1,6 @@
 package com.teplanner.ui.search
 
+import android.os.Parcelable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,7 +27,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.teplanner.R
 import com.teplanner.ui.theme.*
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 data class SearchResult(
     val id: String,
     val name: String,
@@ -34,7 +37,7 @@ data class SearchResult(
     val latitude: Double,
     val longitude: Double,
     val distance: Double?
-)
+) : Parcelable
 
 @Composable
 fun SearchScreen(
@@ -79,7 +82,7 @@ fun SearchScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Searching...",
+                        text = "搜索中...",
                         color = TextHint,
                         fontSize = 14.sp
                     )
@@ -93,7 +96,7 @@ fun SearchScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No results found",
+                        text = "未找到结果",
                         color = TextHint,
                         fontSize = 14.sp
                     )
@@ -138,7 +141,7 @@ private fun SearchInputBox(
     ) {
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "Search",
+            contentDescription = "搜索",
             tint = TextHint,
             modifier = Modifier.size(18.dp)
         )
@@ -149,7 +152,7 @@ private fun SearchInputBox(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Navigate",
+                text = "搜索目的地",
                 color = TextHint,
                 fontSize = 12.sp
             )

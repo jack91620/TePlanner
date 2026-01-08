@@ -52,51 +52,45 @@ data class Vehicle(
  * Vehicle state including battery, location, etc.
  */
 data class VehicleState(
-    @SerializedName("battery_level")
-    val batteryLevel: Int,
+    @SerializedName("vehicle_id")
+    val vehicleId: String? = null,
 
-    @SerializedName("battery_range")
-    val batteryRange: Double, // km
+    @SerializedName("display_name")
+    val displayName: String? = null,
+
+    @SerializedName("state")
+    val state: String? = null, // online, asleep, offline
+
+    @SerializedName("battery_level")
+    val batteryLevel: Int? = null,
+
+    @SerializedName("battery_range_km")
+    val batteryRange: Double? = null, // km
+
+    @SerializedName("usable_battery_level")
+    val usableBatteryLevel: Int? = null,
 
     @SerializedName("charging_state")
-    val chargingState: String?, // "Charging", "Complete", "Disconnected", etc.
-
-    @SerializedName("charge_limit_soc")
-    val chargeLimitSoc: Int?,
-
-    @SerializedName("time_to_full_charge")
-    val timeToFullCharge: Double?,
+    val chargingState: String? = null, // "Charging", "Complete", "Disconnected", etc.
 
     @SerializedName("latitude")
-    val latitude: Double?,
+    val latitude: Double? = null,
 
     @SerializedName("longitude")
-    val longitude: Double?,
+    val longitude: Double? = null,
 
     @SerializedName("heading")
-    val heading: Int?,
+    val heading: Int? = null,
 
     @SerializedName("speed")
-    val speed: Double?,
+    val speed: Int? = null, // km/h
 
-    @SerializedName("odometer")
-    val odometer: Double?,
-
-    @SerializedName("is_climate_on")
-    val isClimateOn: Boolean = false,
+    @SerializedName("odometer_km")
+    val odometer: Double? = null,
 
     @SerializedName("inside_temp")
-    val insideTemp: Double?,
+    val insideTemp: Double? = null,
 
     @SerializedName("outside_temp")
-    val outsideTemp: Double?,
-
-    @SerializedName("locked")
-    val locked: Boolean = true,
-
-    @SerializedName("sentry_mode")
-    val sentryMode: Boolean = false,
-
-    @SerializedName("timestamp")
-    val timestamp: Long?
+    val outsideTemp: Double? = null
 )

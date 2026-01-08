@@ -103,13 +103,19 @@ class PoiSearchManager @Inject constructor(
     }
 
     override fun onPoiSearched(result: PoiResultV2?, errorCode: Int) {
+        android.util.Log.d("PoiSearchManager", "onPoiSearched: errorCode=$errorCode, result=$result")
         when (errorCode) {
             AMapException.CODE_AMAP_SUCCESS -> {
                 val pois = result?.pois ?: emptyList()
+                android.util.Log.d("PoiSearchManager", "Search success, found ${pois.size} POIs")
+                pois.forEachIndexed { index, poi ->
+                    android.util.Log.d("PoiSearchManager", "POI[$index]: title=${poi.title}, latLonPoint=${poi.latLonPoint}")
+                }
                 onResultCallback?.invoke(pois)
             }
             else -> {
                 val errorMsg = getErrorMessage(errorCode)
+                android.util.Log.e("PoiSearchManager", "Search error: $errorCode - $errorMsg")
                 onErrorCallback?.invoke(errorCode, errorMsg)
                 onResultCallback?.invoke(emptyList())
             }

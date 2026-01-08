@@ -26,10 +26,10 @@ fun LoginScreen(
     modifier: Modifier = Modifier
 ) {
     val features = listOf(
-        FeatureItem(R.drawable.ic_location, "Get real-time vehicle location"),
-        FeatureItem(R.drawable.ic_lightning, "Read current battery level"),
-        FeatureItem(R.drawable.ic_route, "Smart charging route planning"),
-        FeatureItem(R.drawable.ic_destination_marker, "Send navigation to vehicle")
+        FeatureItem(R.drawable.ic_location, "获取实时车辆位置"),
+        FeatureItem(R.drawable.ic_lightning, "读取当前电池电量"),
+        FeatureItem(R.drawable.ic_route, "智能充电路线规划"),
+        FeatureItem(R.drawable.ic_destination_marker, "发送导航到车辆")
     )
 
     Box(
@@ -85,7 +85,7 @@ fun LoginScreen(
 
             // Subtitle
             Text(
-                text = "Tesla Smart Charging Route Planner",
+                text = "Tesla智能充电路线规划",
                 color = TextSecondary,
                 fontSize = 14.sp
             )
@@ -118,7 +118,7 @@ fun LoginScreen(
                 )
             ) {
                 Text(
-                    text = "Connect Tesla Account",
+                    text = "连接Tesla账户",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -128,7 +128,7 @@ fun LoginScreen(
 
             // Hint
             Text(
-                text = "Connect to unlock full features",
+                text = "连接以解锁全部功能",
                 color = TextTertiary,
                 fontSize = 12.sp
             )
@@ -168,7 +168,7 @@ private fun FeatureRow(
 
 @Composable
 fun LoadingScreen(
-    message: String = "Connecting...",
+    message: String = "连接中...",
     modifier: Modifier = Modifier
 ) {
     Box(

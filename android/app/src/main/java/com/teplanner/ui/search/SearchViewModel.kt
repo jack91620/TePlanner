@@ -61,12 +61,15 @@ class SearchViewModel @Inject constructor(
 
     private fun performSearch(query: String) {
         _uiState.update { it.copy(isLoading = true) }
+        android.util.Log.d("SearchViewModel", "performSearch: query=$query")
 
         poiSearchManager.searchPOI(
             keyword = query,
             city = "", // Search in all cities
             onResult = { poiItems ->
+                android.util.Log.d("SearchViewModel", "POI search returned ${poiItems.size} items")
                 val results = poiItems.map { item ->
+                    android.util.Log.d("SearchViewModel", "POI: ${item.title}, latLonPoint=${item.latLonPoint}, lat=${item.latLonPoint?.latitude}, lng=${item.latLonPoint?.longitude}")
                     SearchResult(
                         id = item.poiId ?: "",
                         name = item.title ?: "",
@@ -76,6 +79,7 @@ class SearchViewModel @Inject constructor(
                         distance = null // Distance not available for keyword search
                     )
                 }
+                android.util.Log.d("SearchViewModel", "Mapped ${results.size} results")
                 _uiState.update {
                     it.copy(
                         results = results,

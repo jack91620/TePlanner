@@ -82,13 +82,13 @@ fun VehicleBindingScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Connection Successful!",
+                            text = "连接成功!",
                             color = TextPrimary,
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Returning to home...",
+                            text = "正在返回首页...",
                             color = TextSecondary,
                             fontSize = 14.sp
                         )
@@ -109,7 +109,7 @@ fun VehicleBindingScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Loading Tesla Login...",
+                            text = "加载Tesla登录...",
                             color = TextSecondary,
                             fontSize = 14.sp
                         )
@@ -135,7 +135,7 @@ fun VehicleBindingScreen(
                         modifier = Modifier.padding(32.dp)
                     ) {
                         Text(
-                            text = "Connection Failed",
+                            text = "连接失败",
                             color = TextPrimary,
                             fontSize = 18.sp
                         )
@@ -150,7 +150,7 @@ fun VehicleBindingScreen(
                             onClick = { viewModel.retry() },
                             colors = ButtonDefaults.buttonColors(containerColor = TeslaBlue)
                         ) {
-                            Text("Retry")
+                            Text("重试")
                         }
                     }
                 }
@@ -172,7 +172,7 @@ private fun TopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Connect Tesla",
+            text = "连接Tesla",
             color = TextPrimary,
             fontSize = 18.sp
         )
@@ -186,7 +186,7 @@ private fun TopBar(
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Close",
+                contentDescription = "关闭",
                 tint = TextPrimary,
                 modifier = Modifier.size(18.dp)
             )

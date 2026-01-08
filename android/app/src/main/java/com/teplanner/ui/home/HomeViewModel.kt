@@ -4,12 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.amap.api.maps.AMap
 import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.model.BitmapDescriptorFactory
 import com.amap.api.maps.model.LatLng
+import com.amap.api.maps.model.LatLngBounds
+import com.amap.api.maps.model.Marker
+import com.amap.api.maps.model.MarkerOptions
+import com.amap.api.maps.model.PolylineOptions
+import com.amap.api.services.core.LatLonPoint
+import com.teplanner.R
 import com.teplanner.data.local.SettingsDataStore
 import com.teplanner.data.model.ChargingStation
 import com.teplanner.data.remote.BackendApi
 import com.teplanner.map.AMapManager
+import com.teplanner.map.RouteSearchManager
+import com.teplanner.map.RoutePOISearchManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,9 +29,11 @@ data class HomeUiState(
     val pageState: HomePageState = HomePageState.IDLE,
     val vehicleConnected: Boolean = false,
     val batteryLevel: Int? = null,
+    val batteryRangeKm: Double? = null, // Remaining range in km
     val vehicleDisplayState: VehicleDisplayState? = null,
     val vehicleLocation: LatLng? = null,
     val error: String? = null,
+    val isWakingVehicle: Boolean = false,
     // New state for nearby stations and recent trips
     val nearbyStations: List<ChargingStation> = emptyList(),
     val isLoadingStations: Boolean = false,
@@ -42,7 +54,9 @@ data class Destination(
 class HomeViewModel @Inject constructor(
     private val backendApi: BackendApi,
     private val settingsDataStore: SettingsDataStore,
-    private val aMapManager: AMapManager
+    private val aMapManager: AMapManager,
+    private val routeSearchManager: RouteSearchManager,
+    private val routePOISearchManager: RoutePOISearchManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -50,6 +64,8 @@ class HomeViewModel @Inject constructor(
 
     private var aMap: AMap? = null
     private var currentVehicleId: String? = null
+    private var vehicleMarker: Marker? = null
+    private var routePolylinePoints: List<LatLonPoint> = emptyList()
 
     init {
         checkAuthAndLoadData()
@@ -57,12 +73,31 @@ class HomeViewModel @Inject constructor(
 
     fun onMapReady(map: AMap) {
         aMap = map
-        // If we have vehicle location, move camera there
+        // If we have vehicle location, move camera there and add marker
         _uiState.value.vehicleLocation?.let { location ->
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 14f))
+            updateVehicleMarker(location)
         }
         // Load nearby stations when map is ready
         loadNearbyStations()
+    }
+
+    private fun updateVehicleMarker(location: LatLng) {
+        val map = aMap ?: return
+
+        // Remove existing marker if any
+        vehicleMarker?.remove()
+
+        // Add new marker at vehicle location
+        val markerOptions = MarkerOptions()
+            .position(location)
+            .title(_uiState.value.vehicleDisplayState?.displayName ?: "My Tesla")
+            .snippet("电量: ${_uiState.value.batteryLevel ?: 0}%")
+            .anchor(0.5f, 0.5f)
+            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+
+        vehicleMarker = map.addMarker(markerOptions)
+        android.util.Log.d("HomeViewModel", "Vehicle marker added at: ${location.latitude}, ${location.longitude}")
     }
 
     private fun checkAuthAndLoadData() {
@@ -108,53 +143,8 @@ class HomeViewModel @Inject constructor(
                 val vehicle = vehiclesResponse.vehicles.first()
                 currentVehicleId = vehicle.id
 
-                // Try to get vehicle state
-                try {
-                    val state = backendApi.getVehicleState(vehicle.id)
-                    val location = if (state.latitude != null && state.longitude != null) {
-                        LatLng(state.latitude, state.longitude)
-                    } else null
-
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            vehicleConnected = true,
-                            batteryLevel = state.batteryLevel,
-                            vehicleLocation = location,
-                            departureSOC = state.batteryLevel ?: 80,
-                            vehicleDisplayState = VehicleDisplayState(
-                                displayName = vehicle.displayName ?: "My Tesla",
-                                stateText = getStateText(vehicle.state, state.chargingState),
-                                batteryLevel = state.batteryLevel ?: 0,
-                                rangeKm = state.batteryRange?.toInt() ?: 0
-                            )
-                        )
-                    }
-
-                    // Move map to vehicle location
-                    location?.let { loc ->
-                        aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(loc, 14f))
-                    }
-
-                    // Load recent trips
-                    loadRecentTrips()
-
-                } catch (e: Exception) {
-                    // Vehicle might be offline
-                    android.util.Log.d("HomeViewModel", "Failed to get vehicle state: ${e.message}")
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            vehicleConnected = true,
-                            vehicleDisplayState = VehicleDisplayState(
-                                displayName = vehicle.displayName ?: "My Tesla",
-                                stateText = "Offline",
-                                batteryLevel = 0,
-                                rangeKm = 0
-                            )
-                        )
-                    }
-                }
+                // Try to get vehicle state, wake if needed
+                fetchVehicleStateWithWake(vehicle.id, vehicle.displayName ?: "My Tesla")
 
             } catch (e: Exception) {
                 _uiState.update {
@@ -162,6 +152,130 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun fetchVehicleStateWithWake(vehicleId: String, displayName: String) {
+        // First attempt to get state
+        try {
+            val state = backendApi.getVehicleState(vehicleId)
+            updateVehicleState(state, displayName)
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("HomeViewModel", "Initial state fetch failed: ${e.message}, trying to wake vehicle")
+        }
+
+        // Vehicle is likely asleep, try to wake it
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                isWakingVehicle = true,
+                vehicleConnected = true,
+                vehicleDisplayState = VehicleDisplayState(
+                    displayName = displayName,
+                    stateText = "唤醒中...",
+                    batteryLevel = 0,
+                    rangeKm = 0
+                )
+            )
+        }
+
+        try {
+            android.util.Log.d("HomeViewModel", "Sending wake command to vehicle: $vehicleId")
+            val wakeResponse = backendApi.wakeVehicle(vehicleId)
+            android.util.Log.d("HomeViewModel", "Wake response: success=${wakeResponse.success}, state=${wakeResponse.state}")
+
+            // Wait and retry getting state multiple times
+            val maxRetries = 10
+            val retryDelayMs = 3000L
+
+            for (attempt in 1..maxRetries) {
+                android.util.Log.d("HomeViewModel", "Retry attempt $attempt/$maxRetries to get vehicle state")
+                delay(retryDelayMs)
+
+                try {
+                    val state = backendApi.getVehicleState(vehicleId)
+                    android.util.Log.d("HomeViewModel", "Got vehicle state on attempt $attempt: battery=${state.batteryLevel}, lat=${state.latitude}, lng=${state.longitude}")
+                    _uiState.update { it.copy(isWakingVehicle = false) }
+                    updateVehicleState(state, displayName)
+                    return
+                } catch (retryException: Exception) {
+                    android.util.Log.d("HomeViewModel", "Attempt $attempt failed: ${retryException.message}")
+                    // Update status text
+                    _uiState.update {
+                        it.copy(
+                            vehicleDisplayState = VehicleDisplayState(
+                                displayName = displayName,
+                                stateText = "唤醒中... ($attempt/$maxRetries)",
+                                batteryLevel = 0,
+                                rangeKm = 0
+                            )
+                        )
+                    }
+                }
+            }
+
+            // All retries failed
+            android.util.Log.d("HomeViewModel", "Failed to wake vehicle after $maxRetries attempts")
+            _uiState.update {
+                it.copy(
+                    isWakingVehicle = false,
+                    vehicleDisplayState = VehicleDisplayState(
+                        displayName = displayName,
+                        stateText = "离线",
+                        batteryLevel = 0,
+                        rangeKm = 0
+                    )
+                )
+            }
+        } catch (wakeException: Exception) {
+            android.util.Log.e("HomeViewModel", "Failed to wake vehicle: ${wakeException.message}")
+            _uiState.update {
+                it.copy(
+                    isWakingVehicle = false,
+                    vehicleDisplayState = VehicleDisplayState(
+                        displayName = displayName,
+                        stateText = "离线",
+                        batteryLevel = 0,
+                        rangeKm = 0
+                    )
+                )
+            }
+        }
+    }
+
+    private fun updateVehicleState(state: com.teplanner.data.model.VehicleState, displayName: String) {
+        val location = if (state.latitude != null && state.longitude != null) {
+            LatLng(state.latitude, state.longitude)
+        } else null
+
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                vehicleConnected = true,
+                batteryLevel = state.batteryLevel,
+                batteryRangeKm = state.batteryRange,
+                vehicleLocation = location,
+                departureSOC = state.batteryLevel ?: 80,
+                vehicleDisplayState = VehicleDisplayState(
+                    displayName = displayName,
+                    stateText = getStateText("online", state.chargingState),
+                    batteryLevel = state.batteryLevel ?: 0,
+                    rangeKm = state.batteryRange?.toInt() ?: 0
+                )
+            )
+        }
+
+        // Move map to vehicle location and add marker
+        location?.let { loc ->
+            aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(loc, 14f))
+            updateVehicleMarker(loc)
+        }
+
+        // Load nearby stations based on vehicle location
+        loadNearbyStations()
+
+        // Load recent trips
+        loadRecentTrips()
     }
 
     private fun loadNearbyStations() {
@@ -226,6 +340,21 @@ class HomeViewModel @Inject constructor(
         planRoute()
     }
 
+    fun setDestination(name: String, latitude: Double, longitude: Double, address: String?) {
+        android.util.Log.d("HomeViewModel", "setDestination: name=$name, lat=$latitude, lng=$longitude")
+        _uiState.update {
+            it.copy(
+                destination = Destination(
+                    name = name,
+                    latitude = latitude,
+                    longitude = longitude,
+                    address = address
+                )
+            )
+        }
+        planRoute()
+    }
+
     fun navigateToTrip(trip: RecentTrip) {
         _uiState.update {
             it.copy(
@@ -240,27 +369,393 @@ class HomeViewModel @Inject constructor(
         planRoute()
     }
 
+    private var routeSearchRetryCount = 0
+    private val maxRouteSearchRetries = 3
+
     private fun planRoute() {
         val destination = _uiState.value.destination ?: return
         val origin = _uiState.value.vehicleLocation ?: return
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(pageState = HomePageState.ROUTE_PREVIEW) }
+        android.util.Log.d("HomeViewModel", "planRoute: from (${origin.latitude}, ${origin.longitude}) to (${destination.latitude}, ${destination.longitude})")
 
-            // TODO: Implement actual route planning using AMap SDK
-            // For now, set placeholder route data
-            _uiState.update {
-                it.copy(
-                    routeData = RouteData(
-                        destinationName = destination.name,
-                        totalDistanceKm = 0.0,
-                        totalDuration = "--",
-                        arrivalSoc = 20,
-                        chargingStops = emptyList()
+        _uiState.update { it.copy(pageState = HomePageState.ROUTE_PREVIEW) }
+        routeSearchRetryCount = 0
+
+        performRouteSearch(origin, destination)
+    }
+
+    private fun performRouteSearch(origin: LatLng, destination: Destination) {
+        // Convert to LatLonPoint for AMap SDK
+        val originPoint = LatLonPoint(origin.latitude, origin.longitude)
+        val destPoint = LatLonPoint(destination.latitude, destination.longitude)
+
+        android.util.Log.d("HomeViewModel", "performRouteSearch: attempt ${routeSearchRetryCount + 1}/$maxRouteSearchRetries")
+
+        // Search driving route
+        routeSearchManager.searchDrivingRoute(
+            origin = originPoint,
+            destination = destPoint,
+            onResult = { routeResult ->
+                if (routeResult != null) {
+                    android.util.Log.d("HomeViewModel", "Route found: ${routeResult.totalDistanceMeters}m, ${routeResult.totalDurationSeconds}s, polyline points: ${routeResult.polyline.size}")
+
+                    // Store polyline for later use
+                    routePolylinePoints = routeResult.polyline
+
+                    // Draw route on map
+                    drawRouteOnMap(routeResult.polyline, origin, destination)
+
+                    // Calculate distance and duration
+                    val distanceKm = routeResult.totalDistanceMeters / 1000.0
+                    val durationMinutes = (routeResult.totalDurationSeconds / 60).toInt()
+                    val durationStr = if (durationMinutes >= 60) {
+                        "${durationMinutes / 60}小时${durationMinutes % 60}分钟"
+                    } else {
+                        "${durationMinutes}分钟"
+                    }
+
+                    // Search charging stations along route
+                    searchChargingStationsAlongRoute(routeResult.polyline, distanceKm, durationStr, destination.name)
+                } else {
+                    android.util.Log.e("HomeViewModel", "Route search returned null")
+                    _uiState.update {
+                        it.copy(
+                            routeData = RouteData(
+                                destinationName = destination.name,
+                                totalDistanceKm = 0.0,
+                                totalDuration = "路线规划失败",
+                                arrivalSoc = 0,
+                                chargingStops = emptyList()
+                            )
+                        )
+                    }
+                }
+            },
+            onError = { errorCode, errorMsg ->
+                android.util.Log.e("HomeViewModel", "Route search error: $errorCode - $errorMsg, attempt ${routeSearchRetryCount + 1}/$maxRouteSearchRetries")
+                routeSearchRetryCount++
+
+                if (routeSearchRetryCount < maxRouteSearchRetries) {
+                    // Retry after delay
+                    viewModelScope.launch {
+                        android.util.Log.d("HomeViewModel", "Retrying route search in 2 seconds...")
+                        delay(2000L)
+                        performRouteSearch(origin, destination)
+                    }
+                } else {
+                    // All retries exhausted, show failure
+                    android.util.Log.e("HomeViewModel", "Route search failed after $maxRouteSearchRetries attempts")
+                    _uiState.update {
+                        it.copy(
+                            routeData = RouteData(
+                                destinationName = destination.name,
+                                totalDistanceKm = 0.0,
+                                totalDuration = "路线规划失败 (网络错误)",
+                                arrivalSoc = 0,
+                                chargingStops = emptyList()
+                            )
+                        )
+                    }
+                }
+            }
+        )
+    }
+
+    private fun drawRouteOnMap(polyline: List<LatLonPoint>, origin: LatLng, destination: Destination) {
+        val map = aMap ?: return
+
+        // Clear previous route
+        map.clear()
+
+        // Re-add vehicle marker
+        updateVehicleMarker(origin)
+
+        // Convert polyline to LatLng list
+        val latLngList = polyline.map { LatLng(it.latitude, it.longitude) }
+
+        // Draw polyline
+        val polylineOptions = PolylineOptions()
+            .addAll(latLngList)
+            .width(12f)
+            .color(0xFF3E6AE1.toInt()) // Blue color
+            .geodesic(true)
+
+        map.addPolyline(polylineOptions)
+
+        // Add destination marker
+        val destMarkerOptions = MarkerOptions()
+            .position(LatLng(destination.latitude, destination.longitude))
+            .title(destination.name)
+            .anchor(0.5f, 1f)
+            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+
+        map.addMarker(destMarkerOptions)
+
+        // Adjust camera to show entire route
+        val boundsBuilder = LatLngBounds.Builder()
+        boundsBuilder.include(origin)
+        boundsBuilder.include(LatLng(destination.latitude, destination.longitude))
+        latLngList.forEach { boundsBuilder.include(it) }
+
+        try {
+            map.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 100))
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Failed to adjust camera: ${e.message}")
+        }
+    }
+
+    private fun searchChargingStationsAlongRoute(polyline: List<LatLonPoint>, distanceKm: Double, durationStr: String, destinationName: String) {
+        android.util.Log.d("HomeViewModel", "Searching charging stations along route, polyline size: ${polyline.size}, totalDistance: ${distanceKm}km")
+
+        // Simplify polyline if too many points (max 100 recommended)
+        val simplifiedPolyline = if (polyline.size > 100) {
+            val step = polyline.size / 100
+            polyline.filterIndexed { index, _ -> index % step == 0 }
+        } else {
+            polyline
+        }
+
+        routePOISearchManager.searchChargingStationsAlongRoute(
+            polyline = simplifiedPolyline,
+            range = 5000, // 5km from route
+            onResult = { chargingStations ->
+                android.util.Log.d("HomeViewModel", "Found ${chargingStations.size} charging stations along route")
+
+                // Calculate charging plan based on distance and current SOC
+                val currentSoc = _uiState.value.departureSOC
+                val origin = _uiState.value.vehicleLocation
+
+                // Calculate distance along route for each station
+                val stationsWithDistance = if (origin != null) {
+                    chargingStations.mapNotNull { station ->
+                        station.point?.let { point ->
+                            val distanceFromStart = estimateDistanceAlongRoute(
+                                polyline,
+                                LatLonPoint(origin.latitude, origin.longitude),
+                                point,
+                                distanceKm
+                            )
+                            android.util.Log.d("HomeViewModel", "Station ${station.title}: distanceFromStart=${distanceFromStart}km")
+                            Pair(station, distanceFromStart)
+                        }
+                    }.sortedBy { it.second }
+                } else {
+                    emptyList()
+                }
+
+                val chargingStops = calculateChargingStops(stationsWithDistance, distanceKm, currentSoc)
+
+                // Only add markers for recommended charging stops
+                addRecommendedChargingStationMarkers(chargingStops, stationsWithDistance)
+
+                // Calculate arrival SOC
+                val arrivalSoc = calculateArrivalSoc(distanceKm, currentSoc, chargingStops)
+
+                _uiState.update {
+                    it.copy(
+                        routeData = RouteData(
+                            destinationName = destinationName,
+                            totalDistanceKm = distanceKm,
+                            totalDuration = durationStr,
+                            arrivalSoc = arrivalSoc,
+                            chargingStops = chargingStops
+                        )
                     )
-                )
+                }
+            },
+            onError = { errorCode, errorMsg ->
+                android.util.Log.e("HomeViewModel", "Charging station search error: $errorCode - $errorMsg")
+                // Still show route data without charging stops
+                val currentSoc = _uiState.value.departureSOC
+                val arrivalSoc = calculateArrivalSoc(distanceKm, currentSoc, emptyList())
+                _uiState.update {
+                    it.copy(
+                        routeData = RouteData(
+                            destinationName = destinationName,
+                            totalDistanceKm = distanceKm,
+                            totalDuration = durationStr,
+                            arrivalSoc = arrivalSoc.coerceAtLeast(0),
+                            chargingStops = emptyList()
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    /**
+     * Estimate distance along route from origin to a station point
+     */
+    private fun estimateDistanceAlongRoute(
+        polyline: List<LatLonPoint>,
+        origin: LatLonPoint,
+        stationPoint: LatLonPoint,
+        totalDistanceKm: Double
+    ): Double {
+        if (polyline.isEmpty()) return 0.0
+
+        // Find the closest point on polyline to the station
+        var minDistance = Double.MAX_VALUE
+        var closestIndex = 0
+
+        polyline.forEachIndexed { index, point ->
+            val dist = haversineDistance(point.latitude, point.longitude, stationPoint.latitude, stationPoint.longitude)
+            if (dist < minDistance) {
+                minDistance = dist
+                closestIndex = index
             }
         }
+
+        // Estimate distance along route based on polyline index proportion
+        return (closestIndex.toDouble() / polyline.size) * totalDistanceKm
+    }
+
+    /**
+     * Calculate distance between two points using Haversine formula
+     */
+    private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371.0 // Earth's radius in km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return R * c
+    }
+
+    private fun addRecommendedChargingStationMarkers(
+        recommendedStops: List<ChargingStopData>,
+        allStations: List<Pair<com.amap.api.services.routepoisearch.RoutePOIItem, Double>>
+    ) {
+        val map = aMap ?: return
+
+        // Only add markers for recommended stops
+        recommendedStops.forEach { stop ->
+            val station = allStations.find { it.first.id == stop.stationId || it.first.title == stop.name }
+            station?.first?.point?.let { point ->
+                val markerOptions = MarkerOptions()
+                    .position(LatLng(point.latitude, point.longitude))
+                    .title(stop.name)
+                    .snippet("到达 ${stop.arrivalSoc}% | 充电 ${stop.chargingDuration}分钟")
+                    .anchor(0.5f, 1f)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+
+                map.addMarker(markerOptions)
+            }
+        }
+    }
+
+    /**
+     * Calculate energy consumption rate based on actual vehicle data
+     * @return km per 1% SOC
+     */
+    private fun getEnergyConsumptionRate(): Double {
+        val batteryLevel = _uiState.value.batteryLevel
+        val batteryRangeKm = _uiState.value.batteryRangeKm
+
+        return if (batteryLevel != null && batteryRangeKm != null && batteryLevel > 0) {
+            // Calculate based on actual vehicle data: rangeKm / batteryLevel = km per 1% SOC
+            val rate = batteryRangeKm / batteryLevel
+            android.util.Log.d("HomeViewModel", "Energy rate from vehicle: ${batteryLevel}% = ${batteryRangeKm}km, rate = ${rate}km/1%SOC")
+            rate
+        } else {
+            // Fallback: Tesla Model 3 Long Range default (~250km at 100%)
+            android.util.Log.d("HomeViewModel", "Using default energy rate: 2.5km/1%SOC")
+            2.5
+        }
+    }
+
+    private fun calculateArrivalSoc(distanceKm: Double, startSoc: Int, chargingStops: List<ChargingStopData>): Int {
+        val rangePerPercent = getEnergyConsumptionRate()
+
+        if (chargingStops.isEmpty()) {
+            // No charging stops - simple calculation
+            val socUsed = (distanceKm / rangePerPercent).toInt()
+            return (startSoc - socUsed).coerceIn(0, 100)
+        }
+
+        // With charging stops, use the last stop's departure SOC and remaining distance
+        val lastStop = chargingStops.last()
+        // Estimate remaining distance after last stop (rough: assume last stop at 80% of route)
+        val remainingDistanceRatio = 0.2 // 20% of total distance after last stop
+        val remainingDistance = distanceKm * remainingDistanceRatio
+        val socUsedAfterLastStop = (remainingDistance / rangePerPercent).toInt()
+
+        return (lastStop.departureSoc - socUsedAfterLastStop).coerceIn(0, 100)
+    }
+
+    private fun calculateChargingStops(
+        stationsWithDistance: List<Pair<com.amap.api.services.routepoisearch.RoutePOIItem, Double>>,
+        totalDistanceKm: Double,
+        startSoc: Int
+    ): List<ChargingStopData> {
+        val rangePerPercent = getEnergyConsumptionRate() // km per 1% SOC
+        val minSoc = 15 // Don't go below 15%
+        val targetSoc = 80 // Charge to 80% for faster charging
+
+        android.util.Log.d("HomeViewModel", "calculateChargingStops: totalDistance=${totalDistanceKm}km, startSoc=$startSoc%, rangePerPercent=${rangePerPercent}km/%, maxRange=${startSoc * rangePerPercent}km")
+
+        // Check if we can reach destination without charging
+        val safeRangeKm = (startSoc - minSoc) * rangePerPercent
+        if (totalDistanceKm <= safeRangeKm) {
+            android.util.Log.d("HomeViewModel", "Can reach destination without charging (need ${totalDistanceKm}km, have ${safeRangeKm}km safe range)")
+            return emptyList()
+        }
+
+        val stops = mutableListOf<ChargingStopData>()
+        var currentSoc = startSoc
+        var distanceTraveled = 0.0
+
+        // Find stations at appropriate intervals
+        // Charge when we've used up 90% of safe range
+        var nextChargingDistance = (currentSoc - minSoc) * rangePerPercent * 0.9
+
+        for ((station, distanceFromStart) in stationsWithDistance) {
+            if (distanceFromStart < distanceTraveled + 30) continue // Skip stations too close (< 30km)
+            if (distanceFromStart > totalDistanceKm - 30) continue // Skip stations near destination
+
+            // Calculate SOC when arriving at this station
+            val distanceToStation = distanceFromStart - distanceTraveled
+            val socUsed = (distanceToStation / rangePerPercent).toInt()
+            val arrivalSoc = (currentSoc - socUsed).coerceAtLeast(0)
+
+            // Check if we need to charge here
+            val remainingDistance = totalDistanceKm - distanceFromStart
+            val socNeededToFinish = (remainingDistance / rangePerPercent).toInt() + minSoc
+
+            android.util.Log.d("HomeViewModel", "Evaluating ${station.title}: dist=${distanceFromStart.toInt()}km, arrivalSoc=$arrivalSoc%, socNeededToFinish=$socNeededToFinish%, nextChargingDist=${nextChargingDistance.toInt()}km")
+
+            // Need to charge if:
+            // 1. We've traveled far enough (approaching safe range limit)
+            // 2. We don't have enough SOC to reach destination or next potential stop
+            if (distanceFromStart >= nextChargingDistance || arrivalSoc < socNeededToFinish) {
+                // Calculate charging time (supercharger: roughly 2% per minute on average)
+                val socToCharge = targetSoc - arrivalSoc
+                val chargingMinutes = (socToCharge * 0.5).toInt().coerceAtLeast(15) // Min 15 min
+
+                stops.add(
+                    ChargingStopData(
+                        stationId = station.id ?: "",
+                        name = station.title ?: "充电站",
+                        arrivalSoc = arrivalSoc,
+                        departureSoc = targetSoc,
+                        chargingDuration = chargingMinutes
+                    )
+                )
+
+                android.util.Log.d("HomeViewModel", "Added stop: ${station.title}, arrival=$arrivalSoc%, departure=$targetSoc%, charging=${chargingMinutes}min")
+
+                currentSoc = targetSoc
+                distanceTraveled = distanceFromStart
+                nextChargingDistance = distanceFromStart + (targetSoc - minSoc) * rangePerPercent * 0.9
+
+                // Limit to 5 stops max
+                if (stops.size >= 5) break
+            }
+        }
+
+        return stops
     }
 
     fun cancelRoute() {
@@ -314,11 +809,11 @@ class HomeViewModel @Inject constructor(
 
     private fun getStateText(vehicleState: String, chargingState: String?): String {
         return when {
-            chargingState == "Charging" -> "Charging"
-            chargingState == "Complete" -> "Charge Complete"
-            vehicleState == "online" -> "Online"
-            vehicleState == "asleep" -> "Asleep"
-            else -> "Offline"
+            chargingState == "Charging" -> "充电中"
+            chargingState == "Complete" -> "充电完成"
+            vehicleState == "online" -> "在线"
+            vehicleState == "asleep" -> "休眠"
+            else -> "离线"
         }
     }
 }

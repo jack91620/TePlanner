@@ -106,6 +106,26 @@ class RoutePOISearchManager @Inject constructor(
     }
 
     /**
+     * Search charging stations along a route
+     * Note: TypeChargeStation is available since AMap SDK 9.3.1
+     */
+    fun searchChargingStationsAlongRoute(
+        polyline: List<LatLonPoint>,
+        range: Int = 5000,
+        onResult: (List<RoutePOIItem>) -> Unit,
+        onError: ((Int, String) -> Unit)? = null
+    ) {
+        android.util.Log.d("RoutePOISearchManager", "searchChargingStationsAlongRoute: polyline size=${polyline.size}, range=$range")
+        searchAlongRoute(
+            polyline = polyline,
+            searchType = RoutePOISearch.RoutePOISearchType.TypeChargeStation,
+            range = range,
+            onResult = onResult,
+            onError = onError
+        )
+    }
+
+    /**
      * Generic search along route
      * Note: polyline should not exceed 100 points for best results
      */
@@ -133,13 +153,19 @@ class RoutePOISearchManager @Inject constructor(
     }
 
     override fun onRoutePoiSearched(result: RoutePOISearchResult?, errorCode: Int) {
+        android.util.Log.d("RoutePOISearchManager", "onRoutePoiSearched: errorCode=$errorCode")
         when (errorCode) {
             AMapException.CODE_AMAP_SUCCESS -> {
                 val pois = result?.routePois ?: emptyList()
+                android.util.Log.d("RoutePOISearchManager", "Found ${pois.size} POIs along route")
+                pois.forEachIndexed { index, poi ->
+                    android.util.Log.d("RoutePOISearchManager", "POI[$index]: ${poi.title}, lat=${poi.point?.latitude}, lng=${poi.point?.longitude}, distance=${poi.distance}m")
+                }
                 onResultCallback?.invoke(pois)
             }
             else -> {
                 val errorMsg = getErrorMessage(errorCode)
+                android.util.Log.e("RoutePOISearchManager", "Search error: $errorCode - $errorMsg")
                 onErrorCallback?.invoke(errorCode, errorMsg)
                 onResultCallback?.invoke(emptyList())
             }

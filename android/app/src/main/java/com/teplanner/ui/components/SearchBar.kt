@@ -19,7 +19,7 @@ import com.teplanner.ui.theme.TextHint
 
 @Composable
 fun SearchBar(
-    placeholder: String = "Search destination",
+    placeholder: String = "搜索目的地",
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -35,7 +35,7 @@ fun SearchBar(
     ) {
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "Search",
+            contentDescription = "搜索",
             tint = TextHint,
             modifier = Modifier.size(20.dp)
         )

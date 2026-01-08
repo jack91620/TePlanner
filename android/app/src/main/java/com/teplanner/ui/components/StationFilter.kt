@@ -35,17 +35,17 @@ fun StationFilter(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
-            text = "Supercharger",
+            text = "超级充电站",
             isSelected = activeFilter == StationFilterType.SUPERCHARGER,
             onClick = { onFilterChange(StationFilterType.SUPERCHARGER) }
         )
         FilterChip(
-            text = "Destination",
+            text = "目的地充电",
             isSelected = activeFilter == StationFilterType.DESTINATION,
             onClick = { onFilterChange(StationFilterType.DESTINATION) }
         )
         FilterChip(
-            text = "Service",
+            text = "服务中心",
             isSelected = activeFilter == StationFilterType.SERVICE,
             onClick = { onFilterChange(StationFilterType.SERVICE) }
         )

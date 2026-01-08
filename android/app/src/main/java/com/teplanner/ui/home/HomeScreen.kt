@@ -36,13 +36,27 @@ fun HomeScreen(
     onNavigateToVehicleBinding: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    selectedDestination: com.teplanner.ui.search.SearchResult? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Handle selected destination from search
+    LaunchedEffect(selectedDestination) {
+        if (selectedDestination != null) {
+            android.util.Log.d("HomeScreen", "Processing destination: ${selectedDestination.name}, lat=${selectedDestination.latitude}, lng=${selectedDestination.longitude}")
+            viewModel.setDestination(
+                name = selectedDestination.name,
+                latitude = selectedDestination.latitude,
+                longitude = selectedDestination.longitude,
+                address = selectedDestination.address
+            )
+        }
+    }
+
     when {
         uiState.isLoading -> {
-            LoadingScreen(message = "Connecting...")
+            LoadingScreen(message = "连接中...")
         }
         !uiState.vehicleConnected -> {
             LoginScreen(onConnectTesla = onNavigateToVehicleBinding)
@@ -89,13 +103,14 @@ private fun ConnectedHomeContent(
                 .statusBarsPadding()
         )
 
-        // Right Side Controls
+        // Right Side Controls (top right corner)
         RightSideControls(
             onNavigationClick = onNavigateToSearch,
             onCenterClick = { viewModel.centerOnVehicle() },
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 16.dp)
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 56.dp, end = 16.dp)
         )
 
         // Bottom Draggable Panel
@@ -111,7 +126,7 @@ private fun ConnectedHomeContent(
             ) {
                 // Search Bar
                 SearchBar(
-                    placeholder = "Navigate",
+                    placeholder = "搜索目的地",
                     onClick = onNavigateToSearch
                 )
 
@@ -346,7 +361,7 @@ private fun RecentTripsContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "No recent trips",
+                text = "暂无最近行程",
                 color = TextTertiary,
                 fontSize = 14.sp
             )
@@ -355,7 +370,7 @@ private fun RecentTripsContent(
         LazyColumn {
             item {
                 Text(
-                    text = "Yesterday",
+                    text = "昨天",
                     color = TextTertiary,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -409,7 +424,7 @@ private fun NearbyStationsContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No charging stations nearby",
+                    text = "附近暂无充电站",
                     color = TextTertiary,
                     fontSize = 14.sp
                 )
@@ -456,7 +471,7 @@ private fun RoutePreviewContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Start Now",
+                    text = "开始导航",
                     color = TextPrimary,
                     fontSize = 14.sp
                 )
@@ -468,7 +483,7 @@ private fun RoutePreviewContent(
                 )
             }
             Text(
-                text = "Edit Trip",
+                text = "编辑路线",
                 color = TeslaBlue,
                 fontSize = 14.sp,
                 modifier = Modifier.clickable(onClick = onEditRoute)
@@ -480,7 +495,7 @@ private fun RoutePreviewContent(
             // Origin
             RouteStopItem(
                 type = RouteStopType.ORIGIN,
-                name = "Vehicle Location",
+                name = "车辆位置",
                 socPercent = departureSOC,
                 onEditSOC = onEditDepartureSOC
             )
@@ -517,7 +532,7 @@ private fun RoutePreviewContent(
             colors = ButtonDefaults.buttonColors(containerColor = TeslaBlue)
         ) {
             Text(
-                text = "Send to Vehicle  ${routeData?.totalDuration ?: "--"}  ${routeData?.totalDistanceKm ?: "--"} km",
+                text = "发送到车辆  ${routeData?.totalDuration ?: "--"}  ${routeData?.totalDistanceKm ?: "--"} 公里",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -531,7 +546,7 @@ private fun RoutePreviewContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Cancel",
+                text = "取消",
                 color = TextSecondary,
                 fontSize = 15.sp
             )
@@ -633,7 +648,7 @@ private fun RouteStopItem(
                 if (type == RouteStopType.ORIGIN && onEditSOC != null) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Set departure SOC",
+                        text = "设置出发电量",
                         color = TeslaBlue,
                         fontSize = 13.sp,
                         modifier = Modifier.clickable(onClick = onEditSOC)
@@ -643,7 +658,7 @@ private fun RouteStopItem(
                 chargingMinutes?.let { mins ->
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "${mins}min",
+                        text = "${mins}分钟",
                         color = TextHint,
                         fontSize = 13.sp
                     )

@@ -59,7 +59,7 @@ class VehicleBindingViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message ?: "Failed to load Tesla login"
+                        error = e.message ?: "加载Tesla登录失败"
                     )
                 }
             }
@@ -82,7 +82,7 @@ class VehicleBindingViewModel @Inject constructor(
         if (state != expectedState) {
             android.util.Log.e("VehicleBinding", "State mismatch! expected=$expectedState, got=$state")
             _uiState.update {
-                it.copy(error = "Security verification failed. Please try again.")
+                it.copy(error = "安全验证失败，请重试")
             }
             return
         }

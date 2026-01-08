@@ -117,9 +117,14 @@ data class TeslaStatusResponse(
 )
 
 data class WakeResponse(
-    val success: Boolean,
-    val state: String? = null
-)
+    val vehicle_id: String? = null,
+    val state: String? = null,
+    val message: String? = null
+) {
+    // Derive success from state - if not offline and not unknown, consider it success
+    val success: Boolean
+        get() = state != null && state != "offline" && state != "unknown"
+}
 
 data class Location(
     val latitude: Double,

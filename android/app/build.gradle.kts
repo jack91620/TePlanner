@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
+    id("kotlin-parcelize")
     kotlin("kapt")
 }
 
@@ -32,6 +33,11 @@ android {
 
         // AMap API Key from local.properties
         manifestPlaceholders["AMAP_API_KEY"] = localProperties.getProperty("AMAP_API_KEY", "")
+
+        // 支持x86_64模拟器 (使用9.x版本SDK，不支持x86 32位)
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -119,9 +125,15 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
 
-    // AMap SDK (高德地图) - 使用本地 JAR 文件
-    // 从 https://lbs.amap.com/api/android-sdk/download 下载后放入 app/libs 目录
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+    // AMap SDK (高德地图) - 使用9.x版本以支持x86_64模拟器
+    // 注意: 10.x版本不支持x86架构
+    // 参考: https://lbs.amap.com/api/android-sdk/guide/create-project/android-studio-create-project
+    // 3dmap已包含location，不需要单独引入location
+    implementation("com.amap.api:3dmap:9.8.2")       // 3D地图SDK (包含定位，支持x86_64)
+    implementation("com.amap.api:search:9.7.1") {    // 搜索SDK
+        // 排除与3dmap重复的工具类
+        exclude(group = "com.amap.api", module = "location")
+    }
 
     // WebView (Tesla OAuth)
     implementation("androidx.webkit:webkit:1.9.0")

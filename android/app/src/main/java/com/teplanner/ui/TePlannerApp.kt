@@ -1,10 +1,12 @@
 package com.teplanner.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.teplanner.ui.home.HomeScreen
+import com.teplanner.ui.search.SearchResult
 import com.teplanner.ui.search.SearchScreen
 import com.teplanner.ui.vehicle.VehicleBindingScreen
 
@@ -27,12 +29,25 @@ fun TePlannerApp() {
         navController = navController,
         startDestination = Screen.Home.route
     ) {
-        composable(Screen.Home.route) {
+        composable(Screen.Home.route) { backStackEntry ->
+            // Observe destination from search screen
+            val savedStateHandle = backStackEntry.savedStateHandle
+            val destination = savedStateHandle.get<SearchResult>("destination")
+
+            LaunchedEffect(destination) {
+                if (destination != null) {
+                    android.util.Log.d("TePlannerApp", "Received destination: ${destination.name}, lat=${destination.latitude}, lng=${destination.longitude}")
+                    // Clear after reading
+                    savedStateHandle.remove<SearchResult>("destination")
+                }
+            }
+
             HomeScreen(
                 onNavigateToSearch = { navController.navigate(Screen.Search.route) },
                 onNavigateToVehicleBinding = { navController.navigate(Screen.VehicleBinding.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                selectedDestination = destination
             )
         }
 
