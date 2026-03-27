@@ -64,6 +64,7 @@ class HomeViewModel @Inject constructor(
 
     private var aMap: AMap? = null
     private var currentVehicleId: String? = null
+    private val currentUserId: String = "15" // Fixed user_id for now
     private var vehicleMarker: Marker? = null
     private var routePolylinePoints: List<LatLonPoint> = emptyList()
 
@@ -117,24 +118,17 @@ class HomeViewModel @Inject constructor(
     private fun loadVehicleData() {
         viewModelScope.launch {
             try {
-                // Get stored user_id
-                val userId = settingsDataStore.userId.first()
-                if (userId == null) {
-                    android.util.Log.e("HomeViewModel", "No user_id found, cannot check Tesla status")
-                    _uiState.update { it.copy(isLoading = false, vehicleConnected = false) }
-                    return@launch
-                }
-                android.util.Log.d("HomeViewModel", "Checking Tesla status for user: $userId")
+                android.util.Log.d("HomeViewModel", "Using fixed user_id: $currentUserId")
 
                 // Check Tesla status
-                val teslaStatus = backendApi.checkTeslaStatus(userId)
+                val teslaStatus = backendApi.checkTeslaStatus(currentUserId)
                 if (!teslaStatus.linked) {
                     _uiState.update { it.copy(isLoading = false, vehicleConnected = false) }
                     return@launch
                 }
 
                 // Get vehicles
-                val vehiclesResponse = backendApi.getVehicles()
+                val vehiclesResponse = backendApi.getVehicles(currentUserId)
                 if (vehiclesResponse.vehicles.isEmpty()) {
                     _uiState.update { it.copy(isLoading = false, vehicleConnected = false) }
                     return@launch
@@ -157,7 +151,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchVehicleStateWithWake(vehicleId: String, displayName: String) {
         // First attempt to get state
         try {
-            val state = backendApi.getVehicleState(vehicleId)
+            val state = backendApi.getVehicleState(vehicleId, currentUserId)
             updateVehicleState(state, displayName)
             return
         } catch (e: Exception) {
@@ -181,7 +175,7 @@ class HomeViewModel @Inject constructor(
 
         try {
             android.util.Log.d("HomeViewModel", "Sending wake command to vehicle: $vehicleId")
-            val wakeResponse = backendApi.wakeVehicle(vehicleId)
+            val wakeResponse = backendApi.wakeVehicle(vehicleId, currentUserId)
             android.util.Log.d("HomeViewModel", "Wake response: success=${wakeResponse.success}, state=${wakeResponse.state}")
 
             // Wait and retry getting state multiple times
@@ -193,7 +187,7 @@ class HomeViewModel @Inject constructor(
                 delay(retryDelayMs)
 
                 try {
-                    val state = backendApi.getVehicleState(vehicleId)
+                    val state = backendApi.getVehicleState(vehicleId, currentUserId)
                     android.util.Log.d("HomeViewModel", "Got vehicle state on attempt $attempt: battery=${state.batteryLevel}, lat=${state.latitude}, lng=${state.longitude}")
                     _uiState.update { it.copy(isWakingVehicle = false) }
                     updateVehicleState(state, displayName)
@@ -507,80 +501,110 @@ class HomeViewModel @Inject constructor(
     private fun searchChargingStationsAlongRoute(polyline: List<LatLonPoint>, distanceKm: Double, durationStr: String, destinationName: String) {
         android.util.Log.d("HomeViewModel", "Searching charging stations along route, polyline size: ${polyline.size}, totalDistance: ${distanceKm}km")
 
-        // Simplify polyline if too many points (max 100 recommended)
-        val simplifiedPolyline = if (polyline.size > 100) {
-            val step = polyline.size / 100
-            polyline.filterIndexed { index, _ -> index % step == 0 }
-        } else {
-            polyline
+        // For long routes (>300km), search in segments to get better coverage
+        val segmentDistanceKm = 250.0 // Search every 250km segment
+        val numSegments = ((distanceKm / segmentDistanceKm).toInt() + 1).coerceAtMost(10)
+
+        android.util.Log.d("HomeViewModel", "Route will be searched in $numSegments segments")
+
+        val allStations = mutableListOf<com.amap.api.services.routepoisearch.RoutePOIItem>()
+        var completedSegments = 0
+
+        // Function to process results after all segments complete
+        fun processAllResults() {
+            android.util.Log.d("HomeViewModel", "All segments complete. Total stations found: ${allStations.size}")
+
+            // Remove duplicates by ID or location
+            val uniqueStations = allStations.distinctBy { it.id ?: "${it.point?.latitude},${it.point?.longitude}" }
+            android.util.Log.d("HomeViewModel", "Unique stations after dedup: ${uniqueStations.size}")
+
+            val currentSoc = _uiState.value.departureSOC
+            val origin = _uiState.value.vehicleLocation
+
+            // Calculate distance along route for each station
+            val stationsWithDistance = if (origin != null) {
+                uniqueStations.mapNotNull { station ->
+                    station.point?.let { point ->
+                        val distanceFromStart = estimateDistanceAlongRoute(
+                            polyline,
+                            LatLonPoint(origin.latitude, origin.longitude),
+                            point,
+                            distanceKm
+                        )
+                        android.util.Log.d("HomeViewModel", "Station ${station.title}: distanceFromStart=${String.format("%.1f", distanceFromStart)}km")
+                        Pair(station, distanceFromStart)
+                    }
+                }.sortedBy { it.second }
+            } else {
+                emptyList()
+            }
+
+            val chargingStops = calculateChargingStops(stationsWithDistance, distanceKm, currentSoc)
+
+            // Only add markers for recommended charging stops
+            addRecommendedChargingStationMarkers(chargingStops, stationsWithDistance)
+
+            // Calculate arrival SOC
+            val arrivalSoc = calculateArrivalSoc(distanceKm, currentSoc, chargingStops)
+
+            _uiState.update {
+                it.copy(
+                    routeData = RouteData(
+                        destinationName = destinationName,
+                        totalDistanceKm = distanceKm,
+                        totalDuration = durationStr,
+                        arrivalSoc = arrivalSoc,
+                        chargingStops = chargingStops
+                    )
+                )
+            }
         }
 
-        routePOISearchManager.searchChargingStationsAlongRoute(
-            polyline = simplifiedPolyline,
-            range = 5000, // 5km from route
-            onResult = { chargingStations ->
-                android.util.Log.d("HomeViewModel", "Found ${chargingStations.size} charging stations along route")
+        // Search each segment
+        for (segmentIndex in 0 until numSegments) {
+            val startRatio = segmentIndex.toDouble() / numSegments
+            val endRatio = ((segmentIndex + 1).toDouble() / numSegments).coerceAtMost(1.0)
 
-                // Calculate charging plan based on distance and current SOC
-                val currentSoc = _uiState.value.departureSOC
-                val origin = _uiState.value.vehicleLocation
+            val startIdx = (polyline.size * startRatio).toInt()
+            val endIdx = (polyline.size * endRatio).toInt().coerceAtMost(polyline.size - 1)
 
-                // Calculate distance along route for each station
-                val stationsWithDistance = if (origin != null) {
-                    chargingStations.mapNotNull { station ->
-                        station.point?.let { point ->
-                            val distanceFromStart = estimateDistanceAlongRoute(
-                                polyline,
-                                LatLonPoint(origin.latitude, origin.longitude),
-                                point,
-                                distanceKm
-                            )
-                            android.util.Log.d("HomeViewModel", "Station ${station.title}: distanceFromStart=${distanceFromStart}km")
-                            Pair(station, distanceFromStart)
-                        }
-                    }.sortedBy { it.second }
-                } else {
-                    emptyList()
-                }
+            // Get segment polyline
+            val segmentPolyline = polyline.subList(startIdx, endIdx + 1)
 
-                val chargingStops = calculateChargingStops(stationsWithDistance, distanceKm, currentSoc)
-
-                // Only add markers for recommended charging stops
-                addRecommendedChargingStationMarkers(chargingStops, stationsWithDistance)
-
-                // Calculate arrival SOC
-                val arrivalSoc = calculateArrivalSoc(distanceKm, currentSoc, chargingStops)
-
-                _uiState.update {
-                    it.copy(
-                        routeData = RouteData(
-                            destinationName = destinationName,
-                            totalDistanceKm = distanceKm,
-                            totalDuration = durationStr,
-                            arrivalSoc = arrivalSoc,
-                            chargingStops = chargingStops
-                        )
-                    )
-                }
-            },
-            onError = { errorCode, errorMsg ->
-                android.util.Log.e("HomeViewModel", "Charging station search error: $errorCode - $errorMsg")
-                // Still show route data without charging stops
-                val currentSoc = _uiState.value.departureSOC
-                val arrivalSoc = calculateArrivalSoc(distanceKm, currentSoc, emptyList())
-                _uiState.update {
-                    it.copy(
-                        routeData = RouteData(
-                            destinationName = destinationName,
-                            totalDistanceKm = distanceKm,
-                            totalDuration = durationStr,
-                            arrivalSoc = arrivalSoc.coerceAtLeast(0),
-                            chargingStops = emptyList()
-                        )
-                    )
-                }
+            // Simplify if needed
+            val simplifiedSegment = if (segmentPolyline.size > 50) {
+                val step = segmentPolyline.size / 50
+                segmentPolyline.filterIndexed { index, _ -> index % step == 0 }
+            } else {
+                segmentPolyline
             }
-        )
+
+            android.util.Log.d("HomeViewModel", "Searching segment $segmentIndex: points ${startIdx}-${endIdx}, simplified to ${simplifiedSegment.size} points")
+
+            routePOISearchManager.searchChargingStationsAlongRoute(
+                polyline = simplifiedSegment,
+                range = 10000, // 10km from route for better coverage
+                onResult = { stations ->
+                    android.util.Log.d("HomeViewModel", "Segment $segmentIndex found ${stations.size} stations")
+                    synchronized(allStations) {
+                        allStations.addAll(stations)
+                        completedSegments++
+                        if (completedSegments >= numSegments) {
+                            processAllResults()
+                        }
+                    }
+                },
+                onError = { errorCode, errorMsg ->
+                    android.util.Log.e("HomeViewModel", "Segment $segmentIndex search error: $errorCode - $errorMsg")
+                    synchronized(allStations) {
+                        completedSegments++
+                        if (completedSegments >= numSegments) {
+                            processAllResults()
+                        }
+                    }
+                }
+            )
+        }
     }
 
     /**
@@ -693,68 +717,101 @@ class HomeViewModel @Inject constructor(
         val rangePerPercent = getEnergyConsumptionRate() // km per 1% SOC
         val minSoc = 15 // Don't go below 15%
         val targetSoc = 80 // Charge to 80% for faster charging
+        val safetyBuffer = 0.98 // Use 98% of calculated range - charge when close to minSoc
 
         android.util.Log.d("HomeViewModel", "calculateChargingStops: totalDistance=${totalDistanceKm}km, startSoc=$startSoc%, rangePerPercent=${rangePerPercent}km/%, maxRange=${startSoc * rangePerPercent}km")
 
         // Check if we can reach destination without charging
-        val safeRangeKm = (startSoc - minSoc) * rangePerPercent
-        if (totalDistanceKm <= safeRangeKm) {
-            android.util.Log.d("HomeViewModel", "Can reach destination without charging (need ${totalDistanceKm}km, have ${safeRangeKm}km safe range)")
+        val initialSafeRange = (startSoc - minSoc) * rangePerPercent * safetyBuffer
+        if (totalDistanceKm <= initialSafeRange) {
+            android.util.Log.d("HomeViewModel", "Can reach destination without charging (need ${totalDistanceKm}km, have ${initialSafeRange}km safe range)")
             return emptyList()
         }
 
         val stops = mutableListOf<ChargingStopData>()
         var currentSoc = startSoc
-        var distanceTraveled = 0.0
+        var currentPosition = 0.0 // Current position along the route (km from start)
 
-        // Find stations at appropriate intervals
-        // Charge when we've used up 90% of safe range
-        var nextChargingDistance = (currentSoc - minSoc) * rangePerPercent * 0.9
+        // Greedy algorithm: always pick the farthest reachable station
+        while (stops.size < 5) {
+            // Calculate how far we can travel from current position
+            val safeRangeKm = (currentSoc - minSoc) * rangePerPercent * safetyBuffer
+            val maxReachableDistance = currentPosition + safeRangeKm
 
-        for ((station, distanceFromStart) in stationsWithDistance) {
-            if (distanceFromStart < distanceTraveled + 30) continue // Skip stations too close (< 30km)
-            if (distanceFromStart > totalDistanceKm - 30) continue // Skip stations near destination
+            android.util.Log.d("HomeViewModel", "From position ${currentPosition.toInt()}km with $currentSoc% SOC, can reach up to ${maxReachableDistance.toInt()}km")
 
-            // Calculate SOC when arriving at this station
-            val distanceToStation = distanceFromStart - distanceTraveled
-            val socUsed = (distanceToStation / rangePerPercent).toInt()
-            val arrivalSoc = (currentSoc - socUsed).coerceAtLeast(0)
+            // Check if we can reach the destination
+            if (maxReachableDistance >= totalDistanceKm) {
+                val arrivalSoc = currentSoc - ((totalDistanceKm - currentPosition) / rangePerPercent).toInt()
+                android.util.Log.d("HomeViewModel", "Can reach destination! Arrival SOC: $arrivalSoc%")
+                break
+            }
 
-            // Check if we need to charge here
-            val remainingDistance = totalDistanceKm - distanceFromStart
-            val socNeededToFinish = (remainingDistance / rangePerPercent).toInt() + minSoc
+            // Find all stations within our reachable range
+            val reachableStations = stationsWithDistance.filter { (_, dist) ->
+                dist > currentPosition + 50 && // At least 50km ahead (avoid clustering)
+                dist <= maxReachableDistance && // Within our range
+                dist < totalDistanceKm - 50 // Not too close to destination
+            }
 
-            android.util.Log.d("HomeViewModel", "Evaluating ${station.title}: dist=${distanceFromStart.toInt()}km, arrivalSoc=$arrivalSoc%, socNeededToFinish=$socNeededToFinish%, nextChargingDist=${nextChargingDistance.toInt()}km")
+            if (reachableStations.isEmpty()) {
+                // No station in range - try to find the nearest station beyond our range
+                val nearestBeyondRange = stationsWithDistance
+                    .filter { (_, dist) -> dist > maxReachableDistance && dist < totalDistanceKm - 50 }
+                    .minByOrNull { it.second }
 
-            // Need to charge if:
-            // 1. We've traveled far enough (approaching safe range limit)
-            // 2. We don't have enough SOC to reach destination or next potential stop
-            if (distanceFromStart >= nextChargingDistance || arrivalSoc < socNeededToFinish) {
-                // Calculate charging time (supercharger: roughly 2% per minute on average)
-                val socToCharge = targetSoc - arrivalSoc
-                val chargingMinutes = (socToCharge * 0.5).toInt().coerceAtLeast(15) // Min 15 min
+                if (nearestBeyondRange != null) {
+                    android.util.Log.w("HomeViewModel", "Warning: No station in safe range. Nearest is at ${nearestBeyondRange.second.toInt()}km, need to push to reach it")
+                    // We'll have to risk going further than safe range
+                    val (station, distanceFromStart) = nearestBeyondRange
+                    val distanceTraveled = distanceFromStart - currentPosition
+                    val socUsed = (distanceTraveled / rangePerPercent).toInt()
+                    val arrivalSoc = (currentSoc - socUsed).coerceAtLeast(5) // Will arrive with low battery
 
-                stops.add(
-                    ChargingStopData(
+                    val chargingMinutes = ((targetSoc - arrivalSoc) * 0.5).toInt().coerceAtLeast(15)
+                    stops.add(ChargingStopData(
                         stationId = station.id ?: "",
-                        name = station.title ?: "充电站",
+                        name = station.title ?: "Charging Station",
                         arrivalSoc = arrivalSoc,
                         departureSoc = targetSoc,
                         chargingDuration = chargingMinutes
-                    )
-                )
+                    ))
+                    android.util.Log.d("HomeViewModel", "Added emergency stop: ${station.title} at ${distanceFromStart.toInt()}km, arrival=$arrivalSoc%, departure=$targetSoc%")
 
-                android.util.Log.d("HomeViewModel", "Added stop: ${station.title}, arrival=$arrivalSoc%, departure=$targetSoc%, charging=${chargingMinutes}min")
+                    currentSoc = targetSoc
+                    currentPosition = distanceFromStart
+                } else {
+                    android.util.Log.e("HomeViewModel", "Cannot find any charging station to complete route!")
+                    break
+                }
+            } else {
+                // Pick the farthest reachable station (greedy approach)
+                val (station, distanceFromStart) = reachableStations.maxByOrNull { it.second }!!
+
+                // Calculate arrival SOC at this station
+                val distanceTraveled = distanceFromStart - currentPosition
+                val socUsed = (distanceTraveled / rangePerPercent).toInt()
+                val arrivalSoc = (currentSoc - socUsed).coerceAtLeast(0)
+
+                // Calculate charging time
+                val chargingMinutes = ((targetSoc - arrivalSoc) * 0.5).toInt().coerceAtLeast(15)
+
+                stops.add(ChargingStopData(
+                    stationId = station.id ?: "",
+                    name = station.title ?: "Charging Station",
+                    arrivalSoc = arrivalSoc,
+                    departureSoc = targetSoc,
+                    chargingDuration = chargingMinutes
+                ))
+
+                android.util.Log.d("HomeViewModel", "Added stop: ${station.title} at ${distanceFromStart.toInt()}km, arrival=$arrivalSoc%, departure=$targetSoc%, charging=${chargingMinutes}min")
 
                 currentSoc = targetSoc
-                distanceTraveled = distanceFromStart
-                nextChargingDistance = distanceFromStart + (targetSoc - minSoc) * rangePerPercent * 0.9
-
-                // Limit to 5 stops max
-                if (stops.size >= 5) break
+                currentPosition = distanceFromStart
             }
         }
 
+        android.util.Log.d("HomeViewModel", "Total charging stops: ${stops.size}")
         return stops
     }
 

@@ -26,7 +26,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TePlanner"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowNativeHeapPointerTagging="false">
 
         <!-- AMap API Key - Replace with your actual key from https://console.amap.com/ -->
         <meta-data

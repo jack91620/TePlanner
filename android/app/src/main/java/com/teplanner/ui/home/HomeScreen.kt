@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
@@ -190,27 +192,46 @@ private fun AMapView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            MapView(context).apply {
-                onCreate(null)
-                mapView = this
-
-                map.apply {
-                    mapType = AMap.MAP_TYPE_NIGHT
-                    uiSettings.apply {
-                        isZoomControlsEnabled = false
-                        isCompassEnabled = false
-                        isScaleControlsEnabled = false
-                        isMyLocationButtonEnabled = false
+            // Wrap MapView in a FrameLayout that intercepts hover events
+            // This fixes the Compose bug: "The ACTION_HOVER_EXIT event was not cleared"
+            android.widget.FrameLayout(context).apply {
+                // Intercept hover events to prevent Compose crash
+                setOnHoverListener { _, event ->
+                    // Consume all hover events to prevent the crash
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_HOVER_ENTER,
+                        android.view.MotionEvent.ACTION_HOVER_MOVE,
+                        android.view.MotionEvent.ACTION_HOVER_EXIT -> true
+                        else -> false
                     }
-                    myLocationStyle = MyLocationStyle().apply {
-                        myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
-                        strokeColor(0x00000000)
-                        radiusFillColor(0x00000000)
-                    }
-                    isMyLocationEnabled = true
-                    moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.9042, 116.4074), 12f))
-                    onMapReady(this)
                 }
+
+                val map = MapView(context).apply {
+                    onCreate(null)
+                    mapView = this
+
+                    map.apply {
+                        mapType = AMap.MAP_TYPE_NIGHT
+                        uiSettings.apply {
+                            isZoomControlsEnabled = false
+                            isCompassEnabled = false
+                            isScaleControlsEnabled = false
+                            isMyLocationButtonEnabled = false
+                        }
+                        myLocationStyle = MyLocationStyle().apply {
+                            myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
+                            strokeColor(0x00000000)
+                            radiusFillColor(0x00000000)
+                        }
+                        isMyLocationEnabled = true
+                        moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.9042, 116.4074), 12f))
+                        onMapReady(this)
+                    }
+                }
+                addView(map, android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+                ))
             }
         }
     )
@@ -453,7 +474,7 @@ private fun RoutePreviewContent(
     onSendToVehicle: () -> Unit,
     onCancel: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         // Header
         Row(
             modifier = Modifier
@@ -490,8 +511,12 @@ private fun RoutePreviewContent(
             )
         }
 
-        // Route Stops
-        Column {
+        // Route Stops - Scrollable
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
             // Origin
             RouteStopItem(
                 type = RouteStopType.ORIGIN,

@@ -41,13 +41,19 @@ interface BackendApi {
     // ============ Vehicles ============
 
     @GET("vehicles/")
-    suspend fun getVehicles(): VehiclesResponse
+    suspend fun getVehicles(@Query("user_id") userId: String): VehiclesResponse
 
     @GET("vehicles/{id}/state")
-    suspend fun getVehicleState(@Path("id") vehicleId: String): VehicleState
+    suspend fun getVehicleState(
+        @Path("id") vehicleId: String,
+        @Query("user_id") userId: String
+    ): VehicleState
 
     @POST("vehicles/{id}/wake")
-    suspend fun wakeVehicle(@Path("id") vehicleId: String): WakeResponse
+    suspend fun wakeVehicle(
+        @Path("id") vehicleId: String,
+        @Query("user_id") userId: String
+    ): WakeResponse
 
     @POST("vehicles/{id}/navigate")
     suspend fun sendNavigation(
