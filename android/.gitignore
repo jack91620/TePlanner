@@ -3,9 +3,6 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Local configuration
-local.properties
-
 # IDE
 .idea/
 *.iml
