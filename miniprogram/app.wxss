@@ -1,25 +1,43 @@
 /**
  * TePlanner Global Styles
+ * Tesla-inspired Dark Theme
  */
 
 /* CSS Variables */
 page {
-  --primary-color: #e63946;
-  --secondary-color: #1a1a2e;
-  --background-color: #f5f5f5;
-  --card-background: #ffffff;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --border-color: #eeeeee;
-  --success-color: #2ecc71;
-  --warning-color: #f39c12;
-  --error-color: #e74c3c;
+  /* Tesla Dark Theme (Primary) */
+  --tesla-bg: #171717;
+  --tesla-bg-secondary: #242424;
+  --tesla-bg-tertiary: #2a2a2a;
+  --tesla-bg-elevated: #333333;
+  --tesla-text-primary: #ffffff;
+  --tesla-text-secondary: rgba(255, 255, 255, 0.7);
+  --tesla-text-tertiary: rgba(255, 255, 255, 0.5);
+  --tesla-text-quaternary: rgba(255, 255, 255, 0.3);
+  --tesla-accent: #e82127;
+  --tesla-accent-blue: #3e6ae1;
+  --tesla-border: rgba(255, 255, 255, 0.1);
+  --tesla-success: #34c759;
+  --tesla-warning: #ff9500;
+  --tesla-error: #ff3b30;
 
-  background-color: var(--background-color);
+  /* Legacy Variables (for compatibility) */
+  --primary-color: #e82127;
+  --secondary-color: #171717;
+  --background-color: #171717;
+  --card-background: #242424;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --success-color: #34c759;
+  --warning-color: #ff9500;
+  --error-color: #ff3b30;
+
+  background-color: var(--tesla-bg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
   font-size: 28rpx;
-  color: var(--text-primary);
+  color: var(--tesla-text-primary);
   line-height: 1.5;
 }
 
@@ -33,7 +51,7 @@ page {
   border-radius: 16rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.3);
 }
 
 .section-title {
@@ -49,7 +67,7 @@ page {
   align-items: center;
   justify-content: center;
   height: 88rpx;
-  border-radius: 44rpx;
+  border-radius: 16rpx;
   font-size: 32rpx;
   font-weight: 500;
   transition: opacity 0.2s;
@@ -60,25 +78,32 @@ page {
 }
 
 .btn-primary {
-  background: var(--primary-color);
+  background: var(--tesla-accent-blue);
   color: #ffffff;
 }
 
 .btn-secondary {
-  background: var(--secondary-color);
+  background: var(--tesla-bg-tertiary);
   color: #ffffff;
 }
 
 .btn-outline {
   background: transparent;
-  border: 2rpx solid var(--primary-color);
-  color: var(--primary-color);
+  border: 2rpx solid var(--tesla-border);
+  color: var(--tesla-text-primary);
 }
 
 .btn-disabled {
-  background: #cccccc;
-  color: #ffffff;
+  background: var(--tesla-bg-tertiary);
+  color: var(--tesla-text-tertiary);
   pointer-events: none;
+}
+
+/* Tesla Blue Button */
+.btn-tesla {
+  background: var(--tesla-accent-blue);
+  color: #ffffff;
+  border-radius: 16rpx;
 }
 
 /* Input Fields */
@@ -94,10 +119,11 @@ page {
 
 .input-field {
   height: 88rpx;
-  background: var(--background-color);
+  background: var(--tesla-bg-tertiary);
   border-radius: 12rpx;
   padding: 0 24rpx;
   font-size: 30rpx;
+  color: var(--tesla-text-primary);
 }
 
 /* Loading States */
@@ -113,7 +139,7 @@ page {
   width: 60rpx;
   height: 60rpx;
   border: 4rpx solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border-top-color: var(--tesla-accent-blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -138,6 +164,7 @@ page {
   width: 160rpx;
   height: 160rpx;
   margin-bottom: 30rpx;
+  opacity: 0.5;
 }
 
 .empty-state-text {
@@ -174,3 +201,8 @@ page {
 .mb-40 { margin-bottom: 40rpx; }
 .p-20 { padding: 20rpx; }
 .p-40 { padding: 40rpx; }
+
+/* Safe Area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

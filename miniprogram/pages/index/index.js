@@ -266,15 +266,6 @@ Page({
         width: 32,
         height: 32,
         anchor: { x: 0.5, y: 1 },
-        callout: {
-          content: station.name,
-          display: "BYCLICK",
-          bgColor: "#242424",
-          color: "#ffffff",
-          fontSize: 12,
-          borderRadius: 8,
-          padding: 8
-        },
         stationData: station
       };
     });
@@ -559,15 +550,19 @@ Page({
   },
 
   buildRouteMarkers: function(routeData) {
+    console.log("=== Building Route Markers ===");
+    console.log("charging_stops:", JSON.stringify(routeData.charging_stops, null, 2));
+    console.log("destination:", JSON.stringify(routeData.destination, null, 2));
+
     var chargingMarkers = (routeData.charging_stops || []).map(function(stop, index) {
+      console.log("Stop " + index + ":", stop.name, "lat:", stop.latitude, "lng:", stop.longitude);
       return {
         id: 200 + index,
         latitude: stop.latitude,
         longitude: stop.longitude,
         iconPath: "/assets/icons/charging-marker.png",
-        width: 36,
-        height: 36,
-        anchor: { x: 0.5, y: 1 }
+        width: 40,
+        height: 40
       };
     });
 
@@ -576,15 +571,22 @@ Page({
       latitude: routeData.destination.latitude,
       longitude: routeData.destination.longitude,
       iconPath: "/assets/icons/destination-marker.png",
-      width: 36,
-      height: 44,
-      anchor: { x: 0.5, y: 1 }
+      width: 40,
+      height: 48
     };
 
+    console.log("destMarker:", JSON.stringify(destMarker, null, 2));
+    console.log("Total charging markers:", chargingMarkers.length);
+
     var vehicleMarker = this.data.markers.find(function(m) { return m.id === 1; });
-    return vehicleMarker
+    var allMarkers = vehicleMarker
       ? [vehicleMarker].concat(chargingMarkers).concat([destMarker])
       : chargingMarkers.concat([destMarker]);
+
+    console.log("All markers to render:", JSON.stringify(allMarkers, null, 2));
+    console.log("=== End Building Route Markers ===");
+
+    return allMarkers;
   },
 
   saveRecentTrip: function(dest) {
