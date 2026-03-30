@@ -18,44 +18,43 @@ public class ContentViewModel: ObservableObject {
         self.apiService = apiService
     }
 
-    public func planRoute() {
+    // Making this function async allows tests to await its completion properly.
+    public func planRoute() async {
         isLoading = true
         errorMessage = nil
         routePlan = nil
         statusMessage = "准备规划路线..."
 
-        Task {
-            do {
-                statusMessage = "正在解析目的地地址..."
-                let destinationLocation = try await geocodeAddressIfNeeded(input: destination)
-                
-                var originLocation: LocationInput?
-                if !origin.trimmingCharacters(in: .whitespaces).isEmpty {
-                    statusMessage = "正在解析出发地地址..."
-                    originLocation = try await geocodeAddressIfNeeded(input: origin)
-                }
-                
-                statusMessage = "正在规划路线..."
-                let socInput = Int(currentSOC)
-                let result = await apiService.planRoute(
-                    origin: originLocation,
-                    destination: destinationLocation,
-                    currentSoc: socInput
-                )
-                
-                isLoading = false
-                statusMessage = nil
-                switch result {
-                case .success(let plan):
-                    self.routePlan = plan
-                case .failure(let error):
-                    self.errorMessage = "路线规划失败: \(error.localizedDescription)"
-                }
-            } catch {
-                isLoading = false
-                statusMessage = nil
-                self.errorMessage = error.localizedDescription
+        do {
+            statusMessage = "正在解析目的地地址..."
+            let destinationLocation = try await geocodeAddressIfNeeded(input: destination)
+            
+            var originLocation: LocationInput?
+            if !origin.trimmingCharacters(in: .whitespaces).isEmpty {
+                statusMessage = "正在解析出发地地址..."
+                originLocation = try await geocodeAddressIfNeeded(input: origin)
             }
+            
+            statusMessage = "正在规划路线..."
+            let socInput = Int(currentSOC)
+            let result = await apiService.planRoute(
+                origin: originLocation,
+                destination: destinationLocation,
+                currentSoc: socInput
+            )
+            
+            isLoading = false
+            statusMessage = nil
+            switch result {
+            case .success(let plan):
+                self.routePlan = plan
+            case .failure(let error):
+                self.errorMessage = "路线规划失败: \(error.localizedDescription)"
+            }
+        } catch {
+            isLoading = false
+            statusMessage = nil
+            self.errorMessage = error.localizedDescription
         }
     }
 

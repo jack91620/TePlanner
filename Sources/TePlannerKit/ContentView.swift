@@ -43,7 +43,9 @@ public struct ContentView: View {
 
                 Section {
                     Button(action: {
-                        viewModel.planRoute()
+                        Task {
+                            await viewModel.planRoute()
+                        }
                     }) {
                         HStack {
                             Spacer()

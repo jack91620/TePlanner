@@ -1,5 +1,5 @@
 import Foundation
-@testable import TePlanner
+@testable import TePlannerKit // Import the library module
 
 // The mock service that we will use in our tests.
 // It conforms to the same protocol as our real APIService.
