@@ -1,0 +1,4 @@
+module TePlannerKit {
+    header "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/TePlannerKit-Swift.h"
+    requires objc
+}

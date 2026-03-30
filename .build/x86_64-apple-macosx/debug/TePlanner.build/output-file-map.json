@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlanner.build/master.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlanner/TePlannerApp.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlanner.build/TePlannerApp.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlanner.build/TePlannerApp.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlanner.build/TePlannerApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlanner.build/TePlannerApp.swiftdeps"
+  }
+}

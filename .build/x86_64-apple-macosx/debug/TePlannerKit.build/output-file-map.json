@@ -1,0 +1,41 @@
+{
+  "": {
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/master.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/ContentView.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentView.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentView.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentView.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/MapView.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/MapView.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/MapView.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/MapView~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/MapView.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/Models/RouteModels.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/RouteModels.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/RouteModels.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/RouteModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/RouteModels.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/Services/APIService.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIService.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIService.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIService~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIService.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/Services/APIServiceProtocol.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIServiceProtocol.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIServiceProtocol.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIServiceProtocol~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/APIServiceProtocol.swiftdeps"
+  },
+  "/Users/mianbao/.openclaw/workspace/TePlanner/Sources/TePlannerKit/ViewModels/ContentViewModel.swift": {
+    "dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentViewModel.d",
+    "object": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentViewModel.swift.o",
+    "swiftmodule": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerKit.build/ContentViewModel.swiftdeps"
+  }
+}

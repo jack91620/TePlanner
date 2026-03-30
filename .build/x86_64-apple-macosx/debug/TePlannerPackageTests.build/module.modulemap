@@ -1,0 +1,4 @@
+module TePlannerPackageTests {
+    header "/Users/mianbao/.openclaw/workspace/TePlanner/.build/x86_64-apple-macosx/debug/TePlannerPackageTests.build/TePlannerPackageTests-Swift.h"
+    requires objc
+}
