@@ -64,16 +64,18 @@ public struct ContentView: View {
                 }
 
                 if let plan = viewModel.routePlan {
-                    Section(header: Text("规划结果")) {
+                    Section(header: Text("行程概览")) {
                         NavigationLink(destination: MapView(plan: plan)) {
-                            ResultRow(label: "地图路线", value: "点击查看")
+                            ResultRow(label: "地图路线", value: "点击查看全景")
                         }
                         ResultRow(label: "总距离", value: String(format: "%.1f km", plan.totalDistanceKm))
                         ResultRow(label: "总时间", value: formatDuration(minutes: plan.totalDurationMinutes))
                         ResultRow(label: "驾驶时间", value: formatDuration(minutes: plan.drivingDurationMinutes))
                         ResultRow(label: "充电时间", value: formatDuration(minutes: plan.chargingDurationMinutes))
-                        ResultRow(label: "充电次数", value: "\(plan.numChargingStops) 次")
-                        ResultRow(label: "到达时电量", value: "\(plan.arrivalSoc)%")
+                    }
+                    
+                    Section(header: Text("详细行程清单")) {
+                        ItineraryView(plan: plan)
                     }
                 }
                 
