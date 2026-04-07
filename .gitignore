@@ -91,3 +91,7 @@ backend/.server.pid
 
 # OpenClaw
 .openclaw/
+
+# Xcode
+Untitled.xcworkspace/
+TePlannerLibrary/
