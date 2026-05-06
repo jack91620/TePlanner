@@ -104,3 +104,7 @@ xcuserdata/
 
 # Build outputs / scratch
 tmp/screenshots/
+
+# iOS local config (real API keys + bundle ID), per-user
+Config.xcconfig
+Sources/TePlanner/Resources/Secrets.plist

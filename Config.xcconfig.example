@@ -1,0 +1,12 @@
+// Local build configuration — copy to Config.xcconfig (gitignored) and fill in.
+// See docs/ios-port-plan.md for context on AMap iOS SDK setup.
+
+// Bundle identifier — must match what's registered on the AMap console.
+PRODUCT_BUNDLE_IDENTIFIER = com.teplanner.ios
+
+// AMap iOS API key — apply at https://console.amap.com/dev/key/app
+// Keep this OUT of git. Only put it in Config.xcconfig (which is gitignored).
+AMAP_API_KEY = your_amap_ios_key_here
+
+// Backend base URL. Defaults to local dev server; override per-machine.
+BACKEND_URL = http://127.0.0.1:8000/api/v1
