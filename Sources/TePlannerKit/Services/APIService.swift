@@ -90,6 +90,11 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/vehicles/\(vehicleId)/navigate", body: request)
     }
 
+    public func setClimateKeeperMode(vehicleId: String, mode: Int) async -> Result<BaseResponse, APIError> {
+        struct Body: Encodable { let mode: Int }
+        return await postJSON(path: "/vehicles/\(vehicleId)/climate-keeper-mode", body: Body(mode: mode))
+    }
+
     // MARK: - Charging stations
 
     public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {

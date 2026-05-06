@@ -9,6 +9,11 @@ public protocol SettingsStore: AnyObject {
     var minChargingSoc: Int { get set }
     var preferSupercharger: Bool { get set }
     var distanceUnit: DistanceUnit { get set }
+    /// Phase 5: 提醒阈值（分钟）。0 = 关闭对应提醒。
+    var campModeReminderMinutes: Int { get set }
+    var sentryReminderMinutes: Int { get set }
+    var cabinOverheatReminderMinutes: Int { get set }
+    var chargeCompleteReminderEnabled: Bool { get set }
     func reset()
 }
 
@@ -23,6 +28,10 @@ public enum SettingsKey {
     public static let minChargingSoc = "min_charging_soc"
     public static let preferSupercharger = "prefer_supercharger"
     public static let distanceUnit = "distance_unit"
+    public static let campModeReminderMinutes = "camp_mode_reminder_minutes"
+    public static let sentryReminderMinutes = "sentry_reminder_minutes"
+    public static let cabinOverheatReminderMinutes = "cabin_overheat_reminder_minutes"
+    public static let chargeCompleteReminderEnabled = "charge_complete_reminder_enabled"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -71,13 +80,37 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         set { defaults.set(newValue.rawValue, forKey: SettingsKey.distanceUnit) }
     }
 
+    public var campModeReminderMinutes: Int {
+        get { defaults.object(forKey: SettingsKey.campModeReminderMinutes) as? Int ?? 120 }
+        set { defaults.set(newValue, forKey: SettingsKey.campModeReminderMinutes) }
+    }
+
+    public var sentryReminderMinutes: Int {
+        get { defaults.object(forKey: SettingsKey.sentryReminderMinutes) as? Int ?? 1440 }
+        set { defaults.set(newValue, forKey: SettingsKey.sentryReminderMinutes) }
+    }
+
+    public var cabinOverheatReminderMinutes: Int {
+        get { defaults.object(forKey: SettingsKey.cabinOverheatReminderMinutes) as? Int ?? 60 }
+        set { defaults.set(newValue, forKey: SettingsKey.cabinOverheatReminderMinutes) }
+    }
+
+    public var chargeCompleteReminderEnabled: Bool {
+        get { defaults.object(forKey: SettingsKey.chargeCompleteReminderEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: SettingsKey.chargeCompleteReminderEnabled) }
+    }
+
     public func reset() {
         for key in [
             SettingsKey.teslaLinked,
             SettingsKey.targetArrivalSoc,
             SettingsKey.minChargingSoc,
             SettingsKey.preferSupercharger,
-            SettingsKey.distanceUnit
+            SettingsKey.distanceUnit,
+            SettingsKey.campModeReminderMinutes,
+            SettingsKey.sentryReminderMinutes,
+            SettingsKey.cabinOverheatReminderMinutes,
+            SettingsKey.chargeCompleteReminderEnabled,
         ] {
             defaults.removeObject(forKey: key)
         }

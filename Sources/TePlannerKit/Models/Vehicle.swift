@@ -84,6 +84,11 @@ public struct VehicleState: Codable, Equatable {
     public let odometer: Double?
     public let insideTemp: Double?
     public let outsideTemp: Double?
+    /// 0 = off / 1 = keep / 2 = dog / 3 = camp.
+    public let climateKeeperMode: Int?
+    public let isClimateOn: Bool?
+    public let sentryModeOn: Bool?
+    public let cabinOverheatProtectionOn: Bool?
 
     public init(
         vehicleId: String? = nil,
@@ -99,7 +104,11 @@ public struct VehicleState: Codable, Equatable {
         speed: Int? = nil,
         odometer: Double? = nil,
         insideTemp: Double? = nil,
-        outsideTemp: Double? = nil
+        outsideTemp: Double? = nil,
+        climateKeeperMode: Int? = nil,
+        isClimateOn: Bool? = nil,
+        sentryModeOn: Bool? = nil,
+        cabinOverheatProtectionOn: Bool? = nil
     ) {
         self.vehicleId = vehicleId
         self.displayName = displayName
@@ -115,6 +124,10 @@ public struct VehicleState: Codable, Equatable {
         self.odometer = odometer
         self.insideTemp = insideTemp
         self.outsideTemp = outsideTemp
+        self.climateKeeperMode = climateKeeperMode
+        self.isClimateOn = isClimateOn
+        self.sentryModeOn = sentryModeOn
+        self.cabinOverheatProtectionOn = cabinOverheatProtectionOn
     }
 
     public enum CodingKeys: String, CodingKey {
@@ -129,7 +142,14 @@ public struct VehicleState: Codable, Equatable {
         case odometer = "odometer_km"
         case insideTemp = "inside_temp"
         case outsideTemp = "outside_temp"
+        case climateKeeperMode = "climate_keeper_mode"
+        case isClimateOn = "is_climate_on"
+        case sentryModeOn = "sentry_mode_on"
+        case cabinOverheatProtectionOn = "cabin_overheat_protection_on"
     }
+
+    /// Whether the vehicle is currently in 露营模式 (camp mode).
+    public var isCampModeOn: Bool { climateKeeperMode == 3 }
 }
 
 public struct WakeResponse: Codable {

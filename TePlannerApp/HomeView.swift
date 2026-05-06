@@ -8,6 +8,7 @@ import MAMapKit
 /// going on while the wake-retry loop runs.
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    @StateObject private var alertsViewModel: AlertsViewModel
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -18,11 +19,16 @@ struct HomeView: View {
     @State private var currentRoute: RoutePlanResponse?
     @State private var showingUnbindConfirm = false
     @State private var unbindError: String?
+    @State private var alertActionError: String?
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
             apiService: apiService,
             authSession: authSession
+        ))
+        _alertsViewModel = StateObject(wrappedValue: AlertsViewModel(
+            apiService: apiService,
+            settings: UserDefaultsSettingsStore.shared
         ))
         self.apiService = apiService
         self.authSession = authSession
@@ -38,12 +44,29 @@ struct HomeView: View {
             )
             .ignoresSafeArea()
 
-            statusBar
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
+            VStack(spacing: 8) {
+                statusBar
+                if let alert = alertsViewModel.alerts.first {
+                    AlertPillView(alert: alert) {
+                        guard let vehicleId = viewModel.vehicle?.id else { return }
+                        Task {
+                            switch alert.kind {
+                            case .campMode:
+                                let result = await alertsViewModel.clearCampMode(vehicleId: vehicleId)
+                                if case .failure(let err) = result {
+                                    alertActionError = err.localizedDescription
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
         }
         .task {
             await viewModel.load()
+            alertsViewModel.observe(viewModel.vehicleState)
             viewModel.startPolling()
         }
         .onDisappear { viewModel.stopPolling() }
@@ -52,6 +75,9 @@ struct HomeView: View {
             case .active: viewModel.startPolling()
             default: viewModel.stopPolling()
             }
+        }
+        .onChange(of: viewModel.vehicleState) { _, newState in
+            alertsViewModel.observe(newState)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -168,6 +194,14 @@ struct HomeView: View {
                 Button("好") { unbindError = nil }
             } message: {
                 Text(unbindError ?? "")
+            }
+            .alert("操作失败", isPresented: Binding(
+                get: { alertActionError != nil },
+                set: { if !$0 { alertActionError = nil } }
+            )) {
+                Button("好") { alertActionError = nil }
+            } message: {
+                Text(alertActionError ?? "")
             }
         }
     }

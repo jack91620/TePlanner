@@ -132,6 +132,16 @@ final class MockAPIService: APIServiceProtocol {
         return mockSendNavigationResponse
     }
 
+    var mockSetClimateKeeperModeResponse: Result<BaseResponse, APIError>!
+    var setClimateKeeperModeCallCount = 0
+    var lastSetClimateKeeperModeArgs: (vehicleId: String, mode: Int)?
+
+    func setClimateKeeperMode(vehicleId: String, mode: Int) async -> Result<BaseResponse, APIError> {
+        setClimateKeeperModeCallCount += 1
+        lastSetClimateKeeperModeArgs = (vehicleId, mode)
+        return mockSetClimateKeeperModeResponse ?? .success(BaseResponse(success: true, message: "ok"))
+    }
+
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
         stationDetailCallCount += 1
         return mockStationDetailResponse

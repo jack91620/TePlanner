@@ -113,6 +113,10 @@ final class InMemorySettingsStore: SettingsStore {
     var minChargingSoc: Int = 10
     var preferSupercharger: Bool = true
     var distanceUnit: DistanceUnit = .kilometers
+    var campModeReminderMinutes: Int = 120
+    var sentryReminderMinutes: Int = 1440
+    var cabinOverheatReminderMinutes: Int = 60
+    var chargeCompleteReminderEnabled: Bool = true
 
     func reset() {
         teslaLinked = false
@@ -120,5 +124,9 @@ final class InMemorySettingsStore: SettingsStore {
         minChargingSoc = 10
         preferSupercharger = true
         distanceUnit = .kilometers
+        campModeReminderMinutes = 120
+        sentryReminderMinutes = 1440
+        cabinOverheatReminderMinutes = 60
+        chargeCompleteReminderEnabled = true
     }
 }

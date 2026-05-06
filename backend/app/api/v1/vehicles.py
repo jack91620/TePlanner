@@ -50,6 +50,19 @@ class VehicleStateResponse(BaseModel):
     odometer_km: Optional[float] = None
     inside_temp: Optional[float] = None
     outside_temp: Optional[float] = None
+    # Phase 5: state the iOS AlertsViewModel watches for "user
+    # forgot to clean this up" reminders. climate_keeper_mode is
+    # the int Tesla returns: 0=off / 1=keep / 2=dog / 3=camp.
+    climate_keeper_mode: Optional[int] = None
+    is_climate_on: Optional[bool] = None
+    sentry_mode_on: Optional[bool] = None
+    cabin_overheat_protection_on: Optional[bool] = None
+
+
+class ClimateKeeperModeRequest(BaseModel):
+    """Set climate keeper mode (0=off, 1=keep, 2=dog, 3=camp)."""
+
+    mode: int  # 0..3
 
 
 class NavigationRequest(BaseModel):
@@ -231,6 +244,16 @@ async def get_vehicle_state(
                 odometer_km=_miles_to_km(vehicle_state.get("odometer")),
                 inside_temp=climate_state.get("inside_temp"),
                 outside_temp=climate_state.get("outside_temp"),
+                climate_keeper_mode=_normalize_climate_keeper_mode(
+                    climate_state.get("climate_keeper_mode")
+                ),
+                is_climate_on=climate_state.get("is_climate_on"),
+                sentry_mode_on=vehicle_state.get("sentry_mode"),
+                cabin_overheat_protection_on=climate_state.get(
+                    "cabin_overheat_protection"
+                ) == "On" or climate_state.get(
+                    "cabin_overheat_protection_on"
+                ),
             )
 
     except TeslaVehicleOfflineError:
@@ -269,6 +292,40 @@ async def wake_vehicle(
                 message="Wake command sent" if state != "online" else "Vehicle is online",
             )
 
+    except TeslaAPIError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=f"Tesla API error: {str(e)}",
+        )
+
+
+@router.post("/{vehicle_id}/climate-keeper-mode")
+async def set_climate_keeper_mode(
+    vehicle_id: str,
+    request: ClimateKeeperModeRequest,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+):
+    """Set the vehicle's climate keeper mode.
+
+    mode: 0=off / 1=keep / 2=dog / 3=camp.
+
+    Used by the iOS AlertsViewModel's "关闭露营模式" reminder action.
+    """
+    if request.mode not in (0, 1, 2, 3):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mode must be 0 (off), 1 (keep), 2 (dog), or 3 (camp)",
+        )
+    try:
+        async with tesla_client:
+            await tesla_client.set_climate_keeper_mode(vehicle_id, request.mode)
+            return {"success": True, "mode": request.mode}
+    except TeslaVehicleOfflineError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vehicle is offline. Please wake up the vehicle first.",
+        )
     except TeslaAPIError as e:
         raise HTTPException(
             status_code=e.status_code or 500,
@@ -412,3 +469,26 @@ def _mph_to_kmh(mph: Optional[float]) -> Optional[int]:
     if mph is None:
         return None
     return int(mph * 1.60934)
+
+
+# Tesla returns climate_keeper_mode as either an int 0..3 or one of
+# the strings "off"/"keep"/"dog"/"camp". Normalize to int so the
+# iOS client doesn't need to handle both shapes.
+_CLIMATE_KEEPER_STR_TO_INT = {
+    "off": 0, "no": 0, "false": 0,
+    "keep": 1, "on": 1,
+    "dog": 2,
+    "camp": 3,
+}
+
+
+def _normalize_climate_keeper_mode(raw) -> Optional[int]:
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return 1 if raw else 0
+    if isinstance(raw, int):
+        return raw if 0 <= raw <= 3 else None
+    if isinstance(raw, str):
+        return _CLIMATE_KEEPER_STR_TO_INT.get(raw.strip().lower())
+    return None

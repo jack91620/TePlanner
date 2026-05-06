@@ -38,6 +38,7 @@ public protocol APIServiceProtocol {
     func getVehicleState(vehicleId: String, userId: String) async -> Result<VehicleState, APIError>
     func wakeVehicle(vehicleId: String, userId: String) async -> Result<WakeResponse, APIError>
     func sendNavigation(vehicleId: String, request: NavigationRequest) async -> Result<BaseResponse, APIError>
+    func setClimateKeeperMode(vehicleId: String, mode: Int) async -> Result<BaseResponse, APIError>
 
     // Charging stations
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError>

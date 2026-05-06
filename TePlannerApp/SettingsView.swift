@@ -11,6 +11,8 @@ struct SettingsView: View {
     @State private var minChargingSoc: Int
     @State private var preferSupercharger: Bool
     @State private var distanceUnit: DistanceUnit
+    @State private var campModeReminderHours: Double
+    @State private var campModeReminderEnabled: Bool
     private let store: SettingsStore
 
     init(store: SettingsStore = UserDefaultsSettingsStore.shared) {
@@ -19,6 +21,9 @@ struct SettingsView: View {
         _minChargingSoc = State(initialValue: store.minChargingSoc)
         _preferSupercharger = State(initialValue: store.preferSupercharger)
         _distanceUnit = State(initialValue: store.distanceUnit)
+        let mins = store.campModeReminderMinutes
+        _campModeReminderEnabled = State(initialValue: mins > 0)
+        _campModeReminderHours = State(initialValue: max(1, Double(mins) / 60.0))
     }
 
     var body: some View {
@@ -51,6 +56,25 @@ struct SettingsView: View {
                         Text("英里 (mi)").tag(DistanceUnit.miles)
                     }
                 }
+                Section {
+                    Toggle("露营模式超时提醒", isOn: $campModeReminderEnabled)
+                    if campModeReminderEnabled {
+                        HStack {
+                            Text("阈值")
+                            Spacer()
+                            Text("\(Int(campModeReminderHours)) 小时")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        Slider(value: $campModeReminderHours, in: 1...12, step: 1) {
+                            Text("阈值")
+                        }
+                    }
+                } header: {
+                    Text("提醒")
+                } footer: {
+                    Text("露营模式开启超过阈值时，App 会显示提醒并允许一键关闭。")
+                }
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
@@ -64,7 +88,10 @@ struct SettingsView: View {
                         store.minChargingSoc = minChargingSoc
                         store.preferSupercharger = preferSupercharger
                         store.distanceUnit = distanceUnit
-                        Log.app.notice("settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public))")
+                        store.campModeReminderMinutes = campModeReminderEnabled
+                            ? Int(campModeReminderHours) * 60
+                            : 0
+                        Log.app.notice("settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public) campH=\(campModeReminderEnabled ? Int(campModeReminderHours) : 0, privacy: .public))")
                         dismiss()
                     }
                     .bold()
