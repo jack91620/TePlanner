@@ -63,6 +63,39 @@ final class AuthSessionTests: XCTestCase {
         XCTAssertEqual(session.refreshToken, "r2")
     }
 
+    func testUnbindCallsAPIAndLogsOut() async {
+        session.login(token: "tok", refreshToken: "ref", userId: "42")
+        let api = MockAPIService()
+        api.mockUnbindTeslaResponse = .success(BaseResponse(success: true, message: "ok"))
+
+        let result = await session.unbindTesla(api: api)
+
+        XCTAssertEqual(api.unbindTeslaCallCount, 1)
+        XCTAssertFalse(session.isLoggedIn, "local creds should be cleared")
+        XCTAssertNil(session.authToken)
+        if case .failure = result { XCTFail("expected success") }
+    }
+
+    func testUnbindStillLogsOutEvenWhenServerFails() async {
+        session.login(token: "tok", refreshToken: "ref", userId: "42")
+        let api = MockAPIService()
+        api.mockUnbindTeslaResponse = .failure(.serverError(statusCode: 500, message: "boom"))
+
+        let result = await session.unbindTesla(api: api)
+
+        XCTAssertFalse(session.isLoggedIn, "local creds should still be cleared on server error")
+        if case .success = result { XCTFail("expected failure") }
+    }
+
+    func testUnbindWithoutUserIdShortCircuits() async {
+        // Fresh session — no logged-in user.
+        let api = MockAPIService()
+        let result = await session.unbindTesla(api: api)
+
+        XCTAssertEqual(api.unbindTeslaCallCount, 0, "should not hit API without a user_id")
+        if case .failure = result { XCTFail("no-op should be success") }
+    }
+
     func testUpdateAccessTokenWithoutRefreshKeepsExisting() {
         session.login(token: "old", refreshToken: "r1", userId: "42")
         session.updateAccessToken("new", refreshToken: nil)

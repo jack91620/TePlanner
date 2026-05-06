@@ -14,6 +14,8 @@ struct HomeView: View {
     @State private var showingSettings = false
     @State private var pendingDestination: POIResult?
     @State private var currentRoute: RoutePlanResponse?
+    @State private var showingUnbindConfirm = false
+    @State private var unbindError: String?
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -64,6 +66,9 @@ struct HomeView: View {
                     Divider()
                     Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
                         authSession.logout()
+                    }
+                    Button("解绑 Tesla 账户", systemImage: "link.badge.plus", role: .destructive) {
+                        showingUnbindConfirm = true
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -121,6 +126,31 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+        }
+        .confirmationDialog(
+            "解绑 Tesla 账户",
+            isPresented: $showingUnbindConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("解绑", role: .destructive) {
+                Task {
+                    let result = await authSession.unbindTesla(api: apiService)
+                    if case .failure(let err) = result {
+                        unbindError = err.localizedDescription
+                    }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("将清除服务端授权与本地凭据，下次登录需要重新授权 Tesla。")
+        }
+        .alert("解绑失败", isPresented: Binding(
+            get: { unbindError != nil },
+            set: { if !$0 { unbindError = nil } }
+        )) {
+            Button("好") { unbindError = nil }
+        } message: {
+            Text(unbindError ?? "")
         }
     }
 

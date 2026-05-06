@@ -50,6 +50,23 @@ public final class AuthSession: ObservableObject {
         Log.auth.notice("logout — credentials cleared")
     }
 
+    /// Server-side unbind: revokes the Tesla token at the backend
+    /// (forces a fresh OAuth on next login) and clears local creds.
+    /// Returns the API outcome so the view can surface "解绑成功" /
+    /// "解绑失败" feedback.
+    public func unbindTesla(api: APIServiceProtocol) async -> Result<BaseResponse, APIError> {
+        guard let uid = userId else {
+            logout()
+            return .success(BaseResponse(success: true, message: "no-op (no user)"))
+        }
+        Log.auth.notice("unbind Tesla — uid=\(uid, privacy: .public)")
+        let result = await api.unbindTesla(userId: uid)
+        // Whatever the server says, drop the local credentials so the
+        // app forces an OAuth on next launch.
+        logout()
+        return result
+    }
+
     private func refreshState() {
         isLoggedIn = Self.computeLoggedIn(secureStorage: secureStorage, settings: settings)
     }
