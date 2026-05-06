@@ -88,6 +88,97 @@ Android 在 `HomeViewModel.calculateChargingStops` 里用 ~100 行贪心：每�
 - 解绑 Tesla 账户
 - 错误态 / 空态 / 加载态对比 Android 走查
 
+## 顶层定位（2026-05-07 对齐）
+
+不是 Tesla 官方 App 的 iOS 替代品，也不是单一长途路线规划工具。是
+**「Tesla 路线规划 + 官方 App 没做好的自动化提醒」**：用户每天打开
+都能用，但不与官方 App 在「即时控制 / 状态展示」的强项硬刚。
+
+**IN scope**
+
+- 充电路线规划（Phase 1-3 已交付）
+- 实时车辆位置 + 反向地理编码地址（Phase 4）
+- 状态遗忘类提醒：露营模式、Sentry、Cabin Overheat 长期开启
+- 出发前自动预冷/预热（基于已规划路线 + 出发时间）
+- 充电完成 / 接近满电提醒
+- 充电统计（mirror Tesla 官方 App 的「充电统计」tab）
+- 充电限额智能建议（基于下次行程 SOC 需求）
+
+**OUT of scope**（明确不做，Tesla 官方 App 已经做得够好）
+
+- 门锁 / 解锁
+- 前 / 后备箱开启
+- 窗户 / 天窗控制
+- 空调温度日常调节、座椅加热
+- Sentry / Pet mode 日常切换
+- 鸣笛闪灯（找车）
+
+**EXCEPTION**：上述 OUT 命令只允许出现在**对应提醒的 action 按钮**
+里。例如「露营模式已开 2 小时」提醒里有「关闭」按钮，调用
+`set_climate_keeper_mode(0)`。不在主界面铺开成 control panel。
+
+### Phase 5 —— 自动化提醒（顺序）
+
+5.1 露营模式超时提醒 + 一键关闭
+5.2 Sentry / Cabin overheat 提醒（同模式）
+5.3 充电完成提醒
+5.4 充电统计 tab
+5.5 出发前预冷 / 预热（绑定到 Recent Trips 的「设为下次出行」）
+5.6 充电限额智能建议
+
+### iOS 前端设计（Phase 5）
+
+新增的提醒不打破现有结构。架构：
+
+```
+HomeView
+├─ AMapVehicleMapView                       (existing, full-screen)
+├─ Top Status Bar overlay                   (existing: name/battery/range/location)
+├─ Active Alert Pill overlay  ← NEW         (top-most, conditional)
+│    └─ tap → expand bottom sheet to "提醒" detent
+└─ Bottom Drawer Sheet
+     ├─ Picker tabs: 附近 / 最近 / 统计  ← +1 tab
+     ├─ NearbyChargersView                  (existing)
+     ├─ RecentTripsView                     (existing)
+     └─ ChargingStatsView           ← NEW   (5.4)
+```
+
+**Alert Pill 规范：**
+- 出现在 status bar 之下、地图之上的浮层
+- 一次最多显示 1 条最高优先级提醒；多条时显示「⚠️ N 项需要处理」
+- 颜色 = severity：橙 = warning，红 = critical，蓝 = info
+- 内容 = 状态摘要 + 主操作按钮（如"关闭露营模式"）
+- 点空白处展开 bottom sheet 到大 detent，列出所有 active alerts
+
+**Alert 触发逻辑：**
+- HomeViewModel 每 60s 轮询 vehicleState
+- 一个新 `AlertsViewModel` 观察状态转换：
+    - climate_keeper_mode 0 → 3：记 `campModeStartedAt`
+    - sentry_mode 假 → 真：记 `sentryStartedAt`
+    - cabin_overheat 假 → 真：记 `cabinOverheatStartedAt`
+    - charge_state 进入 "Complete"：触发即时提醒
+- 阈值在 SettingsStore（默认露营 2h、Sentry 24h、Cabin 1h）
+- 触发后：① pill 升级到 critical；② iOS UNNotification 推送（前提下次切换到 active 仍未关）
+
+**iOS Local Notifications：**
+- 检测到状态进入「待提醒」时立即 schedule 一个 N 小时后的本地通知
+- 检测到状态离开 → cancel 对应 pending notification
+- 通知 action 含 "关闭"（直接调命令）和 "查看"（深链回 App）
+
+**APNs（等付费 Apple Developer 激活）：**
+- 后端进程 30s 轮询车辆状态（避开 Fleet API 配额上限）
+- 检测到事件 → APNs 推到 device token
+- 解决「App 被强杀也能提醒」的最后一公里
+
+**Settings 新增 section：**
+- 提醒
+    - 露营模式（开关 + 阈值 1-12h）
+    - Sentry 长期开启（开关 + 阈值 12-72h）
+    - Cabin overheat（开关 + 阈值 30min-3h）
+    - 充电完成（开关）
+- 预设条件
+    - 出发前自动预冷/预热（开关 + N 分钟 5-30）
+
 ## 需要补的数据模型（Swift）
 
 Android 在 `data/model/` 下，iOS 需要在
