@@ -1,0 +1,126 @@
+import SwiftUI
+import TePlannerKit
+
+/// Tesla OAuth landing screen. Mirrors the Android `LoginScreen` +
+/// `VehicleBindingScreen` pair: the main body is the marketing splash
+/// with a "连接 Tesla 账户" call-to-action; tapping it kicks off the
+/// view model, which fetches the auth URL and presents the web view.
+struct LoginView: View {
+    @StateObject private var viewModel: LoginViewModel
+
+    init(apiService: APIServiceProtocol, authSession: AuthSession) {
+        _viewModel = StateObject(wrappedValue: LoginViewModel(
+            apiService: apiService,
+            authSession: authSession
+        ))
+    }
+
+    var body: some View {
+        Group {
+            switch viewModel.state {
+            case .ready(let url, _):
+                bindingView(authURL: url)
+            case .processingCallback:
+                ProgressView("正在登录...").controlSize(.large)
+            default:
+                splash
+            }
+        }
+        .alert("登录失败", isPresented: errorBinding) {
+            Button("重试", action: { Task { await viewModel.start() } })
+            Button("取消", role: .cancel) {}
+        } message: {
+            if case .failed(let message) = viewModel.state {
+                Text(message)
+            }
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { if case .failed = viewModel.state { return true } else { return false } },
+            set: { _ in }
+        )
+    }
+
+    private var splash: some View {
+        VStack(spacing: 32) {
+            Spacer()
+            Text("T")
+                .font(.system(size: 96, weight: .bold))
+                .foregroundStyle(.red)
+                .frame(width: 160, height: 160)
+                .background(Color(.secondarySystemBackground), in: Circle())
+
+            VStack(spacing: 8) {
+                Text("TePlanner")
+                    .font(.largeTitle.bold())
+                Text("Tesla 充电路线规划")
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 16) {
+                feature(icon: "location.fill", text: "查看车辆位置")
+                feature(icon: "battery.75", text: "实时电量与续航")
+                feature(icon: "bolt.fill", text: "智能充电站规划")
+                feature(icon: "map.fill", text: "一键发送导航到车机")
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+
+            Button {
+                Task { await viewModel.start() }
+            } label: {
+                if viewModel.state == .loadingAuthUrl {
+                    ProgressView().controlSize(.regular)
+                } else {
+                    Text("连接 Tesla 账户")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(viewModel.state == .loadingAuthUrl)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private func feature(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.tint)
+                .frame(width: 28)
+            Text(text)
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func bindingView(authURL: URL) -> some View {
+        NavigationStack {
+            TeslaWebView(
+                authURL: authURL,
+                onCallback: { code, state, pageContent in
+                    viewModel.handleCallback(code: code, state: state, pageContent: pageContent)
+                },
+                onLoadError: { _ in
+                    // Surface inline next pass — splash + alert handle errors.
+                }
+            )
+            .ignoresSafeArea(edges: .bottom)
+            .navigationTitle("登录 Tesla")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") {
+                        Task { await viewModel.start() }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,23 +1,24 @@
 import SwiftUI
+import TePlannerKit
 
-/// Top-level view used by the app entry. For now this is a simple TabView
-/// holding the AMap smoke test — we'll grow this into the real
-/// LoginView / HomeView split once OAuth lands.
+/// App-level shell. Hands LoginView/HomeView the same long-lived
+/// dependencies (single APIService instance, single AuthSession) and
+/// switches between them based on whether the user is logged in.
 struct RootView: View {
-    var body: some View {
-        TabView {
-            AMapDemoView()
-                .tabItem {
-                    Label("地图", systemImage: "map")
-                }
+    @StateObject private var authSession = AuthSession()
+    private let apiService: APIServiceProtocol = APIService.shared
 
-            // Placeholder for the upcoming Tesla flow — the existing
-            // TePlannerKit ContentView is preserved here so we can confirm
-            // the SPM library is wired into the app bundle correctly.
-            PlannerPlaceholderView()
-                .tabItem {
-                    Label("规划", systemImage: "car")
+    var body: some View {
+        Group {
+            if authSession.isLoggedIn {
+                NavigationStack {
+                    HomeView(apiService: apiService, authSession: authSession)
+                        .navigationTitle("TePlanner")
+                        .navigationBarTitleDisplayMode(.inline)
                 }
+            } else {
+                LoginView(apiService: apiService, authSession: authSession)
+            }
         }
     }
 }
