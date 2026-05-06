@@ -10,3 +10,8 @@ AMAP_API_KEY = your_amap_ios_key_here
 
 // Backend base URL. Defaults to local dev server; override per-machine.
 BACKEND_URL = http://127.0.0.1:8000/api/v1
+
+// Apple Developer Team ID — required ONLY for device builds (`make run-device`).
+// Find yours: Xcode → Settings → Accounts → select team → "Team ID".
+// Free Apple ID also has a Team ID. Leave blank for simulator-only work.
+DEVELOPMENT_TEAM =

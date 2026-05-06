@@ -21,7 +21,8 @@ DERIVED_DATA := .derivedData
 SCREENSHOT_DIR := tmp/screenshots
 
 .PHONY: help project build build-ios build-app run-app test test-ios test-all \
-        clean lint format sim-boot sim-shutdown sim-screenshot sim-log doctor
+        clean clean-project lint format sim-boot sim-shutdown sim-screenshot \
+        sim-log doctor list-devices build-device run-device
 
 help:
 	@awk 'BEGIN{FS=":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -59,6 +60,37 @@ run-app: build-app sim-boot ## Build, install, and launch the app on the simulat
 	  test -n "$$app" || { echo "TePlannerApp.app not found"; exit 1; }; \
 	  xcrun simctl install booted "$$app" && \
 	  xcrun simctl launch booted $(APP_BUNDLE_ID)
+
+# --- Device deployment (real iPhone, wired or wireless) ------------------
+
+list-devices: ## List paired iOS devices visible to xcrun devicectl
+	@xcrun devicectl list devices 2>&1 | tail -n +2 || echo "No devices paired. Connect via USB once + trust this Mac in Settings."
+
+build-device: ## Build the iOS app for a real device (signed)
+	@test -d $(WORKSPACE) || $(MAKE) project
+	@grep -q "^DEVELOPMENT_TEAM = ..*" Config.xcconfig 2>/dev/null \
+	  || { echo "DEVELOPMENT_TEAM not set in Config.xcconfig (Xcode → Settings → Accounts → Team ID)"; exit 1; }
+	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	  -destination 'generic/platform=iOS' \
+	  -derivedDataPath $(DERIVED_DATA) \
+	  -configuration Debug \
+	  -allowProvisioningUpdates \
+	  build
+
+run-device: build-device ## Build, install, and launch on a paired iPhone (set DEVICE='Name' or pass UDID)
+	@app=$$(find $(DERIVED_DATA) -path "*Debug-iphoneos/TePlannerApp.app" -type d | head -1); \
+	  test -n "$$app" || { echo "TePlannerApp.app (device build) not found"; exit 1; }; \
+	  device_args=""; \
+	  if [ -n "$(DEVICE)" ]; then \
+	    device_args="--device $(DEVICE)"; \
+	  else \
+	    udid=$$(xcrun devicectl list devices 2>/dev/null | awk '/connected.*iPhone|iPad/ {print $$NF; exit}'); \
+	    test -n "$$udid" || { echo "No connected device found. Run \`make list-devices\` or pass DEVICE='iPhone Name'."; exit 1; }; \
+	    device_args="--device $$udid"; \
+	  fi; \
+	  echo "Installing $$app to $$device_args"; \
+	  xcrun devicectl device install app $$device_args "$$app" && \
+	  xcrun devicectl device process launch $$device_args --start-stopped=false $(APP_BUNDLE_ID)
 
 # --- Test ----------------------------------------------------------------
 
