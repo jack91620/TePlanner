@@ -31,6 +31,7 @@ public final class AuthSession: ObservableObject {
         secureStorage.userId = userId
         settings.teslaLinked = true
         refreshState()
+        Log.auth.notice("login persisted (user=\(userId, privacy: .public), refresh=\(refreshToken != nil, privacy: .public))")
     }
 
     public func updateAccessToken(_ token: String, refreshToken: String?) {
@@ -39,12 +40,14 @@ public final class AuthSession: ObservableObject {
             secureStorage.refreshToken = refreshToken
         }
         refreshState()
+        Log.auth.debug("access token updated (refresh rotated=\(refreshToken != nil, privacy: .public))")
     }
 
     public func logout() {
         secureStorage.removeAll()
         settings.teslaLinked = false
         refreshState()
+        Log.auth.notice("logout — credentials cleared")
     }
 
     private func refreshState() {

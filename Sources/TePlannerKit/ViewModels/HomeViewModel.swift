@@ -58,20 +58,26 @@ public final class HomeViewModel: ObservableObject {
 
     public func load() async {
         guard let userId = authSession.userId, !userId.isEmpty else {
+            Log.vehicle.error("load() called without a logged-in user")
             state = .error(message: "未登录")
             return
         }
+        Log.vehicle.notice("load() user=\(userId, privacy: .public)")
         state = .loading
 
         let vehiclesResult = await apiService.getVehicles(userId: userId)
         switch vehiclesResult {
         case .failure(let error):
+            Log.vehicle.error("getVehicles failed: \(error.localizedDescription, privacy: .public)")
             state = .error(message: error.localizedDescription)
         case .success(let response):
+            Log.vehicle.notice("got \(response.count, privacy: .public) vehicles")
             guard let vehicle = pickPrimary(from: response.vehicles) else {
+                Log.vehicle.error("vehicle list is empty — user has no Tesla bound or backend returned []")
                 state = .error(message: "未找到绑定的车辆")
                 return
             }
+            Log.vehicle.notice("picked vehicle id=\(vehicle.id, privacy: .public) name=\(vehicle.displayName ?? "?", privacy: .public) primary=\(vehicle.isPrimary, privacy: .public)")
             self.vehicle = vehicle
             await fetchVehicleStateWithWake(vehicleId: vehicle.id, userId: userId)
         }
@@ -89,28 +95,36 @@ public final class HomeViewModel: ObservableObject {
     }
 
     private func fetchVehicleStateWithWake(vehicleId: String, userId: String) async {
-        // First attempt — if the car is online this returns immediately.
         if case .success(let fresh) = await apiService.getVehicleState(vehicleId: vehicleId, userId: userId) {
+            Log.vehicle.notice("initial state probe succeeded (battery=\(fresh.batteryLevel ?? -1, privacy: .public)%, online=\(fresh.state ?? "?", privacy: .public))")
             self.vehicleState = fresh
             self.state = .ready
             return
         }
 
-        // Likely asleep — issue a wake command, then poll.
+        Log.vehicle.notice("vehicle didn't respond, sending wake command")
         state = .waking(attempt: 0, maxAttempts: maxWakeAttempts)
-        _ = await apiService.wakeVehicle(vehicleId: vehicleId, userId: userId)
+        let wakeResult = await apiService.wakeVehicle(vehicleId: vehicleId, userId: userId)
+        if case .success(let resp) = wakeResult {
+            Log.vehicle.notice("wake response: state=\(resp.state ?? "?", privacy: .public)")
+        } else if case .failure(let err) = wakeResult {
+            Log.vehicle.error("wake command failed: \(err.localizedDescription, privacy: .public)")
+        }
 
         for attempt in 1...maxWakeAttempts {
             await sleep(wakeRetryDelay)
             state = .waking(attempt: attempt, maxAttempts: maxWakeAttempts)
+            Log.vehicle.debug("wake retry \(attempt, privacy: .public)/\(self.maxWakeAttempts, privacy: .public)")
 
             if case .success(let fresh) = await apiService.getVehicleState(vehicleId: vehicleId, userId: userId) {
+                Log.vehicle.notice("vehicle online after \(attempt, privacy: .public) retries (battery=\(fresh.batteryLevel ?? -1, privacy: .public)%)")
                 self.vehicleState = fresh
                 self.state = .ready
                 return
             }
         }
 
+        Log.vehicle.error("vehicle did not come online after \(self.maxWakeAttempts, privacy: .public) retries — marking offline")
         state = .offline
     }
 

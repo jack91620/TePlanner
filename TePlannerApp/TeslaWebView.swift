@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import TePlannerKit
 
 /// SwiftUI wrapper around `WKWebView` that loads the Tesla OAuth URL and
 /// watches every navigation. When the URL hits the backend's callback
@@ -24,6 +25,7 @@ struct TeslaWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
+        Log.oauth.notice("TeslaWebView loading \(authURL.absoluteString, privacy: .public)")
         webView.load(URLRequest(url: authURL))
         return webView
     }
@@ -44,18 +46,20 @@ struct TeslaWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let urlString = webView.url?.absoluteString ?? "?"
+            Log.oauth.debug("WKWebView didFinish: \(urlString, privacy: .public)")
+
             guard !capturedCallback,
                   let url = webView.url,
                   url.path.contains("/auth/tesla/callback") else {
                 return
             }
 
+            Log.oauth.notice("callback URL hit: \(url.path, privacy: .public)")
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
             let code = components?.queryItems?.first(where: { $0.name == "code" })?.value ?? ""
             let state = components?.queryItems?.first(where: { $0.name == "state" })?.value ?? ""
 
-            // Scrape the JSON the backend embeds for the client. Mirrors
-            // Android's TeslaWebView.scrapeAuthData().
             let js = """
             (function() {
               var el = document.getElementById('auth-data');
@@ -64,20 +68,26 @@ struct TeslaWebView: UIViewRepresentable {
             })();
             """
 
-            webView.evaluateJavaScript(js) { [weak self] result, _ in
+            webView.evaluateJavaScript(js) { [weak self] result, error in
                 guard let self else { return }
                 if self.capturedCallback { return }
+                if let error {
+                    Log.oauth.error("JS extract failed: \(error.localizedDescription, privacy: .public)")
+                }
                 self.capturedCallback = true
                 let pageContent = result as? String
+                Log.oauth.notice("callback handed off (code prefix=\(code.prefix(6), privacy: .public)…, body=\(pageContent?.count ?? 0, privacy: .public) chars)")
                 self.onCallback(code, state, pageContent)
             }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            Log.oauth.error("WKWebView didFail: \(error.localizedDescription, privacy: .public)")
             onLoadError(error)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            Log.oauth.error("WKWebView didFailProvisionalNavigation: \(error.localizedDescription, privacy: .public)")
             onLoadError(error)
         }
     }

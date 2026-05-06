@@ -44,6 +44,7 @@ public final class LoginViewModel: ObservableObject {
     }
 
     public func start() async {
+        Log.oauth.notice("login flow started")
         state = .loadingAuthUrl
         callbackProcessed = false
 
@@ -51,30 +52,39 @@ public final class LoginViewModel: ObservableObject {
         switch result {
         case .success(let response):
             guard let url = URL(string: response.url) else {
+                Log.oauth.error("backend returned non-URL auth url: \(response.url, privacy: .public)")
                 state = .failed(message: "服务器返回的授权URL无效")
                 return
             }
             expectedState = response.state
-            // For anonymous sessions the backend allocates a user_id up
-            // front; remember it now so the callback can use it as a
-            // fallback if the page content omits one.
             if let id = response.userId {
                 preliminaryUserId = String(id)
                 secureStorage.userId = String(id)
+                Log.oauth.notice("preliminary user_id received: \(id, privacy: .public)")
             }
+            Log.oauth.notice("auth URL ready (host=\(url.host ?? "?", privacy: .public), state=\(response.state, privacy: .public))")
             state = .ready(authUrl: url, expectedState: response.state)
         case .failure(let error):
+            Log.oauth.error("getTeslaAuthUrl failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(message: error.localizedDescription)
         }
     }
 
     public func handleCallback(code: String, state returnedState: String, pageContent: String?) {
-        guard !callbackProcessed else { return }
+        let bodyLength = pageContent?.count ?? 0
+        Log.oauth.notice("callback received (code=\(code.prefix(6), privacy: .public)…, state=\(returnedState, privacy: .public), body=\(bodyLength) chars)")
+
+        guard !callbackProcessed else {
+            Log.oauth.debug("callback already processed, ignoring")
+            return
+        }
         guard let expected = expectedState else {
+            Log.oauth.error("callback fired before start() set an expected state")
             self.state = .failed(message: "状态校验失败，请重新登录")
             return
         }
         guard returnedState == expected else {
+            Log.oauth.error("CSRF state mismatch: got=\(returnedState, privacy: .public) expected=\(expected, privacy: .public)")
             self.state = .failed(message: "安全验证失败，请重试")
             return
         }
@@ -83,15 +93,19 @@ public final class LoginViewModel: ObservableObject {
 
         let parsed = Self.parseCallback(pageContent: pageContent)
         guard let token = parsed?.token else {
+            let preview = (pageContent ?? "").prefix(200)
+            Log.oauth.error("could not extract token from callback body. preview: \(preview, privacy: .public)")
             self.state = .failed(message: "未能从登录回调中提取凭证")
             return
         }
         let resolvedUserId = parsed?.userId ?? preliminaryUserId
         guard let userId = resolvedUserId, !userId.isEmpty else {
+            Log.oauth.error("callback parsed but no user_id — neither in page nor preliminary")
             self.state = .failed(message: "未能识别用户ID")
             return
         }
 
+        Log.oauth.notice("token extracted (len=\(token.count, privacy: .public), user=\(userId, privacy: .public))")
         authSession.login(token: token, refreshToken: parsed?.refreshToken, userId: userId)
         self.state = .success
     }

@@ -127,21 +127,35 @@ public final class APIService: APIServiceProtocol {
     }
 
     private func perform<T: Decodable>(_ request: URLRequest) async -> Result<T, APIError> {
+        let method = request.httpMethod ?? "?"
+        let path = request.url?.path ?? "?"
+        let started = Date()
+        Log.api.debug("→ \(method, privacy: .public) \(path, privacy: .public)")
+
         do {
             let (data, response) = try await session.data(for: request)
+            let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
             guard let http = response as? HTTPURLResponse else {
+                Log.api.error("← \(method, privacy: .public) \(path, privacy: .public) non-HTTP response")
                 return .failure(.invalidResponse)
             }
+            Log.api.debug("← \(method, privacy: .public) \(path, privacy: .public) \(http.statusCode) in \(elapsedMs)ms (\(data.count) bytes)")
+
             guard (200...299).contains(http.statusCode) else {
+                let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
+                Log.api.error("server error \(http.statusCode) on \(path, privacy: .public): \(bodyPreview, privacy: .public)")
                 let message = String(data: data, encoding: .utf8) ?? "Unknown server error"
                 return .failure(.serverError(statusCode: http.statusCode, message: message))
             }
             do {
                 return .success(try decoder.decode(T.self, from: data))
             } catch {
+                let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
+                Log.api.error("decode error on \(path, privacy: .public) for \(String(describing: T.self), privacy: .public): \(error.localizedDescription, privacy: .public) — body: \(bodyPreview, privacy: .public)")
                 return .failure(.decodingError(error))
             }
         } catch {
+            Log.api.error("request \(method, privacy: .public) \(path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             return .failure(.requestFailed(error))
         }
     }

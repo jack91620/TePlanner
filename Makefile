@@ -22,7 +22,7 @@ SCREENSHOT_DIR := tmp/screenshots
 
 .PHONY: help project build build-ios build-app run-app test test-ios test-all \
         clean clean-project lint format sim-boot sim-shutdown sim-screenshot \
-        sim-log doctor list-devices build-device run-device
+        sim-log log-app log-device doctor list-devices build-device run-device
 
 help:
 	@awk 'BEGIN{FS=":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -122,6 +122,17 @@ sim-screenshot: ## Capture booted simulator → tmp/screenshots/<timestamp>.png
 sim-log: ## Tail iOS simulator log for our app (Ctrl-C to stop)
 	xcrun simctl spawn booted log stream --level debug \
 	  --predicate 'process == "TePlannerApp"'
+
+log-app: ## Stream just our subsystem's logs from the simulator (api/auth/vehicle/oauth/app/map)
+	xcrun simctl spawn booted log stream --level debug \
+	  --predicate 'subsystem == "com.teplanner.ios"'
+
+log-device: ## Stream our subsystem's logs from a paired iPhone (USB or Wi-Fi). Set DEVICE='Name'.
+	@if [ -z "$(DEVICE)" ]; then \
+	  echo "Set DEVICE='iPhone Name' (find with \`make list-devices\`)"; exit 1; \
+	fi
+	log stream --device '$(DEVICE)' --level debug \
+	  --predicate 'subsystem == "com.teplanner.ios"'
 
 # --- Hygiene -------------------------------------------------------------
 

@@ -110,7 +110,48 @@ Schemes:
 1. `make run-app` — builds, installs, launches on the simulator.
 2. `make sim-screenshot` — saves a PNG to `tmp/screenshots/`. Paste
    it back into the conversation.
-3. `make sim-log` — streams iOS logs filtered to `TePlannerApp`.
+3. `make log-app` — streams the app's structured logs (see below).
+
+## Logging
+
+We use Apple's unified logging via `os.Logger`, all under the
+`com.teplanner.ios` subsystem so they're filterable. Categories:
+
+| Category | What's in it |
+| --- | --- |
+| `app` | App lifecycle, AMap SDK init, RootView routing |
+| `api` | Every HTTP request: method/path, status, body preview on errors, decode failures |
+| `auth` | AuthSession login/logout/token refresh |
+| `oauth` | LoginViewModel state, WKWebView nav, callback URL detection, JS extraction |
+| `vehicle` | HomeViewModel state, vehicle pick, wake retry attempts |
+| `map` | AMap marker / camera updates |
+
+Streaming logs:
+
+```
+make log-app                       # simulator
+make log-device DEVICE='iPhone'    # paired real device (USB or Wi-Fi)
+```
+
+For ad-hoc filtering you can use the underlying commands:
+
+```
+xcrun simctl spawn booted log stream \
+  --predicate 'subsystem == "com.teplanner.ios" AND category == "api"'
+
+log stream --device 'iPhone' \
+  --predicate 'subsystem == "com.teplanner.ios" AND category == "oauth"'
+```
+
+After-the-fact (e.g. tester sends you a `sysdiagnose`):
+
+```
+log show --predicate 'subsystem == "com.teplanner.ios"' --last 1h
+```
+
+Token values, full URLs with query params, and other sensitive data
+are marked `.private` so they're redacted in archived logs on
+non-tethered devices. Lengths and prefixes are `.public` for triage.
 
 ## Test strategy
 

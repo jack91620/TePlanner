@@ -4,6 +4,7 @@ import AMapFoundationKit
 import MAMapKit
 import AMapSearchKit
 import AMapLocationKit
+import os
 
 @main
 struct TePlannerApp: App {
@@ -19,6 +20,11 @@ struct TePlannerApp: App {
 
     private static func bootstrapAMapSDK() {
         let key = Bundle.main.object(forInfoDictionaryKey: "AMapAPIKey") as? String ?? ""
+        if key.isEmpty {
+            Log.app.fault("AMapAPIKey missing in Info.plist — check Config.xcconfig and rerun `make project`")
+        } else {
+            Log.app.notice("AMap key present (len=\(key.count, privacy: .public)), bundleId=\(Bundle.main.bundleIdentifier ?? "?", privacy: .public)")
+        }
         AMapServices.shared().apiKey = key
         AMapServices.shared().enableHTTPS = true
 
@@ -33,5 +39,7 @@ struct TePlannerApp: App {
 
         AMapLocationManager.updatePrivacyShow(.didShow, privacyInfo: .didContain)
         AMapLocationManager.updatePrivacyAgree(.didAgree)
+
+        Log.app.notice("AMap SDK initialized — privacy compliance accepted on MAMapView/AMapSearchAPI/AMapLocationManager")
     }
 }

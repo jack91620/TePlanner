@@ -20,6 +20,12 @@ struct RootView: View {
                 LoginView(apiService: apiService, authSession: authSession)
             }
         }
+        .onChange(of: authSession.isLoggedIn) { _, newValue in
+            Log.app.notice("auth state → \(newValue ? "logged in" : "logged out", privacy: .public)")
+        }
+        .onAppear {
+            Log.app.notice("RootView appeared (logged in=\(authSession.isLoggedIn, privacy: .public))")
+        }
     }
 }
 
