@@ -404,7 +404,7 @@ class TencentMapClient:
 
         return {
             "distance": route.get("distance", 0),  # meters
-            "duration": route.get("duration", 0),  # seconds
+            "duration": route.get("duration", 0),  # minutes (Tencent API returns minutes)
             "polyline": decoded_polyline,
             "steps": route.get("steps", []),
             "waypoints": result.get("waypoints", []),
@@ -462,7 +462,7 @@ class TencentMapClient:
         route = await self.get_driving_route_detailed(origin, destination)
 
         distance_km = route["distance"] / 1000
-        duration_minutes = route["duration"] / 60
+        duration_minutes = route["duration"]
 
         # Search for charging stations along the route
         charging_stations = []

@@ -168,7 +168,7 @@ class RoutePlanner:
         )
 
         total_distance_km = route_data["distance"] / 1000
-        driving_minutes = int(route_data["duration"] / 60)
+        driving_minutes = int(route_data["duration"])
         polyline = route_data.get("polyline", [])
 
         # Step 2: Get origin and destination names

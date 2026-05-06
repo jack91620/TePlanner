@@ -292,8 +292,8 @@ async def navigate_vehicle(
         async with tesla_client:
             await tesla_client.navigation_gps_request(
                 vehicle_tag=vehicle_id,
-                latitude=request.latitude,
-                longitude=request.longitude,
+                lat=request.latitude,
+                lon=request.longitude,
                 order=request.order,
             )
 
