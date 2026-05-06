@@ -38,6 +38,16 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/routes/geocode", body: GeocodeRequest(address: address))
     }
 
+    public func reverseGeocode(latitude: Double, longitude: Double) async -> Result<ReverseGeocodeResponse, APIError> {
+        // Backend's POST /routes/reverse-geocode takes `latitude` and
+        // `longitude` as query parameters (no JSON body).
+        let query = [
+            URLQueryItem(name: "latitude", value: String(latitude)),
+            URLQueryItem(name: "longitude", value: String(longitude)),
+        ]
+        return await post(path: "/routes/reverse-geocode", query: query)
+    }
+
     // MARK: - Tesla OAuth
 
     public func getTeslaAuthUrl() async -> Result<TeslaAuthUrlResponse, APIError> {

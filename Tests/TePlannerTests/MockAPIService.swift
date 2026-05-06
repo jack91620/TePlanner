@@ -8,6 +8,7 @@ final class MockAPIService: APIServiceProtocol {
     // Routes / geocoding (existing)
     var mockRoutePlanResponse: Result<RoutePlanResponse, APIError>!
     var mockGeocodeResponse: Result<GeocodeResponse, APIError>!
+    var mockReverseGeocodeResponse: Result<ReverseGeocodeResponse, APIError>!
 
     // Tesla OAuth
     var mockTeslaAuthUrlResponse: Result<TeslaAuthUrlResponse, APIError>!
@@ -36,6 +37,8 @@ final class MockAPIService: APIServiceProtocol {
     // Call counts
     var planRouteCallCount = 0
     var geocodeCallCount = 0
+    var reverseGeocodeCallCount = 0
+    var lastReverseGeocodeArgs: (lat: Double, lng: Double)?
     var teslaAuthUrlCallCount = 0
     var teslaStatusCallCount = 0
     var unbindTeslaCallCount = 0
@@ -62,6 +65,18 @@ final class MockAPIService: APIServiceProtocol {
     func geocode(address: String) async -> Result<GeocodeResponse, APIError> {
         geocodeCallCount += 1
         return mockGeocodeResponse
+    }
+
+    func reverseGeocode(latitude: Double, longitude: Double) async -> Result<ReverseGeocodeResponse, APIError> {
+        reverseGeocodeCallCount += 1
+        lastReverseGeocodeArgs = (latitude, longitude)
+        // Default to a benign empty response so tests that don't
+        // care about reverse geocoding don't crash. Tests that
+        // need a specific response set `mockReverseGeocodeResponse`.
+        return mockReverseGeocodeResponse ?? .success(ReverseGeocodeResponse(
+            latitude: latitude, longitude: longitude,
+            address: nil, formattedAddress: nil
+        ))
     }
 
     func getTeslaAuthUrl() async -> Result<TeslaAuthUrlResponse, APIError> {

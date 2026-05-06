@@ -126,6 +126,27 @@ public struct GeocodeResponse: Codable {
     }
 }
 
+/// Response from POST /routes/reverse-geocode. Backend may return
+/// either a Tencent-style "address" or a city/district recommendation
+/// in `formatted_address`. UI prefers the formatted one when present.
+public struct ReverseGeocodeResponse: Codable {
+    public let latitude: Double
+    public let longitude: Double
+    public let address: String?
+    public let formattedAddress: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case latitude, longitude, address
+        case formattedAddress = "formatted_address"
+    }
+
+    public var displayName: String? {
+        if let f = formattedAddress, !f.isEmpty { return f }
+        if let a = address, !a.isEmpty { return a }
+        return nil
+    }
+}
+
 // MARK: - Recent / saved routes (GET /routes/)
 
 public struct RecentRoutesResponse: Codable {

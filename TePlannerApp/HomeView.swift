@@ -167,7 +167,7 @@ struct HomeView: View {
     }
 
     private var statusBar: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(viewModel.displayName ?? "我的 Tesla")
                     .font(.headline)
@@ -187,6 +187,16 @@ struct HomeView: View {
             }
             .font(.subheadline.monospacedDigit())
             .foregroundStyle(.secondary)
+
+            if let location = viewModel.locationName {
+                Label {
+                    Text(location).lineLimit(1)
+                } icon: {
+                    Image(systemName: "location.fill")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)

@@ -22,6 +22,7 @@ public protocol APIServiceProtocol {
     // Routes / geocoding (existing)
     func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError>
     func geocode(address: String) async -> Result<GeocodeResponse, APIError>
+    func reverseGeocode(latitude: Double, longitude: Double) async -> Result<ReverseGeocodeResponse, APIError>
 
     // Tesla OAuth
     func getTeslaAuthUrl() async -> Result<TeslaAuthUrlResponse, APIError>

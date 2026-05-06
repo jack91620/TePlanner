@@ -234,6 +234,45 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(after - before, 2, "expected at least 2 polls in 0.2s with a 50ms interval")
     }
 
+    func testInitialLoadFetchesLocationName() async {
+        api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
+            Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)
+        ]))
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1", displayName: "Tesla", state: "online",
+            batteryLevel: 70, batteryRange: 300, latitude: 39.92, longitude: 116.4
+        ))
+        api.mockReverseGeocodeResponse = .success(ReverseGeocodeResponse(
+            latitude: 39.92, longitude: 116.4,
+            address: "北京市东城区天安门广场",
+            formattedAddress: "北京市东城区"
+        ))
+        let vm = makeVM()
+
+        await vm.load()
+
+        XCTAssertEqual(vm.locationName, "北京市东城区")
+        XCTAssertEqual(api.lastReverseGeocodeArgs?.lat, 39.92)
+    }
+
+    func testReverseGeocodeFailureLeavesLocationNameNil() async {
+        api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
+            Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)
+        ]))
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1", displayName: "Tesla", state: "online",
+            batteryLevel: 70, batteryRange: 300, latitude: 39.92, longitude: 116.4
+        ))
+        api.mockReverseGeocodeResponse = .failure(.serverError(statusCode: 500, message: "boom"))
+        let vm = makeVM()
+
+        await vm.load()
+
+        // .ready set, just no location name (failure tolerated).
+        XCTAssertEqual(vm.state, .ready)
+        XCTAssertNil(vm.locationName)
+    }
+
     func testStopPollingHaltsRequests() async {
         api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
             Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)

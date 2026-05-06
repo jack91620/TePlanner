@@ -23,6 +23,7 @@ public final class HomeViewModel: ObservableObject {
     @Published public private(set) var state: State = .idle
     @Published public private(set) var vehicle: Vehicle?
     @Published public private(set) var vehicleState: VehicleState?
+    @Published public private(set) var locationName: String?
 
     public var displayName: String? {
         vehicleState?.displayName ?? vehicle?.displayName
@@ -136,15 +137,36 @@ public final class HomeViewModel: ObservableObject {
             return
         }
 
-        if let oldLat = vehicleState?.latitude, let oldLng = vehicleState?.longitude,
-           let newLat = fresh.latitude, let newLng = fresh.longitude {
-            let dlat = abs(newLat - oldLat)
-            let dlng = abs(newLng - oldLng)
-            if dlat > 0.0001 || dlng > 0.0001 {
-                Log.vehicle.notice("poll: position changed (\(dlat, privacy: .public), \(dlng, privacy: .public))")
+        let oldLat = vehicleState?.latitude
+        let oldLng = vehicleState?.longitude
+        let positionMoved: Bool = {
+            guard let oldLat, let oldLng,
+                  let newLat = fresh.latitude, let newLng = fresh.longitude else {
+                return true  // first time we see a coordinate
             }
+            return abs(newLat - oldLat) > 0.0001 || abs(newLng - oldLng) > 0.0001
+        }()
+        if positionMoved, let newLat = fresh.latitude, let newLng = fresh.longitude {
+            Log.vehicle.notice("poll: position changed (\(newLat, privacy: .public), \(newLng, privacy: .public))")
         }
         vehicleState = fresh
+        if positionMoved, let lat = fresh.latitude, let lng = fresh.longitude {
+            await refreshLocationName(latitude: lat, longitude: lng)
+        }
+    }
+
+    /// Best-effort reverse-geocode of the current vehicle position.
+    /// Surfaces the result via `locationName` for the status bar.
+    /// Errors are tolerated silently — the UI just shows nothing
+    /// instead of a stale or wrong address.
+    public func refreshLocationName(latitude: Double, longitude: Double) async {
+        let result = await apiService.reverseGeocode(latitude: latitude, longitude: longitude)
+        if case .success(let resp) = result, let name = resp.displayName {
+            locationName = name
+            Log.vehicle.notice("location resolved: \(name, privacy: .public)")
+        } else if case .failure(let err) = result {
+            Log.vehicle.debug("reverseGeocode failed: \(err.localizedDescription, privacy: .public)")
+        }
     }
 
     // MARK: - Internals
@@ -158,6 +180,9 @@ public final class HomeViewModel: ObservableObject {
             Log.vehicle.notice("initial state probe succeeded (battery=\(fresh.batteryLevel ?? -1, privacy: .public)%, online=\(fresh.state ?? "?", privacy: .public))")
             self.vehicleState = fresh
             self.state = .ready
+            if let lat = fresh.latitude, let lng = fresh.longitude {
+                await refreshLocationName(latitude: lat, longitude: lng)
+            }
             return
         }
 
@@ -179,6 +204,9 @@ public final class HomeViewModel: ObservableObject {
                 Log.vehicle.notice("vehicle online after \(attempt, privacy: .public) retries (battery=\(fresh.batteryLevel ?? -1, privacy: .public)%)")
                 self.vehicleState = fresh
                 self.state = .ready
+                if let lat = fresh.latitude, let lng = fresh.longitude {
+                    await refreshLocationName(latitude: lat, longitude: lng)
+                }
                 return
             }
         }
