@@ -9,6 +9,7 @@ import MAMapKit
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
     private let authSession: AuthSession
+    @State private var showingSearch = false
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -34,6 +35,13 @@ struct HomeView: View {
         .task { await viewModel.load() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingSearch = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("刷新", systemImage: "arrow.clockwise") {
                         Task { await viewModel.refresh() }
@@ -45,6 +53,12 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+            }
+        }
+        .sheet(isPresented: $showingSearch) {
+            SearchView(service: AMapPOISearchService()) { result in
+                Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
+                // TODO: hand off to route preview in next Phase 2 step
             }
         }
     }

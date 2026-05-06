@@ -32,4 +32,7 @@ public enum Log {
 
     /// Map view: marker updates, camera moves.
     public static let map = Logger(subsystem: subsystem, category: "map")
+
+    /// POI search: query lifecycle, AMap responses.
+    public static let search = Logger(subsystem: subsystem, category: "search")
 }
