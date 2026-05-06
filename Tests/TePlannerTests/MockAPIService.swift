@@ -21,6 +21,10 @@ final class MockAPIService: APIServiceProtocol {
     // Vehicles
     var mockVehiclesResponse: Result<VehiclesResponse, APIError>!
     var mockVehicleStateResponse: Result<VehicleState, APIError>!
+    /// If non-empty, each call to `getVehicleState` consumes the next entry
+    /// (and the last entry sticks once the queue is exhausted). Useful for
+    /// simulating "first probe fails, wake succeeds on Nth retry".
+    var mockVehicleStateSequence: [Result<VehicleState, APIError>] = []
     var mockWakeVehicleResponse: Result<WakeResponse, APIError>!
     var mockSendNavigationResponse: Result<BaseResponse, APIError>!
 
@@ -89,6 +93,13 @@ final class MockAPIService: APIServiceProtocol {
 
     func getVehicleState(vehicleId: String, userId: String) async -> Result<VehicleState, APIError> {
         getVehicleStateCallCount += 1
+        if !mockVehicleStateSequence.isEmpty {
+            let result = mockVehicleStateSequence.first!
+            if mockVehicleStateSequence.count > 1 {
+                mockVehicleStateSequence.removeFirst()
+            }
+            return result
+        }
         return mockVehicleStateResponse
     }
 
