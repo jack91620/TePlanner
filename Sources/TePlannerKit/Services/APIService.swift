@@ -1,81 +1,143 @@
 import Foundation
 
-// The real implementation of our API service that makes network calls.
-public class APIService: APIServiceProtocol {
-    
-    // Use a shared singleton instance for the app to use.
+public final class APIService: APIServiceProtocol {
     public static let shared = APIService()
-    
-    private let baseURL = "http://127.0.0.1:8000/api/v1"
-    
-    // Make the initializer private to enforce the singleton pattern.
-    private init() {}
+
+    private let baseURL: String
+    private let session: URLSession
+    private let encoder: JSONEncoder
+    private let decoder: JSONDecoder
+
+    public init(
+        baseURL: String = "http://127.0.0.1:8000/api/v1",
+        session: URLSession = .shared
+    ) {
+        self.baseURL = baseURL
+        self.session = session
+        self.encoder = JSONEncoder()
+        self.decoder = JSONDecoder()
+    }
+
+    // MARK: - Routes / geocoding
 
     public func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> {
-        guard let url = URL(string: "\(baseURL)/routes/plan") else {
-            return .failure(.invalidURL)
-        }
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let requestBody = RoutePlanRequest(
-            origin: origin,
-            destination: destination,
-            vehicleId: nil, // Not handled yet
-            currentSoc: currentSoc
-        )
-
-        do {
-            let encoder = JSONEncoder()
-            urlRequest.httpBody = try encoder.encode(requestBody)
-        } catch {
-            return .failure(.decodingError(error))
-        }
-
-        return await performRequest(urlRequest: urlRequest)
+        let body = RoutePlanRequest(origin: origin, destination: destination, vehicleId: nil, currentSoc: currentSoc)
+        return await postJSON(path: "/routes/plan", body: body)
     }
-    
+
     public func geocode(address: String) async -> Result<GeocodeResponse, APIError> {
-        guard let url = URL(string: "\(baseURL)/routes/geocode") else {
-            return .failure(.invalidURL)
+        return await postJSON(path: "/routes/geocode", body: GeocodeRequest(address: address))
+    }
+
+    // MARK: - Tesla OAuth
+
+    public func getTeslaAuthUrl() async -> Result<TeslaAuthUrlResponse, APIError> {
+        return await get(path: "/auth/tesla/authorize")
+    }
+
+    public func checkTeslaStatus(userId: String) async -> Result<TeslaStatusResponse, APIError> {
+        return await get(path: "/auth/tesla/status", query: [URLQueryItem(name: "user_id", value: userId)])
+    }
+
+    public func unbindTesla(userId: String) async -> Result<BaseResponse, APIError> {
+        return await post(path: "/auth/tesla/unbind", query: [URLQueryItem(name: "user_id", value: userId)])
+    }
+
+    // MARK: - Auth
+
+    public func validateToken() async -> Result<AuthValidationResponse, APIError> {
+        return await get(path: "/auth/validate")
+    }
+
+    public func refreshToken(_ refreshToken: String) async -> Result<AuthResponse, APIError> {
+        return await postJSON(path: "/auth/refresh", body: RefreshTokenRequest(refreshToken: refreshToken))
+    }
+
+    // MARK: - Vehicles
+
+    public func getVehicles(userId: String) async -> Result<VehiclesResponse, APIError> {
+        return await get(path: "/vehicles/", query: [URLQueryItem(name: "user_id", value: userId)])
+    }
+
+    public func getVehicleState(vehicleId: String, userId: String) async -> Result<VehicleState, APIError> {
+        return await get(path: "/vehicles/\(vehicleId)/state", query: [URLQueryItem(name: "user_id", value: userId)])
+    }
+
+    public func wakeVehicle(vehicleId: String, userId: String) async -> Result<WakeResponse, APIError> {
+        return await post(path: "/vehicles/\(vehicleId)/wake", query: [URLQueryItem(name: "user_id", value: userId)])
+    }
+
+    public func sendNavigation(vehicleId: String, request: NavigationRequest) async -> Result<BaseResponse, APIError> {
+        return await postJSON(path: "/vehicles/\(vehicleId)/navigate", body: request)
+    }
+
+    // MARK: - Charging stations
+
+    public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
+        return await get(path: "/charging/stations/\(stationId)")
+    }
+
+    public func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int = 50, type: String? = nil) async -> Result<[ChargingStation], APIError> {
+        var query = [
+            URLQueryItem(name: "latitude", value: String(latitude)),
+            URLQueryItem(name: "longitude", value: String(longitude)),
+            URLQueryItem(name: "radius", value: String(radiusKm))
+        ]
+        if let type {
+            query.append(URLQueryItem(name: "type", value: type))
         }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let requestBody = GeocodeRequest(address: address)
-        
+        return await get(path: "/charging/nearby", query: query)
+    }
+
+    // MARK: - Internals
+
+    private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        return await perform(req)
+    }
+
+    private func post<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        return await perform(req)
+    }
+
+    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, query: [URLQueryItem] = []) async -> Result<T, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         do {
-            let encoder = JSONEncoder()
-            urlRequest.httpBody = try encoder.encode(requestBody)
+            req.httpBody = try encoder.encode(body)
         } catch {
             return .failure(.decodingError(error))
         }
-        
-        return await performRequest(urlRequest: urlRequest)
+        return await perform(req)
     }
 
-    // Generic helper function to perform network requests and decode JSON
-    private func performRequest<T: Decodable>(urlRequest: URLRequest) async -> Result<T, APIError> {
-        do {
-            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+    private func makeURL(path: String, query: [URLQueryItem]) -> URL? {
+        var components = URLComponents(string: baseURL + path)
+        if !query.isEmpty {
+            components?.queryItems = query
+        }
+        return components?.url
+    }
 
-            guard let httpResponse = response as? HTTPURLResponse else {
+    private func perform<T: Decodable>(_ request: URLRequest) async -> Result<T, APIError> {
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
                 return .failure(.invalidResponse)
             }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
-                return .failure(.serverError(statusCode: httpResponse.statusCode, message: errorMessage))
+            guard (200...299).contains(http.statusCode) else {
+                let message = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                return .failure(.serverError(statusCode: http.statusCode, message: message))
             }
-
             do {
-                let decoder = JSONDecoder()
-                let decodedObject = try decoder.decode(T.self, from: data)
-                return .success(decodedObject)
+                return .success(try decoder.decode(T.self, from: data))
             } catch {
                 return .failure(.decodingError(error))
             }

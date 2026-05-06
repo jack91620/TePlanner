@@ -118,15 +118,24 @@ struct ResultRow: View {
 #if DEBUG
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        class EmptyMock: APIServiceProtocol {
-            func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> {
-                return .failure(.invalidURL)
-            }
-            func geocode(address: String) async -> Result<GeocodeResponse, APIError> {
-                return .failure(.invalidURL)
-            }
-        }
-        return ContentView(viewModel: ContentViewModel(apiService: EmptyMock()))
+        return ContentView(viewModel: ContentViewModel(apiService: PreviewAPIService()))
     }
+}
+
+private final class PreviewAPIService: APIServiceProtocol {
+    private func unimplemented<T>() -> Result<T, APIError> { .failure(.invalidURL) }
+    func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> { unimplemented() }
+    func geocode(address: String) async -> Result<GeocodeResponse, APIError> { unimplemented() }
+    func getTeslaAuthUrl() async -> Result<TeslaAuthUrlResponse, APIError> { unimplemented() }
+    func checkTeslaStatus(userId: String) async -> Result<TeslaStatusResponse, APIError> { unimplemented() }
+    func unbindTesla(userId: String) async -> Result<BaseResponse, APIError> { unimplemented() }
+    func validateToken() async -> Result<AuthValidationResponse, APIError> { unimplemented() }
+    func refreshToken(_ refreshToken: String) async -> Result<AuthResponse, APIError> { unimplemented() }
+    func getVehicles(userId: String) async -> Result<VehiclesResponse, APIError> { unimplemented() }
+    func getVehicleState(vehicleId: String, userId: String) async -> Result<VehicleState, APIError> { unimplemented() }
+    func wakeVehicle(vehicleId: String, userId: String) async -> Result<WakeResponse, APIError> { unimplemented() }
+    func sendNavigation(vehicleId: String, request: NavigationRequest) async -> Result<BaseResponse, APIError> { unimplemented() }
+    func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> { unimplemented() }
+    func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError> { unimplemented() }
 }
 #endif
