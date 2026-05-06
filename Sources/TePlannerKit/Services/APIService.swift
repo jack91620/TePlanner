@@ -7,15 +7,18 @@ public final class APIService: APIServiceProtocol {
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let tokenProvider: () -> String?
 
     public init(
         baseURL: String = "http://127.0.0.1:8000/api/v1",
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        tokenProvider: @escaping () -> String? = { KeychainStorage.shared.authToken }
     ) {
         self.baseURL = baseURL
         self.session = session
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
+        self.tokenProvider = tokenProvider
     }
 
     private static var bundleBackendURL: String? {
@@ -138,8 +141,15 @@ public final class APIService: APIServiceProtocol {
         let started = Date()
         Log.api.debug("→ \(method, privacy: .public) \(path, privacy: .public)")
 
+        var authedRequest = request
+        if authedRequest.value(forHTTPHeaderField: "Authorization") == nil,
+           let token = tokenProvider(),
+           !token.isEmpty {
+            authedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.data(for: authedRequest)
             let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
             guard let http = response as? HTTPURLResponse else {
                 Log.api.error("← \(method, privacy: .public) \(path, privacy: .public) non-HTTP response")
