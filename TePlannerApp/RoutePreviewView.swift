@@ -108,7 +108,7 @@ struct RoutePreviewView: View {
             }
             Divider().padding(.vertical, 4)
             HStack(spacing: 18) {
-                stat(value: "\(Int(plan.totalDistanceKm)) km", caption: "总距离")
+                stat(value: formatDistance(plan.totalDistanceKm), caption: "总距离")
                 stat(value: formatMinutes(plan.totalDurationMinutes), caption: "总时长")
                 stat(value: "\(plan.numChargingStops)", caption: "充电次数")
             }
@@ -151,7 +151,7 @@ struct RoutePreviewView: View {
                             Text(address).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
                         HStack(spacing: 12) {
-                            Text("\(Int(stop.distanceFromStartKm)) km")
+                            Text(formatDistance(stop.distanceFromStartKm))
                             Text("\(stop.arrivalSoc)% → \(stop.departureSoc)%")
                             Text(formatMinutes(stop.chargingDurationMinutes))
                         }
@@ -207,5 +207,14 @@ struct RoutePreviewView: View {
         let h = minutes / 60
         let m = minutes % 60
         return m == 0 ? "\(h) 小时" : "\(h) 小时 \(m) 分"
+    }
+
+    /// Sub-km routes (like a 350 m hop to the nearest charger) shouldn't
+    /// round to 0 km. Switch to meters under 1 km, single decimal under
+    /// 100 km, integer otherwise.
+    private func formatDistance(_ km: Double) -> String {
+        if km < 1 { return "\(Int(km * 1000)) m" }
+        if km < 100 { return String(format: "%.1f km", km) }
+        return "\(Int(km)) km"
     }
 }

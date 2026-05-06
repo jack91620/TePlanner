@@ -11,6 +11,10 @@ struct AMapVehicleMapView: UIViewRepresentable {
     var vehicleTitle: String
     var batteryLevel: Int?
     var route: RoutePlanResponse?
+    /// Bumped by the host to ask the map to recenter — to the vehicle
+    /// when no route is active, fit-to-route otherwise. The map only
+    /// reacts on transitions, so a stale value is harmless.
+    var recenterToken: Int = 0
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -35,6 +39,37 @@ struct AMapVehicleMapView: UIViewRepresentable {
             coordinator.lastRouteKey = routeKey
             renderRoute(on: mapView, coordinator: coordinator)
         }
+
+        if recenterToken != coordinator.lastRecenterToken {
+            coordinator.lastRecenterToken = recenterToken
+            recenter(on: mapView)
+        }
+    }
+
+    private func recenter(on mapView: MAMapView) {
+        if route != nil {
+            fitRoute(on: mapView)
+        } else if let coordinate {
+            mapView.setZoomLevel(15, animated: true)
+            mapView.setCenter(coordinate, animated: true)
+        }
+    }
+
+    private func fitRoute(on mapView: MAMapView) {
+        guard let route, !route.polyline.isEmpty else { return }
+        let lats = route.polyline.map(\.latitude)
+        let lngs = route.polyline.map(\.longitude)
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLng = lngs.min(), let maxLng = lngs.max() else { return }
+        let center = CLLocationCoordinate2D(
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLng + maxLng) / 2
+        )
+        let span = MACoordinateSpan(
+            latitudeDelta: max(0.05, (maxLat - minLat) * 1.2),
+            longitudeDelta: max(0.05, (maxLng - minLng) * 1.2)
+        )
+        mapView.setRegion(MACoordinateRegion(center: center, span: span), animated: true)
     }
 
     private func updateVehicleMarker(on mapView: MAMapView, coordinator: Coordinator) {
@@ -144,6 +179,7 @@ struct AMapVehicleMapView: UIViewRepresentable {
         var routeOverlays: [MAOverlay] = []
         var lastCoordinate: CLLocationCoordinate2D?
         var lastRouteKey: String?
+        var lastRecenterToken: Int = 0
 
         func mapView(_ mapView: MAMapView!, viewFor annotation: MAAnnotation!) -> MAAnnotationView! {
             if annotation is ChargingStopAnnotation {

@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var showingUnbindConfirm = false
     @State private var unbindError: String?
     @State private var alertActionError: String?
+    @State private var recenterToken: Int = 0
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -40,7 +41,8 @@ struct HomeView: View {
                 coordinate: viewModel.coordinate.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) },
                 vehicleTitle: viewModel.displayName ?? "我的 Tesla",
                 batteryLevel: viewModel.batteryLevel,
-                route: currentRoute
+                route: currentRoute,
+                recenterToken: recenterToken
             )
             .ignoresSafeArea()
 
@@ -63,6 +65,16 @@ struct HomeView: View {
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    recenterButton
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 240)
+                }
+            }
         }
         .task {
             await viewModel.load()
@@ -241,6 +253,21 @@ struct HomeView: View {
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var recenterButton: some View {
+        Button {
+            recenterToken &+= 1
+        } label: {
+            Image(systemName: currentRoute == nil ? "location.fill" : "arrow.up.left.and.arrow.down.right")
+                .font(.title3)
+                .foregroundStyle(.primary)
+                .padding(10)
+                .background(.thinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
+        }
+        .accessibilityIdentifier("recenter_button")
+        .accessibilityLabel(currentRoute == nil ? "居中到车辆" : "适配整段路线")
     }
 
     private var batteryIcon: String {
