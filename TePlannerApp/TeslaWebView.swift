@@ -55,8 +55,10 @@ struct TeslaWebView: UIViewRepresentable {
                 return
             }
 
-            Log.oauth.notice("callback URL hit: \(url.path, privacy: .public)")
+            Log.oauth.notice("callback URL hit: \(url.absoluteString, privacy: .public)")
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let allParams = components?.queryItems?.map { "\($0.name)=\(($0.value ?? "").prefix(40))" }.joined(separator: "&") ?? "(none)"
+            Log.oauth.notice("callback query items: \(allParams, privacy: .public)")
             let code = components?.queryItems?.first(where: { $0.name == "code" })?.value ?? ""
             let state = components?.queryItems?.first(where: { $0.name == "state" })?.value ?? ""
 

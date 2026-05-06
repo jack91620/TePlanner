@@ -10,7 +10,7 @@
 # Generated artifacts (TePlannerApp.xcodeproj, TePlannerApp.xcworkspace,
 # Pods/) are gitignored. Run `make project` after a fresh clone.
 
-SIMULATOR ?= iPhone 16
+SIMULATOR ?= iPhone 17
 PACKAGE_SCHEME := TePlanner-Package
 APP_SCHEME := TePlannerApp
 KIT_SCHEME := TePlannerKit
@@ -90,7 +90,7 @@ run-device: build-device ## Build, install, and launch on a paired iPhone (set D
 	  fi; \
 	  echo "Installing $$app to $$device_args"; \
 	  xcrun devicectl device install app $$device_args "$$app" && \
-	  xcrun devicectl device process launch $$device_args --start-stopped=false $(APP_BUNDLE_ID)
+	  xcrun devicectl device process launch $$device_args $(APP_BUNDLE_ID)
 
 # --- Test ----------------------------------------------------------------
 

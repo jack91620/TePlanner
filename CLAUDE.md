@@ -14,23 +14,26 @@ Config.xcconfig.example    # Template for per-machine config (real values
                            # AMap key, backend URL)
 
 Sources/
-  TePlannerKit/            # All cross-platform UI + logic + services.
-                           # Pure SPM, builds on macOS for fast tests.
+  TePlannerKit/            # Cross-platform logic + services. Pure SPM,
+                           # builds on macOS for fast tests. No SwiftUI
+                           # views live here anymore — all views are in
+                           # TePlannerApp/ since they touch AMap.
     Models/                # RouteModels, Vehicle, ChargingStation, AuthModels
-    Services/              # APIService, SecureStorage (Keychain),
-                           #   SettingsStore (UserDefaults)
-    ViewModels/            # ContentViewModel — to be replaced by HomeViewModel
-    Views/                 # ItineraryView
-    ContentView.swift      # Old route-planning form, kept until HomeView lands
-    MapView.swift          # MapKit view, will be replaced by AMap-backed view
+    Services/              # APIService, AuthSession, SecureStorage (Keychain),
+                           #   SettingsStore (UserDefaults), Log
+    ViewModels/            # HomeViewModel, LoginViewModel
 
 TePlannerApp/              # iOS app target (driven by project.yml).
                            # Imports TePlannerKit + AMap SDK. Cannot build
-                           # on macOS — needs the simulator/device.
+                           # on macOS — needs a real device (see "Known
+                           # gotchas" — simulator is blocked by AMap on
+                           # Apple Silicon).
   TePlannerApp.swift       # @main, AMap SDK init + privacy compliance
-  RootView.swift           # TabView shell
-  AMapDemoView.swift       # Throwaway smoke test for AMap SDK
-  PlannerPlaceholderView.swift  # Wraps old ContentView during transition
+  RootView.swift           # Login/Home switch based on AuthSession
+  LoginView.swift          # Tesla OAuth (WKWebView via TeslaWebView)
+  TeslaWebView.swift       # WKWebView wrapper with callback detection
+  HomeView.swift           # Vehicle status header over AMap map
+  AMapVehicleMapView.swift # MAMapView wrapper showing vehicle marker
   Info.plist               # CFBundleIdentifier + AMapAPIKey from xcconfig
 
 Tests/
@@ -93,9 +96,22 @@ Schemes:
 
 ## Known gotchas
 
-- `MapView.swift` uses MapKit's `MapMarker`, deprecated in iOS 17.
-  This file will be replaced by an AMap-backed view, don't "fix" the
-  warning in isolation.
+- **AMap pods need a retag pass to run on Apple Silicon simulator**
+  (legacy fat binaries with no arm64-simulator slice). `Podfile`'s
+  `post_install` runs `scripts/retag-amap-for-sim.sh`, which uses
+  `vtool -set-build-version 7` to rewrite each `.o` file's load
+  commands so the linker accepts arm64 slices for iphonesimulator.
+  Pods-target dummy objects are too small to hold the new load
+  command and get dropped (they're empty). If you ever see
+  `EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64` come back, the
+  script also strips it from `Pods/Target Support Files/**/*.xcconfig`
+  on each `pod install`.
+- xcodebuild may print `[MT] IDERunDestination: Supported platforms
+  for the buildables in the current scheme is empty` if the retag
+  hasn't run. Re-run `make project` or `pod install` and rebuild.
+- Use `-destination 'generic/platform=iOS'` for device builds (and
+  `'generic/platform=iOS Simulator'` if you need a placeholder for
+  AMap-related debugging). The Makefile targets do this.
 - If `swift build` fails with `PCH was compiled with module cache path
   '/Users/.../TePlanner/.build/...'` — the repo was previously at a
   different path. Run `make clean`.
@@ -107,10 +123,28 @@ Schemes:
 
 ## Verifying UI changes
 
+Simulator path is the default — works on Apple Silicon thanks to the
+AMap retag (see Known gotchas). Default `SIMULATOR=iPhone 17`; override
+with `make run-app SIMULATOR='iPhone 17 Pro'` etc.
+
 1. `make run-app` — builds, installs, launches on the simulator.
 2. `make sim-screenshot` — saves a PNG to `tmp/screenshots/`. Paste
    it back into the conversation.
 3. `make log-app` — streams the app's structured logs (see below).
+
+Real-device path (when you need to verify AMap rendering against
+real GPS / map tiles, or test push / Tesla OAuth on real network):
+
+1. `make list-devices` — confirm the iPhone is paired and connected.
+2. `make run-device DEVICE='iPhone Name'` — builds (signed),
+   installs, launches.
+3. Device logs: macOS Tahoe broke `log stream --device` and
+   libimobiledevice's `idevicesyslog` doesn't auto-mount the iOS 17+
+   DDI, so the cleanest way is to run via Xcode (▶) and watch the
+   debug console. `make log-device` is wired but no longer streams
+   reliably on Tahoe.
+4. Real-device screenshots: take on-phone (Power+VolUp) and AirDrop
+   to the Mac.
 
 ## Logging
 

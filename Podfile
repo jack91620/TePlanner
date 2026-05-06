@@ -16,9 +16,35 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
-      # AMap pods occasionally bundle ARM-only slices; keep build flags
-      # consistent so simulator x86_64 + arm64 both link.
       config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+      # AMap ships legacy fat binaries (arm64-device + x86_64-sim) and
+      # forces EXCLUDED_ARCHS=arm64 on iphonesimulator. Apple Silicon
+      # Macs need an arm64-simulator slice — scripts/retag-amap-for-sim.sh
+      # rewrites the load commands to fake one. Drop the exclusion here.
+      config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
     end
+  end
+
+  # Strip the same EXCLUDED_ARCHS line CocoaPods writes into the
+  # generated .xcconfig files (the in-memory project mutation above
+  # doesn't cover those — they're regenerated each pod install).
+  Dir.glob(File.join(installer.config.installation_root,
+                     'Pods/Target Support Files/**/*.xcconfig')).each do |path|
+    contents = File.read(path)
+    next unless contents.include?('EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64')
+    File.write(path, contents.gsub(
+      /^EXCLUDED_ARCHS\[sdk=iphonesimulator\*\] = arm64\s*$/,
+      "// EXCLUDED_ARCHS removed: AMap arm64 slice retagged for simulator"
+    ))
+  end
+
+  retag = File.join(installer.config.installation_root,
+                    'scripts', 'retag-amap-for-sim.sh')
+  if File.executable?(retag)
+    unless system(retag, installer.config.installation_root.to_s)
+      raise "retag-amap-for-sim.sh failed (exit $?)"
+    end
+  else
+    Pod::UI.warn "retag script missing or not executable: #{retag}"
   end
 end

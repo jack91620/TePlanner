@@ -1,7 +1,7 @@
 import Foundation
 
 public final class APIService: APIServiceProtocol {
-    public static let shared = APIService()
+    public static let shared = APIService(baseURL: APIService.bundleBackendURL ?? "http://127.0.0.1:8000/api/v1")
 
     private let baseURL: String
     private let session: URLSession
@@ -16,6 +16,12 @@ public final class APIService: APIServiceProtocol {
         self.session = session
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
+    }
+
+    private static var bundleBackendURL: String? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "BackendURL") as? String,
+              !raw.isEmpty else { return nil }
+        return raw
     }
 
     // MARK: - Routes / geocoding
