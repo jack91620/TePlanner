@@ -23,32 +23,31 @@ env:
 - tapOn:
     id: "login_button"
 
-# Tesla auth.tesla.cn page renders inside WKWebView.
-- extendedWaitUntil:
-    visible: "登录"
-    timeout: 20000
+# Tesla cookies may still be cached in WKWebView's WKWebsiteDataStore
+# (clearKeychain doesn't touch them), so the auth page can fly past
+# without us needing to type. Only fill the form when it's actually
+# visible. Either way, the next assert is HomeView.
+- runFlow:
+    when:
+      visible: "电子邮箱地址或登录手机号码"
+    commands:
+      - tapOn: "电子邮箱地址或登录手机号码"
+      - inputText: ${TESLA_EMAIL}
+      - pressKey: Enter
+      - extendedWaitUntil:
+          visible: "密码"
+          timeout: 20000
+      - tapOn: "密码"
+      - inputText: ${TESLA_PASSWORD}
+      - pressKey: Enter
 
-# Email step
-- tapOn: "电子邮箱地址或登录手机号码"
-- inputText: ${TESLA_EMAIL}
-- pressKey: Enter
-
-# Password step (Tesla shows the email read-only with a 变更 link)
-- extendedWaitUntil:
-    visible: "密码"
-    timeout: 15000
-- tapOn: "密码"
-- inputText: ${TESLA_PASSWORD}
-- pressKey: Enter
-
-# After OAuth completes, Tesla redirects back to api.teplanner.cloud
-# which renders an HTML page with a hidden auth-data div; the iOS
-# WKWebView coordinator scrapes the JWT, persists it via AuthSession,
-# and RootView swaps to HomeView whose toolbar has the search icon.
+# After OAuth completes, RootView swaps to HomeView whose toolbar has
+# the search icon. Long timeout because Tesla → backend → JS scrape →
+# AuthSession.login() can take 10–20s on a cold start.
 - extendedWaitUntil:
     visible:
       id: "home_search_button"
-    timeout: 30000
+    timeout: 60000
 
 - assertVisible: "TePlanner"
 - takeScreenshot: tmp/screenshots/maestro_after_login

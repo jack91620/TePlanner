@@ -64,8 +64,12 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
 
     public enum CodingKeys: String, CodingKey {
         case id, name, address, latitude, longitude, type
+        // Backend `/charging/nearby` returns `available_ports`/`total_ports`;
+        // older planner code used `available_stalls`/`total_stalls`. Accept both.
         case availableStalls = "available_stalls"
+        case availablePorts = "available_ports"
         case totalStalls = "total_stalls"
+        case totalPorts = "total_ports"
         case powerKw = "power_kw"
         case operatorName = "operator"
         case distanceKm = "distance_km"
@@ -83,7 +87,9 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         longitude = try c.decode(Double.self, forKey: .longitude)
         type = try c.decodeIfPresent(ChargingStationType.self, forKey: .type) ?? .other
         availableStalls = try c.decodeIfPresent(Int.self, forKey: .availableStalls)
+            ?? c.decodeIfPresent(Int.self, forKey: .availablePorts)
         totalStalls = try c.decodeIfPresent(Int.self, forKey: .totalStalls)
+            ?? c.decodeIfPresent(Int.self, forKey: .totalPorts)
         powerKw = try c.decodeIfPresent(Int.self, forKey: .powerKw)
         operatorName = try c.decodeIfPresent(String.self, forKey: .operatorName)
         distanceKm = try c.decodeIfPresent(Double.self, forKey: .distanceKm)
@@ -91,4 +97,29 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         open24h = try c.decodeIfPresent(Bool.self, forKey: .open24h) ?? false
         amenities = try c.decodeIfPresent([String].self, forKey: .amenities)
     }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(address, forKey: .address)
+        try c.encode(latitude, forKey: .latitude)
+        try c.encode(longitude, forKey: .longitude)
+        try c.encode(type, forKey: .type)
+        try c.encodeIfPresent(availableStalls, forKey: .availableStalls)
+        try c.encodeIfPresent(totalStalls, forKey: .totalStalls)
+        try c.encodeIfPresent(powerKw, forKey: .powerKw)
+        try c.encodeIfPresent(operatorName, forKey: .operatorName)
+        try c.encodeIfPresent(distanceKm, forKey: .distanceKm)
+        try c.encodeIfPresent(distanceFromRouteM, forKey: .distanceFromRouteM)
+        try c.encode(open24h, forKey: .open24h)
+        try c.encodeIfPresent(amenities, forKey: .amenities)
+    }
+}
+
+/// Wrapper for `GET /charging/nearby` response. The endpoint returns
+/// `{count, stations}` rather than a bare array.
+public struct NearbyChargingResponse: Codable {
+    public let count: Int
+    public let stations: [ChargingStation]
 }

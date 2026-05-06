@@ -41,4 +41,7 @@ public protocol APIServiceProtocol {
     // Charging stations
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError>
     func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError>
+
+    // Saved routes (history)
+    func getRecentRoutes(limit: Int, offset: Int) async -> Result<RecentRoutesResponse, APIError>
 }

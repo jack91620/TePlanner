@@ -31,6 +31,7 @@ final class MockAPIService: APIServiceProtocol {
     // Charging stations
     var mockStationDetailResponse: Result<ChargingStation, APIError>!
     var mockNearbyStationsResponse: Result<[ChargingStation], APIError>!
+    var mockRecentRoutesResponse: Result<RecentRoutesResponse, APIError>!
 
     // Call counts
     var planRouteCallCount = 0
@@ -46,10 +47,12 @@ final class MockAPIService: APIServiceProtocol {
     var sendNavigationCallCount = 0
     var stationDetailCallCount = 0
     var nearbyStationsCallCount = 0
+    var recentRoutesCallCount = 0
 
     // Last-args capture for arg-level assertions
     var lastNavigationRequest: NavigationRequest?
     var lastNearbyStationsArgs: (lat: Double, lng: Double, radius: Int, type: String?)?
+    var lastRecentRoutesArgs: (limit: Int, offset: Int)?
 
     func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> {
         planRouteCallCount += 1
@@ -123,5 +126,11 @@ final class MockAPIService: APIServiceProtocol {
         nearbyStationsCallCount += 1
         lastNearbyStationsArgs = (latitude, longitude, radiusKm, type)
         return mockNearbyStationsResponse
+    }
+
+    func getRecentRoutes(limit: Int, offset: Int) async -> Result<RecentRoutesResponse, APIError> {
+        recentRoutesCallCount += 1
+        lastRecentRoutesArgs = (limit, offset)
+        return mockRecentRoutesResponse
     }
 }

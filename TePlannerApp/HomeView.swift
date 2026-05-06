@@ -70,26 +70,57 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingSearch) {
-            SearchView(service: AMapPOISearchService()) { result in
-                Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
-                pendingDestination = result
-            }
-        }
-        .sheet(item: $pendingDestination) { destination in
-            RoutePreviewView(
+        .sheet(isPresented: .constant(true)) {
+            HomeBottomSheet(
                 apiService: apiService,
-                destination: destination,
-                origin: viewModel.coordinate.map {
-                    LocationInput(latitude: $0.latitude, longitude: $0.longitude, address: nil)
+                coordinate: viewModel.coordinate,
+                onSelectStation: { station in
+                    pendingDestination = POIResult(
+                        id: station.id,
+                        name: station.name,
+                        address: station.address ?? "",
+                        latitude: station.latitude,
+                        longitude: station.longitude
+                    )
                 },
-                currentSoc: viewModel.batteryLevel,
-                vehicleId: viewModel.vehicle?.id,
-                onPlanLoaded: { plan in currentRoute = plan }
+                onSelectTrip: { trip in
+                    Log.app.notice("recent trip tapped: id=\(trip.id, privacy: .public)")
+                    if let lat = trip.destination.lat, let lng = trip.destination.lng {
+                        pendingDestination = POIResult(
+                            id: "trip-\(trip.id)",
+                            name: trip.destination.address ?? "目的地",
+                            address: trip.destination.address ?? "",
+                            latitude: lat,
+                            longitude: lng
+                        )
+                    }
+                }
             )
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            .presentationDetents([.height(220), .medium, .large])
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled()
+            .sheet(isPresented: $showingSearch) {
+                SearchView(service: AMapPOISearchService()) { result in
+                    Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
+                    pendingDestination = result
+                }
+            }
+            .sheet(item: $pendingDestination) { destination in
+                RoutePreviewView(
+                    apiService: apiService,
+                    destination: destination,
+                    origin: viewModel.coordinate.map {
+                        LocationInput(latitude: $0.latitude, longitude: $0.longitude, address: nil)
+                    },
+                    currentSoc: viewModel.batteryLevel,
+                    vehicleId: viewModel.vehicle?.id,
+                    onPlanLoaded: { plan in currentRoute = plan }
+                )
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         }
     }
 

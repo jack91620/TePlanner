@@ -60,9 +60,13 @@ def _parse_station_from_poi(
     # Calculate distance if center provided
     distance_km = None
     if center_lat is not None and center_lng is not None:
-        distance_km = poi.get("_distance")
-        if distance_km is None:
-            # Calculate using simple formula
+        # Tencent's `_distance` field is in meters; convert to km.
+        # If Tencent didn't attach it, fall back to a haversine
+        # calculation (already in km).
+        distance_m = poi.get("_distance")
+        if distance_m is not None:
+            distance_km = distance_m / 1000.0
+        else:
             import math
             R = 6371
             dlat = math.radians(lat - center_lat)

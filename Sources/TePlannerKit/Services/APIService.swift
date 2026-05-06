@@ -95,7 +95,16 @@ public final class APIService: APIServiceProtocol {
         if let type {
             query.append(URLQueryItem(name: "type", value: type))
         }
-        return await get(path: "/charging/nearby", query: query)
+        let response: Result<NearbyChargingResponse, APIError> = await get(path: "/charging/nearby", query: query)
+        return response.map { $0.stations }
+    }
+
+    public func getRecentRoutes(limit: Int = 10, offset: Int = 0) async -> Result<RecentRoutesResponse, APIError> {
+        let query = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset)),
+        ]
+        return await get(path: "/routes/", query: query)
     }
 
     // MARK: - Internals

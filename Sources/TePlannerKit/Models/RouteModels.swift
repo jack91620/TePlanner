@@ -119,9 +119,39 @@ public struct GeocodeResponse: Codable {
     public let longitude: Double
     public let address: String
     public let formattedAddress: String?
-    
+
     public enum CodingKeys: String, CodingKey {
         case latitude, longitude, address
         case formattedAddress = "formatted_address"
     }
+}
+
+// MARK: - Recent / saved routes (GET /routes/)
+
+public struct RecentRoutesResponse: Codable {
+    public let count: Int
+    public let routes: [RecentRoute]
+}
+
+public struct RecentRoute: Codable, Identifiable, Equatable {
+    public let id: Int
+    public let origin: RouteEndpoint
+    public let destination: RouteEndpoint
+    public let totalDistanceKm: Double?
+    public let totalDurationMinutes: Int?
+    public let status: String?
+    public let createdAt: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case id, origin, destination, status
+        case totalDistanceKm = "total_distance_km"
+        case totalDurationMinutes = "total_duration_minutes"
+        case createdAt = "created_at"
+    }
+}
+
+public struct RouteEndpoint: Codable, Equatable {
+    public let lat: Double?
+    public let lng: Double?
+    public let address: String?
 }
