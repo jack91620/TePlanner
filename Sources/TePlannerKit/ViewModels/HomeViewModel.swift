@@ -43,17 +43,25 @@ public final class HomeViewModel: ObservableObject {
     private let authSession: AuthSession
     private let maxWakeAttempts: Int
     private let wakeRetryDelay: TimeInterval
+    private let pollInterval: TimeInterval
+    private var pollingTask: Task<Void, Never>?
 
     public init(
         apiService: APIServiceProtocol,
         authSession: AuthSession,
         maxWakeAttempts: Int = 10,
-        wakeRetryDelay: TimeInterval = 3
+        wakeRetryDelay: TimeInterval = 3,
+        pollInterval: TimeInterval = 60
     ) {
         self.apiService = apiService
         self.authSession = authSession
         self.maxWakeAttempts = maxWakeAttempts
         self.wakeRetryDelay = wakeRetryDelay
+        self.pollInterval = pollInterval
+    }
+
+    deinit {
+        pollingTask?.cancel()
     }
 
     public func load() async {
@@ -86,6 +94,57 @@ public final class HomeViewModel: ObservableObject {
     public func refresh() async {
         guard let vehicleId = vehicle?.id, let userId = authSession.userId else { return }
         await fetchVehicleStateWithWake(vehicleId: vehicleId, userId: userId)
+    }
+
+    /// Begin background polling for vehicle state changes (location,
+    /// battery, charging). Cheap-effort poll: only runs when the
+    /// model is in `.ready`, errors are tolerated silently. Stops
+    /// any previous poll first so it's safe to call repeatedly
+    /// (e.g. on every scene → .active transition).
+    public func startPolling() {
+        stopPolling()
+        let interval = pollInterval
+        guard interval > 0 else { return }
+        pollingTask = Task { [weak self] in
+            // First tick is one interval after start; the initial
+            // load() result is fresh enough that we don't need to
+            // hit the API again immediately.
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                guard !Task.isCancelled, let self else { break }
+                await self.pollOnce()
+            }
+        }
+    }
+
+    public func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    /// One poll iteration — exposed for tests so they can drive
+    /// the cycle without sleeping.
+    public func pollOnce() async {
+        guard case .ready = state else { return }
+        guard let vehicleId = vehicle?.id, let userId = authSession.userId else { return }
+
+        let result = await apiService.getVehicleState(vehicleId: vehicleId, userId: userId)
+        guard case .success(let fresh) = result else {
+            // Don't transition state on poll errors — the user
+            // already has stale-but-meaningful data on screen.
+            Log.vehicle.debug("poll: state probe failed; will retry next cycle")
+            return
+        }
+
+        if let oldLat = vehicleState?.latitude, let oldLng = vehicleState?.longitude,
+           let newLat = fresh.latitude, let newLng = fresh.longitude {
+            let dlat = abs(newLat - oldLat)
+            let dlng = abs(newLng - oldLng)
+            if dlat > 0.0001 || dlng > 0.0001 {
+                Log.vehicle.notice("poll: position changed (\(dlat, privacy: .public), \(dlng, privacy: .public))")
+            }
+        }
+        vehicleState = fresh
     }
 
     // MARK: - Internals

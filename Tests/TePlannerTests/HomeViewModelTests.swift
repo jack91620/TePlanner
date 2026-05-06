@@ -134,5 +134,129 @@ final class HomeViewModelTests: XCTestCase {
         // 1 initial probe + 3 retries = 4 calls.
         XCTAssertEqual(api.getVehicleStateCallCount, 4)
     }
+
+    // MARK: - polling
+
+    private func loadedVM() async -> HomeViewModel {
+        api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
+            Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)
+        ]))
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1",
+            displayName: "Tesla",
+            state: "online",
+            batteryLevel: 70,
+            batteryRange: 300,
+            latitude: 39.9,
+            longitude: 116.4
+        ))
+        let vm = HomeViewModel(
+            apiService: api,
+            authSession: session,
+            maxWakeAttempts: 1,
+            wakeRetryDelay: 0,
+            pollInterval: 0  // disable real timer; we drive pollOnce manually
+        )
+        await vm.load()
+        return vm
+    }
+
+    func testPollOnceUpdatesVehicleState() async {
+        let vm = await loadedVM()
+        let before = api.getVehicleStateCallCount
+
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1",
+            displayName: "Tesla",
+            state: "online",
+            batteryLevel: 65,
+            batteryRange: 280,
+            latitude: 40.0,
+            longitude: 116.5
+        ))
+        await vm.pollOnce()
+
+        XCTAssertEqual(api.getVehicleStateCallCount, before + 1)
+        XCTAssertEqual(vm.batteryLevel, 65)
+        XCTAssertEqual(vm.coordinate?.latitude, 40.0)
+    }
+
+    func testPollOnceSkipsWhenNotReady() async {
+        let vm = HomeViewModel(
+            apiService: api,
+            authSession: session,
+            pollInterval: 0
+        )
+        // state is .idle — never loaded.
+        await vm.pollOnce()
+        XCTAssertEqual(api.getVehicleStateCallCount, 0)
+    }
+
+    func testPollOnceTolersErrorWithoutChangingState() async {
+        let vm = await loadedVM()
+        api.mockVehicleStateResponse = .failure(.serverError(statusCode: 503, message: "offline"))
+
+        await vm.pollOnce()
+
+        // .ready preserved, vehicleState NOT wiped.
+        XCTAssertEqual(vm.state, .ready)
+        XCTAssertEqual(vm.batteryLevel, 70, "old data should still be on screen after a poll error")
+    }
+
+    func testStartPollingFiresRepeatedlyAtSetInterval() async {
+        api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
+            Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)
+        ]))
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1",
+            displayName: "Tesla",
+            state: "online",
+            batteryLevel: 70,
+            batteryRange: 300,
+            latitude: 39.9,
+            longitude: 116.4
+        ))
+        let vm = HomeViewModel(
+            apiService: api,
+            authSession: session,
+            maxWakeAttempts: 1,
+            wakeRetryDelay: 0,
+            pollInterval: 0.05  // 50ms
+        )
+        await vm.load()
+        let before = api.getVehicleStateCallCount
+
+        vm.startPolling()
+        try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2s ≈ 3-4 ticks
+        vm.stopPolling()
+
+        let after = api.getVehicleStateCallCount
+        XCTAssertGreaterThanOrEqual(after - before, 2, "expected at least 2 polls in 0.2s with a 50ms interval")
+    }
+
+    func testStopPollingHaltsRequests() async {
+        api.mockVehiclesResponse = .success(VehiclesResponse(count: 1, vehicles: [
+            Vehicle(id: "v1", displayName: "Tesla", isPrimary: true)
+        ]))
+        api.mockVehicleStateResponse = .success(VehicleState(
+            vehicleId: "v1", displayName: "Tesla", state: "online",
+            batteryLevel: 70, batteryRange: 300, latitude: 39.9, longitude: 116.4
+        ))
+        let vm = HomeViewModel(
+            apiService: api,
+            authSession: session,
+            maxWakeAttempts: 1,
+            wakeRetryDelay: 0,
+            pollInterval: 0.05
+        )
+        await vm.load()
+        vm.startPolling()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        vm.stopPolling()
+        let stoppedAt = api.getVehicleStateCallCount
+
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(api.getVehicleStateCallCount, stoppedAt, "no polls should fire after stopPolling()")
+    }
 }
 

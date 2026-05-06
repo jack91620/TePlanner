@@ -8,6 +8,7 @@ import MAMapKit
 /// going on while the wake-retry loop runs.
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
     @State private var showingSearch = false
@@ -40,7 +41,17 @@ struct HomeView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
         }
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            viewModel.startPolling()
+        }
+        .onDisappear { viewModel.stopPolling() }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active: viewModel.startPolling()
+            default: viewModel.stopPolling()
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
