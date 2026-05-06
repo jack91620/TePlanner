@@ -14,14 +14,16 @@ struct RoutePreviewView: View {
         destination: POIResult,
         origin: LocationInput?,
         currentSoc: Int?,
-        vehicleId: String?
+        vehicleId: String?,
+        onPlanLoaded: ((RoutePlanResponse) -> Void)? = nil
     ) {
         _viewModel = StateObject(wrappedValue: RoutePreviewViewModel(
             apiService: apiService,
             destination: destination,
             origin: origin,
             currentSoc: currentSoc,
-            vehicleId: vehicleId
+            vehicleId: vehicleId,
+            onPlanLoaded: onPlanLoaded
         ))
     }
 

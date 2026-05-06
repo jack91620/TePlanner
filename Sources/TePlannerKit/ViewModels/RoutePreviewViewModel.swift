@@ -38,19 +38,22 @@ public final class RoutePreviewViewModel: ObservableObject {
     private let origin: LocationInput?
     private let currentSoc: Int?
     private let vehicleId: String?
+    private let onPlanLoaded: ((RoutePlanResponse) -> Void)?
 
     public init(
         apiService: APIServiceProtocol,
         destination: POIResult,
         origin: LocationInput?,
         currentSoc: Int?,
-        vehicleId: String?
+        vehicleId: String?,
+        onPlanLoaded: ((RoutePlanResponse) -> Void)? = nil
     ) {
         self.apiService = apiService
         self.destination = destination
         self.origin = origin
         self.currentSoc = currentSoc
         self.vehicleId = vehicleId
+        self.onPlanLoaded = onPlanLoaded
     }
 
     /// Fetch the route plan from the backend. Idempotent — calling
@@ -72,6 +75,7 @@ public final class RoutePreviewViewModel: ObservableObject {
         case .success(let plan):
             Log.search.notice("plan ok (route_id=\(plan.routeId ?? -1, privacy: .public), stops=\(plan.numChargingStops, privacy: .public), \(plan.totalDistanceKm, privacy: .public) km)")
             state = .loaded(plan)
+            onPlanLoaded?(plan)
         case .failure(let error):
             Log.search.error("plan failed: \(error.localizedDescription, privacy: .public)")
             state = .error(error.localizedDescription)

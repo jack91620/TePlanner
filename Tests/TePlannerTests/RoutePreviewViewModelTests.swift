@@ -76,6 +76,43 @@ final class RoutePreviewViewModelTests: XCTestCase {
         XCTAssertEqual(mock.planRouteCallCount, 1)
     }
 
+    func testOnPlanLoadedCallbackFiresOnSuccess() async {
+        let mock = MockAPIService()
+        mock.mockRoutePlanResponse = .success(makePlan(stops: 1))
+        var received: RoutePlanResponse?
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            destination: makePOI(),
+            origin: nil,
+            currentSoc: 60,
+            vehicleId: "v1",
+            onPlanLoaded: { received = $0 }
+        )
+
+        await vm.load()
+
+        XCTAssertEqual(received?.routeId, 42)
+        XCTAssertEqual(received?.numChargingStops, 1)
+    }
+
+    func testOnPlanLoadedCallbackSkippedOnFailure() async {
+        let mock = MockAPIService()
+        mock.mockRoutePlanResponse = .failure(.serverError(statusCode: 500, message: "boom"))
+        var fired = false
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            destination: makePOI(),
+            origin: nil,
+            currentSoc: 60,
+            vehicleId: "v1",
+            onPlanLoaded: { _ in fired = true }
+        )
+
+        await vm.load()
+
+        XCTAssertFalse(fired, "callback should not fire on failure")
+    }
+
     func testLoadFailureMapsToError() async {
         let mock = MockAPIService()
         mock.mockRoutePlanResponse = .failure(.serverError(statusCode: 503, message: "no network"))

@@ -11,7 +11,9 @@ struct HomeView: View {
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
     @State private var showingSearch = false
+    @State private var showingSettings = false
     @State private var pendingDestination: POIResult?
+    @State private var currentRoute: RoutePlanResponse?
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -27,7 +29,8 @@ struct HomeView: View {
             AMapVehicleMapView(
                 coordinate: viewModel.coordinate.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) },
                 vehicleTitle: viewModel.displayName ?? "我的 Tesla",
-                batteryLevel: viewModel.batteryLevel
+                batteryLevel: viewModel.batteryLevel,
+                route: currentRoute
             )
             .ignoresSafeArea()
 
@@ -48,6 +51,14 @@ struct HomeView: View {
                 Menu {
                     Button("刷新", systemImage: "arrow.clockwise") {
                         Task { await viewModel.refresh() }
+                    }
+                    if currentRoute != nil {
+                        Button("清除路线", systemImage: "xmark.circle") {
+                            currentRoute = nil
+                        }
+                    }
+                    Button("设置", systemImage: "gearshape") {
+                        showingSettings = true
                     }
                     Divider()
                     Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
@@ -72,8 +83,12 @@ struct HomeView: View {
                     LocationInput(latitude: $0.latitude, longitude: $0.longitude, address: nil)
                 },
                 currentSoc: viewModel.batteryLevel,
-                vehicleId: viewModel.vehicle?.id
+                vehicleId: viewModel.vehicle?.id,
+                onPlanLoaded: { plan in currentRoute = plan }
             )
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
     }
 
