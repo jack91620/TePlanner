@@ -86,5 +86,21 @@ credentials.json
 secrets.json
 
 # Plan files
-.claude/
 backend/.server.pid
+
+# Claude Code: track shared settings, ignore user-local overrides + transient state
+.claude/*
+!.claude/settings.json
+.claude/settings.local.json
+
+# Xcode / SPM
+.build/
+.derivedData/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/xcode/xcuserdata/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# Build outputs / scratch
+tmp/screenshots/
