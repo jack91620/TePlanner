@@ -117,3 +117,7 @@ Pods/
 TePlannerApp.xcworkspace/
 
 # Podfile.lock IS checked in (pins pod versions for reproducibility)
+
+# E2E
+e2e/maestro/.env
+.maestro/

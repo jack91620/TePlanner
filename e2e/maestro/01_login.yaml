@@ -1,0 +1,54 @@
+# End-to-end Tesla OAuth login.
+#
+# Drives the splash → WKWebView → HomeView chain. Reads credentials
+# from environment so secrets stay out of git:
+#   MAESTRO_TESLA_EMAIL=...    MAESTRO_TESLA_PASSWORD=...
+#   maestro test e2e/maestro/01_login.yaml
+#
+# Or via .env file: `make e2e-ios` (Makefile sources e2e/maestro/.env).
+
+appId: com.teplanner.ios
+env:
+  TESLA_EMAIL: ${MAESTRO_TESLA_EMAIL}
+  TESLA_PASSWORD: ${MAESTRO_TESLA_PASSWORD}
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- assertVisible: "TePlanner"
+- assertVisible:
+    id: "login_button"
+
+- tapOn:
+    id: "login_button"
+
+# Tesla auth.tesla.cn page renders inside WKWebView.
+- extendedWaitUntil:
+    visible: "登录"
+    timeout: 20000
+
+# Email step
+- tapOn: "电子邮箱地址或登录手机号码"
+- inputText: ${TESLA_EMAIL}
+- pressKey: Enter
+
+# Password step (Tesla shows the email read-only with a 变更 link)
+- extendedWaitUntil:
+    visible: "密码"
+    timeout: 15000
+- tapOn: "密码"
+- inputText: ${TESLA_PASSWORD}
+- pressKey: Enter
+
+# After OAuth completes, Tesla redirects back to api.teplanner.cloud
+# which renders an HTML page with a hidden auth-data div; the iOS
+# WKWebView coordinator scrapes the JWT, persists it via AuthSession,
+# and RootView swaps to HomeView whose toolbar has the search icon.
+- extendedWaitUntil:
+    visible:
+      id: "home_search_button"
+    timeout: 30000
+
+- assertVisible: "TePlanner"
+- takeScreenshot: tmp/screenshots/maestro_after_login

@@ -105,6 +105,26 @@ test-ios: ## Run unit tests on iOS simulator ($(SIMULATOR))
 
 test-all: test test-ios ## Run macOS tests then iOS simulator tests
 
+# --- E2E -----------------------------------------------------------------
+
+JAVA_HOME ?= /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home
+E2E_BACKEND_URL ?= https://api.teplanner.cloud
+
+e2e-api: ## Hurl HTTP contract tests against the deployed backend (override E2E_BACKEND_URL)
+	hurl --test --variable base_url=$(E2E_BACKEND_URL) e2e/hurl/*.hurl
+
+e2e-ios: ## Maestro UI flows against the booted simulator (sources e2e/maestro/.env)
+	@test -f e2e/maestro/.env || { echo "Missing e2e/maestro/.env — copy from .env.example"; exit 1; }
+	@set -a; . e2e/maestro/.env; set +a; \
+	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/
+
+e2e-ios-flow: ## Run a single Maestro flow: make e2e-ios-flow FLOW=01_login
+	@test -n "$(FLOW)" || { echo "Set FLOW=<name> (without .yaml)"; exit 1; }
+	@set -a; . e2e/maestro/.env 2>/dev/null || true; set +a; \
+	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/$(FLOW).yaml
+
+e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
+
 # --- Simulator helpers (used by Claude to verify UI) ---------------------
 
 sim-boot: ## Boot the configured simulator (idempotent)

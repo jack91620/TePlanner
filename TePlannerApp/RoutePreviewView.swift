@@ -178,6 +178,7 @@ struct RoutePreviewView: View {
         .controlSize(.large)
         .disabled(viewModel.sendState == .sending || viewModel.sendState == .sent)
         .padding(.top, 8)
+        .accessibilityIdentifier("send_to_vehicle_button")
     }
 
     @ViewBuilder

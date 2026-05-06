@@ -46,6 +46,7 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
+                .accessibilityIdentifier("home_search_button")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

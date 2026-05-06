@@ -59,7 +59,19 @@ make test-all      # both
 make doctor        # toolchain + simulator + scheme diagnostics
 make clean         # wipe .build, .derivedData
 make clean-project # also wipe xcodeproj/xcworkspace/Pods
+make e2e-api       # Hurl HTTP contract tests against api.teplanner.cloud
+make e2e-ios       # Maestro UI flows against the booted simulator
+make e2e           # both (api first, then ios)
 ```
+
+E2E layout: `e2e/hurl/*.hurl` (backend contracts) and `e2e/maestro/*.yaml`
+(iOS flows, run alphabetically). Maestro reads creds from
+`e2e/maestro/.env` (gitignored — copy from `.env.example`). Maestro
+needs Java; the Makefile points `JAVA_HOME` at the brew openjdk by
+default. Stable selectors are `accessibilityIdentifier` strings
+(`login_button`, `home_search_button`, `search_field`,
+`search_result_<n>`, `send_to_vehicle_button`) — prefer them over
+hardcoded Chinese text.
 
 Override the simulator: `make test-ios SIMULATOR='iPhone 16 Pro'`.
 

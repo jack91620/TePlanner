@@ -50,6 +50,7 @@ struct SearchView: View {
             .textInputAutocapitalization(.never)
             .submitLabel(.search)
             .onSubmit { viewModel.searchNow() }
+            .accessibilityIdentifier("search_field")
             if !viewModel.query.isEmpty {
                 Button {
                     viewModel.clear()
@@ -76,14 +77,16 @@ struct SearchView: View {
                 Spacer()
             }
         case .results(let items):
-            List(items) { result in
+            List(Array(items.enumerated()), id: \.element.id) { index, result in
                 Button {
                     onSelect(result)
                     dismiss()
                 } label: { resultRow(result) }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("search_result_\(index)")
             }
             .listStyle(.plain)
+            .accessibilityIdentifier("search_results_list")
         case .empty:
             placeholder("没有找到匹配结果", systemImage: "questionmark.circle")
         case .error(let message):

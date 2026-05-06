@@ -85,6 +85,7 @@ struct LoginView: View {
             .disabled(viewModel.state == .loadingAuthUrl)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
+            .accessibilityIdentifier("login_button")
         }
     }
 
