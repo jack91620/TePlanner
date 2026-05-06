@@ -125,6 +125,53 @@ e2e-ios-flow: ## Run a single Maestro flow: make e2e-ios-flow FLOW=01_login
 
 e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
 
+# --- Distribution / TestFlight -------------------------------------------
+
+ARCHIVE_PATH := build/TePlannerApp.xcarchive
+EXPORT_DIR := build/export
+
+next-build: ## Bump CURRENT_PROJECT_VERSION in Config.xcconfig (call before each TestFlight upload)
+	@test -f Config.xcconfig || { echo "Missing Config.xcconfig"; exit 1; }
+	@current=$$(grep -E "^CURRENT_PROJECT_VERSION" Config.xcconfig | tail -1 | awk -F= '{gsub(/ /, "", $$2); print $$2}'); \
+	  current=$${current:-0}; \
+	  next=$$((current + 1)); \
+	  if grep -qE "^CURRENT_PROJECT_VERSION" Config.xcconfig; then \
+	    sed -i '' -E "s|^CURRENT_PROJECT_VERSION = .*|CURRENT_PROJECT_VERSION = $$next|" Config.xcconfig; \
+	  else \
+	    echo "CURRENT_PROJECT_VERSION = $$next" >> Config.xcconfig; \
+	  fi; \
+	  echo "Bumped CURRENT_PROJECT_VERSION → $$next"
+
+archive: ## Build a signed Release .xcarchive ready for App Store Connect
+	@test -f Config.xcconfig || { echo "Missing Config.xcconfig"; exit 1; }
+	@grep -q "^DEVELOPMENT_TEAM = ..*" Config.xcconfig || { echo "DEVELOPMENT_TEAM not set in Config.xcconfig"; exit 1; }
+	@test -d $(WORKSPACE) || $(MAKE) project
+	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	  -configuration Release \
+	  -destination 'generic/platform=iOS' \
+	  -archivePath $(ARCHIVE_PATH) \
+	  -allowProvisioningUpdates \
+	  archive
+
+export-ipa: archive ## Export an IPA from the latest archive (requires deploy/ExportOptions.plist)
+	@test -f deploy/ExportOptions.plist || { \
+	  echo "Missing deploy/ExportOptions.plist — copy from ExportOptions.example.plist and fill teamID"; exit 1; }
+	xcodebuild -exportArchive \
+	  -archivePath $(ARCHIVE_PATH) \
+	  -exportPath $(EXPORT_DIR) \
+	  -exportOptionsPlist deploy/ExportOptions.plist \
+	  -allowProvisioningUpdates
+	@echo "IPA: $(EXPORT_DIR)/TePlannerApp.ipa"
+
+upload-testflight: export-ipa ## Upload the latest IPA to App Store Connect via altool
+	@test -n "$$ASC_API_KEY_ID" || { echo "Set ASC_API_KEY_ID (App Store Connect API Key id)"; exit 1; }
+	@test -n "$$ASC_API_KEY_ISSUER" || { echo "Set ASC_API_KEY_ISSUER (issuer UUID from App Store Connect)"; exit 1; }
+	xcrun altool --upload-app \
+	  -f $(EXPORT_DIR)/TePlannerApp.ipa \
+	  --type ios \
+	  --apiKey "$$ASC_API_KEY_ID" \
+	  --apiIssuer "$$ASC_API_KEY_ISSUER"
+
 # --- Simulator helpers (used by Claude to verify UI) ---------------------
 
 sim-boot: ## Boot the configured simulator (idempotent)

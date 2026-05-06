@@ -41,7 +41,12 @@
 	<string>TePlanner 需要后台位置以持续监控车辆并优化充电路线</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<!-- Production traffic goes to api.teplanner.cloud over HTTPS,
+		     so we don't need NSAllowsArbitraryLoads. Local dev still
+		     hits 127.0.0.1 / 10.x LAN over plain HTTP — covered by
+		     NSAllowsLocalNetworking which Apple Review accepts without
+		     justification. -->
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>AMapAPIKey</key>

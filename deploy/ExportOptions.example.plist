@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Template for `xcodebuild -exportArchive`. Copy to
+  deploy/ExportOptions.plist (gitignored) and fill `teamID` with
+  yours. The default settings target App Store / TestFlight uploads
+  with automatic signing — Xcode picks up the same Distribution cert
+  + provisioning profile pair you'd use from the GUI.
+
+  Override `signingStyle` to `manual` if you have a specific profile
+  pinned in your Apple Developer account.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store</string>
+    <key>teamID</key>
+    <string>REPLACE_WITH_YOUR_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>destination</key>
+    <string>export</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+</dict>
+</plist>

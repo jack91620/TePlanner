@@ -37,7 +37,9 @@ targets:
         INFOPLIST_FILE: TePlannerApp/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CURRENT_PROJECT_VERSION: 1
+        # CURRENT_PROJECT_VERSION is set in Config.xcconfig so
+        # `make next-build` can bump it without regenerating the
+        # xcodeproj. MARKETING_VERSION (user-facing) stays here.
         MARKETING_VERSION: 1.0.0
     dependencies:
       - package: TePlannerKit

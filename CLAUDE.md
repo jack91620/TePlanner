@@ -62,6 +62,10 @@ make clean-project # also wipe xcodeproj/xcworkspace/Pods
 make e2e-api       # Hurl HTTP contract tests against api.teplanner.cloud
 make e2e-ios       # Maestro UI flows against the booted simulator
 make e2e           # both (api first, then ios)
+make next-build    # Bump CURRENT_PROJECT_VERSION in Config.xcconfig
+make archive       # Signed Release .xcarchive (needs DEVELOPMENT_TEAM)
+make export-ipa    # Export IPA from archive (needs deploy/ExportOptions.plist)
+make upload-testflight  # altool upload (needs ASC_API_KEY_ID + ASC_API_KEY_ISSUER env)
 ```
 
 E2E layout: `e2e/hurl/*.hurl` (backend contracts) and `e2e/maestro/*.yaml`
@@ -157,6 +161,37 @@ real GPS / map tiles, or test push / Tesla OAuth on real network):
    reliably on Tahoe.
 4. Real-device screenshots: take on-phone (Power+VolUp) and AirDrop
    to the Mac.
+
+## TestFlight upload
+
+For App Store Connect / TestFlight uploads (paid Apple Developer
+Program required, China region settings live on the ASC side):
+
+1. Set `DEVELOPMENT_TEAM` in `Config.xcconfig` (10-char Team ID, not
+   the cert hash).
+2. `cp deploy/ExportOptions.example.plist deploy/ExportOptions.plist`
+   and replace `REPLACE_WITH_YOUR_TEAM_ID`.
+3. Create an **App Store Connect API Key** (Users and Access → Keys
+   → App Manager role). Download the `.p8`, note the Key ID and
+   Issuer ID. Export them so `altool` finds the key (xcrun looks
+   under `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`):
+   ```
+   export ASC_API_KEY_ID=<10-char key id>
+   export ASC_API_KEY_ISSUER=<issuer uuid>
+   ```
+4. `make next-build` once per upload (each TestFlight build needs a
+   higher CFBundleVersion than the previous one for the same
+   MARKETING_VERSION).
+5. `make upload-testflight` archives → exports → uploads. Build is
+   visible in App Store Connect ~10–30 min later.
+
+Bundled at upload-time: `PrivacyInfo.xcprivacy` (declares precise
+location, email, OtherUserContent for the VIN; UserDefaults +
+FileTimestamp + SystemBootTime API reasons), `Assets.xcassets`
+single-size 1024×1024 marketing icon (Xcode generates derivatives),
+`NSAllowsLocalNetworking=true` ATS exception (HTTP to LAN/localhost
+during dev — production endpoints are HTTPS so no broader exception
+needed).
 
 ## Logging
 

@@ -121,3 +121,7 @@ TePlannerApp.xcworkspace/
 # E2E
 e2e/maestro/.env
 .maestro/
+
+# TestFlight / distribution
+build/
+deploy/ExportOptions.plist
