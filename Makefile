@@ -1,24 +1,43 @@
 # TePlanner — single source of truth for build/test/lint commands.
-# Both local Xcode + Claude Code sessions and remote dispatched
-# sessions should use these targets so behavior matches everywhere.
+# Local Xcode work AND CLI/Claude sessions go through these targets so
+# behavior is identical everywhere.
+#
+# Project structure:
+#   - Sources/TePlannerKit + Tests are pure SPM (fast macOS tests).
+#   - TePlannerApp/ is the iOS app target — driven by xcodegen + cocoapods,
+#     pulls in AMap iOS SDK + the TePlannerKit SPM library.
+#
+# Generated artifacts (TePlannerApp.xcodeproj, TePlannerApp.xcworkspace,
+# Pods/) are gitignored. Run `make project` after a fresh clone.
 
 SIMULATOR ?= iPhone 16
 PACKAGE_SCHEME := TePlanner-Package
 APP_SCHEME := TePlannerApp
 KIT_SCHEME := TePlannerKit
 DESTINATION := platform=iOS Simulator,name=$(SIMULATOR)
+WORKSPACE := TePlannerApp.xcworkspace
+APP_BUNDLE_ID := com.teplanner.ios
 DERIVED_DATA := .derivedData
 SCREENSHOT_DIR := tmp/screenshots
 
-.PHONY: help build build-ios test test-ios test-all clean lint format \
-        sim-boot sim-shutdown sim-screenshot sim-log doctor
+.PHONY: help project build build-ios build-app run-app test test-ios test-all \
+        clean lint format sim-boot sim-shutdown sim-screenshot sim-log doctor
 
 help:
 	@awk 'BEGIN{FS=":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+# --- Project generation --------------------------------------------------
+
+project: ## Regenerate xcodeproj + install pods (run after fresh clone or project.yml/Podfile change)
+	@command -v xcodegen >/dev/null 2>&1 || { echo "Install xcodegen: brew install xcodegen"; exit 1; }
+	@command -v pod >/dev/null 2>&1       || { echo "Install cocoapods: brew install cocoapods"; exit 1; }
+	@test -f Config.xcconfig || { echo "Missing Config.xcconfig — copy from Config.xcconfig.example and fill in your AMap key"; exit 1; }
+	xcodegen generate
+	pod install
+
 # --- Build ---------------------------------------------------------------
 
-build: ## Build everything for host (macOS) — fastest sanity check
+build: ## Build TePlannerKit for host (macOS) — fastest sanity check, no simulator
 	swift build
 
 build-ios: ## Build TePlannerKit for iOS simulator ($(SIMULATOR))
@@ -26,6 +45,20 @@ build-ios: ## Build TePlannerKit for iOS simulator ($(SIMULATOR))
 	  -destination '$(DESTINATION)' \
 	  -derivedDataPath $(DERIVED_DATA) \
 	  build
+
+build-app: ## Build the iOS app (TePlannerApp) for the simulator
+	@test -d $(WORKSPACE) || $(MAKE) project
+	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	  -destination '$(DESTINATION)' \
+	  -derivedDataPath $(DERIVED_DATA) \
+	  -configuration Debug \
+	  build
+
+run-app: build-app sim-boot ## Build, install, and launch the app on the simulator
+	@app=$$(find $(DERIVED_DATA) -name "TePlannerApp.app" -type d | head -1); \
+	  test -n "$$app" || { echo "TePlannerApp.app not found"; exit 1; }; \
+	  xcrun simctl install booted "$$app" && \
+	  xcrun simctl launch booted $(APP_BUNDLE_ID)
 
 # --- Test ----------------------------------------------------------------
 
@@ -67,18 +100,23 @@ lint: ## Run SwiftLint if available; otherwise no-op with a note
 
 format: ## Run swift-format (Apple) if available; else swiftformat; else note
 	@if command -v swift-format >/dev/null 2>&1; then \
-	  swift-format -i -r Sources Tests; \
+	  swift-format -i -r Sources Tests TePlannerApp; \
 	elif command -v swiftformat >/dev/null 2>&1; then \
-	  swiftformat Sources Tests; \
+	  swiftformat Sources Tests TePlannerApp; \
 	else \
 	  echo "no swift-format/swiftformat installed — skipping"; \
 	fi
 
-clean: ## Remove SPM and Xcode build artifacts
+clean: ## Remove SPM and Xcode build artifacts (keeps Pods/, xcodeproj — use `clean-project` to nuke those too)
 	rm -rf .build $(DERIVED_DATA)
 
-doctor: ## Print toolchain + simulator info — useful when debugging dispatch
-	@echo "=== xcode ===";     xcodebuild -version
-	@echo "=== swift ===";     swift --version | head -1
-	@echo "=== schemes ===";   xcodebuild -list 2>/dev/null | sed -n '/Schemes:/,$$p'
-	@echo "=== simulator ==="; xcrun simctl list devices booted
+clean-project: clean ## Also remove generated xcodeproj/xcworkspace/Pods (forces full `make project`)
+	rm -rf TePlannerApp.xcodeproj $(WORKSPACE) Pods
+
+doctor: ## Print toolchain + simulator info
+	@echo "=== xcode ===";        xcodebuild -version
+	@echo "=== swift ===";        swift --version | head -1
+	@echo "=== xcodegen ===";     xcodegen --version 2>/dev/null || echo "not installed"
+	@echo "=== cocoapods ===";    pod --version 2>/dev/null || echo "not installed"
+	@echo "=== schemes ===";      xcodebuild -list 2>/dev/null | sed -n '/Schemes:/,$$p'
+	@echo "=== simulator ===";    xcrun simctl list devices booted
