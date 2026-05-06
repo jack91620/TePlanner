@@ -8,14 +8,17 @@ import MAMapKit
 /// going on while the wake-retry loop runs.
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    private let apiService: APIServiceProtocol
     private let authSession: AuthSession
     @State private var showingSearch = false
+    @State private var pendingDestination: POIResult?
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
             apiService: apiService,
             authSession: authSession
         ))
+        self.apiService = apiService
         self.authSession = authSession
     }
 
@@ -58,8 +61,19 @@ struct HomeView: View {
         .sheet(isPresented: $showingSearch) {
             SearchView(service: AMapPOISearchService()) { result in
                 Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
-                // TODO: hand off to route preview in next Phase 2 step
+                pendingDestination = result
             }
+        }
+        .sheet(item: $pendingDestination) { destination in
+            RoutePreviewView(
+                apiService: apiService,
+                destination: destination,
+                origin: viewModel.coordinate.map {
+                    LocationInput(latitude: $0.latitude, longitude: $0.longitude, address: nil)
+                },
+                currentSoc: viewModel.batteryLevel,
+                vehicleId: viewModel.vehicle?.id
+            )
         }
     }
 
