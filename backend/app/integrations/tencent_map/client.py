@@ -167,8 +167,6 @@ class TencentMapClient:
         return data.get("data", [])
 
     # 沿途搜索专用 KEY（需单独申请开通）
-    ALONGBY_API_KEY = "A35BZ-JPUWU-K5YVN-GH4OF-MB2WZ-UZFWY"
-
     async def search_along_route(
         self,
         polyline: str,
@@ -185,12 +183,16 @@ class TencentMapClient:
         Returns:
             List of POI results along the route.
         """
-        # 沿途搜索使用专用 KEY
+        # The alongby endpoint is a "Webservice API" feature on
+        # Tencent's developer console — it has to be explicitly
+        # enabled for the key. We use the same key as the rest of
+        # the integration (settings.TENCENT_MAP_API_KEY) so a single
+        # configuration works for everything.
         client = await self._get_client()
         params = {
             "keyword": keyword,
             "polyline": polyline,
-            "key": self.ALONGBY_API_KEY,
+            "key": self.api_key,
         }
 
         response = await client.get("/ws/place/v1/alongby", params=params)
@@ -201,6 +203,44 @@ class TencentMapClient:
             raise Exception(f"Tencent Map alongby API error: {data.get('message')}")
 
         return data.get("result", [])
+
+    async def search_along_route_via_nearby(
+        self,
+        polyline_points: List[Tuple[float, float]],
+        keyword: str = "充电站",
+        radius_m: int = 3000,
+        sample_every: int = 6,
+    ) -> List[Dict[str, Any]]:
+        """Fallback when `alongby` is disabled on the key — sample
+        every `sample_every`th polyline point and call the regular
+        `place/v1/search` (region/nearby) for each, then merge + dedup.
+
+        Slower than alongby but only depends on the geocoder API
+        which is on by default.
+        """
+        if not polyline_points:
+            return []
+
+        seen: Dict[str, Dict[str, Any]] = {}
+        # Sample the polyline so we don't hammer the API.
+        sampled = polyline_points[::max(1, sample_every)]
+        for lat, lng in sampled:
+            try:
+                results = await self.search_nearby(
+                    latitude=lat,
+                    longitude=lng,
+                    keyword=keyword,
+                    radius=radius_m,
+                )
+            except Exception as e:
+                # Keep going — partial results are better than none.
+                print(f"[along-route fallback] nearby({lat:.4f},{lng:.4f}) failed: {e}")
+                continue
+            for poi in results:
+                pid = poi.get("id")
+                if pid and pid not in seen:
+                    seen[pid] = poi
+        return list(seen.values())
 
     async def search_charging_stations(
         self,
@@ -273,12 +313,30 @@ class TencentMapClient:
             keyword="充电站",
         )
 
+        # If the alongby endpoint isn't enabled on the key, every
+        # segment fails and we get an empty list. Fall back to
+        # `search_nearby` at sampled polyline points — slower but
+        # only requires the geocoder API which is on by default.
+        if not stations:
+            print("[along-route] alongby returned 0 — falling back to nearby search")
+            points: List[Tuple[float, float]] = []
+            coords = polyline.split(",")
+            for i in range(0, len(coords) - 1, 2):
+                try:
+                    points.append((float(coords[i]), float(coords[i + 1])))
+                except (ValueError, IndexError):
+                    continue
+            stations = await self.search_along_route_via_nearby(
+                polyline_points=points,
+                keyword="充电站",
+            )
+
         result = []
         seen_ids = set()  # 去重
 
         for station in stations:
             station_id = station.get("id")
-            if station_id in seen_ids:
+            if not station_id or station_id in seen_ids:
                 continue
             seen_ids.add(station_id)
 
