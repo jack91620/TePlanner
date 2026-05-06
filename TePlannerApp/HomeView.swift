@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var showingSearch = false
     @State private var showingSettings = false
     @State private var pendingDestination: POIResult?
+    @State private var pendingStation: ChargingStation?
     @State private var currentRoute: RoutePlanResponse?
     @State private var showingUnbindConfirm = false
     @State private var unbindError: String?
@@ -92,13 +93,7 @@ struct HomeView: View {
                 apiService: apiService,
                 coordinate: viewModel.coordinate,
                 onSelectStation: { station in
-                    pendingDestination = POIResult(
-                        id: station.id,
-                        name: station.name,
-                        address: station.address ?? "",
-                        latitude: station.latitude,
-                        longitude: station.longitude
-                    )
+                    pendingStation = station
                 },
                 onSelectTrip: { trip in
                     Log.app.notice("recent trip tapped: id=\(trip.id, privacy: .public)")
@@ -121,6 +116,17 @@ struct HomeView: View {
                 SearchView(service: AMapPOISearchService()) { result in
                     Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
                     pendingDestination = result
+                }
+            }
+            .sheet(item: $pendingStation) { station in
+                ChargingStationDetailView(station: station) { picked in
+                    pendingDestination = POIResult(
+                        id: picked.id,
+                        name: picked.name,
+                        address: picked.address ?? "",
+                        latitude: picked.latitude,
+                        longitude: picked.longitude
+                    )
                 }
             }
             .sheet(item: $pendingDestination) { destination in

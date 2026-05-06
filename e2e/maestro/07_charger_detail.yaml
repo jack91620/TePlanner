@@ -1,0 +1,61 @@
+# Tap a row in 附近 → ChargingStationDetailView opens. Two CTAs
+# present (规划路线到此 / 在高德地图打开). 规划路线 closes the
+# detail sheet and opens RoutePreviewView.
+#
+# Skipped when Tencent's daily quota is exhausted and the nearby
+# list comes back empty — wrapped in a runFlow `when:` so CI
+# doesn't fail just because the upstream service is rate-limited.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 25%"
+    duration: 600
+
+# Give the backend up to 20s to respond. If after that we still
+# don't see a row, treat it as a quota / connectivity skip below.
+- repeat:
+    times: 20
+    commands:
+      - runFlow:
+          when:
+            notVisible:
+              id: "nearby_charger_0"
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 1000
+
+- runFlow:
+    when:
+      visible:
+        id: "nearby_charger_0"
+    commands:
+      - tapOn:
+          id: "nearby_charger_0"
+      - extendedWaitUntil:
+          visible: "充电站详情"
+          timeout: 5000
+      - assertVisible:
+          id: "station_plan_route_button"
+      - assertVisible:
+          id: "station_open_in_amap_button"
+      - takeScreenshot: tmp/screenshots/maestro_charger_detail
+      - tapOn:
+          id: "station_plan_route_button"
+      - extendedWaitUntil:
+          visible: "路线预览"
+          timeout: 30000
+      - assertVisible:
+          id: "send_to_vehicle_button"
+      - takeScreenshot: tmp/screenshots/maestro_charger_route_preview
+      - tapOn: "关闭"
+
+- runFlow:
+    when:
+      notVisible:
+        id: "nearby_charger_0"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_charger_detail_skipped

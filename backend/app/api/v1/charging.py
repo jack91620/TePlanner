@@ -20,6 +20,7 @@ class ChargingStation(BaseModel):
     longitude: float
     distance_km: Optional[float] = None
     operator: Optional[str] = None
+    tel: Optional[str] = None
     power_kw: Optional[int] = None
     available_ports: Optional[int] = None
     total_ports: Optional[int] = None
@@ -74,21 +75,37 @@ def _parse_station_from_poi(
             a = math.sin(dlat/2)**2 + math.cos(math.radians(center_lat)) * math.cos(math.radians(lat)) * math.sin(dlng/2)**2
             distance_km = R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
-    # Try to extract operator from title or category
+    # Try to extract operator from title or category. Order matters
+    # for substring matches that share characters (e.g. "蔚来 NIO" 蔚
+    # before 蔚来汽车).
     title = poi.get("title", "")
+    title_lower = title.lower()
     operator = None
-    if "国家电网" in title or "国网" in title:
-        operator = "国家电网"
-    elif "特来电" in title:
-        operator = "特来电"
-    elif "星星充电" in title:
-        operator = "星星充电"
-    elif "特斯拉" in title or "Tesla" in title.lower():
-        operator = "特斯拉超级充电"
-    elif "小鹏" in title:
-        operator = "小鹏充电"
-    elif "蔚来" in title or "NIO" in title.upper():
-        operator = "蔚来换电站"
+    operator_rules = [
+        ("特斯拉", ["特斯拉", "tesla"]),
+        ("国家电网", ["国家电网", "国网"]),
+        ("特来电", ["特来电"]),
+        ("星星充电", ["星星充电"]),
+        ("小桔充电", ["小桔充电", "小桔"]),
+        ("蔚来换电", ["蔚来", "nio"]),
+        ("小鹏充电", ["小鹏"]),
+        ("理想超充", ["理想超充", "理想"]),
+        ("壳牌充电", ["壳牌"]),
+        ("能链智电", ["能链", "快电"]),
+        ("万马爱充", ["万马"]),
+        ("依威能源", ["依威能源", "依威"]),
+        ("e充电", ["e充电"]),
+    ]
+    for name, needles in operator_rules:
+        if any(n in title for n in needles) or any(n.lower() in title_lower for n in needles):
+            operator = name
+            break
+
+    # Tencent sometimes returns a phone in `tel` (semicolon-delimited
+    # for stations with multiple lines); take the first.
+    tel = poi.get("tel") or None
+    if isinstance(tel, str):
+        tel = tel.split(";", 1)[0].strip() or None
 
     return ChargingStation(
         id=poi.get("id", ""),
@@ -98,6 +115,7 @@ def _parse_station_from_poi(
         longitude=lng,
         distance_km=round(distance_km, 2) if distance_km else None,
         operator=operator,
+        tel=tel,
         category=poi.get("category", ""),
         type=station_type,
     )

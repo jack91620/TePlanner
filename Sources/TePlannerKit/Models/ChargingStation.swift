@@ -25,10 +25,12 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
     public let totalStalls: Int?
     public let powerKw: Int?
     public let operatorName: String?
+    public let tel: String?
     public let distanceKm: Double?
     public let distanceFromRouteM: Int?
     public let open24h: Bool
     public let amenities: [String]?
+    public let openHours: String?
 
     public init(
         id: String,
@@ -41,10 +43,12 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         totalStalls: Int? = nil,
         powerKw: Int? = nil,
         operatorName: String? = nil,
+        tel: String? = nil,
         distanceKm: Double? = nil,
         distanceFromRouteM: Int? = nil,
         open24h: Bool = false,
-        amenities: [String]? = nil
+        amenities: [String]? = nil,
+        openHours: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -56,14 +60,16 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         self.totalStalls = totalStalls
         self.powerKw = powerKw
         self.operatorName = operatorName
+        self.tel = tel
         self.distanceKm = distanceKm
         self.distanceFromRouteM = distanceFromRouteM
         self.open24h = open24h
         self.amenities = amenities
+        self.openHours = openHours
     }
 
     public enum CodingKeys: String, CodingKey {
-        case id, name, address, latitude, longitude, type
+        case id, name, address, latitude, longitude, type, tel, amenities
         // Backend `/charging/nearby` returns `available_ports`/`total_ports`;
         // older planner code used `available_stalls`/`total_stalls`. Accept both.
         case availableStalls = "available_stalls"
@@ -75,7 +81,7 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         case distanceKm = "distance_km"
         case distanceFromRouteM = "distance_from_route_m"
         case open24h = "open_24h"
-        case amenities
+        case openHours = "open_hours"
     }
 
     public init(from decoder: Decoder) throws {
@@ -92,10 +98,12 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
             ?? c.decodeIfPresent(Int.self, forKey: .totalPorts)
         powerKw = try c.decodeIfPresent(Int.self, forKey: .powerKw)
         operatorName = try c.decodeIfPresent(String.self, forKey: .operatorName)
+        tel = try c.decodeIfPresent(String.self, forKey: .tel)
         distanceKm = try c.decodeIfPresent(Double.self, forKey: .distanceKm)
         distanceFromRouteM = try c.decodeIfPresent(Int.self, forKey: .distanceFromRouteM)
         open24h = try c.decodeIfPresent(Bool.self, forKey: .open24h) ?? false
         amenities = try c.decodeIfPresent([String].self, forKey: .amenities)
+        openHours = try c.decodeIfPresent(String.self, forKey: .openHours)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -110,10 +118,12 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(totalStalls, forKey: .totalStalls)
         try c.encodeIfPresent(powerKw, forKey: .powerKw)
         try c.encodeIfPresent(operatorName, forKey: .operatorName)
+        try c.encodeIfPresent(tel, forKey: .tel)
         try c.encodeIfPresent(distanceKm, forKey: .distanceKm)
         try c.encodeIfPresent(distanceFromRouteM, forKey: .distanceFromRouteM)
         try c.encode(open24h, forKey: .open24h)
         try c.encodeIfPresent(amenities, forKey: .amenities)
+        try c.encodeIfPresent(openHours, forKey: .openHours)
     }
 }
 
