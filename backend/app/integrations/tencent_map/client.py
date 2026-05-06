@@ -208,23 +208,42 @@ class TencentMapClient:
         self,
         polyline_points: List[Tuple[float, float]],
         keyword: str = "充电站",
-        radius_m: int = 3000,
-        sample_every: int = 6,
+        radius_m: int = 8000,
+        spacing_km: float = 50.0,
     ) -> List[Dict[str, Any]]:
         """Fallback when `alongby` is disabled on the key — sample
-        every `sample_every`th polyline point and call the regular
-        `place/v1/search` (region/nearby) for each, then merge + dedup.
+        the polyline at roughly `spacing_km` intervals and call
+        `place/v1/search` (region/nearby) at each sample, then
+        merge + dedup. The geocoder API is enabled by default on
+        every Tencent key.
 
-        Slower than alongby but only depends on the geocoder API
-        which is on by default.
+        Sampling by *distance* (not index) matters: highway polylines
+        have denser points around turns and exits, so naive index-step
+        leaves long stretches of straight road uncovered. We compute
+        a running cumulative distance and pick a sample whenever the
+        carry-over crosses `spacing_km`. Default 30 km × 5 km radius
+        gives overlapping coverage along a route.
         """
         if not polyline_points:
             return []
 
+        # Pick samples at uniform distance intervals.
+        samples: List[Tuple[float, float]] = [polyline_points[0]]
+        carry = 0.0
+        for i in range(1, len(polyline_points)):
+            lat0, lng0 = polyline_points[i - 1]
+            lat1, lng1 = polyline_points[i]
+            seg_km = self._haversine_km(lat0, lng0, lat1, lng1)
+            carry += seg_km
+            if carry >= spacing_km:
+                samples.append((lat1, lng1))
+                carry = 0.0
+        # Always include the destination so we cover the tail.
+        if samples[-1] != polyline_points[-1]:
+            samples.append(polyline_points[-1])
+
         seen: Dict[str, Dict[str, Any]] = {}
-        # Sample the polyline so we don't hammer the API.
-        sampled = polyline_points[::max(1, sample_every)]
-        for lat, lng in sampled:
+        for lat, lng in samples:
             try:
                 results = await self.search_nearby(
                     latitude=lat,
@@ -233,6 +252,13 @@ class TencentMapClient:
                     radius=radius_m,
                 )
             except Exception as e:
+                msg = str(e)
+                # Bail early if we've blown through the daily quota —
+                # every subsequent call would be a guaranteed waste,
+                # and partial results so far are better than nothing.
+                if "调用量已达到上限" in msg or "quota" in msg.lower() or "QUOTA" in msg:
+                    print(f"[along-route fallback] aborting — Tencent quota exhausted: {e}")
+                    break
                 # Keep going — partial results are better than none.
                 print(f"[along-route fallback] nearby({lat:.4f},{lng:.4f}) failed: {e}")
                 continue
@@ -241,6 +267,17 @@ class TencentMapClient:
                 if pid and pid not in seen:
                     seen[pid] = poi
         return list(seen.values())
+
+    @staticmethod
+    def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        import math
+        R = 6371.0
+        dlat = math.radians(lat2 - lat1)
+        dlng = math.radians(lng2 - lng1)
+        a = (math.sin(dlat / 2) ** 2
+             + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+             * math.sin(dlng / 2) ** 2)
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     async def search_charging_stations(
         self,
