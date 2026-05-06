@@ -1,0 +1,27 @@
+# Settings sheet — opens, displays the four prefs, save persists.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# The ⋯ menu sits in the toolbar.
+- tapOn:
+    id: "home_menu_button"
+- extendedWaitUntil:
+    visible: "设置"
+    timeout: 5000
+- tapOn: "设置"
+
+- extendedWaitUntil:
+    visible: "目标到达电量"
+    timeout: 5000
+- assertVisible: "最低充电电量"
+- assertVisible: "优先选择超级充电站"
+- assertVisible: "距离单位"
+- takeScreenshot: tmp/screenshots/maestro_settings
+
+- tapOn: "保存"
+- extendedWaitUntil:
+    visible:
+      id: "home_search_button"
+    timeout: 5000

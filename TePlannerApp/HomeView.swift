@@ -73,6 +73,7 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityIdentifier("home_menu_button")
             }
         }
         .sheet(isPresented: .constant(true)) {
@@ -126,31 +127,31 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
-        }
-        .confirmationDialog(
-            "解绑 Tesla 账户",
-            isPresented: $showingUnbindConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("解绑", role: .destructive) {
-                Task {
-                    let result = await authSession.unbindTesla(api: apiService)
-                    if case .failure(let err) = result {
-                        unbindError = err.localizedDescription
+            .confirmationDialog(
+                "解绑 Tesla 账户",
+                isPresented: $showingUnbindConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("解绑", role: .destructive) {
+                    Task {
+                        let result = await authSession.unbindTesla(api: apiService)
+                        if case .failure(let err) = result {
+                            unbindError = err.localizedDescription
+                        }
                     }
                 }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("将清除服务端授权与本地凭据，下次登录需要重新授权 Tesla。")
             }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("将清除服务端授权与本地凭据，下次登录需要重新授权 Tesla。")
-        }
-        .alert("解绑失败", isPresented: Binding(
-            get: { unbindError != nil },
-            set: { if !$0 { unbindError = nil } }
-        )) {
-            Button("好") { unbindError = nil }
-        } message: {
-            Text(unbindError ?? "")
+            .alert("解绑失败", isPresented: Binding(
+                get: { unbindError != nil },
+                set: { if !$0 { unbindError = nil } }
+            )) {
+                Button("好") { unbindError = nil }
+            } message: {
+                Text(unbindError ?? "")
+            }
         }
     }
 

@@ -1,0 +1,38 @@
+# Idempotent login guard — used by 02-06 so they can run independently.
+# Doesn't wipe state; only fills the OAuth form when the splash is up.
+#
+# Underscore prefix keeps it out of the alphabetical test runner —
+# `maestro test e2e/maestro/` won't execute helpers, only `0*` flows.
+
+appId: com.teplanner.ios
+env:
+  TESLA_EMAIL: ${MAESTRO_TESLA_EMAIL}
+  TESLA_PASSWORD: ${MAESTRO_TESLA_PASSWORD}
+---
+- launchApp
+
+- runFlow:
+    when:
+      visible:
+        id: "login_button"
+    commands:
+      - tapOn:
+          id: "login_button"
+      - runFlow:
+          when:
+            visible: "电子邮箱地址或登录手机号码"
+          commands:
+            - tapOn: "电子邮箱地址或登录手机号码"
+            - inputText: ${TESLA_EMAIL}
+            - pressKey: Enter
+            - extendedWaitUntil:
+                visible: "密码"
+                timeout: 20000
+            - tapOn: "密码"
+            - inputText: ${TESLA_PASSWORD}
+            - pressKey: Enter
+
+- extendedWaitUntil:
+    visible:
+      id: "home_search_button"
+    timeout: 60000

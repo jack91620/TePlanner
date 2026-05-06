@@ -1,0 +1,32 @@
+# 附近充电桩 tab — list loads, type filter chip narrows results.
+# Assumes logged in (run after 01_login.yaml).
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Drag the bottom drawer up so the chip row + first row are visible
+# even on small detents.
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 25%"
+    duration: 600
+
+# Default tab is 附近 — the chip row + segmented picker confirm the
+# drawer rendered without going through the backend.
+- assertVisible:
+    id: "nearby_filter_all"
+- assertVisible:
+    id: "nearby_filter_supercharger"
+- takeScreenshot: tmp/screenshots/maestro_nearby_default
+
+# Tap 超充 — the VM re-runs with type=supercharger. We don't assert
+# on result count (depends on Tencent), only that the chip toggle
+# was registered.
+- tapOn:
+    id: "nearby_filter_supercharger"
+- takeScreenshot: tmp/screenshots/maestro_nearby_supercharger
+
+# Reset back to 全部.
+- tapOn:
+    id: "nearby_filter_all"

@@ -1,0 +1,29 @@
+# Unbind Tesla — toolbar menu → 解绑 → confirm dialog → splash.
+# This is destructive: it wipes the local session AND revokes the
+# server-side Tesla token, so a subsequent OAuth needs full creds.
+# Run last in the chain.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "home_menu_button"
+- extendedWaitUntil:
+    visible: "解绑 Tesla 账户"
+    timeout: 5000
+- tapOn: "解绑 Tesla 账户"
+
+# After tapping the menu item it disappears, so the only "解绑"
+# left on screen is the confirmation dialog's destructive button.
+- extendedWaitUntil:
+    visible: "解绑"
+    timeout: 8000
+- tapOn: "解绑"
+
+# Local creds wiped → app routes back to splash.
+- extendedWaitUntil:
+    visible:
+      id: "login_button"
+    timeout: 15000
+- takeScreenshot: tmp/screenshots/maestro_after_unbind

@@ -1,0 +1,23 @@
+# 最近行程 tab — list (or empty) loads after switching tab.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 25%"
+    duration: 600
+
+# Switch to 最近.
+- tapOn: "最近"
+
+# Bottom-sheet picker reflects the selection — the 附近 chip row
+# disappears (nearby_filter_all is no longer visible) which is
+# enough to prove the tab swap worked.
+- assertNotVisible:
+    id: "nearby_filter_all"
+- takeScreenshot: tmp/screenshots/maestro_recent_trips
+
+# Switch back so 05/06 inherit the default tab.
+- tapOn: "附近"
