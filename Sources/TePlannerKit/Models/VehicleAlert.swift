@@ -5,12 +5,12 @@ import Foundation
 /// lands in iOS Local Notifications when the same kind enters
 /// `.critical` and the app isn't foregrounded.
 public struct VehicleAlert: Identifiable, Equatable {
-    public enum Kind: String, Hashable {
+    public enum Kind: String, Hashable, Sendable {
         case campMode
         // Phase 5.2+ extends here: sentryMode / cabinOverheat / chargeComplete
     }
 
-    public enum Severity: String {
+    public enum Severity: String, Sendable {
         /// Status badge only — informational, no action button yet.
         case info
         /// Past the user's reminder threshold — pill turns critical

@@ -8,7 +8,7 @@ import MAMapKit
 /// going on while the wake-retry loop runs.
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
-    @StateObject private var alertsViewModel: AlertsViewModel
+    @StateObject private var automationEngine: AutomationEngine
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -27,7 +27,8 @@ struct HomeView: View {
             apiService: apiService,
             authSession: authSession
         ))
-        _alertsViewModel = StateObject(wrappedValue: AlertsViewModel(
+        _automationEngine = StateObject(wrappedValue: AutomationEngine(
+            registry: [CampModeAutomation()],
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
@@ -48,16 +49,15 @@ struct HomeView: View {
 
             VStack(spacing: 8) {
                 statusBar
-                if let alert = alertsViewModel.alerts.first {
+                if let alert = automationEngine.alerts.first {
                     AlertPillView(alert: alert) {
-                        guard let vehicleId = viewModel.vehicle?.id else { return }
                         Task {
-                            switch alert.kind {
-                            case .campMode:
-                                let result = await alertsViewModel.clearCampMode(vehicleId: vehicleId)
-                                if case .failure(let err) = result {
-                                    alertActionError = err.localizedDescription
-                                }
+                            let result = await automationEngine.performPrimaryAction(
+                                for: alert,
+                                vehicleId: viewModel.vehicle?.id
+                            )
+                            if case .failure(let err) = result {
+                                alertActionError = err.localizedDescription
                             }
                         }
                     }
@@ -78,7 +78,7 @@ struct HomeView: View {
         }
         .task {
             await viewModel.load()
-            alertsViewModel.observe(viewModel.vehicleState)
+            automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
             viewModel.startPolling()
         }
         .onDisappear { viewModel.stopPolling() }
@@ -89,7 +89,7 @@ struct HomeView: View {
             }
         }
         .onChange(of: viewModel.vehicleState) { _, newState in
-            alertsViewModel.observe(newState)
+            automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
