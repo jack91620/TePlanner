@@ -53,5 +53,11 @@
 	<string>$(AMAP_API_KEY)</string>
 	<key>BackendURL</key>
 	<string>$(BACKEND_URL)</string>
+	<!-- App Store Connect 加密合规自评：我们只使用 iOS 系统提供的
+	     标准加密（URLSession TLS、Keychain），无自定义/专有/替代算法。
+	     符合 EAR §740.17(b)(1) 例外，无需提交加密申报文件。
+	     这一项 = false 让 ASC 在每次上传时跳过加密合规问卷。 -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
