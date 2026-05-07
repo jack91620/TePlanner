@@ -20,7 +20,6 @@ struct HubView: View {
     private let authSession: AuthSession
     private let chargingTracker: ChargingSessionTracker
     private let departureStore: ScheduledDepartureStore
-    @State private var showingSettings = false
     @State private var showingUnbindConfirm = false
     @State private var showingDepartureSheet = false
     @State private var scheduledDeparture: ScheduledDeparture?
@@ -122,10 +121,6 @@ struct HubView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("设置", systemImage: "gearshape") {
-                        showingSettings = true
-                    }
-                    Divider()
                     Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
                         authSession.logout()
                     }
@@ -165,9 +160,6 @@ struct HubView: View {
         }
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
         }
         .sheet(isPresented: $showingDepartureSheet) {
             ScheduledDepartureSheet(

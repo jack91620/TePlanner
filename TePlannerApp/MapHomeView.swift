@@ -16,6 +16,7 @@ struct MapHomeView: View {
     @State private var currentRoute: RoutePlanResponse?
     @State private var alertActionError: String?
     @State private var recenterToken: Int = 0
+    @State private var showingPlanningSettings = false
 
     init(
         apiService: APIServiceProtocol,
@@ -88,11 +89,18 @@ struct MapHomeView: View {
                             currentRoute = nil
                         }
                     }
+                    Divider()
+                    Button("路线设置", systemImage: "slider.horizontal.3") {
+                        showingPlanningSettings = true
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
                 .accessibilityIdentifier("map_menu_button")
             }
+        }
+        .sheet(isPresented: $showingPlanningSettings) {
+            RoutePlanningSettingsSheet()
         }
         .sheet(isPresented: .constant(true)) {
             HomeBottomSheet(

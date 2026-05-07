@@ -1,16 +1,18 @@
-# Settings sheet — opens, displays the four prefs, save persists.
+# 路线规划设置 sheet —— 进入充电规划页 → 菜单 → 路线设置 → 保存。
+# 重构后这些设置不再走 Hub 菜单，而是 in-context（在使用它们的
+# 充电规划页里就地修改）。
 
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
 
-# The ⋯ menu sits in the Hub toolbar now.
 - tapOn:
-    id: "hub_menu_button"
+    id: "map_menu_button"
 - extendedWaitUntil:
-    visible: "设置"
+    visible: "路线设置"
     timeout: 5000
-- tapOn: "设置"
+- tapOn: "路线设置"
 
 - extendedWaitUntil:
     visible: "目标到达电量"
@@ -23,5 +25,5 @@ appId: com.teplanner.ios
 - tapOn: "保存"
 - extendedWaitUntil:
     visible:
-      id: "hub_status_card"
+      id: "home_search_button"
     timeout: 5000
