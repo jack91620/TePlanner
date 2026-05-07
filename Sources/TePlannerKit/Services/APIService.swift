@@ -95,6 +95,11 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/vehicles/\(vehicleId)/climate-keeper-mode", body: Body(mode: mode))
     }
 
+    public func setSentryMode(vehicleId: String, on: Bool) async -> Result<BaseResponse, APIError> {
+        struct Body: Encodable { let on: Bool }
+        return await postJSON(path: "/vehicles/\(vehicleId)/sentry-mode", body: Body(on: on))
+    }
+
     // MARK: - Charging stations
 
     public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {

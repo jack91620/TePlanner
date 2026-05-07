@@ -65,6 +65,12 @@ class ClimateKeeperModeRequest(BaseModel):
     mode: int  # 0..3
 
 
+class SentryModeRequest(BaseModel):
+    """Toggle sentry mode."""
+
+    on: bool
+
+
 class NavigationRequest(BaseModel):
     """Navigation request model."""
 
@@ -321,6 +327,35 @@ async def set_climate_keeper_mode(
         async with tesla_client:
             await tesla_client.set_climate_keeper_mode(vehicle_id, request.mode)
             return {"success": True, "mode": request.mode}
+    except TeslaVehicleOfflineError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vehicle is offline. Please wake up the vehicle first.",
+        )
+    except TeslaAPIError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=f"Tesla API error: {str(e)}",
+        )
+
+
+@router.post("/{vehicle_id}/sentry-mode")
+async def set_sentry_mode(
+    vehicle_id: str,
+    request: SentryModeRequest,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+):
+    """Toggle the vehicle's sentry mode.
+
+    Used by the iOS AutomationEngine's Sentry-overrun reminder
+    to give the user a one-tap "关闭哨兵" action when sentry has
+    been on past their reminder threshold.
+    """
+    try:
+        async with tesla_client:
+            await tesla_client.set_sentry_mode(vehicle_id, request.on)
+            return {"success": True, "on": request.on}
     except TeslaVehicleOfflineError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

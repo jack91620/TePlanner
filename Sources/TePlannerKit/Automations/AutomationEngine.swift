@@ -85,9 +85,9 @@ public final class AutomationEngine: ObservableObject {
         case .setClimateKeeperMode(let vid, let mode):
             Log.vehicle.notice("automation \(rule.id, privacy: .public) → setClimateKeeperMode(\(mode, privacy: .public))")
             result = await apiService.setClimateKeeperMode(vehicleId: vid, mode: mode)
-        case .setSentryMode:
-            Log.vehicle.error("automation \(rule.id, privacy: .public) → setSentryMode is not yet wired (Phase 5.2 backend)")
-            result = .failure(.invalidResponse)
+        case .setSentryMode(let vid, let on):
+            Log.vehicle.notice("automation \(rule.id, privacy: .public) → setSentryMode(\(on, privacy: .public))")
+            result = await apiService.setSentryMode(vehicleId: vid, on: on)
         case .dismiss:
             result = .success(BaseResponse(success: true, message: nil))
         }

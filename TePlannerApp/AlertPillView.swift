@@ -53,6 +53,8 @@ struct AlertPillView: View {
     private var iconName: String {
         switch alert.kind {
         case .campMode: return "moon.zzz.fill"
+        case .sentryMode: return "shield.lefthalf.filled"
+        case .cabinOverheat: return "thermometer.sun.fill"
         }
     }
 

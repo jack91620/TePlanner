@@ -7,7 +7,9 @@ import Foundation
 public struct VehicleAlert: Identifiable, Equatable {
     public enum Kind: String, Hashable, Sendable {
         case campMode
-        // Phase 5.2+ extends here: sentryMode / cabinOverheat / chargeComplete
+        case sentryMode
+        case cabinOverheat
+        // Phase 5.3+ extends here: chargeComplete
     }
 
     public enum Severity: String, Sendable {

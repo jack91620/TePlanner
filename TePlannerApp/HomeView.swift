@@ -28,7 +28,11 @@ struct HomeView: View {
             authSession: authSession
         ))
         _automationEngine = StateObject(wrappedValue: AutomationEngine(
-            registry: [CampModeAutomation()],
+            registry: [
+                CampModeAutomation(),
+                SentryModeAutomation(),
+                CabinOverheatAutomation(),
+            ],
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
