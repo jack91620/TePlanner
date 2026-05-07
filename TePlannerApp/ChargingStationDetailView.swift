@@ -6,8 +6,8 @@ import UIKit
 /// Surfaces whatever metadata the backend returned (operator, tel,
 /// hours, ports, distance) and offers two outbound actions:
 ///
-/// - 规划路线 — closes the sheet and asks the host (HomeView) to
-///   open RoutePreviewView with this station as the destination.
+/// - 规划路线 — closes the sheet and asks the host (MapHomeView) to
+///   load a route plan to this station, surfaced in the bottom drawer.
 /// - 在高德地图打开 — fires `iosamap://` URL scheme to launch the
 ///   installed AMap iOS app, falls back to the https://uri.amap.com
 ///   web entry point when AMap isn't installed.

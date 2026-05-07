@@ -1,6 +1,6 @@
 # Tap a row in 附近 → ChargingStationDetailView opens. Two CTAs
 # present (规划路线到此 / 在高德地图打开). 规划路线 closes the
-# detail sheet and opens RoutePreviewView.
+# detail sheet and the bottom drawer flips to 当前路线.
 #
 # Skipped when Tencent's daily quota is exhausted and the nearby
 # list comes back empty — wrapped in a runFlow `when:` so CI
@@ -47,12 +47,11 @@ appId: com.teplanner.ios
       - tapOn:
           id: "station_plan_route_button"
       - extendedWaitUntil:
-          visible: "路线预览"
+          visible: "当前路线"
           timeout: 30000
       - assertVisible:
           id: "send_to_vehicle_button"
-      - takeScreenshot: tmp/screenshots/maestro_charger_route_preview
-      - tapOn: "关闭"
+      - takeScreenshot: tmp/screenshots/maestro_charger_route_summary
 
 - runFlow:
     when:

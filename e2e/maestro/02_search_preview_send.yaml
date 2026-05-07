@@ -1,6 +1,7 @@
-# Search → result tap → route preview → polyline on map → send.
-# Single flow because Maestro relaunches the app between files; the
-# preview sheet doesn't survive a fresh launch.
+# Search → result tap → drawer flips to 当前路线 → polyline on map → send.
+# The drawer is the single source of truth for the route — there's no
+# longer a modal preview sheet. Single flow because Maestro relaunches
+# the app between files.
 
 appId: com.teplanner.ios
 ---
@@ -25,17 +26,17 @@ appId: com.teplanner.ios
 - tapOn:
     id: "search_result_0"
 
-# Route-preview sheet header + summary populate within ~30s
-# (depends on backend's plan_route → Tencent route + alongby chain).
+# Drawer should flip to 当前路线 once the 3-step plan resolves
+# (route + alongby + charging-plan). Header + summary appear together.
 - extendedWaitUntil:
-    visible: "路线预览"
+    visible: "当前路线"
     timeout: 30000
 - extendedWaitUntil:
     visible: "总距离"
     timeout: 30000
 - assertVisible:
     id: "send_to_vehicle_button"
-- takeScreenshot: tmp/screenshots/maestro_route_preview
+- takeScreenshot: tmp/screenshots/maestro_route_summary
 
 # Send-to-vehicle: button transitions through .sending → terminal
 # state (.sent or .failed). We just verify the request fired by
@@ -47,9 +48,7 @@ appId: com.teplanner.ios
     timeout: 30000
 - takeScreenshot: tmp/screenshots/maestro_after_send
 
-# Close the sheet → MapHomeView reappears with the polyline +
-# charging-stop pins drawn on the AMap (the host kept currentRoute
-# via RoutePreviewViewModel.onPlanLoaded).
-- tapOn: "关闭"
+# Drawer stays put with the route summary; map behind it shows polyline
+# + charging-stop pins.
 - assertVisible: "充电规划"
 - takeScreenshot: tmp/screenshots/maestro_map_with_route

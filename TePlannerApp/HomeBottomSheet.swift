@@ -1,37 +1,49 @@
 import SwiftUI
 import TePlannerKit
 
-/// Bottom drawer over the AMap. Two modes:
+/// Bottom drawer over the AMap. Single source of truth for trip
+/// info — no separate modal preview. Renders one of four modes:
 ///
-/// - No active route → 附近 / 最近 tabs (the default browse experience).
-/// - Active route → route summary (origin/dest/SOC/charging stops) plus
-///   发送到车辆 / 清除路线 actions. Once the user has dismissed the
-///   modal RoutePreviewView, the drawer becomes the persistent place to
-///   re-inspect or re-send the trip.
+/// - `.loading`  → spinner while RoutePreviewViewModel orchestrates
+///                  /routes/route → AMap alongby → /routes/charging-plan
+/// - `.error`    → failure message + retry
+/// - `.loaded`   → 当前路线 summary (origin/dest/SOC/charging stops)
+///                  with 发送到车辆 / 清除路线 actions
+/// - `.tabs`     → default 附近 / 最近 browse
+///
+/// The user drags the drawer up/down via the standard sheet detents
+/// (peek / medium / large) so the map stays interactive.
 struct HomeBottomSheet: View {
+    enum Mode {
+        case tabs
+        case loading
+        case error(String, retry: () -> Void)
+        case loaded(RoutePlanResponse)
+    }
+
     enum Tab: Hashable { case nearby, recent }
 
     @State private var selectedTab: Tab = .nearby
+    private let mode: Mode
     private let apiService: APIServiceProtocol
     private let coordinate: (latitude: Double, longitude: Double)?
-    private let activeRoute: RoutePlanResponse?
     private let vehicleId: String?
     private let onSelectStation: (ChargingStation) -> Void
     private let onSelectTrip: (RecentRoute) -> Void
     private let onClearRoute: () -> Void
 
     init(
+        mode: Mode,
         apiService: APIServiceProtocol,
         coordinate: (latitude: Double, longitude: Double)?,
-        activeRoute: RoutePlanResponse?,
         vehicleId: String?,
         onSelectStation: @escaping (ChargingStation) -> Void,
         onSelectTrip: @escaping (RecentRoute) -> Void,
         onClearRoute: @escaping () -> Void
     ) {
+        self.mode = mode
         self.apiService = apiService
         self.coordinate = coordinate
-        self.activeRoute = activeRoute
         self.vehicleId = vehicleId
         self.onSelectStation = onSelectStation
         self.onSelectTrip = onSelectTrip
@@ -39,15 +51,20 @@ struct HomeBottomSheet: View {
     }
 
     var body: some View {
-        if let plan = activeRoute {
+        switch mode {
+        case .tabs:
+            tabsContent
+        case .loading:
+            loadingView
+        case .error(let message, let retry):
+            errorView(message: message, retry: retry)
+        case .loaded(let plan):
             RouteSummaryDrawerContent(
                 plan: plan,
                 apiService: apiService,
                 vehicleId: vehicleId,
                 onClearRoute: onClearRoute
             )
-        } else {
-            tabsContent
         }
     }
 
@@ -80,11 +97,46 @@ struct HomeBottomSheet: View {
             }
         }
     }
+
+    private var loadingView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            ProgressView("规划路线…").controlSize(.large)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("route_loading")
+    }
+
+    private func errorView(message: String, retry: @escaping () -> Void) -> some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 36))
+                .foregroundStyle(.orange)
+            Text("路线规划失败").font(.headline)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            HStack(spacing: 12) {
+                Button("重试") { retry() }
+                    .buttonStyle(.borderedProminent)
+                Button("取消", role: .destructive) { onClearRoute() }
+                    .buttonStyle(.bordered)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(16)
+        .accessibilityIdentifier("route_error")
+    }
 }
 
-/// Drawer content shown while a route is active. Mirrors RoutePreviewView's
-/// summary layout but lives inside the persistent bottom sheet so the
-/// trip info is one drag away even after the modal preview is closed.
+/// Drawer content shown once a route is loaded. Replaces the old modal
+/// RoutePreviewView entirely — content was duplicated and the modal
+/// hid the map.
 private struct RouteSummaryDrawerContent: View {
     let plan: RoutePlanResponse
     let apiService: APIServiceProtocol
@@ -212,7 +264,7 @@ private struct RouteSummaryDrawerContent: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(sendState == .sending || sendState == .sent || vehicleId == nil)
-            .accessibilityIdentifier("drawer_send_to_vehicle_button")
+            .accessibilityIdentifier("send_to_vehicle_button")
 
             Button(role: .destructive) {
                 onClearRoute()
@@ -223,7 +275,7 @@ private struct RouteSummaryDrawerContent: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .accessibilityIdentifier("drawer_clear_route_button")
+            .accessibilityIdentifier("clear_route_button")
         }
         .padding(.top, 4)
     }
@@ -256,7 +308,7 @@ private struct RouteSummaryDrawerContent: View {
         let result = await apiService.sendNavigation(vehicleId: vehicleId, request: request)
         switch result {
         case .success:
-            Log.search.notice("nav resent from drawer to \(vehicleId, privacy: .public)")
+            Log.search.notice("nav sent from drawer to \(vehicleId, privacy: .public)")
             sendState = .sent
         case .failure(let error):
             Log.search.error("drawer nav send failed: \(error.localizedDescription, privacy: .public)")
