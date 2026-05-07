@@ -1,22 +1,13 @@
-# Phase 5 自动化提醒 — 进入设置 → 自动化提醒列表 → 调整阈值 → 保存
-# 验证：列表里 3 条规则都能看到 toggle，调整后保存能回到主页。
+# Phase 5 自动化提醒 — Hub 入口 → 自动化列表 → 调阈值 → 保存。
+# Phase 6.1 后规则列表是 Hub 的 NavigationLink 而非嵌套在 Settings
+# 里，所以直接走 hub_entry_automations 进入。
 
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
 
 - tapOn:
-    id: "home_menu_button"
-- extendedWaitUntil:
-    visible: "设置"
-    timeout: 5000
-- tapOn: "设置"
-
-- extendedWaitUntil:
-    visible: "自动化提醒"
-    timeout: 5000
-- tapOn:
-    id: "automations_link"
+    id: "hub_entry_automations"
 
 - extendedWaitUntil:
     visible: "露营模式超时提醒"
@@ -39,10 +30,6 @@ appId: com.teplanner.ios
     id: "automations_save_button"
 
 - extendedWaitUntil:
-    visible: "目标到达电量"
-    timeout: 5000
-- tapOn: "保存"
-- extendedWaitUntil:
     visible:
-      id: "home_search_button"
+      id: "hub_status_card"
     timeout: 5000

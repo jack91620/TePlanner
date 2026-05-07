@@ -2,43 +2,29 @@ import SwiftUI
 import TePlannerKit
 import MAMapKit
 
-/// Phase 1 home screen: AMap centered on the user's primary vehicle,
-/// with a battery / range / state header and a refresh button. Offline
-/// and waking states surface in the header so the user knows what's
-/// going on while the wake-retry loop runs.
-struct HomeView: View {
-    @StateObject private var viewModel: HomeViewModel
-    @StateObject private var automationEngine: AutomationEngine
-    @Environment(\.scenePhase) private var scenePhase
+/// 充电规划子页：以高德地图为主体的车辆位置 + 沿途充电站可视化。
+/// 不再是顶级页面 —— 由 HubView push 进来，所以 HomeViewModel /
+/// AutomationEngine 都从父级注入而不是自己 own，避免上下浮动时丢状态。
+/// Polling、车辆状态观察、本地通知 wiring 都搬到 HubView 里去做。
+struct MapHomeView: View {
+    @ObservedObject var viewModel: HomeViewModel
+    @ObservedObject var automationEngine: AutomationEngine
     private let apiService: APIServiceProtocol
-    private let authSession: AuthSession
     @State private var showingSearch = false
-    @State private var showingSettings = false
     @State private var pendingDestination: POIResult?
     @State private var pendingStation: ChargingStation?
     @State private var currentRoute: RoutePlanResponse?
-    @State private var showingUnbindConfirm = false
-    @State private var unbindError: String?
     @State private var alertActionError: String?
     @State private var recenterToken: Int = 0
 
-    init(apiService: APIServiceProtocol, authSession: AuthSession) {
-        _viewModel = StateObject(wrappedValue: HomeViewModel(
-            apiService: apiService,
-            authSession: authSession
-        ))
-        _automationEngine = StateObject(wrappedValue: AutomationEngine(
-            registry: [
-                CampModeAutomation(),
-                SentryModeAutomation(),
-                CabinOverheatAutomation(),
-                ChargeCompleteAutomation(),
-            ],
-            apiService: apiService,
-            settings: UserDefaultsSettingsStore.shared
-        ))
+    init(
+        apiService: APIServiceProtocol,
+        viewModel: HomeViewModel,
+        automationEngine: AutomationEngine
+    ) {
         self.apiService = apiService
-        self.authSession = authSession
+        self.viewModel = viewModel
+        self.automationEngine = automationEngine
     }
 
     var body: some View {
@@ -81,24 +67,8 @@ struct HomeView: View {
                 }
             }
         }
-        .task {
-            await viewModel.load()
-            automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
-            viewModel.startPolling()
-        }
-        .onDisappear { viewModel.stopPolling() }
-        .onChange(of: scenePhase) { _, newPhase in
-            switch newPhase {
-            case .active: viewModel.startPolling()
-            default: viewModel.stopPolling()
-            }
-        }
-        .onChange(of: viewModel.vehicleState) { _, newState in
-            automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
-        }
-        .onChange(of: automationEngine.alerts) { _, alerts in
-            LocalNotificationScheduler.shared.applyAlerts(alerts)
-        }
+        .navigationTitle("充电规划")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -118,20 +88,10 @@ struct HomeView: View {
                             currentRoute = nil
                         }
                     }
-                    Button("设置", systemImage: "gearshape") {
-                        showingSettings = true
-                    }
-                    Divider()
-                    Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
-                        authSession.logout()
-                    }
-                    Button("解绑 Tesla 账户", systemImage: "link.badge.plus", role: .destructive) {
-                        showingUnbindConfirm = true
-                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityIdentifier("home_menu_button")
+                .accessibilityIdentifier("map_menu_button")
             }
         }
         .sheet(isPresented: .constant(true)) {
@@ -186,34 +146,6 @@ struct HomeView: View {
                     vehicleId: viewModel.vehicle?.id,
                     onPlanLoaded: { plan in currentRoute = plan }
                 )
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            .confirmationDialog(
-                "解绑 Tesla 账户",
-                isPresented: $showingUnbindConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("解绑", role: .destructive) {
-                    Task {
-                        let result = await authSession.unbindTesla(api: apiService)
-                        if case .failure(let err) = result {
-                            unbindError = err.localizedDescription
-                        }
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("将清除服务端授权与本地凭据，下次登录需要重新授权 Tesla。")
-            }
-            .alert("解绑失败", isPresented: Binding(
-                get: { unbindError != nil },
-                set: { if !$0 { unbindError = nil } }
-            )) {
-                Button("好") { unbindError = nil }
-            } message: {
-                Text(unbindError ?? "")
             }
             .alert("操作失败", isPresented: Binding(
                 get: { alertActionError != nil },

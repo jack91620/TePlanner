@@ -5,6 +5,7 @@
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
 
 - tapOn:
     id: "home_search_button"
@@ -46,9 +47,9 @@ appId: com.teplanner.ios
     timeout: 30000
 - takeScreenshot: tmp/screenshots/maestro_after_send
 
-# Close the sheet → HomeView reappears with the polyline + charging-
-# stop pins drawn on the AMap (the host kept currentRoute via
-# RoutePreviewViewModel.onPlanLoaded).
+# Close the sheet → MapHomeView reappears with the polyline +
+# charging-stop pins drawn on the AMap (the host kept currentRoute
+# via RoutePreviewViewModel.onPlanLoaded).
 - tapOn: "关闭"
-- assertVisible: "TePlanner"
+- assertVisible: "充电规划"
 - takeScreenshot: tmp/screenshots/maestro_map_with_route

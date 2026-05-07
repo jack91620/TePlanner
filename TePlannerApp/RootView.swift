@@ -12,9 +12,7 @@ struct RootView: View {
         Group {
             if authSession.isLoggedIn {
                 NavigationStack {
-                    HomeView(apiService: apiService, authSession: authSession)
-                        .navigationTitle("TePlanner")
-                        .navigationBarTitleDisplayMode(.inline)
+                    HubView(apiService: apiService, authSession: authSession)
                 }
             } else {
                 LoginView(apiService: apiService, authSession: authSession)

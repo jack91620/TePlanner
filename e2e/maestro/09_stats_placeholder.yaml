@@ -1,0 +1,16 @@
+# Phase 5.4 充电统计入口（占位页）—— 仅验证从 Hub 能进入并显示
+# placeholder 副本。当真正的统计 UI 落地，这个 flow 应被替换。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_stats"
+
+- extendedWaitUntil:
+    visible:
+      id: "charging_stats_placeholder"
+    timeout: 5000
+- assertVisible: "充电统计"
+- takeScreenshot: tmp/screenshots/maestro_stats_placeholder

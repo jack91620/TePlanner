@@ -8,7 +8,7 @@ appId: com.teplanner.ios
 - runFlow: _helpers/ensure_logged_in.yaml
 
 - tapOn:
-    id: "home_menu_button"
+    id: "hub_menu_button"
 - extendedWaitUntil:
     visible: "解绑 Tesla 账户"
     timeout: 5000

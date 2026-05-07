@@ -1,0 +1,14 @@
+# Helper: drill from Hub into the 充电规划 sub-page (MapHomeView).
+# Used by flows that need to interact with the map / search / nearby
+# / recent / charger detail / route preview UI.
+#
+# Assumes ensure_logged_in.yaml has already left the user on Hub.
+
+appId: com.teplanner.ios
+---
+- tapOn:
+    id: "hub_entry_planning"
+- extendedWaitUntil:
+    visible:
+      id: "home_search_button"
+    timeout: 10000

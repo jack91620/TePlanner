@@ -4,6 +4,7 @@
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
 
 # Drag the bottom drawer up so the chip row + first row are visible
 # even on small detents.

@@ -4,9 +4,9 @@ appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
 
-# The ⋯ menu sits in the toolbar.
+# The ⋯ menu sits in the Hub toolbar now.
 - tapOn:
-    id: "home_menu_button"
+    id: "hub_menu_button"
 - extendedWaitUntil:
     visible: "设置"
     timeout: 5000
@@ -23,5 +23,5 @@ appId: com.teplanner.ios
 - tapOn: "保存"
 - extendedWaitUntil:
     visible:
-      id: "home_search_button"
+      id: "hub_status_card"
     timeout: 5000

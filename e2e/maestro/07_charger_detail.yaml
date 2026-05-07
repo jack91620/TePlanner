@@ -9,6 +9,7 @@
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
 
 - swipe:
     start: "50%, 70%"

@@ -41,13 +41,17 @@ env:
       - inputText: ${TESLA_PASSWORD}
       - pressKey: Enter
 
-# After OAuth completes, RootView swaps to HomeView whose toolbar has
-# the search icon. Long timeout because Tesla → backend → JS scrape →
-# AuthSession.login() can take 10–20s on a cold start.
+# After OAuth completes, RootView swaps to HubView whose status card
+# is the unique landing element. Long timeout because Tesla → backend
+# → JS scrape → AuthSession.login() can take 10–20s on a cold start.
 - extendedWaitUntil:
     visible:
-      id: "home_search_button"
+      id: "hub_status_card"
     timeout: 60000
 
 - assertVisible: "TePlanner"
+- assertVisible:
+    id: "hub_entry_planning"
+- assertVisible:
+    id: "hub_entry_automations"
 - takeScreenshot: tmp/screenshots/maestro_after_login
