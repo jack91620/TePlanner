@@ -14,6 +14,11 @@ public protocol SettingsStore: AnyObject {
     var sentryReminderMinutes: Int { get set }
     var cabinOverheatReminderMinutes: Int { get set }
     var chargeCompleteReminderEnabled: Bool { get set }
+    /// Phase 5.6: charge-limit presets, in SOC percent. Daily =
+    /// long-term battery health (60–80% typical); trip = bigger
+    /// buffer before a planned departure (80–100%).
+    var dailyChargeLimitSoc: Int { get set }
+    var tripChargeLimitSoc: Int { get set }
     func reset()
 }
 
@@ -32,6 +37,8 @@ public enum SettingsKey {
     public static let sentryReminderMinutes = "sentry_reminder_minutes"
     public static let cabinOverheatReminderMinutes = "cabin_overheat_reminder_minutes"
     public static let chargeCompleteReminderEnabled = "charge_complete_reminder_enabled"
+    public static let dailyChargeLimitSoc = "daily_charge_limit_soc"
+    public static let tripChargeLimitSoc = "trip_charge_limit_soc"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -100,6 +107,16 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         set { defaults.set(newValue, forKey: SettingsKey.chargeCompleteReminderEnabled) }
     }
 
+    public var dailyChargeLimitSoc: Int {
+        get { defaults.object(forKey: SettingsKey.dailyChargeLimitSoc) as? Int ?? 70 }
+        set { defaults.set(newValue, forKey: SettingsKey.dailyChargeLimitSoc) }
+    }
+
+    public var tripChargeLimitSoc: Int {
+        get { defaults.object(forKey: SettingsKey.tripChargeLimitSoc) as? Int ?? 90 }
+        set { defaults.set(newValue, forKey: SettingsKey.tripChargeLimitSoc) }
+    }
+
     public func reset() {
         for key in [
             SettingsKey.teslaLinked,
@@ -111,6 +128,8 @@ public final class UserDefaultsSettingsStore: SettingsStore {
             SettingsKey.sentryReminderMinutes,
             SettingsKey.cabinOverheatReminderMinutes,
             SettingsKey.chargeCompleteReminderEnabled,
+            SettingsKey.dailyChargeLimitSoc,
+            SettingsKey.tripChargeLimitSoc,
         ] {
             defaults.removeObject(forKey: key)
         }

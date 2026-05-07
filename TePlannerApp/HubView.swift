@@ -26,6 +26,7 @@ struct HubView: View {
     @State private var unbindError: String?
     @State private var alertActionError: String?
     @State private var preheatStatus: PreheatStatus = .idle
+    @State private var chargeLimitStatus: ChargeLimitStatus = .idle
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -53,6 +54,10 @@ struct HubView: View {
         case idle, sending, sent, failed(String)
     }
 
+    enum ChargeLimitStatus: Equatable {
+        case idle, sending, sent, failed(String)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
@@ -71,6 +76,7 @@ struct HubView: View {
                     }
                 }
                 departureCard
+                chargeLimitCard
                 NavigationLink {
                     MapHomeView(
                         apiService: apiService,
@@ -293,6 +299,108 @@ struct HubView: View {
         case "Complete": return "充电完成"
         case "Disconnected": return "在线"
         default: return "在线"
+        }
+    }
+
+    @ViewBuilder
+    private var chargeLimitCard: some View {
+        let suggestion = ChargeLimitSuggester.suggest(
+            currentLimit: viewModel.vehicleState?.chargeLimitSoc,
+            settings: UserDefaultsSettingsStore.shared,
+            upcomingDeparture: scheduledDeparture,
+            now: Date()
+        )
+        if !suggestion.alreadyMatches, let current = suggestion.currentPercent {
+            Button {
+                applyChargeLimit(suggestion.recommendedPercent)
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "battery.100.bolt")
+                        .font(.title2)
+                        .foregroundStyle(.tint)
+                        .frame(width: 32)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(chargeLimitTitle(for: suggestion))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text(chargeLimitSubtitle(for: suggestion, current: current))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    chargeLimitBadge
+                }
+                .padding(.vertical, 14)
+                .padding(.horizontal, 16)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("hub_charge_limit_card")
+        }
+    }
+
+    @ViewBuilder
+    private var chargeLimitBadge: some View {
+        switch chargeLimitStatus {
+        case .idle:
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        case .sending:
+            ProgressView().controlSize(.small)
+        case .sent:
+            Label("已应用", systemImage: "checkmark.circle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.green)
+        case .failed:
+            Label("失败", systemImage: "exclamationmark.triangle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.red)
+        }
+    }
+
+    private func chargeLimitTitle(for suggestion: ChargeLimitSuggestion) -> String {
+        switch suggestion.reason {
+        case .daily: return "建议日常充电限额"
+        case .upcomingDeparture: return "建议出行充电限额"
+        }
+    }
+
+    private func chargeLimitSubtitle(for suggestion: ChargeLimitSuggestion, current: Int) -> String {
+        let target = "\(current)% → \(suggestion.recommendedPercent)%"
+        switch suggestion.reason {
+        case .daily:
+            return "\(target) · 长期日常使用更友好"
+        case .upcomingDeparture(let hours):
+            if hours == 0 { return "\(target) · 即将出行" }
+            return "\(target) · 还有 \(hours) 小时出发"
+        }
+    }
+
+    private func applyChargeLimit(_ percent: Int) {
+        guard let vehicleId = viewModel.vehicle?.id else { return }
+        guard chargeLimitStatus != .sending else { return }
+        chargeLimitStatus = .sending
+        Task {
+            let result = await apiService.setChargeLimit(vehicleId: vehicleId, percent: percent)
+            switch result {
+            case .success:
+                chargeLimitStatus = .sent
+                Log.vehicle.notice("charge-limit set to \(percent, privacy: .public)%")
+                Task { await viewModel.refresh() }  // pull updated charge_limit_soc
+                try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
+                if case .sent = chargeLimitStatus { chargeLimitStatus = .idle }
+            case .failure(let err):
+                chargeLimitStatus = .failed(err.localizedDescription)
+                Log.vehicle.error("charge-limit failed: \(err.localizedDescription, privacy: .public)")
+                alertActionError = err.localizedDescription
+                try? await Task.sleep(nanoseconds: 4 * 1_000_000_000)
+                if case .failed = chargeLimitStatus { chargeLimitStatus = .idle }
+            }
         }
     }
 

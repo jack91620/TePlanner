@@ -162,6 +162,16 @@ final class MockAPIService: APIServiceProtocol {
         return mockPreheatResponse ?? .success(BaseResponse(success: true, message: "ok"))
     }
 
+    var mockSetChargeLimitResponse: Result<BaseResponse, APIError>!
+    var setChargeLimitCallCount = 0
+    var lastSetChargeLimitArgs: (vehicleId: String, percent: Int)?
+
+    func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError> {
+        setChargeLimitCallCount += 1
+        lastSetChargeLimitArgs = (vehicleId, percent)
+        return mockSetChargeLimitResponse ?? .success(BaseResponse(success: true, message: "ok"))
+    }
+
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
         stationDetailCallCount += 1
         return mockStationDetailResponse

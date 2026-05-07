@@ -57,6 +57,11 @@ class VehicleStateResponse(BaseModel):
     is_climate_on: Optional[bool] = None
     sentry_mode_on: Optional[bool] = None
     cabin_overheat_protection_on: Optional[bool] = None
+    # Phase 5.6: charge_limit_soc lets the iOS "智能充电限额建议" card
+    # decide whether to surface a recommendation (only when the
+    # current limit differs from what the user wants for daily / pre-
+    # trip use).
+    charge_limit_soc: Optional[int] = None
 
 
 class ClimateKeeperModeRequest(BaseModel):
@@ -69,6 +74,12 @@ class SentryModeRequest(BaseModel):
     """Toggle sentry mode."""
 
     on: bool
+
+
+class ChargeLimitRequest(BaseModel):
+    """Set the charge limit SOC percent (50..100)."""
+
+    percent: int
 
 
 class NavigationRequest(BaseModel):
@@ -260,6 +271,7 @@ async def get_vehicle_state(
                 ) == "On" or climate_state.get(
                     "cabin_overheat_protection_on"
                 ),
+                charge_limit_soc=charge_state.get("charge_limit_soc"),
             )
 
     except TeslaVehicleOfflineError:
@@ -356,6 +368,41 @@ async def set_sentry_mode(
         async with tesla_client:
             await tesla_client.set_sentry_mode(vehicle_id, request.on)
             return {"success": True, "on": request.on}
+    except TeslaVehicleOfflineError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vehicle is offline. Please wake up the vehicle first.",
+        )
+    except TeslaAPIError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=f"Tesla API error: {str(e)}",
+        )
+
+
+@router.post("/{vehicle_id}/charge-limit")
+async def set_charge_limit(
+    vehicle_id: str,
+    request: ChargeLimitRequest,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+):
+    """Set the vehicle's charge limit SOC percent.
+
+    Backed by Tesla's `set_charge_limit` command. Used by the iOS
+    Phase 5.6 智能充电限额建议 card to apply the user's daily / pre-
+    trip preset to the car. Tesla only accepts 50..100; we enforce
+    that here so the iOS layer stays simple.
+    """
+    if not (50 <= request.percent <= 100):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="percent must be between 50 and 100",
+        )
+    try:
+        async with tesla_client:
+            await tesla_client.set_charge_limit(vehicle_id, request.percent)
+            return {"success": True, "percent": request.percent}
     except TeslaVehicleOfflineError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -15,6 +15,8 @@ struct RoutePlanningSettingsSheet: View {
     @State private var minChargingSoc: Int
     @State private var preferSupercharger: Bool
     @State private var distanceUnit: DistanceUnit
+    @State private var dailyChargeLimitSoc: Double
+    @State private var tripChargeLimitSoc: Double
     private let store: SettingsStore
 
     init(store: SettingsStore = UserDefaultsSettingsStore.shared) {
@@ -23,6 +25,8 @@ struct RoutePlanningSettingsSheet: View {
         _minChargingSoc = State(initialValue: store.minChargingSoc)
         _preferSupercharger = State(initialValue: store.preferSupercharger)
         _distanceUnit = State(initialValue: store.distanceUnit)
+        _dailyChargeLimitSoc = State(initialValue: Double(store.dailyChargeLimitSoc))
+        _tripChargeLimitSoc = State(initialValue: Double(store.tripChargeLimitSoc))
     }
 
     var body: some View {
@@ -51,6 +55,30 @@ struct RoutePlanningSettingsSheet: View {
                 Section("充电站偏好") {
                     Toggle("优先选择超级充电站", isOn: $preferSupercharger)
                 }
+                Section {
+                    HStack {
+                        Text("日常")
+                        Spacer()
+                        Text("\(Int(dailyChargeLimitSoc))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: $dailyChargeLimitSoc, in: 50...100, step: 5)
+                        .accessibilityIdentifier("daily_charge_limit_slider")
+                    HStack {
+                        Text("出行前")
+                        Spacer()
+                        Text("\(Int(tripChargeLimitSoc))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: $tripChargeLimitSoc, in: 50...100, step: 5)
+                        .accessibilityIdentifier("trip_charge_limit_slider")
+                } header: {
+                    Text("充电限额建议")
+                } footer: {
+                    Text("Hub 会在车辆当前充电限额与此处不一致时提醒你应用。出行前限额会在 12 小时内有出行计划时优先使用。")
+                }
                 Section("显示") {
                     Picker("距离单位", selection: $distanceUnit) {
                         Text("公里 (km)").tag(DistanceUnit.kilometers)
@@ -70,7 +98,9 @@ struct RoutePlanningSettingsSheet: View {
                         store.minChargingSoc = minChargingSoc
                         store.preferSupercharger = preferSupercharger
                         store.distanceUnit = distanceUnit
-                        Log.app.notice("route-planning settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public))")
+                        store.dailyChargeLimitSoc = Int(dailyChargeLimitSoc)
+                        store.tripChargeLimitSoc = Int(tripChargeLimitSoc)
+                        Log.app.notice("route-planning settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public) dailyLim=\(Int(dailyChargeLimitSoc), privacy: .public)% tripLim=\(Int(tripChargeLimitSoc), privacy: .public)%)")
                         dismiss()
                     }
                     .bold()

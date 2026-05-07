@@ -104,6 +104,11 @@ public final class APIService: APIServiceProtocol {
         return await post(path: "/vehicles/\(vehicleId)/preheat")
     }
 
+    public func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError> {
+        struct Body: Encodable { let percent: Int }
+        return await postJSON(path: "/vehicles/\(vehicleId)/charge-limit", body: Body(percent: percent))
+    }
+
     // MARK: - Charging stations
 
     public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {

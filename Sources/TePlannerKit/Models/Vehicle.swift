@@ -89,6 +89,10 @@ public struct VehicleState: Codable, Equatable {
     public let isClimateOn: Bool?
     public let sentryModeOn: Bool?
     public let cabinOverheatProtectionOn: Bool?
+    /// Phase 5.6: current charge-limit SOC percent (50..100). Drives
+    /// the iOS "智能充电限额建议" card — only surface a suggestion when
+    /// this differs from the user's daily / pre-trip preference.
+    public let chargeLimitSoc: Int?
 
     public init(
         vehicleId: String? = nil,
@@ -108,7 +112,8 @@ public struct VehicleState: Codable, Equatable {
         climateKeeperMode: Int? = nil,
         isClimateOn: Bool? = nil,
         sentryModeOn: Bool? = nil,
-        cabinOverheatProtectionOn: Bool? = nil
+        cabinOverheatProtectionOn: Bool? = nil,
+        chargeLimitSoc: Int? = nil
     ) {
         self.vehicleId = vehicleId
         self.displayName = displayName
@@ -128,6 +133,7 @@ public struct VehicleState: Codable, Equatable {
         self.isClimateOn = isClimateOn
         self.sentryModeOn = sentryModeOn
         self.cabinOverheatProtectionOn = cabinOverheatProtectionOn
+        self.chargeLimitSoc = chargeLimitSoc
     }
 
     public enum CodingKeys: String, CodingKey {
@@ -146,6 +152,7 @@ public struct VehicleState: Codable, Equatable {
         case isClimateOn = "is_climate_on"
         case sentryModeOn = "sentry_mode_on"
         case cabinOverheatProtectionOn = "cabin_overheat_protection_on"
+        case chargeLimitSoc = "charge_limit_soc"
     }
 
     /// Whether the vehicle is currently in 露营模式 (camp mode).

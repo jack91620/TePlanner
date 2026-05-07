@@ -117,6 +117,8 @@ final class InMemorySettingsStore: SettingsStore {
     var sentryReminderMinutes: Int = 1440
     var cabinOverheatReminderMinutes: Int = 60
     var chargeCompleteReminderEnabled: Bool = true
+    var dailyChargeLimitSoc: Int = 70
+    var tripChargeLimitSoc: Int = 90
 
     func reset() {
         teslaLinked = false
@@ -128,5 +130,7 @@ final class InMemorySettingsStore: SettingsStore {
         sentryReminderMinutes = 1440
         cabinOverheatReminderMinutes = 60
         chargeCompleteReminderEnabled = true
+        dailyChargeLimitSoc = 70
+        tripChargeLimitSoc = 90
     }
 }

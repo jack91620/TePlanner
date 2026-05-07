@@ -41,6 +41,7 @@ public protocol APIServiceProtocol {
     func setClimateKeeperMode(vehicleId: String, mode: Int) async -> Result<BaseResponse, APIError>
     func setSentryMode(vehicleId: String, on: Bool) async -> Result<BaseResponse, APIError>
     func preheat(vehicleId: String) async -> Result<BaseResponse, APIError>
+    func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError>
 
     // Charging stations
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError>
