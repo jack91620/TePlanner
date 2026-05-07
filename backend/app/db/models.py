@@ -87,6 +87,41 @@ class Vehicle(Base):
     user = relationship("User", back_populates="vehicles")
 
 
+class AutomationState(Base):
+    """Per-rule scratchpad keyed by (user_id, vehicle_id, key). Used by
+    automation rules to remember "first time I observed X on" timestamps
+    across polling ticks. Stored as ISO date strings for portability;
+    rules treat None as absent. Mirrors iOS InMemoryAutomationStateMemory
+    but persisted so engine state survives backend restarts.
+    """
+
+    __tablename__ = "automation_state"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)
+    key = Column(String(80), nullable=False)
+    value = Column(String(64), nullable=True)  # ISO 8601 datetime string
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PushedAlert(Base):
+    """De-duplication ledger: tracks which (user, vehicle, kind) alerts
+    have been pushed at critical severity, so the polling tick only
+    fires APNs on the not-critical → critical transition (matching the
+    iOS LocalNotificationScheduler.applyAlerts behaviour).
+    """
+
+    __tablename__ = "pushed_alerts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)
+    kind = Column(String(40), nullable=False)
+    pushed_at = Column(DateTime, default=datetime.utcnow)
+    cleared_at = Column(DateTime, nullable=True)
+
+
 class DeviceToken(Base):
     """APNs device push token registered by an iOS device.
 
