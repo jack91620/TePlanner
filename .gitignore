@@ -125,3 +125,7 @@ e2e/maestro/.env
 # TestFlight / distribution
 build/
 deploy/ExportOptions.plist
+
+# Ops snapshots / reports — generated, host-specific
+ops/state/
+ops/reports/
