@@ -14,12 +14,13 @@ appId: com.teplanner.ios
     timeout: 5000
 - tapOn: "解绑 Tesla 账户"
 
-# After tapping the menu item it disappears, so the only "解绑"
-# left on screen is the confirmation dialog's destructive button.
+# Confirmation dialog's destructive button is "确认解绑" — disjoint
+# from the menu item's "解绑 Tesla 账户" so Maestro can't race the
+# menu's dismiss animation against the dialog's appearance.
 - extendedWaitUntil:
-    visible: "解绑"
+    visible: "确认解绑"
     timeout: 8000
-- tapOn: "解绑"
+- tapOn: "确认解绑"
 
 # Local creds wiped → app routes back to splash.
 - extendedWaitUntil:

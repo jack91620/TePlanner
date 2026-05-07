@@ -90,7 +90,7 @@ struct HubView: View {
                         accessibilityId: "hub_entry_planning"
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableCardButtonStyle())
 
                 NavigationLink {
                     AutomationsListView(
@@ -105,7 +105,7 @@ struct HubView: View {
                         accessibilityId: "hub_entry_automations"
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableCardButtonStyle())
 
                 NavigationLink {
                     ChargingStatsView()
@@ -117,7 +117,7 @@ struct HubView: View {
                         accessibilityId: "hub_entry_stats"
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableCardButtonStyle())
             }
             .padding(16)
         }
@@ -189,7 +189,12 @@ struct HubView: View {
             isPresented: $showingUnbindConfirm,
             titleVisibility: .visible
         ) {
-            Button("解绑", role: .destructive) {
+            // Destructive button text avoids the substring "解绑" alone
+            // because the menu item that triggers this dialog is also
+            // "解绑 Tesla 账户" — Maestro's substring matcher would
+            // otherwise race the menu's dismiss animation against the
+            // dialog's appearance and pick the wrong element.
+            Button("确认解绑", role: .destructive) {
                 Task {
                     let result = await authSession.unbindTesla(api: apiService)
                     if case .failure(let err) = result {
@@ -382,7 +387,7 @@ struct HubView: View {
                         .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
                 )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableCardButtonStyle())
             .accessibilityIdentifier("hub_charge_limit_card")
         }
     }
@@ -486,7 +491,7 @@ struct HubView: View {
                     .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableCardButtonStyle())
         .accessibilityIdentifier("hub_departure_card")
     }
 
@@ -569,6 +574,19 @@ struct HubView: View {
             }
         }.count
         return "\(enabled)/\(automationEngine.registeredRules.count) 条已启用"
+    }
+}
+
+/// Subtle scale + dim on press. Replaces `.buttonStyle(.plain)` which
+/// disables press feedback entirely and leaves Hub cards feeling dead
+/// to taps. Spring is intentionally short so the response feels
+/// instant rather than bouncy.
+struct PressableCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: configuration.isPressed)
     }
 }
 

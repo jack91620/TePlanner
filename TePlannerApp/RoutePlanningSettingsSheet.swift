@@ -75,9 +75,9 @@ struct RoutePlanningSettingsSheet: View {
                     Slider(value: $tripChargeLimitSoc, in: 50...100, step: 5)
                         .accessibilityIdentifier("trip_charge_limit_slider")
                 } header: {
-                    Text("充电限额建议")
+                    Text("充电限额预设")
                 } footer: {
-                    Text("Hub 会在车辆当前充电限额与此处不一致时提醒你应用。出行前限额会在 12 小时内有出行计划时优先使用。")
+                    Text("此处设置两档预设值。当车辆当前限额与日常/出行前预设不一致时，主页会出现单独的「建议」卡片让你一键应用。出行前预设在 12 小时内有出行计划时优先生效。")
                 }
                 Section("显示") {
                     Picker("距离单位", selection: $distanceUnit) {
