@@ -80,8 +80,7 @@ struct HubView: View {
                 NavigationLink {
                     MapHomeView(
                         apiService: apiService,
-                        viewModel: viewModel,
-                        automationEngine: automationEngine
+                        viewModel: viewModel
                     )
                 } label: {
                     HubEntryCard(
@@ -221,26 +220,34 @@ struct HubView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text(viewModel.displayName ?? "我的 Tesla")
                     .font(.title3.weight(.semibold))
                 Spacer()
                 stateBadge
             }
-            HStack(spacing: 18) {
-                Label {
-                    Text("\(viewModel.batteryLevel ?? 0)%")
-                } icon: {
-                    Image(systemName: batteryIcon)
-                        .foregroundStyle(.tint)
+            HStack(alignment: .center, spacing: 24) {
+                batteryRing
+                VStack(alignment: .leading, spacing: 2) {
+                    if let range = viewModel.batteryRangeKm {
+                        Text("\(Int(range))")
+                            .font(.system(size: 44, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(.primary)
+                        Text("km 续航")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .font(.system(size: 44, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("续航未知")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                if let range = viewModel.batteryRangeKm {
-                    Label("\(Int(range)) km", systemImage: "road.lanes")
-                }
+                Spacer()
             }
-            .font(.subheadline.monospacedDigit())
-            .foregroundStyle(.secondary)
 
             if let location = viewModel.locationName {
                 Label {
@@ -252,10 +259,47 @@ struct HubView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .accessibilityIdentifier("hub_status_card")
+    }
+
+    private var batteryRing: some View {
+        let level = viewModel.batteryLevel ?? 0
+        let progress = Double(max(0, min(100, level))) / 100.0
+        return ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 10)
+            Circle()
+                .trim(from: 0, to: CGFloat(progress))
+                .stroke(
+                    batteryColor(for: level),
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.4), value: level)
+            VStack(spacing: 0) {
+                Text("\(level)%")
+                    .font(.system(size: 22, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.primary)
+                Image(systemName: batteryIcon)
+                    .font(.caption)
+                    .foregroundStyle(batteryColor(for: level))
+            }
+        }
+        .frame(width: 92, height: 92)
+        .accessibilityIdentifier("hub_battery_ring")
+        .accessibilityLabel("电量 \(level) 百分")
+    }
+
+    private func batteryColor(for level: Int) -> Color {
+        switch level {
+        case ..<20: return .red
+        case ..<50: return .orange
+        case ..<80: return .accentColor
+        default: return .green
+        }
     }
 
     private var batteryIcon: String {

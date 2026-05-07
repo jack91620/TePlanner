@@ -8,24 +8,20 @@ import MAMapKit
 /// Polling、车辆状态观察、本地通知 wiring 都搬到 HubView 里去做。
 struct MapHomeView: View {
     @ObservedObject var viewModel: HomeViewModel
-    @ObservedObject var automationEngine: AutomationEngine
     private let apiService: APIServiceProtocol
     @State private var showingSearch = false
     @State private var pendingDestination: POIResult?
     @State private var pendingStation: ChargingStation?
     @State private var currentRoute: RoutePlanResponse?
-    @State private var alertActionError: String?
     @State private var recenterToken: Int = 0
     @State private var showingPlanningSettings = false
 
     init(
         apiService: APIServiceProtocol,
-        viewModel: HomeViewModel,
-        automationEngine: AutomationEngine
+        viewModel: HomeViewModel
     ) {
         self.apiService = apiService
         self.viewModel = viewModel
-        self.automationEngine = automationEngine
     }
 
     var body: some View {
@@ -39,25 +35,9 @@ struct MapHomeView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 8) {
-                statusBar
-                if let alert = automationEngine.alerts.first {
-                    AlertPillView(alert: alert) {
-                        Task {
-                            let result = await automationEngine.performPrimaryAction(
-                                for: alert,
-                                vehicleId: viewModel.vehicle?.id
-                            )
-                            if case .failure(let err) = result {
-                                alertActionError = err.localizedDescription
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-
+            // 顶部状态卡 + 提醒条都已经在 Hub 显示，这里不再重复——
+            // 充电规划场景下用户的注意力应该在地图 + 搜索 + 路线上，
+            // 不在车辆元信息。
             VStack {
                 Spacer()
                 HStack {
@@ -155,52 +135,7 @@ struct MapHomeView: View {
                     onPlanLoaded: { plan in currentRoute = plan }
                 )
             }
-            .alert("操作失败", isPresented: Binding(
-                get: { alertActionError != nil },
-                set: { if !$0 { alertActionError = nil } }
-            )) {
-                Button("好") { alertActionError = nil }
-            } message: {
-                Text(alertActionError ?? "")
-            }
         }
-    }
-
-    private var statusBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(viewModel.displayName ?? "我的 Tesla")
-                    .font(.headline)
-                Spacer()
-                stateBadge
-            }
-            HStack(spacing: 16) {
-                Label {
-                    Text("\(viewModel.batteryLevel ?? 0)%")
-                } icon: {
-                    Image(systemName: batteryIcon)
-                }
-                if let range = viewModel.batteryRangeKm {
-                    Label("\(Int(range)) km", systemImage: "road.lanes")
-                }
-                Spacer()
-            }
-            .font(.subheadline.monospacedDigit())
-            .foregroundStyle(.secondary)
-
-            if let location = viewModel.locationName {
-                Label {
-                    Text(location).lineLimit(1)
-                } icon: {
-                    Image(systemName: "location.fill")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 14)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var recenterButton: some View {
@@ -218,47 +153,4 @@ struct MapHomeView: View {
         .accessibilityLabel(currentRoute == nil ? "居中到车辆" : "适配整段路线")
     }
 
-    private var batteryIcon: String {
-        let level = viewModel.batteryLevel ?? 0
-        switch level {
-        case ..<20: return "battery.0"
-        case ..<50: return "battery.25"
-        case ..<80: return "battery.75"
-        default: return "battery.100"
-        }
-    }
-
-    @ViewBuilder
-    private var stateBadge: some View {
-        switch viewModel.state {
-        case .idle, .loading:
-            ProgressView().controlSize(.small)
-        case .waking(let attempt, let max):
-            Label("唤醒中 \(attempt)/\(max)", systemImage: "moon.zzz")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.orange)
-        case .ready:
-            Label(chargingLabel, systemImage: "circle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.green)
-        case .offline:
-            Label("离线", systemImage: "circle.slash")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.gray)
-        case .error(let message):
-            Label(message, systemImage: "exclamationmark.triangle")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.red)
-                .lineLimit(1)
-        }
-    }
-
-    private var chargingLabel: String {
-        switch viewModel.chargingState {
-        case "Charging": return "充电中"
-        case "Complete": return "充电完成"
-        case "Disconnected": return "在线"
-        default: return "在线"
-        }
-    }
 }
