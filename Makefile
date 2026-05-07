@@ -146,12 +146,20 @@ archive: ## Build a signed Release .xcarchive ready for App Store Connect
 	@test -f Config.xcconfig || { echo "Missing Config.xcconfig"; exit 1; }
 	@grep -q "^DEVELOPMENT_TEAM = ..*" Config.xcconfig || { echo "DEVELOPMENT_TEAM not set in Config.xcconfig"; exit 1; }
 	@test -d $(WORKSPACE) || $(MAKE) project
-	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	@# AMap pods get sim-retagged by Podfile post_install for Apple
+	@# Silicon simulator builds. Restore device-tagged slices before
+	@# archive so the device linker accepts them, then re-retag for
+	@# sim afterward so ongoing simulator dev keeps working.
+	bash scripts/restore-amap-device.sh
+	-xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
 	  -configuration Release \
 	  -destination 'generic/platform=iOS' \
 	  -archivePath $(ARCHIVE_PATH) \
 	  -allowProvisioningUpdates \
 	  archive
+	@status=$$?; \
+	bash scripts/retag-amap-for-sim.sh; \
+	exit $$status
 
 export-ipa: archive ## Export an IPA from the latest archive (requires deploy/ExportOptions.plist)
 	@test -f deploy/ExportOptions.plist || { \
