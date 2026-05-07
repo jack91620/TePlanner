@@ -110,13 +110,18 @@ struct HubView: View {
                 .buttonStyle(PressableCardButtonStyle())
 
                 NavigationLink {
-                    ChargingStatsView()
+                    BatteryView(
+                        apiService: apiService,
+                        vehicleId: viewModel.vehicle?.id,
+                        currentChargeLimitSoc: viewModel.vehicleState?.chargeLimitSoc,
+                        onLimitApplied: { Task { await viewModel.refresh() } }
+                    )
                 } label: {
                     HubEntryCard(
-                        icon: "chart.bar.fill",
-                        title: "充电统计",
-                        subtitle: statsSubtitle,
-                        accessibilityId: "hub_entry_stats"
+                        icon: "battery.100.bolt",
+                        title: "电池管理",
+                        subtitle: batterySubtitle,
+                        accessibilityId: "hub_entry_battery"
                     )
                 }
                 .buttonStyle(PressableCardButtonStyle())
@@ -587,11 +592,15 @@ struct HubView: View {
         }
     }
 
-    private var statsSubtitle: String {
-        if statsViewModel.hasAnyData {
-            return "本月 \(statsViewModel.monthlyCount) 次充电"
+    private var batterySubtitle: String {
+        var parts: [String] = []
+        if let limit = viewModel.vehicleState?.chargeLimitSoc {
+            parts.append("限额 \(limit)%")
         }
-        return "暂无记录"
+        if statsViewModel.hasAnyData {
+            parts.append("本月 \(statsViewModel.monthlyCount) 次")
+        }
+        return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
     }
 
     /// "X 条已启用" — count rules whose threshold settings are non-zero

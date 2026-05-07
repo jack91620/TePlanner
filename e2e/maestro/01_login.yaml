@@ -41,15 +41,24 @@ env:
       - inputText: ${TESLA_PASSWORD}
       - pressKey: Enter
 
-# After OAuth completes, RootView swaps to HubView whose status card
-# is the unique landing element. Long timeout because Tesla → backend
-# → JS scrape → AuthSession.login() can take 10–20s on a cold start.
+# After OAuth completes, RootView swaps to HubView. Title is the
+# safest "we're on hub" marker since the VCP pairing prompt may
+# overlay status_card right after first login on a fresh install.
+- extendedWaitUntil:
+    visible: "TePlanner"
+    timeout: 60000
+
+# Dismiss VCP pairing prompt if it pops on first login.
+- runFlow:
+    when:
+      visible: "稍后再说"
+    commands:
+      - tapOn: "稍后再说"
+
 - extendedWaitUntil:
     visible:
       id: "hub_status_card"
-    timeout: 60000
-
-- assertVisible: "TePlanner"
+    timeout: 10000
 - assertVisible:
     id: "hub_entry_planning"
 - assertVisible:

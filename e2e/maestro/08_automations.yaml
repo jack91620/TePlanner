@@ -29,7 +29,9 @@ appId: com.teplanner.ios
 - tapOn:
     id: "automations_save_button"
 
+# Saving pops back to Hub. Wait for the title (always visible) so
+# the VCP pairing prompt won't trip the assertion if it happens to
+# fire here too.
 - extendedWaitUntil:
-    visible:
-      id: "hub_status_card"
+    visible: "TePlanner"
     timeout: 5000

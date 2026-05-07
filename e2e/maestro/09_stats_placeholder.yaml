@@ -1,17 +1,23 @@
-# Phase 5.4 充电统计入口 —— Hub → 充电统计页。
-# 没有充电记录时显示 empty state；有记录则显示本月概览 + 历史列表。
-# 测试只验证页面进入 + 标题渲染，不依赖具体记录数（取决于车辆状态）。
+# 电池管理入口 —— Hub → 电池管理页 → 校验充电限额 + 限额预设 +
+# 统计区可见。从前叫"充电统计"，重构后扩展为电池管理域。
 
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
 
+- runFlow:
+    when:
+      visible: "稍后再说"
+    commands:
+      - tapOn: "稍后再说"
+
 - tapOn:
-    id: "hub_entry_stats"
+    id: "hub_entry_battery"
 
 - extendedWaitUntil:
     visible:
-      id: "charging_stats_view"
+      id: "battery_view"
     timeout: 5000
-- assertVisible: "充电统计"
-- takeScreenshot: tmp/screenshots/maestro_stats_placeholder
+- assertVisible: "电池管理"
+- assertVisible: "限额预设"
+- takeScreenshot: tmp/screenshots/maestro_battery

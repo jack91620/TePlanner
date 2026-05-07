@@ -32,7 +32,24 @@ env:
             - inputText: ${TESLA_PASSWORD}
             - pressKey: Enter
 
+# Wait for hub to be rendered. Use the title (always visible on
+# hub regardless of overlay alerts) instead of hub_status_card,
+# which the Phase 7 配对车辆控制 prompt may overlay right after
+# first login.
+- extendedWaitUntil:
+    visible: "TePlanner"
+    timeout: 60000
+
+# Phase 7 (VCP): dismiss the one-time pairing prompt if it pops.
+# "稍后再说" always works — defers without disabling anything.
+- runFlow:
+    when:
+      visible: "稍后再说"
+    commands:
+      - tapOn: "稍后再说"
+
+# Now hub_status_card should be plainly visible.
 - extendedWaitUntil:
     visible:
       id: "hub_status_card"
-    timeout: 60000
+    timeout: 10000
