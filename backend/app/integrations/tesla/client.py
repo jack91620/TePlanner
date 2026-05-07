@@ -31,10 +31,17 @@ class TeslaClient:
             if use_fleet_api
             else settings.TESLA_API_BASE_URL
         )
+        # Phase 7 (VCP): vehicle commands (set_charge_limit etc.) must be
+        # signed and routed through tesla-http-proxy. The proxy mirrors
+        # the same REST URL shape as the deprecated direct endpoint, so
+        # we just swap the base URL for command requests. Reads
+        # (vehicle_data, wake_up, list_vehicles) keep going direct.
+        self.command_proxy_url = settings.TESLA_VEHICLE_COMMAND_PROXY_URL
         self._client: Optional[httpx.AsyncClient] = None
+        self._command_client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """Get or create HTTP client for direct fleet API calls (reads)."""
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -46,11 +53,34 @@ class TeslaClient:
             )
         return self._client
 
+    async def _get_command_client(self) -> httpx.AsyncClient:
+        """Get or create HTTP client for tesla-http-proxy (signed commands).
+
+        Proxy presents a self-signed TLS cert; verify is disabled because
+        the connection target is `127.0.0.1` over localhost loopback —
+        TLS exists only because the proxy refuses plaintext, not for
+        confidentiality against an MITM that doesn't apply here.
+        """
+        if self._command_client is None:
+            self._command_client = httpx.AsyncClient(
+                base_url=self.command_proxy_url,
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=30.0,
+                verify=False,
+            )
+        return self._command_client
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
             await self._client.aclose()
             self._client = None
+        if self._command_client:
+            await self._command_client.aclose()
+            self._command_client = None
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -219,15 +249,31 @@ class TeslaClient:
         command: str,
         data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Send a command to the vehicle.
+        """Send a SIGNED command to the vehicle via tesla-http-proxy.
 
-        POST /api/1/vehicles/{vehicle_tag}/command/{command}
+        POST {proxy}/api/1/vehicles/{vehicle_tag}/command/{command}
+
+        Tesla deprecated the direct REST command endpoint on 2023-10-09
+        and now requires Vehicle Command Protocol (signed commands).
+        We route through a local tesla-http-proxy that holds the
+        partner private key and signs each request before forwarding
+        to Tesla Fleet API.
         """
-        return await self._request(
-            "POST",
-            f"/api/1/vehicles/{vehicle_tag}/command/{command}",
-            json=data or {},
-        )
+        client = await self._get_command_client()
+        endpoint = f"/api/1/vehicles/{vehicle_tag}/command/{command}"
+        try:
+            response = await client.post(endpoint, json=data or {})
+            if response.status_code == 408:
+                raise TeslaVehicleOfflineError("unknown")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            raise TeslaAPIError(
+                f"Tesla API error: {e.response.status_code} - {e.response.text}",
+                status_code=e.response.status_code,
+            )
+        except httpx.RequestError as e:
+            raise TeslaAPIError(f"Request failed: {str(e)}")
 
     # Door & Window Control
     async def door_lock(self, vehicle_tag: str) -> Dict[str, Any]:

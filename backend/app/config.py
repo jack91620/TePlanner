@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     TESLA_API_BASE_URL: str = "https://owner-api.teslamotors.com"
     # Fleet API (官方)
     TESLA_FLEET_API_BASE_URL: str = "https://fleet-api.prd.na.vn.cloud.tesla.com"
+    # Phase 7 (VCP): tesla-http-proxy 本地 endpoint，用于发送签名后的
+    # 车辆命令（set_charge_limit / climate_keeper_mode / sentry / preheat
+    # 等）。Tesla 已废弃直接 REST 命令端点，所有命令必须经 partner key
+    # 签名。Proxy 本地侦听 127.0.0.1:4443，自签 TLS。
+    TESLA_VEHICLE_COMMAND_PROXY_URL: str = "https://127.0.0.1:4443"
     TESLA_CLIENT_ID: str = ""
     TESLA_CLIENT_SECRET: str = ""
     TESLA_TOKEN_ENCRYPTION_KEY: str = ""

@@ -13,8 +13,29 @@ public enum APIError: LocalizedError {
         case .requestFailed(let error): return "网络请求失败: \(error.localizedDescription)"
         case .invalidResponse: return "服务器返回无效数据"
         case .decodingError(let error): return "解析服务器数据失败: \(error.localizedDescription)"
-        case .serverError(let statusCode, let message): return "服务器错误 (\(statusCode)): \(message)"
+        case .serverError(let statusCode, let message):
+            // Tesla 2023-10-09 废弃了旧 REST 车辆命令端点，所有
+            // set_charge_limit / set_climate_keeper_mode / sentry / preheat
+            // 命令需迁移到新的 Vehicle Command Protocol (VCP)。在我们
+            // 后端完成代理迁移之前，把这个 403 转成中文友好提示，避免
+            // 用户看到一长串 Tesla SDK 报错。
+            if statusCode == 403 && message.contains("Vehicle Command Protocol") {
+                return "Tesla 已升级车辆命令协议，此功能正在迁移中。请在 Tesla 官方 App 内手动操作。"
+            }
+            return "服务器错误 (\(statusCode)): \(message)"
         }
+    }
+
+    /// `true` 当此错误是 Tesla VCP 迁移引起的、当前所有 vehicle
+    /// command action 都暂时不可用。UI 可以基于此预先 disable 按钮
+    /// 而不是等用户点了再报错。
+    public var isTeslaVCPRequired: Bool {
+        if case .serverError(let statusCode, let message) = self,
+           statusCode == 403,
+           message.contains("Vehicle Command Protocol") {
+            return true
+        }
+        return false
     }
 }
 
