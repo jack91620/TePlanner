@@ -41,11 +41,16 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
     func requestPermissionIfNeeded() {
         guard !permissionRequested else { return }
         permissionRequested = true
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error {
                 Log.app.error("local-notif permission error: \(error.localizedDescription, privacy: .public)")
             } else {
                 Log.app.notice("local-notif permission \(granted ? "granted" : "denied", privacy: .public)")
+            }
+            if granted {
+                Task { @MainActor in
+                    RemotePushRegistrar.shared.requestRegistration()
+                }
             }
         }
     }

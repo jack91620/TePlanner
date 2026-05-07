@@ -87,6 +87,26 @@ class Vehicle(Base):
     user = relationship("User", back_populates="vehicles")
 
 
+class DeviceToken(Base):
+    """APNs device push token registered by an iOS device.
+
+    One user can have multiple devices (iPhone + iPad). On each app
+    launch the iOS client posts its current token; we upsert by
+    (user_id, token) so reinstalls / token rotations get a fresh row
+    while keeping the user's other active devices intact.
+    """
+
+    __tablename__ = "device_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(200), nullable=False, index=True)
+    platform = Column(String(20), default="ios")
+    bundle_id = Column(String(128), nullable=True)
+    last_seen_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class RoutePlan(Base):
     """Saved route plans."""
 

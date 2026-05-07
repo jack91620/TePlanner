@@ -71,6 +71,18 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # APNs (Apple Push Notification service)
+    # Path to .p8 auth key downloaded from developer.apple.com
+    # (Keys → Apple Push Notifications service). Empty disables push.
+    APNS_AUTH_KEY_PATH: str = ""
+    APNS_KEY_ID: str = ""           # 10-char Key ID from Apple Developer
+    APNS_TEAM_ID: str = ""          # 10-char Team ID (matches Xcode signing)
+    APNS_BUNDLE_ID: str = "com.teplanner.ios"
+    # "production" for TestFlight + App Store builds (which is the only
+    # APNs environment Apple accepts for non-development certs);
+    # "sandbox" only for dev builds with the development cert.
+    APNS_ENVIRONMENT: str = "production"
+
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
 

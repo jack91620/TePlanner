@@ -8,6 +8,8 @@ import os
 
 @main
 struct TePlannerApp: App {
+    @UIApplicationDelegateAdaptor(TePlannerAppDelegate.self) private var appDelegate
+
     init() {
         Self.bootstrapAMapSDK()
         Task { @MainActor in LocalNotificationScheduler.shared.bootstrap() }

@@ -75,4 +75,9 @@ public protocol APIServiceProtocol {
 
     // Saved routes (history)
     func getRecentRoutes(limit: Int, offset: Int) async -> Result<RecentRoutesResponse, APIError>
+
+    // Push notifications
+    /// Hand the iOS APNs device token to the backend so the polling
+    /// layer can deliver automation alerts when the app is closed.
+    func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError>
 }

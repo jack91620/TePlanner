@@ -26,6 +26,9 @@ cryptography==41.0.7
 # Cache
 redis==5.0.1
 
+# Push notifications (APNs)
+aioapns==3.4
+
 # Utils
 python-dotenv==1.0.0
 tenacity==8.2.3

@@ -34,10 +34,12 @@ targets:
       - path: TePlannerApp
         excludes:
           - Info.plist
+          - TePlannerApp.entitlements
     settings:
       base:
         PRODUCT_NAME: TePlannerApp
         INFOPLIST_FILE: TePlannerApp/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TePlannerApp/TePlannerApp.entitlements
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # CURRENT_PROJECT_VERSION is set in Config.xcconfig so

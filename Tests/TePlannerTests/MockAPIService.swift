@@ -197,4 +197,8 @@ final class MockAPIService: APIServiceProtocol {
         lastRecentRoutesArgs = (limit, offset)
         return mockRecentRoutesResponse
     }
+
+    func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
+        return .success(BaseResponse(success: true, message: "ok"))
+    }
 }

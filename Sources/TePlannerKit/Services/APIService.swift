@@ -145,6 +145,16 @@ public final class APIService: APIServiceProtocol {
         return await get(path: "/routes/", query: query)
     }
 
+    // MARK: - Push notifications
+
+    public func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
+        struct Body: Encodable {
+            let token: String
+            let bundle_id: String?
+        }
+        return await postJSON(path: "/devices/register", body: Body(token: token, bundle_id: bundleId))
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
