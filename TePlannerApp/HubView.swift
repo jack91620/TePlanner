@@ -19,10 +19,14 @@ struct HubView: View {
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
     private let chargingTracker: ChargingSessionTracker
+    private let departureStore: ScheduledDepartureStore
     @State private var showingSettings = false
     @State private var showingUnbindConfirm = false
+    @State private var showingDepartureSheet = false
+    @State private var scheduledDeparture: ScheduledDeparture?
     @State private var unbindError: String?
     @State private var alertActionError: String?
+    @State private var preheatStatus: PreheatStatus = .idle
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -41,8 +45,13 @@ struct HubView: View {
         ))
         _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel())
         self.chargingTracker = ChargingSessionTracker()
+        self.departureStore = UserDefaultsScheduledDepartureStore.shared
         self.apiService = apiService
         self.authSession = authSession
+    }
+
+    enum PreheatStatus: Equatable {
+        case idle, sending, sent, failed(String)
     }
 
     var body: some View {
@@ -62,6 +71,7 @@ struct HubView: View {
                         }
                     }
                 }
+                departureCard
                 NavigationLink {
                     MapHomeView(
                         apiService: apiService,
@@ -133,6 +143,10 @@ struct HubView: View {
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
             statsViewModel.refresh()
+            scheduledDeparture = departureStore.current()
+            LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
+                triggerPreheat()
+            }
             viewModel.startPolling()
         }
         .onDisappear { viewModel.stopPolling() }
@@ -154,6 +168,24 @@ struct HubView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showingDepartureSheet) {
+            ScheduledDepartureSheet(
+                existing: scheduledDeparture,
+                vehicleId: viewModel.vehicle?.id,
+                onSave: { entry in
+                    departureStore.save(entry)
+                    scheduledDeparture = entry
+                    LocalNotificationScheduler.shared.schedulePreheat(for: entry)
+                    Log.app.notice("departure saved at \(entry.departureAt, privacy: .public)")
+                },
+                onClear: scheduledDeparture == nil ? nil : {
+                    departureStore.clear()
+                    scheduledDeparture = nil
+                    LocalNotificationScheduler.shared.cancelPreheat()
+                    Log.app.notice("departure cleared")
+                }
+            )
         }
         .confirmationDialog(
             "解绑 Tesla 账户",
@@ -269,6 +301,107 @@ struct HubView: View {
         case "Complete": return "充电完成"
         case "Disconnected": return "在线"
         default: return "在线"
+        }
+    }
+
+    @ViewBuilder
+    private var departureCard: some View {
+        Button {
+            showingDepartureSheet = true
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "alarm.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    if let scheduled = scheduledDeparture {
+                        Text(formatDeparture(scheduled.departureAt))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text(departureSubtitle(scheduled))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("下次出行")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text("设置出发时间，到点提醒预热")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                preheatBadge
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("hub_departure_card")
+    }
+
+    @ViewBuilder
+    private var preheatBadge: some View {
+        switch preheatStatus {
+        case .idle:
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        case .sending:
+            ProgressView().controlSize(.small)
+        case .sent:
+            Label("已启动", systemImage: "checkmark.circle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.green)
+        case .failed:
+            Label("失败", systemImage: "exclamationmark.triangle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.red)
+        }
+    }
+
+    private func departureSubtitle(_ departure: ScheduledDeparture) -> String {
+        let interval = departure.departureAt.timeIntervalSinceNow
+        if interval <= 0 { return "出发时间已到" }
+        let minutes = Int(interval / 60)
+        if minutes < 60 { return "还有 \(minutes) 分钟 · 提前 \(departure.leadTimeMinutes) 分钟提醒" }
+        let h = minutes / 60
+        let m = minutes % 60
+        let countdown = m == 0 ? "\(h) 小时" : "\(h) 小时 \(m) 分"
+        return "还有 \(countdown) · 提前 \(departure.leadTimeMinutes) 分钟提醒"
+    }
+
+    private func formatDeparture(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "M月d日 HH:mm"
+        return f.string(from: date)
+    }
+
+    private func triggerPreheat() {
+        guard let vehicleId = viewModel.vehicle?.id else { return }
+        guard preheatStatus != .sending else { return }
+        preheatStatus = .sending
+        Task {
+            let result = await apiService.preheat(vehicleId: vehicleId)
+            switch result {
+            case .success:
+                preheatStatus = .sent
+                Log.vehicle.notice("preheat OK")
+                try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
+                if case .sent = preheatStatus { preheatStatus = .idle }
+            case .failure(let err):
+                preheatStatus = .failed(err.localizedDescription)
+                Log.vehicle.error("preheat failed: \(err.localizedDescription, privacy: .public)")
+                alertActionError = err.localizedDescription
+                try? await Task.sleep(nanoseconds: 4 * 1_000_000_000)
+                if case .failed = preheatStatus { preheatStatus = .idle }
+            }
         }
     }
 

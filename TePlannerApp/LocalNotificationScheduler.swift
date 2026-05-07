@@ -21,8 +21,17 @@ import TePlannerKit
 final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     static let shared = LocalNotificationScheduler()
 
+    /// Identifier reserved for the Phase 5.5 "时间到了，出发前预热"
+    /// notification. Distinct namespace from VehicleAlert.Kind.rawValue
+    /// so they can't collide.
+    static let preheatNotificationId = "scheduled_preheat"
+
     private var lastSeenCriticalKinds: Set<VehicleAlert.Kind> = []
     private var permissionRequested = false
+    /// Set externally (HubView.task) so the delegate can hand the
+    /// preheat tap off to the right place. nil means "no listener" —
+    /// notification is silently dropped.
+    var onPreheatTapped: (() -> Void)?
 
     func bootstrap() {
         UNUserNotificationCenter.current().delegate = self
@@ -90,6 +99,46 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         Log.app.notice("local-notif cancelled for \(kind.rawValue, privacy: .public)")
     }
 
+    // MARK: - Phase 5.5 scheduled-departure preheat
+
+    /// (Re)schedule the preheat reminder for the given departure.
+    /// Always cancels the previous schedule first so changing the
+    /// time / lead doesn't double-fire.
+    func schedulePreheat(for departure: ScheduledDeparture) {
+        cancelPreheat()
+        let fireAt = departure.fireAt
+        let interval = fireAt.timeIntervalSinceNow
+        guard interval > 0 else {
+            Log.app.notice("preheat schedule skipped: fireAt already passed")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = departure.label.map { "出发提醒 · \($0)" } ?? "出发提醒"
+        content.body = "再 \(departure.leadTimeMinutes) 分钟出发，点此预热车舱。"
+        content.sound = .default
+        content.categoryIdentifier = Self.preheatNotificationId
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: Self.preheatNotificationId,
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                Log.app.error("preheat schedule failed: \(error.localizedDescription, privacy: .public)")
+            } else {
+                Log.app.notice("preheat scheduled in \(Int(interval), privacy: .public)s")
+            }
+        }
+    }
+
+    func cancelPreheat() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.preheatNotificationId])
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.preheatNotificationId])
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     nonisolated func userNotificationCenter(
@@ -97,8 +146,29 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // App is in foreground — pill is already showing the same alert,
-        // banner would be redundant noise. Suppress.
-        completionHandler([])
+        // Preheat reminders are time-critical — show the banner even
+        // in foreground so the user can act on it immediately. Other
+        // (alert pill) notifications stay suppressed since the pill
+        // already covers the foreground case.
+        if notification.request.identifier == Self.preheatNotificationId {
+            completionHandler([.banner, .sound])
+        } else {
+            completionHandler([])
+        }
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier == Self.preheatNotificationId {
+            Task { @MainActor in
+                LocalNotificationScheduler.shared.onPreheatTapped?()
+                completionHandler()
+            }
+        } else {
+            completionHandler()
+        }
     }
 }

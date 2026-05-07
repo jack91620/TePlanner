@@ -100,6 +100,10 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/vehicles/\(vehicleId)/sentry-mode", body: Body(on: on))
     }
 
+    public func preheat(vehicleId: String) async -> Result<BaseResponse, APIError> {
+        return await post(path: "/vehicles/\(vehicleId)/preheat")
+    }
+
     // MARK: - Charging stations
 
     public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {

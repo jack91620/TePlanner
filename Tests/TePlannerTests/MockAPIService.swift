@@ -152,6 +152,16 @@ final class MockAPIService: APIServiceProtocol {
         return mockSetSentryModeResponse ?? .success(BaseResponse(success: true, message: "ok"))
     }
 
+    var mockPreheatResponse: Result<BaseResponse, APIError>!
+    var preheatCallCount = 0
+    var lastPreheatVehicleId: String?
+
+    func preheat(vehicleId: String) async -> Result<BaseResponse, APIError> {
+        preheatCallCount += 1
+        lastPreheatVehicleId = vehicleId
+        return mockPreheatResponse ?? .success(BaseResponse(success: true, message: "ok"))
+    }
+
     func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
         stationDetailCallCount += 1
         return mockStationDetailResponse

@@ -368,6 +368,38 @@ async def set_sentry_mode(
         )
 
 
+@router.post("/{vehicle_id}/preheat")
+async def preheat_vehicle(
+    vehicle_id: str,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+):
+    """Start the vehicle's HVAC (a.k.a. auto-conditioning) so the
+    cabin is at temperature when the user arrives.
+
+    Used by the iOS Phase 5.5 出发前预热 feature: a scheduled local
+    notification fires N minutes before departure, the user taps it
+    to open the app, and the app POSTs here. Target temperature is
+    whatever the car already has cached (Tesla doesn't expose a way
+    to override it without dragging in set_temps which we treat as
+    out-of-scope for this slice).
+    """
+    try:
+        async with tesla_client:
+            await tesla_client.auto_conditioning_start(vehicle_id)
+            return {"success": True, "message": "Preheat started"}
+    except TeslaVehicleOfflineError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vehicle is offline. Please wake up the vehicle first.",
+        )
+    except TeslaAPIError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=f"Tesla API error: {str(e)}",
+        )
+
+
 @router.post("/{vehicle_id}/navigate")
 async def navigate_vehicle(
     vehicle_id: str,
