@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # 等）。Tesla 已废弃直接 REST 命令端点，所有命令必须经 partner key
     # 签名。Proxy 本地侦听 127.0.0.1:4443，自签 TLS。
     TESLA_VEHICLE_COMMAND_PROXY_URL: str = "https://127.0.0.1:4443"
+
+    # AMap Web Service (高德 Web 服务) —— used by the backend for
+    # geocoding / driving routes / nearby + along-route POI search.
+    # Replaces Tencent map services so the project depends on a single
+    # map vendor across iOS SDK + backend.
+    AMAP_WEB_API_KEY: str = ""
     TESLA_CLIENT_ID: str = ""
     TESLA_CLIENT_SECRET: str = ""
     TESLA_TOKEN_ENCRYPTION_KEY: str = ""
@@ -49,7 +55,11 @@ class Settings(BaseSettings):
     # Tencent Map API
     TENCENT_MAP_KEY: str = ""
     TENCENT_MAP_SECRET: str = ""
-    TENCENT_MAP_API_KEY: str = ""  # Alias for TENCENT_MAP_KEY
+    # TENCENT_MAP_API_KEY removed in Phase 8.1 — backend migrated to AMap
+    # Web Service. Kept as no-op str so Pydantic doesn't choke on
+    # legacy `.env` entries while we phase them out, but no code
+    # reads it any more.
+    TENCENT_MAP_API_KEY: str = ""
 
     # WeChat
     WECHAT_APP_ID: str = ""

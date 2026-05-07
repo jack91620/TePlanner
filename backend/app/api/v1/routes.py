@@ -12,7 +12,7 @@ from app.core.deps import get_current_user, get_current_user_optional, get_db, g
 from app.db.models import RoutePlan, User, Vehicle
 from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
-from app.integrations.tencent_map.client import TencentMapClient
+from app.integrations.amap.web_client import AmapWebClient as TencentMapClient
 from app.services.route_planner import RoutePlanner
 
 router = APIRouter()
@@ -606,8 +606,8 @@ async def search_places(
     """
     from app.config import settings
 
-    # Check if API key is configured
-    if not settings.TENCENT_MAP_KEY and not settings.TENCENT_MAP_API_KEY:
+    # Check if AMap Web Service key is configured (Phase 8.1).
+    if not settings.AMAP_WEB_API_KEY:
         return {"results": []}
 
     try:

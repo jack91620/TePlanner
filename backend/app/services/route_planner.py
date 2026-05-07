@@ -3,7 +3,7 @@
 import math
 from typing import List, Optional, Tuple
 
-from app.integrations.tencent_map.client import TencentMapClient
+from app.integrations.amap.web_client import AmapWebClient as TencentMapClient
 from app.services.energy_model import EnergyModel
 
 

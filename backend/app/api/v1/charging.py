@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 
-from app.integrations.tencent_map.client import TencentMapClient
+from app.integrations.amap.web_client import AmapWebClient as TencentMapClient
 
 router = APIRouter()
 
@@ -138,8 +138,8 @@ async def search_nearby_stations(
     """
     from app.config import settings
 
-    # Check if API key is configured
-    if not settings.TENCENT_MAP_KEY and not settings.TENCENT_MAP_API_KEY:
+    # Check if AMap Web Service key is configured (Phase 8.1).
+    if not settings.AMAP_WEB_API_KEY:
         # Return empty result if no API key
         return StationSearchResponse(count=0, stations=[])
 
