@@ -62,6 +62,22 @@ final class MockAPIService: APIServiceProtocol {
         return mockRoutePlanResponse
     }
 
+    var mockRouteOnlyResponse: Result<RouteOnlyResponse, APIError>!
+    var routeOnlyCallCount = 0
+    func routeOnly(origin: LocationInput, destination: LocationInput) async -> Result<RouteOnlyResponse, APIError> {
+        routeOnlyCallCount += 1
+        return mockRouteOnlyResponse ?? .failure(.invalidResponse)
+    }
+
+    var mockChargingPlanResponse: Result<ChargingPlanResponse, APIError>!
+    var chargingPlanCallCount = 0
+    var lastChargingPlanRequest: ChargingPlanRequest?
+    func chargingPlan(_ request: ChargingPlanRequest) async -> Result<ChargingPlanResponse, APIError> {
+        chargingPlanCallCount += 1
+        lastChargingPlanRequest = request
+        return mockChargingPlanResponse ?? .failure(.invalidResponse)
+    }
+
     func geocode(address: String) async -> Result<GeocodeResponse, APIError> {
         geocodeCallCount += 1
         return mockGeocodeResponse

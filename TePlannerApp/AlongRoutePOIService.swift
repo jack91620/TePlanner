@@ -16,7 +16,7 @@ import TePlannerKit
 /// 因此对长途路线要分段（~50km / 段，留余量）。每段一次 SDK 调用，
 /// 合并去重（POI 用 `uid` 唯一）。
 @MainActor
-final class AlongRoutePOIService: NSObject {
+final class AlongRoutePOIService: NSObject, AlongRoutePOIProvider, @unchecked Sendable {
     private let api: AMapSearchAPI
     private var continuations: [ObjectIdentifier: CheckedContinuation<[AMapRoutePOI], Error>] = [:]
 
@@ -33,14 +33,15 @@ final class AlongRoutePOIService: NSObject {
         self.api.delegate = self
     }
 
-    /// 输入一条完整路线的 (lat, lng) polyline，返回沿途所有充电站
-    /// POI（已去重）。出错时抛出。
+    /// 输入一条完整路线的 polyline (Coordinate 数组)，返回沿途所有
+    /// 充电站 POI（已去重）。出错时抛出。
     func searchChargingStations(
-        polyline: [(Double, Double)]
+        polyline: [Coordinate]
     ) async throws -> [AlongRoutePOI] {
         guard !polyline.isEmpty else { return [] }
 
-        let chunks = Self.chunk(polyline: polyline, maxKm: chunkKmLimit)
+        let tuples = polyline.map { ($0.latitude, $0.longitude) }
+        let chunks = Self.chunk(polyline: tuples, maxKm: chunkKmLimit)
         Log.app.notice("alongby: \(chunks.count, privacy: .public) chunks for \(polyline.count, privacy: .public)-pt polyline")
 
         var seen: [String: AlongRoutePOI] = [:]
@@ -157,15 +158,4 @@ extension AlongRoutePOIService: AMapSearchDelegate {
 
 enum AlongRoutePOIError: Error {
     case unknown
-}
-
-/// Decoupled-from-SDK POI shape we hand to the rest of the app.
-struct AlongRoutePOI: Equatable {
-    let id: String
-    let name: String
-    let latitude: Double
-    let longitude: Double
-    /// 用户起点经过该 POI 再到终点的累计米数。SDK 内部按路线投影
-    /// 计算，比直线距离更接近实际驾驶距离。可能为 0（SDK 未返回）。
-    let routeDistanceMeters: Int
 }

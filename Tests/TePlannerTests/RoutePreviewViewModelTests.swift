@@ -8,8 +8,35 @@ final class RoutePreviewViewModelTests: XCTestCase {
         POIResult(id: "p1", name: "故宫", address: "景山前街4号", latitude: 39.916, longitude: 116.397)
     }
 
-    private func makePlan(stops: Int = 1) -> RoutePlanResponse {
-        let chargingStops: [ChargingStop] = (0..<stops).map {
+    private func origin() -> LocationInput {
+        LocationInput(latitude: 39.9, longitude: 116.3, address: nil)
+    }
+
+    /// 8.2 orchestration test fixture: stub /routes/route, the SDK
+    /// alongby provider, and /routes/charging-plan in a single call
+    /// so each test can opt into success/failure on each step.
+    private func wireMock(
+        mock: MockAPIService,
+        routeStops: Int = 2,
+        chargingStops: Int = 2,
+        routeFails: Bool = false,
+        chargingFails: Bool = false,
+        chargingFailsMessage: String = ""
+    ) {
+        mock.mockRouteOnlyResponse = routeFails
+            ? .failure(.serverError(statusCode: 503, message: "no network"))
+            : .success(RouteOnlyResponse(
+                origin: LocationDetail(lat: 39.9, lng: 116.3, name: "起点"),
+                destination: LocationDetail(lat: 39.916, lng: 116.397, name: "故宫"),
+                totalDistanceKm: 120,
+                drivingDurationMinutes: 120,
+                polyline: [
+                    Coordinate(latitude: 39.9, longitude: 116.3),
+                    Coordinate(latitude: 39.916, longitude: 116.397),
+                ]
+            ))
+
+        let stops: [ChargingStop] = (0..<chargingStops).map {
             ChargingStop(
                 stationId: "s\($0)",
                 name: "充电站\($0)",
@@ -23,22 +50,31 @@ final class RoutePreviewViewModelTests: XCTestCase {
                 chargingDurationMinutes: 30
             )
         }
-        return RoutePlanResponse(
-            routeId: 42,
-            origin: LocationDetail(lat: 39.9, lng: 116.3, name: "起点"),
-            destination: LocationDetail(lat: 39.916, lng: 116.397, name: "故宫"),
-            totalDistanceKm: 120.0,
-            totalDurationMinutes: 150,
-            drivingDurationMinutes: 120,
-            chargingDurationMinutes: 30,
-            chargingStops: chargingStops,
-            numChargingStops: stops,
-            initialSoc: 60,
-            arrivalSoc: 35,
-            polyline: [Coordinate(latitude: 39.9, longitude: 116.3),
-                       Coordinate(latitude: 39.916, longitude: 116.397)],
-            warnings: []
-        )
+        mock.mockChargingPlanResponse = chargingFails
+            ? .failure(.serverError(statusCode: 500, message: chargingFailsMessage))
+            : .success(ChargingPlanResponse(
+                chargingStops: stops,
+                numChargingStops: stops.count,
+                chargingDurationMinutes: 30 * stops.count,
+                arrivalSoc: 35,
+                warnings: []
+            ))
+    }
+
+    /// In-memory POI provider for tests — no SDK dependency.
+    private final class StubPOIProvider: AlongRoutePOIProvider, @unchecked Sendable {
+        var pois: [AlongRoutePOI]
+        var error: Error?
+        var callCount = 0
+        init(pois: [AlongRoutePOI] = [], error: Error? = nil) {
+            self.pois = pois
+            self.error = error
+        }
+        func searchChargingStations(polyline: [Coordinate]) async throws -> [AlongRoutePOI] {
+            callCount += 1
+            if let error { throw error }
+            return pois
+        }
     }
 
     func testInitialStateIsLoading() {
@@ -56,11 +92,15 @@ final class RoutePreviewViewModelTests: XCTestCase {
 
     func testLoadSuccessPopulatesPlan() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .success(makePlan(stops: 2))
+        wireMock(mock: mock)
+        let stub = StubPOIProvider(pois: [
+            AlongRoutePOI(id: "x1", name: "服务区充电站", latitude: 39.91, longitude: 116.35),
+        ])
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: stub,
             destination: makePOI(),
-            origin: LocationInput(latitude: 39.9, longitude: 116.3, address: nil),
+            origin: origin(),
             currentSoc: 60,
             vehicleId: "v1"
         )
@@ -68,22 +108,25 @@ final class RoutePreviewViewModelTests: XCTestCase {
         await vm.load()
 
         if case .loaded(let plan) = vm.state {
-            XCTAssertEqual(plan.routeId, 42)
             XCTAssertEqual(plan.numChargingStops, 2)
+            XCTAssertEqual(plan.totalDistanceKm, 120)
         } else {
             XCTFail("expected .loaded, got \(vm.state)")
         }
-        XCTAssertEqual(mock.planRouteCallCount, 1)
+        XCTAssertEqual(mock.routeOnlyCallCount, 1)
+        XCTAssertEqual(stub.callCount, 1, "iOS SDK alongby must be called between route + charging-plan")
+        XCTAssertEqual(mock.chargingPlanCallCount, 1)
     }
 
     func testOnPlanLoadedCallbackFiresOnSuccess() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .success(makePlan(stops: 1))
+        wireMock(mock: mock, chargingStops: 1)
         var received: RoutePlanResponse?
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 60,
             vehicleId: "v1",
             onPlanLoaded: { received = $0 }
@@ -91,18 +134,18 @@ final class RoutePreviewViewModelTests: XCTestCase {
 
         await vm.load()
 
-        XCTAssertEqual(received?.routeId, 42)
         XCTAssertEqual(received?.numChargingStops, 1)
     }
 
-    func testOnPlanLoadedCallbackSkippedOnFailure() async {
+    func testOnPlanLoadedCallbackSkippedOnRouteFailure() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .failure(.serverError(statusCode: 500, message: "boom"))
+        wireMock(mock: mock, routeFails: true)
         var fired = false
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 60,
             vehicleId: "v1",
             onPlanLoaded: { _ in fired = true }
@@ -111,15 +154,18 @@ final class RoutePreviewViewModelTests: XCTestCase {
         await vm.load()
 
         XCTAssertFalse(fired, "callback should not fire on failure")
+        XCTAssertEqual(mock.chargingPlanCallCount, 0,
+                       "charging-plan must not be called when /routes/route fails")
     }
 
-    func testLoadFailureMapsToError() async {
+    func testRouteFailureMapsToError() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .failure(.serverError(statusCode: 503, message: "no network"))
+        wireMock(mock: mock, routeFails: true)
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 80,
             vehicleId: nil
         )
@@ -133,14 +179,67 @@ final class RoutePreviewViewModelTests: XCTestCase {
         }
     }
 
+    func testPOIProviderFailureMapsToError() async {
+        // Phase 8.2 fail-fast: SDK alongby errors propagate to the
+        // user instead of silently falling back to backend sampling.
+        let mock = MockAPIService()
+        wireMock(mock: mock)
+        struct AlongbyFailure: Error, LocalizedError {
+            var errorDescription: String? { "SDK timeout" }
+        }
+        let stub = StubPOIProvider(error: AlongbyFailure())
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            poiProvider: stub,
+            destination: makePOI(),
+            origin: origin(),
+            currentSoc: 60,
+            vehicleId: "v1"
+        )
+
+        await vm.load()
+
+        if case .error(let msg) = vm.state {
+            XCTAssertTrue(msg.contains("SDK timeout") || msg.contains("沿途"))
+        } else {
+            XCTFail("expected .error from SDK failure, got \(vm.state)")
+        }
+        XCTAssertEqual(mock.chargingPlanCallCount, 0, "charging-plan skipped on alongby fail")
+    }
+
+    func testNoOriginFailsFast() async {
+        // No vehicle position → can't compute a route. Don't even hit
+        // the API; surface a clear error.
+        let mock = MockAPIService()
+        wireMock(mock: mock)
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            poiProvider: StubPOIProvider(),
+            destination: makePOI(),
+            origin: nil,
+            currentSoc: 60,
+            vehicleId: "v1"
+        )
+
+        await vm.load()
+
+        if case .error(let msg) = vm.state {
+            XCTAssertTrue(msg.contains("车辆位置"))
+        } else {
+            XCTFail("expected .error, got \(vm.state)")
+        }
+        XCTAssertEqual(mock.routeOnlyCallCount, 0)
+    }
+
     func testSendToVehicleHappyPath() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .success(makePlan())
+        wireMock(mock: mock)
         mock.mockSendNavigationResponse = .success(BaseResponse(success: true, message: "ok"))
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 50,
             vehicleId: "366691338664104"
         )
@@ -153,11 +252,12 @@ final class RoutePreviewViewModelTests: XCTestCase {
 
     func testSendToVehicleWithoutVehicleIdFails() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .success(makePlan())
+        wireMock(mock: mock)
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 50,
             vehicleId: nil
         )
@@ -173,12 +273,13 @@ final class RoutePreviewViewModelTests: XCTestCase {
 
     func testSendFailureSurfacesMessage() async {
         let mock = MockAPIService()
-        mock.mockRoutePlanResponse = .success(makePlan())
+        wireMock(mock: mock)
         mock.mockSendNavigationResponse = .failure(.serverError(statusCode: 503, message: "vehicle offline"))
         let vm = RoutePreviewViewModel(
             apiService: mock,
+            poiProvider: StubPOIProvider(),
             destination: makePOI(),
-            origin: nil,
+            origin: origin(),
             currentSoc: 50,
             vehicleId: "v1"
         )

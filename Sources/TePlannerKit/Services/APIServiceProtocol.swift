@@ -42,6 +42,12 @@ public enum APIError: LocalizedError {
 public protocol APIServiceProtocol {
     // Routes / geocoding (existing)
     func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError>
+    /// Phase 8.2: route metadata only (polyline + distance). Used by
+    /// the iOS-orchestrated flow alongside /routes/charging-plan.
+    func routeOnly(origin: LocationInput, destination: LocationInput) async -> Result<RouteOnlyResponse, APIError>
+    /// Phase 8.2: greedy charging-stop selection over caller-provided
+    /// POIs (typically from AMap iOS SDK along-route search).
+    func chargingPlan(_ request: ChargingPlanRequest) async -> Result<ChargingPlanResponse, APIError>
     func geocode(address: String) async -> Result<GeocodeResponse, APIError>
     func reverseGeocode(latitude: Double, longitude: Double) async -> Result<ReverseGeocodeResponse, APIError>
 

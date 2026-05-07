@@ -34,6 +34,15 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/routes/plan", body: body)
     }
 
+    public func routeOnly(origin: LocationInput, destination: LocationInput) async -> Result<RouteOnlyResponse, APIError> {
+        let body = RouteOnlyRequest(origin: origin, destination: destination)
+        return await postJSON(path: "/routes/route", body: body)
+    }
+
+    public func chargingPlan(_ request: ChargingPlanRequest) async -> Result<ChargingPlanResponse, APIError> {
+        return await postJSON(path: "/routes/charging-plan", body: request)
+    }
+
     public func geocode(address: String) async -> Result<GeocodeResponse, APIError> {
         return await postJSON(path: "/routes/geocode", body: GeocodeRequest(address: address))
     }

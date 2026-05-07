@@ -15,6 +15,7 @@ struct MapHomeView: View {
     @State private var currentRoute: RoutePlanResponse?
     @State private var recenterToken: Int = 0
     @State private var showingPlanningSettings = false
+    private let alongRoutePOIService = AlongRoutePOIService()
 
     init(
         apiService: APIServiceProtocol,
@@ -126,6 +127,7 @@ struct MapHomeView: View {
             .sheet(item: $pendingDestination) { destination in
                 RoutePreviewView(
                     apiService: apiService,
+                    poiProvider: alongRoutePOIService,
                     destination: destination,
                     origin: viewModel.coordinate.map {
                         LocationInput(latitude: $0.latitude, longitude: $0.longitude, address: nil)

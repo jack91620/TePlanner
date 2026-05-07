@@ -1,10 +1,18 @@
 import Foundation
 
-/// Drives the route preview sheet that appears after the user picks a
-/// destination in SearchView. On init it fires the backend route plan
-/// (origin = current vehicle coordinate, destination = picked POI) and
-/// exposes a state machine the view consumes; the user can then push
-/// the plan to the car via "send to vehicle".
+/// Drives the route preview sheet that appears after the user picks
+/// a destination in SearchView.
+///
+/// Phase 8.2 orchestration: backend no longer does along-route POI
+/// search itself (the Web Service `place/around` sampling can't pin
+/// stations to actual highways). Instead the VM runs a 3-step flow:
+///
+/// 1. POST /routes/route → polyline + distance + duration
+/// 2. AlongRoutePOIProvider (AMap iOS SDK 沿途搜索) → road-corridor POIs
+/// 3. POST /routes/charging-plan with those POIs → greedy charging stops
+///
+/// Steps merged into `RoutePlanResponse`-shape so downstream UI
+/// (RoutePreviewView) doesn't need changes.
 @MainActor
 public final class RoutePreviewViewModel: ObservableObject {
     public enum State: Equatable {
@@ -35,6 +43,7 @@ public final class RoutePreviewViewModel: ObservableObject {
     public let destination: POIResult
 
     private let apiService: APIServiceProtocol
+    private let poiProvider: AlongRoutePOIProvider?
     private let origin: LocationInput?
     private let currentSoc: Int?
     private let vehicleId: String?
@@ -42,6 +51,7 @@ public final class RoutePreviewViewModel: ObservableObject {
 
     public init(
         apiService: APIServiceProtocol,
+        poiProvider: AlongRoutePOIProvider? = nil,
         destination: POIResult,
         origin: LocationInput?,
         currentSoc: Int?,
@@ -49,6 +59,7 @@ public final class RoutePreviewViewModel: ObservableObject {
         onPlanLoaded: ((RoutePlanResponse) -> Void)? = nil
     ) {
         self.apiService = apiService
+        self.poiProvider = poiProvider
         self.destination = destination
         self.origin = origin
         self.currentSoc = currentSoc
@@ -56,8 +67,8 @@ public final class RoutePreviewViewModel: ObservableObject {
         self.onPlanLoaded = onPlanLoaded
     }
 
-    /// Fetch the route plan from the backend. Idempotent — calling
-    /// twice replaces the state with whatever the latest call resolves.
+    /// Fetch the route plan via the 3-step orchestration. Idempotent
+    /// — calling twice replaces the state.
     public func load() async {
         state = .loading
         Log.search.notice("plan route to \(self.destination.name, privacy: .public) (lat=\(self.destination.latitude, privacy: .public), lng=\(self.destination.longitude, privacy: .public))")
@@ -66,20 +77,76 @@ public final class RoutePreviewViewModel: ObservableObject {
             longitude: destination.longitude,
             address: destination.address.isEmpty ? destination.name : destination.address
         )
-        let result = await apiService.planRoute(
-            origin: origin,
-            destination: dest,
-            currentSoc: currentSoc
-        )
-        switch result {
-        case .success(let plan):
-            Log.search.notice("plan ok (route_id=\(plan.routeId ?? -1, privacy: .public), stops=\(plan.numChargingStops, privacy: .public), \(plan.totalDistanceKm, privacy: .public) km)")
-            state = .loaded(plan)
-            onPlanLoaded?(plan)
-        case .failure(let error):
-            Log.search.error("plan failed: \(error.localizedDescription, privacy: .public)")
-            state = .error(error.localizedDescription)
+        guard let origin else {
+            // No origin = no vehicle position. Without it /routes/route
+            // can't compute a polyline, so fail-fast with a clear message.
+            state = .error("无法获取车辆位置")
+            return
         }
+
+        // Step 1: route metadata
+        let routeResult = await apiService.routeOnly(origin: origin, destination: dest)
+        let route: RouteOnlyResponse
+        switch routeResult {
+        case .success(let r): route = r
+        case .failure(let err):
+            Log.search.error("route fetch failed: \(err.localizedDescription, privacy: .public)")
+            state = .error(err.localizedDescription)
+            return
+        }
+
+        // Step 2: along-route POI (iOS SDK). nil provider = treat as
+        // empty — backend will return a fail-fast warning rather than
+        // silently sample.
+        var pois: [AlongRoutePOI] = []
+        if let poiProvider {
+            do {
+                pois = try await poiProvider.searchChargingStations(polyline: route.polyline)
+                Log.search.notice("alongby SDK returned \(pois.count, privacy: .public) POIs")
+            } catch {
+                Log.search.error("alongby SDK failed: \(error.localizedDescription, privacy: .public)")
+                state = .error("沿途充电站搜索失败：\(error.localizedDescription)")
+                return
+            }
+        }
+
+        // Step 3: greedy charging plan
+        let planRequest = ChargingPlanRequest(
+            polyline: route.polyline.map { [$0.latitude, $0.longitude] },
+            totalDistanceKm: route.totalDistanceKm,
+            candidatePois: pois,
+            initialSoc: currentSoc ?? 80,
+            minArrivalSoc: 20
+        )
+        let planResult = await apiService.chargingPlan(planRequest)
+        let plan: ChargingPlanResponse
+        switch planResult {
+        case .success(let p): plan = p
+        case .failure(let err):
+            Log.search.error("charging-plan failed: \(err.localizedDescription, privacy: .public)")
+            state = .error(err.localizedDescription)
+            return
+        }
+
+        // Merge into RoutePlanResponse-shape for the existing UI.
+        let merged = RoutePlanResponse(
+            routeId: nil,
+            origin: route.origin,
+            destination: route.destination,
+            totalDistanceKm: route.totalDistanceKm,
+            totalDurationMinutes: route.drivingDurationMinutes + plan.chargingDurationMinutes,
+            drivingDurationMinutes: route.drivingDurationMinutes,
+            chargingDurationMinutes: plan.chargingDurationMinutes,
+            chargingStops: plan.chargingStops,
+            numChargingStops: plan.numChargingStops,
+            initialSoc: currentSoc ?? 80,
+            arrivalSoc: plan.arrivalSoc,
+            polyline: route.polyline,
+            warnings: plan.warnings
+        )
+        Log.search.notice("plan ok (stops=\(merged.numChargingStops, privacy: .public), \(merged.totalDistanceKm, privacy: .public) km)")
+        state = .loaded(merged)
+        onPlanLoaded?(merged)
     }
 
     /// Push the planned destination to the bound vehicle's nav system.

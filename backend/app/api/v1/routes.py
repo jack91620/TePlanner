@@ -322,9 +322,11 @@ async def route_only(request: RouteOnlyRequest):
                 origin=(request.origin.latitude, request.origin.longitude),
                 destination=(request.destination.latitude, request.destination.longitude),
             )
+        # Match legacy /routes/plan output shape — iOS Coordinate
+        # decoder reads {"latitude": ..., "longitude": ...}.
         polyline = [
-            {"lat": pt[0], "lng": pt[1]} if isinstance(pt, (list, tuple)) else pt
-            for pt in result.polyline
+            {"latitude": pt[0], "longitude": pt[1]}
+            for pt in (result.polyline or [])
         ]
         return RouteOnlyResponse(
             origin={

@@ -11,6 +11,7 @@ struct RoutePreviewView: View {
 
     init(
         apiService: APIServiceProtocol,
+        poiProvider: AlongRoutePOIProvider,
         destination: POIResult,
         origin: LocationInput?,
         currentSoc: Int?,
@@ -19,6 +20,7 @@ struct RoutePreviewView: View {
     ) {
         _viewModel = StateObject(wrappedValue: RoutePreviewViewModel(
             apiService: apiService,
+            poiProvider: poiProvider,
             destination: destination,
             origin: origin,
             currentSoc: currentSoc,
