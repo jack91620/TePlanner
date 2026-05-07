@@ -119,6 +119,7 @@ final class InMemorySettingsStore: SettingsStore {
     var chargeCompleteReminderEnabled: Bool = true
     var dailyChargeLimitSoc: Int = 70
     var tripChargeLimitSoc: Int = 90
+    var hasPromptedVCPPairing: Bool = false
 
     func reset() {
         teslaLinked = false
@@ -132,5 +133,6 @@ final class InMemorySettingsStore: SettingsStore {
         chargeCompleteReminderEnabled = true
         dailyChargeLimitSoc = 70
         tripChargeLimitSoc = 90
+        hasPromptedVCPPairing = false
     }
 }

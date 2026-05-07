@@ -27,6 +27,8 @@ struct HubView: View {
     @State private var alertActionError: String?
     @State private var preheatStatus: PreheatStatus = .idle
     @State private var chargeLimitStatus: ChargeLimitStatus = .idle
+    @State private var showingPairingPrompt = false
+    @Environment(\.openURL) private var openURL
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -126,6 +128,10 @@ struct HubView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button("配对车辆控制", systemImage: "key.fill") {
+                        openVCPPairingURL()
+                    }
+                    Divider()
                     Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
                         authSession.logout()
                     }
@@ -148,6 +154,7 @@ struct HubView: View {
                 triggerPreheat()
             }
             viewModel.startPolling()
+            promptVCPPairingIfNeeded()
         }
         .onDisappear { viewModel.stopPolling() }
         .onChange(of: scenePhase) { _, newPhase in
@@ -162,6 +169,7 @@ struct HubView: View {
             automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
             chargingTracker.observe(newState, locationName: viewModel.locationName)
             statsViewModel.refresh()
+            promptVCPPairingIfNeeded()
         }
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
@@ -222,6 +230,31 @@ struct HubView: View {
         } message: {
             Text(alertActionError ?? "")
         }
+        .alert("配对车辆控制", isPresented: $showingPairingPrompt) {
+            Button("立即配对") { openVCPPairingURL() }
+            Button("稍后再说", role: .cancel) {}
+        } message: {
+            Text("为了让 TePlanner 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。")
+        }
+    }
+
+    private func openVCPPairingURL() {
+        // tesla.com/_ak/<domain> 是 Tesla 官方支持的 partner-key
+        // 配对深链。在已装 Tesla App 的手机上点开会唤起 App，让用户
+        // 一次性授权我们的 partner public key（来自
+        // https://api.teplanner.cloud/.well-known/appspecific/com.tesla.3p.public-key.pem）。
+        guard let url = URL(string: "https://tesla.com/_ak/api.teplanner.cloud") else { return }
+        Log.app.notice("open VCP pairing deep-link")
+        openURL(url)
+        UserDefaultsSettingsStore.shared.hasPromptedVCPPairing = true
+    }
+
+    private func promptVCPPairingIfNeeded() {
+        guard !UserDefaultsSettingsStore.shared.hasPromptedVCPPairing else { return }
+        // Wait until we know the user actually has a Tesla vehicle
+        // before nagging — no point prompting before OAuth completes.
+        guard viewModel.vehicle != nil else { return }
+        showingPairingPrompt = true
     }
 
     private var statusCard: some View {

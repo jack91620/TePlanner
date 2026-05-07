@@ -19,6 +19,9 @@ public protocol SettingsStore: AnyObject {
     /// buffer before a planned departure (80–100%).
     var dailyChargeLimitSoc: Int { get set }
     var tripChargeLimitSoc: Int { get set }
+    /// Phase 7 (VCP): 用户是否已经被提示过配对车辆控制密钥。第一次
+    /// Tesla OAuth 完成后弹一次引导，之后不再 nag。
+    var hasPromptedVCPPairing: Bool { get set }
     func reset()
 }
 
@@ -39,6 +42,7 @@ public enum SettingsKey {
     public static let chargeCompleteReminderEnabled = "charge_complete_reminder_enabled"
     public static let dailyChargeLimitSoc = "daily_charge_limit_soc"
     public static let tripChargeLimitSoc = "trip_charge_limit_soc"
+    public static let hasPromptedVCPPairing = "has_prompted_vcp_pairing"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -117,6 +121,11 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         set { defaults.set(newValue, forKey: SettingsKey.tripChargeLimitSoc) }
     }
 
+    public var hasPromptedVCPPairing: Bool {
+        get { defaults.bool(forKey: SettingsKey.hasPromptedVCPPairing) }
+        set { defaults.set(newValue, forKey: SettingsKey.hasPromptedVCPPairing) }
+    }
+
     public func reset() {
         for key in [
             SettingsKey.teslaLinked,
@@ -130,6 +139,7 @@ public final class UserDefaultsSettingsStore: SettingsStore {
             SettingsKey.chargeCompleteReminderEnabled,
             SettingsKey.dailyChargeLimitSoc,
             SettingsKey.tripChargeLimitSoc,
+            SettingsKey.hasPromptedVCPPairing,
         ] {
             defaults.removeObject(forKey: key)
         }
