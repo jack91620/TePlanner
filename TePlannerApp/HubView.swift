@@ -14,9 +14,11 @@ import TePlannerKit
 struct HubView: View {
     @StateObject private var viewModel: HomeViewModel
     @StateObject private var automationEngine: AutomationEngine
+    @StateObject private var statsViewModel: ChargingStatsViewModel
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
+    private let chargingTracker: ChargingSessionTracker
     @State private var showingSettings = false
     @State private var showingUnbindConfirm = false
     @State private var unbindError: String?
@@ -37,6 +39,8 @@ struct HubView: View {
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
+        _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel())
+        self.chargingTracker = ChargingSessionTracker()
         self.apiService = apiService
         self.authSession = authSession
     }
@@ -95,7 +99,7 @@ struct HubView: View {
                     HubEntryCard(
                         icon: "chart.bar.fill",
                         title: "充电统计",
-                        subtitle: "敬请期待",
+                        subtitle: statsSubtitle,
                         accessibilityId: "hub_entry_stats"
                     )
                 }
@@ -127,17 +131,23 @@ struct HubView: View {
         .task {
             await viewModel.load()
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
+            chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
+            statsViewModel.refresh()
             viewModel.startPolling()
         }
         .onDisappear { viewModel.stopPolling() }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
-            case .active: viewModel.startPolling()
+            case .active:
+                viewModel.startPolling()
+                statsViewModel.refresh()
             default: viewModel.stopPolling()
             }
         }
         .onChange(of: viewModel.vehicleState) { _, newState in
             automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
+            chargingTracker.observe(newState, locationName: viewModel.locationName)
+            statsViewModel.refresh()
         }
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
@@ -260,6 +270,13 @@ struct HubView: View {
         case "Disconnected": return "在线"
         default: return "在线"
         }
+    }
+
+    private var statsSubtitle: String {
+        if statsViewModel.hasAnyData {
+            return "本月 \(statsViewModel.monthlyCount) 次充电"
+        }
+        return "暂无记录"
     }
 
     /// "X 条已启用" — count rules whose threshold settings are non-zero
