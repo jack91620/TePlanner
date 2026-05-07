@@ -11,6 +11,7 @@ public final class AuthSession: ObservableObject {
 
     private let secureStorage: SecureStorage
     private let settings: SettingsStore
+    private var unauthorizedObserver: NSObjectProtocol?
 
     public init(
         secureStorage: SecureStorage = KeychainStorage.shared,
@@ -19,6 +20,24 @@ public final class AuthSession: ObservableObject {
         self.secureStorage = secureStorage
         self.settings = settings
         self.isLoggedIn = Self.computeLoggedIn(secureStorage: secureStorage, settings: settings)
+
+        unauthorizedObserver = NotificationCenter.default.addObserver(
+            forName: APIService.unauthorizedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isLoggedIn else { return }
+                Log.auth.notice("session token rejected (401) — forcing logout")
+                self.logout()
+            }
+        }
+    }
+
+    nonisolated deinit {
+        if let unauthorizedObserver {
+            NotificationCenter.default.removeObserver(unauthorizedObserver)
+        }
     }
 
     public var authToken: String? { secureStorage.authToken }

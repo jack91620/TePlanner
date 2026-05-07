@@ -3,6 +3,11 @@ import Foundation
 public final class APIService: APIServiceProtocol {
     public static let shared = APIService(baseURL: APIService.bundleBackendURL ?? "http://127.0.0.1:8000/api/v1")
 
+    /// Posted whenever the backend rejects our session token (HTTP 401).
+    /// AuthSession listens for this and forces a logout so the user is
+    /// kicked back to LoginView instead of staring at silent failures.
+    public static let unauthorizedNotification = Notification.Name("APIServiceUnauthorized")
+
     private let baseURL: String
     private let session: URLSession
     private let encoder: JSONEncoder
@@ -202,6 +207,9 @@ public final class APIService: APIServiceProtocol {
             guard (200...299).contains(http.statusCode) else {
                 let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
                 Log.api.error("server error \(http.statusCode) on \(path, privacy: .public): \(bodyPreview, privacy: .public)")
+                if http.statusCode == 401 {
+                    NotificationCenter.default.post(name: APIService.unauthorizedNotification, object: nil)
+                }
                 let message = String(data: data, encoding: .utf8) ?? "Unknown server error"
                 return .failure(.serverError(statusCode: http.statusCode, message: message))
             }
