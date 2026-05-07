@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -38,9 +39,34 @@ async def lifespan(app: FastAPI):
     from app.db import init_db
     await init_db()
     print("Database initialized.")
+
+    polling_task = None
+    polling_stop = None
+    if settings.AUTOMATION_POLL_INTERVAL_SECONDS > 0:
+        from app.services.polling import polling_loop
+
+        polling_stop = asyncio.Event()
+        polling_task = asyncio.create_task(
+            polling_loop(polling_stop), name="automation_polling"
+        )
+        print(
+            f"Automation polling loop started "
+            f"(interval={settings.AUTOMATION_POLL_INTERVAL_SECONDS}s)."
+        )
+    else:
+        print("Automation polling disabled (AUTOMATION_POLL_INTERVAL_SECONDS=0).")
+
     yield
+
     # Shutdown
     print(f"Shutting down {settings.APP_NAME}...")
+    if polling_stop is not None:
+        polling_stop.set()
+    if polling_task is not None:
+        try:
+            await asyncio.wait_for(polling_task, timeout=10.0)
+        except asyncio.TimeoutError:
+            polling_task.cancel()
 
 
 app = FastAPI(

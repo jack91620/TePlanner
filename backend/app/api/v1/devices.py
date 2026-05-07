@@ -107,3 +107,17 @@ async def test_push(
             failed += 1
 
     return {"devices": len(tokens), "sent": sent, "failed": failed}
+
+
+@router.post("/run-automation-tick")
+async def run_automation_tick(
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Trigger a single polling tick on demand. Used for end-to-end
+    debugging: hit this, watch server.log, verify a push lands. Doesn't
+    take args — runs the full eligible-user loop.
+    """
+    from app.services.polling import run_one_tick
+
+    polled = await run_one_tick()
+    return {"polled_users": polled}

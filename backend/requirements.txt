@@ -27,7 +27,7 @@ cryptography==41.0.7
 redis==5.0.1
 
 # Push notifications (APNs)
-aioapns==3.4
+aioapns==3.3.1
 
 # Utils
 python-dotenv==1.0.0

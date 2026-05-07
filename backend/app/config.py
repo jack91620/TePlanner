@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Automation polling loop. Every N seconds the backend pulls fresh
+    # vehicle state for users that have both a Tesla token and a
+    # registered APNs device, runs the rules engine, and fires pushes
+    # on transitions. 0 disables the loop entirely (handy for tests
+    # and migrations).
+    AUTOMATION_POLL_INTERVAL_SECONDS: int = 300  # 5min default
+
     # APNs (Apple Push Notification service)
     # Path to .p8 auth key downloaded from developer.apple.com
     # (Keys → Apple Push Notifications service). Empty disables push.
