@@ -14,11 +14,17 @@ import TePlannerKit
 /// > 索结果为空
 ///
 /// 因此对长途路线要分段（~50km / 段，留余量）。每段一次 SDK 调用，
-/// 合并去重（POI 用 `uid` 唯一）。
+/// **并行**发出（一条 1000km 路线串行要 20+ 次往返；并行下来一两秒
+/// 全部回来）。每段加超时（15s），一段卡住不会拖垮整条路线。
 @MainActor
 final class AlongRoutePOIService: NSObject, AlongRoutePOIProvider, @unchecked Sendable {
     private let api: AMapSearchAPI
-    private var continuations: [ObjectIdentifier: CheckedContinuation<[AMapRoutePOI], Error>] = [:]
+    private var pending: [ObjectIdentifier: PendingChunk] = [:]
+
+    private struct PendingChunk {
+        let request: AMapRoutePOISearchRequest
+        let cont: CheckedContinuation<[AMapRoutePOI], Error>
+    }
 
     /// 单段最大里程，留 20km 余量到 SDK 70km 上限。
     private let chunkKmLimit: Double = 50
@@ -26,6 +32,10 @@ final class AlongRoutePOIService: NSObject, AlongRoutePOIProvider, @unchecked Se
     /// 道路周围搜索范围（米）。SDK 范围 0–500，默认 250；用 500 兜
     /// 高速服务区可能稍微偏离主路的情况。
     private let corridorRange: Int = 500
+
+    /// 单次 chunk SDK 调用的超时时间。一段正常返回应在 1-3s 之内；
+    /// 给到 15s 容忍弱网，超过这个时间认为 SDK 卡死了。
+    private let chunkTimeout: TimeInterval = 15
 
     override init() {
         self.api = AMapSearchAPI()
@@ -42,37 +52,56 @@ final class AlongRoutePOIService: NSObject, AlongRoutePOIProvider, @unchecked Se
 
         let tuples = polyline.map { ($0.latitude, $0.longitude) }
         let chunks = Self.chunk(polyline: tuples, maxKm: chunkKmLimit)
-        Log.app.notice("alongby: \(chunks.count, privacy: .public) chunks for \(polyline.count, privacy: .public)-pt polyline")
+        let started = Date()
+        Log.app.notice("alongby: \(chunks.count, privacy: .public) chunks for \(polyline.count, privacy: .public)-pt polyline (parallel)")
+
+        // Fan out all chunks at once. Fail-fast: first error cancels
+        // the rest. Any single chunk timing out throws AlongRoutePOIError.timeout.
+        let allPOIs = try await withThrowingTaskGroup(of: [AMapRoutePOI].self) { group in
+            for (index, chunk) in chunks.enumerated() {
+                group.addTask { @MainActor [self] in
+                    let chunkStart = Date()
+                    do {
+                        let result = try await searchOneChunkWithTimeout(chunk: chunk)
+                        let ms = Int(Date().timeIntervalSince(chunkStart) * 1000)
+                        Log.app.debug("alongby chunk \(index, privacy: .public) ok: \(result.count, privacy: .public) POIs in \(ms, privacy: .public)ms")
+                        return result
+                    } catch {
+                        let ms = Int(Date().timeIntervalSince(chunkStart) * 1000)
+                        Log.app.error("alongby chunk \(index, privacy: .public) failed after \(ms, privacy: .public)ms: \(error.localizedDescription, privacy: .public)")
+                        throw error
+                    }
+                }
+            }
+            var combined: [AMapRoutePOI] = []
+            for try await chunkResult in group {
+                combined.append(contentsOf: chunkResult)
+            }
+            return combined
+        }
 
         var seen: [String: AlongRoutePOI] = [:]
-        for (index, chunk) in chunks.enumerated() {
-            // fail-fast: SDK / network errors propagate. Empty per-chunk
-            // result lists are kept (a rural segment legitimately has
-            // no charging stations and shouldn't fail the route).
-            let pois: [AMapRoutePOI]
-            do {
-                pois = try await searchOneChunk(chunk: chunk)
-            } catch {
-                Log.app.error("alongby chunk \(index, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
-                throw error
-            }
-            for raw in pois {
-                let uid = raw.uid ?? ""
-                guard !uid.isEmpty, seen[uid] == nil else { continue }
-                let loc = raw.location
-                seen[uid] = AlongRoutePOI(
-                    id: uid,
-                    name: raw.name ?? "",
-                    latitude: Double(loc?.latitude ?? 0),
-                    longitude: Double(loc?.longitude ?? 0),
-                    routeDistanceMeters: raw.distance
-                )
-            }
+        for raw in allPOIs {
+            let uid = raw.uid ?? ""
+            guard !uid.isEmpty, seen[uid] == nil else { continue }
+            let loc = raw.location
+            seen[uid] = AlongRoutePOI(
+                id: uid,
+                name: raw.name ?? "",
+                latitude: Double(loc?.latitude ?? 0),
+                longitude: Double(loc?.longitude ?? 0),
+                routeDistanceMeters: raw.distance
+            )
         }
+        let totalMs = Int(Date().timeIntervalSince(started) * 1000)
+        Log.app.notice("alongby: \(chunks.count, privacy: .public) chunks → \(seen.count, privacy: .public) unique POIs in \(totalMs, privacy: .public)ms total")
         return Array(seen.values)
     }
 
-    private func searchOneChunk(
+    /// SDK call wrapped with a hard timeout. If the SDK doesn't call
+    /// back within `chunkTimeout`, we resume the continuation with a
+    /// timeout error and forget the request so a late callback is a no-op.
+    private func searchOneChunkWithTimeout(
         chunk: [(Double, Double)]
     ) async throws -> [AMapRoutePOI] {
         let request = AMapRoutePOISearchRequest()
@@ -81,11 +110,26 @@ final class AlongRoutePOIService: NSObject, AlongRoutePOIProvider, @unchecked Se
         request.polyline = chunk.map {
             AMapGeoPoint.location(withLatitude: CGFloat($0.0), longitude: CGFloat($0.1))
         }
+        let key = ObjectIdentifier(request)
 
-        return try await withCheckedThrowingContinuation { cont in
-            let key = ObjectIdentifier(request)
-            continuations[key] = cont
-            api.aMapRoutePOISearch(request)
+        let timeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(chunkTimeout * 1_000_000_000))
+            guard let self else { return }
+            if let entry = self.pending.removeValue(forKey: key) {
+                entry.cont.resume(throwing: AlongRoutePOIError.timeout)
+            }
+        }
+
+        do {
+            let result = try await withCheckedThrowingContinuation { cont in
+                pending[key] = PendingChunk(request: request, cont: cont)
+                api.aMapRoutePOISearch(request)
+            }
+            timeoutTask.cancel()
+            return result
+        } catch {
+            timeoutTask.cancel()
+            throw error
         }
     }
 
@@ -139,8 +183,8 @@ extension AlongRoutePOIService: AMapSearchDelegate {
         guard let request = request else { return }
         let key = ObjectIdentifier(request)
         Task { @MainActor in
-            guard let cont = continuations.removeValue(forKey: key) else { return }
-            cont.resume(returning: response?.pois ?? [])
+            guard let entry = pending.removeValue(forKey: key) else { return }
+            entry.cont.resume(returning: response?.pois ?? [])
         }
     }
 
@@ -150,12 +194,20 @@ extension AlongRoutePOIService: AMapSearchDelegate {
         guard let req = request as? AMapRoutePOISearchRequest else { return }
         let key = ObjectIdentifier(req)
         Task { @MainActor in
-            guard let cont = continuations.removeValue(forKey: key) else { return }
-            cont.resume(throwing: error ?? AlongRoutePOIError.unknown)
+            guard let entry = pending.removeValue(forKey: key) else { return }
+            entry.cont.resume(throwing: error ?? AlongRoutePOIError.unknown)
         }
     }
 }
 
-enum AlongRoutePOIError: Error {
+enum AlongRoutePOIError: LocalizedError {
     case unknown
+    case timeout
+
+    var errorDescription: String? {
+        switch self {
+        case .unknown: return "未知错误"
+        case .timeout: return "沿途搜索超时"
+        }
+    }
 }
