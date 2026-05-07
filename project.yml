@@ -34,6 +34,7 @@ targets:
           - Info.plist
     settings:
       base:
+        PRODUCT_NAME: TePlannerApp
         INFOPLIST_FILE: TePlannerApp/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

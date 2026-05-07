@@ -11,19 +11,23 @@ struct SettingsView: View {
     @State private var minChargingSoc: Int
     @State private var preferSupercharger: Bool
     @State private var distanceUnit: DistanceUnit
-    @State private var campModeReminderHours: Double
-    @State private var campModeReminderEnabled: Bool
     private let store: SettingsStore
+    private let automationRules: [any Automation]
 
-    init(store: SettingsStore = UserDefaultsSettingsStore.shared) {
+    init(
+        store: SettingsStore = UserDefaultsSettingsStore.shared,
+        automationRules: [any Automation] = [
+            CampModeAutomation(),
+            SentryModeAutomation(),
+            CabinOverheatAutomation(),
+        ]
+    ) {
         self.store = store
+        self.automationRules = automationRules
         _targetArrivalSoc = State(initialValue: store.targetArrivalSoc)
         _minChargingSoc = State(initialValue: store.minChargingSoc)
         _preferSupercharger = State(initialValue: store.preferSupercharger)
         _distanceUnit = State(initialValue: store.distanceUnit)
-        let mins = store.campModeReminderMinutes
-        _campModeReminderEnabled = State(initialValue: mins > 0)
-        _campModeReminderHours = State(initialValue: max(1, Double(mins) / 60.0))
     }
 
     var body: some View {
@@ -57,23 +61,24 @@ struct SettingsView: View {
                     }
                 }
                 Section {
-                    Toggle("露营模式超时提醒", isOn: $campModeReminderEnabled)
-                    if campModeReminderEnabled {
+                    NavigationLink {
+                        AutomationsListView(rules: automationRules, store: store)
+                    } label: {
                         HStack {
-                            Text("阈值")
+                            Image(systemName: "bell.badge")
+                                .foregroundStyle(.tint)
+                            Text("自动化提醒")
                             Spacer()
-                            Text("\(Int(campModeReminderHours)) 小时")
+                            Text("\(automationRules.count) 条")
                                 .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
-                        Slider(value: $campModeReminderHours, in: 1...12, step: 1) {
-                            Text("阈值")
+                                .font(.caption)
                         }
                     }
+                    .accessibilityIdentifier("automations_link")
                 } header: {
                     Text("提醒")
                 } footer: {
-                    Text("露营模式开启超过阈值时，App 会显示提醒并允许一键关闭。")
+                    Text("管理露营 / 哨兵 / 座舱过热等提醒规则。")
                 }
             }
             .navigationTitle("设置")
@@ -88,10 +93,7 @@ struct SettingsView: View {
                         store.minChargingSoc = minChargingSoc
                         store.preferSupercharger = preferSupercharger
                         store.distanceUnit = distanceUnit
-                        store.campModeReminderMinutes = campModeReminderEnabled
-                            ? Int(campModeReminderHours) * 60
-                            : 0
-                        Log.app.notice("settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public) campH=\(campModeReminderEnabled ? Int(campModeReminderHours) : 0, privacy: .public))")
+                        Log.app.notice("settings saved (target=\(targetArrivalSoc, privacy: .public)% min=\(minChargingSoc, privacy: .public)% super=\(preferSupercharger, privacy: .public) unit=\(distanceUnit.rawValue, privacy: .public))")
                         dismiss()
                     }
                     .bold()
