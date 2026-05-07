@@ -29,11 +29,6 @@ public final class APIService: APIServiceProtocol {
 
     // MARK: - Routes / geocoding
 
-    public func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> {
-        let body = RoutePlanRequest(origin: origin, destination: destination, vehicleId: nil, currentSoc: currentSoc)
-        return await postJSON(path: "/routes/plan", body: body)
-    }
-
     public func routeOnly(origin: LocationInput, destination: LocationInput) async -> Result<RouteOnlyResponse, APIError> {
         let body = RouteOnlyRequest(origin: origin, destination: destination)
         return await postJSON(path: "/routes/route", body: body)

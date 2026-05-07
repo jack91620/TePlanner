@@ -70,32 +70,6 @@ public struct Coordinate: Codable {
 
 // MARK: - Request Models for the Backend API
 
-public struct RoutePlanRequest: Codable {
-    public let origin: LocationInput?
-    public let destination: LocationInput
-    public let vehicleId: String?
-    public let currentSoc: Int?
-    public let carType: String
-    public let minArrivalSoc: Int
-
-    public init(origin: LocationInput?, destination: LocationInput, vehicleId: String?, currentSoc: Int?, carType: String = "model_y_long_range", minArrivalSoc: Int = 20) {
-        self.origin = origin
-        self.destination = destination
-        self.vehicleId = vehicleId
-        self.currentSoc = currentSoc
-        self.carType = carType
-        self.minArrivalSoc = minArrivalSoc
-    }
-    
-    public enum CodingKeys: String, CodingKey {
-        case origin, destination
-        case vehicleId = "vehicle_id"
-        case currentSoc = "current_soc"
-        case carType = "car_type"
-        case minArrivalSoc = "min_arrival_soc"
-    }
-}
-
 public struct LocationInput: Codable {
     public let latitude: Double
     public let longitude: Double

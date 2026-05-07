@@ -201,100 +201,10 @@ class AmapWebClient:
         )
         return [self._amap_poi_to_tencent(p) for p in data.get("pois", [])]
 
-    async def search_along_route_via_nearby(
-        self,
-        polyline_points: List[Tuple[float, float]],
-        keyword: str = "充电站",
-        radius_m: int = 8000,
-        spacing_km: float = 50.0,
-    ) -> List[Dict[str, Any]]:
-        """Sample the polyline at uniform distance intervals and call
-        `search_nearby` at each sample. Same behavior as the Tencent
-        fallback path — kept here as the primary 沿途搜索 mechanism
-        because AMap doesn't expose a direct "along polyline" endpoint
-        that's open by default."""
-        if not polyline_points:
-            return []
-
-        samples: List[Tuple[float, float]] = [polyline_points[0]]
-        carry = 0.0
-        for i in range(1, len(polyline_points)):
-            lat0, lng0 = polyline_points[i - 1]
-            lat1, lng1 = polyline_points[i]
-            seg_km = self._haversine_km(lat0, lng0, lat1, lng1)
-            carry += seg_km
-            if carry >= spacing_km:
-                samples.append((lat1, lng1))
-                carry = 0.0
-        if samples[-1] != polyline_points[-1]:
-            samples.append(polyline_points[-1])
-
-        seen: Dict[str, Dict[str, Any]] = {}
-        for lat, lng in samples:
-            try:
-                results = await self.search_nearby(
-                    latitude=lat, longitude=lng, keyword=keyword, radius=radius_m,
-                )
-            except Exception as e:
-                msg = str(e)
-                if "CUQPS_HAS_EXCEEDED_THE_LIMIT" in msg or "DAILY_QUERY_OVER_LIMIT" in msg or "quota" in msg.lower():
-                    print(f"[along-route] AMap quota hit, partial results: {e}")
-                    break
-                print(f"[along-route] nearby({lat:.4f},{lng:.4f}) failed: {e}")
-                continue
-            for poi in results:
-                pid = poi.get("id")
-                if pid and pid not in seen:
-                    seen[pid] = poi
-        return list(seen.values())
-
-    @staticmethod
-    def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-        R = 6371.0
-        dlat = radians(lat2 - lat1)
-        dlng = radians(lng2 - lng1)
-        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
-        c = 2 * asin(sqrt(a))
-        return R * c
-
     async def search_charging_stations(
         self, latitude: float, longitude: float, radius: int = 10000,
     ) -> List[Dict[str, Any]]:
         return await self.search_nearby(latitude, longitude, "充电站", radius=radius)
-
-    async def search_service_areas(
-        self, latitude: float, longitude: float, radius: int = 50000,
-    ) -> List[Dict[str, Any]]:
-        return await self.search_nearby(latitude, longitude, "服务区", radius=radius)
-
-    async def search_service_area_charging_along_route(
-        self, polyline: str,
-    ) -> List[Dict[str, Any]]:
-        """Tencent legacy entry point. `polyline` is a "lat,lng,lat,lng,…"
-        string. We parse it to (lat,lng) tuples and reuse the
-        sampling-based search."""
-        coords = polyline.split(",")
-        points: List[Tuple[float, float]] = []
-        for i in range(0, len(coords) - 1, 2):
-            try:
-                points.append((float(coords[i]), float(coords[i + 1])))
-            except (ValueError, IndexError):
-                continue
-        stations = await self.search_along_route_via_nearby(points, keyword="充电站")
-        out: List[Dict[str, Any]] = []
-        seen: set = set()
-        for s in stations:
-            sid = s.get("id")
-            if not sid or sid in seen:
-                continue
-            seen.add(sid)
-            out.append({
-                "id": sid,
-                "title": s.get("title"),
-                "location": s.get("location", {}),
-                "address": s.get("address"),
-            })
-        return out
 
     # MARK: - driving routes
 

@@ -5,8 +5,7 @@ import Foundation
 /// records its invocation count for assertions.
 final class MockAPIService: APIServiceProtocol {
 
-    // Routes / geocoding (existing)
-    var mockRoutePlanResponse: Result<RoutePlanResponse, APIError>!
+    // Routes / geocoding
     var mockGeocodeResponse: Result<GeocodeResponse, APIError>!
     var mockReverseGeocodeResponse: Result<ReverseGeocodeResponse, APIError>!
 
@@ -35,7 +34,6 @@ final class MockAPIService: APIServiceProtocol {
     var mockRecentRoutesResponse: Result<RecentRoutesResponse, APIError>!
 
     // Call counts
-    var planRouteCallCount = 0
     var geocodeCallCount = 0
     var reverseGeocodeCallCount = 0
     var lastReverseGeocodeArgs: (lat: Double, lng: Double)?
@@ -56,11 +54,6 @@ final class MockAPIService: APIServiceProtocol {
     var lastNavigationRequest: NavigationRequest?
     var lastNearbyStationsArgs: (lat: Double, lng: Double, radius: Int, type: String?)?
     var lastRecentRoutesArgs: (limit: Int, offset: Int)?
-
-    func planRoute(origin: LocationInput?, destination: LocationInput, currentSoc: Int?) async -> Result<RoutePlanResponse, APIError> {
-        planRouteCallCount += 1
-        return mockRoutePlanResponse
-    }
 
     var mockRouteOnlyResponse: Result<RouteOnlyResponse, APIError>!
     var routeOnlyCallCount = 0
