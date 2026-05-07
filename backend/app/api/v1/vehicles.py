@@ -317,12 +317,43 @@ async def wake_vehicle(
         )
 
 
+async def _resolve_vin(
+    vehicle_id: str,
+    user: User,
+    db: AsyncSession,
+) -> str:
+    """Look up the VIN for a Tesla vehicle ID.
+
+    Tesla's Vehicle Command Protocol (VCP) requires VIN — the
+    deprecated REST endpoints accepted either id or VIN, but
+    tesla-http-proxy / signed commands route on VIN. We keep the
+    iOS contract on numeric vehicle_id (matches what list_vehicles
+    returns) and resolve to VIN here.
+
+    Raises 404 when the vehicle isn't tied to the requesting user.
+    """
+    result = await db.execute(
+        select(Vehicle).where(
+            Vehicle.user_id == user.id,
+            Vehicle.vehicle_id == vehicle_id,
+        )
+    )
+    veh = result.scalar_one_or_none()
+    if not veh or not veh.vin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vehicle {vehicle_id} not found or has no VIN",
+        )
+    return veh.vin
+
+
 @router.post("/{vehicle_id}/climate-keeper-mode")
 async def set_climate_keeper_mode(
     vehicle_id: str,
     request: ClimateKeeperModeRequest,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
     """Set the vehicle's climate keeper mode.
 
@@ -335,9 +366,10 @@ async def set_climate_keeper_mode(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="mode must be 0 (off), 1 (keep), 2 (dog), or 3 (camp)",
         )
+    vin = await _resolve_vin(vehicle_id, user, db)
     try:
         async with tesla_client:
-            await tesla_client.set_climate_keeper_mode(vehicle_id, request.mode)
+            await tesla_client.set_climate_keeper_mode(vin, request.mode)
             return {"success": True, "mode": request.mode}
     except TeslaVehicleOfflineError:
         raise HTTPException(
@@ -357,6 +389,7 @@ async def set_sentry_mode(
     request: SentryModeRequest,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
     """Toggle the vehicle's sentry mode.
 
@@ -364,9 +397,10 @@ async def set_sentry_mode(
     to give the user a one-tap "关闭哨兵" action when sentry has
     been on past their reminder threshold.
     """
+    vin = await _resolve_vin(vehicle_id, user, db)
     try:
         async with tesla_client:
-            await tesla_client.set_sentry_mode(vehicle_id, request.on)
+            await tesla_client.set_sentry_mode(vin, request.on)
             return {"success": True, "on": request.on}
     except TeslaVehicleOfflineError:
         raise HTTPException(
@@ -386,6 +420,7 @@ async def set_charge_limit(
     request: ChargeLimitRequest,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
     """Set the vehicle's charge limit SOC percent.
 
@@ -399,9 +434,10 @@ async def set_charge_limit(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="percent must be between 50 and 100",
         )
+    vin = await _resolve_vin(vehicle_id, user, db)
     try:
         async with tesla_client:
-            await tesla_client.set_charge_limit(vehicle_id, request.percent)
+            await tesla_client.set_charge_limit(vin, request.percent)
             return {"success": True, "percent": request.percent}
     except TeslaVehicleOfflineError:
         raise HTTPException(
@@ -420,6 +456,7 @@ async def preheat_vehicle(
     vehicle_id: str,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
     """Start the vehicle's HVAC (a.k.a. auto-conditioning) so the
     cabin is at temperature when the user arrives.
@@ -431,9 +468,10 @@ async def preheat_vehicle(
     to override it without dragging in set_temps which we treat as
     out-of-scope for this slice).
     """
+    vin = await _resolve_vin(vehicle_id, user, db)
     try:
         async with tesla_client:
-            await tesla_client.auto_conditioning_start(vehicle_id)
+            await tesla_client.auto_conditioning_start(vin)
             return {"success": True, "message": "Preheat started"}
     except TeslaVehicleOfflineError:
         raise HTTPException(
