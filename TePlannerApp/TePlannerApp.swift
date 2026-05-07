@@ -10,6 +10,7 @@ import os
 struct TePlannerApp: App {
     init() {
         Self.bootstrapAMapSDK()
+        Task { @MainActor in LocalNotificationScheduler.shared.bootstrap() }
     }
 
     var body: some Scene {

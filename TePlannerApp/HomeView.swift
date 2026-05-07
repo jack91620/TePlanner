@@ -95,6 +95,9 @@ struct HomeView: View {
         .onChange(of: viewModel.vehicleState) { _, newState in
             automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
         }
+        .onChange(of: automationEngine.alerts) { _, alerts in
+            LocalNotificationScheduler.shared.applyAlerts(alerts)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
