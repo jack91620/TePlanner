@@ -1,0 +1,29 @@
+# Phase 5.6 智能充电限额卡片 —— 主页 → 点击"建议..."卡片 → 应用到车辆。
+# 卡片是条件显示的：仅当车辆当前 charge_limit_soc 与用户预设不一致才出现。
+# 跳过场景：if card not visible，写 placeholder screenshot 让我们知道测试被跳过。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- runFlow:
+    when:
+      visible:
+        id: "hub_charge_limit_card"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_charge_limit_before
+      - tapOn:
+          id: "hub_charge_limit_card"
+      # 期望：点击后卡片出现 "已应用" badge 或在 ~3s 后回到 idle
+      # 不期望：alert 弹出 "操作失败"
+      - extendedWaitUntil:
+          notVisible: "操作失败"
+          timeout: 5000
+      - takeScreenshot: tmp/screenshots/maestro_charge_limit_after
+
+- runFlow:
+    when:
+      notVisible:
+        id: "hub_charge_limit_card"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_charge_limit_skipped
