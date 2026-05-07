@@ -25,6 +25,16 @@ appId: com.teplanner.ios
 - assertVisible: "座舱过热保护"
 - takeScreenshot: tmp/screenshots/maestro_automations_list
 
+# Charge-complete row sits at the bottom of the list — scroll it
+# into view before asserting (Phase 5.3 added this row).
+- swipe:
+    start: 50%, 80%
+    end: 50%, 20%
+- extendedWaitUntil:
+    visible: "充电完成提醒"
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_automations_charge_complete
+
 - tapOn:
     id: "automations_save_button"
 

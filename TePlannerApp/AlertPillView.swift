@@ -55,6 +55,7 @@ struct AlertPillView: View {
         case .campMode: return "moon.zzz.fill"
         case .sentryMode: return "shield.lefthalf.filled"
         case .cabinOverheat: return "thermometer.sun.fill"
+        case .chargeComplete: return "bolt.fill"
         }
     }
 

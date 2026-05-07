@@ -9,7 +9,7 @@ public struct VehicleAlert: Identifiable, Equatable {
         case campMode
         case sentryMode
         case cabinOverheat
-        // Phase 5.3+ extends here: chargeComplete
+        case chargeComplete
     }
 
     public enum Severity: String, Sendable {

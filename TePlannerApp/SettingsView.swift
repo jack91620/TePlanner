@@ -20,6 +20,7 @@ struct SettingsView: View {
             CampModeAutomation(),
             SentryModeAutomation(),
             CabinOverheatAutomation(),
+            ChargeCompleteAutomation(),
         ]
     ) {
         self.store = store

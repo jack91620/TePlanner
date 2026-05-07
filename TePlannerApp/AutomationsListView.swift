@@ -22,11 +22,12 @@ struct AutomationsListView: View {
         self.rules = rules
         let initialRows = rules.map { rule in
             let mins = Self.minutes(for: rule.kind, store: store)
+            let lowerBound = Self.config(for: rule.kind)?.range.lowerBound ?? 0
             return Row(
                 kind: rule.kind,
                 displayName: rule.displayName,
                 enabled: mins > 0,
-                minutes: max(mins, Self.config(for: rule.kind).range.lowerBound)
+                minutes: max(mins, lowerBound)
             )
         }
         _rows = State(initialValue: initialRows)
@@ -38,8 +39,7 @@ struct AutomationsListView: View {
                 Section {
                     Toggle(row.displayName, isOn: $rows[index].enabled)
                         .accessibilityIdentifier("automation_toggle_\(row.kind.rawValue)")
-                    if rows[index].enabled {
-                        let cfg = Self.config(for: row.kind)
+                    if rows[index].enabled, let cfg = Self.config(for: row.kind) {
                         HStack {
                             Text("阈值")
                             Spacer()
@@ -96,7 +96,8 @@ struct AutomationsListView: View {
         let formatter: (Int) -> String
     }
 
-    private static func config(for kind: VehicleAlert.Kind) -> ThresholdConfig {
+    /// `nil` ⇒ toggle-only rule (no threshold knob to expose).
+    private static func config(for kind: VehicleAlert.Kind) -> ThresholdConfig? {
         switch kind {
         case .campMode:
             return ThresholdConfig(range: 60...720, step: 60, formatter: hoursFormatter)
@@ -104,6 +105,8 @@ struct AutomationsListView: View {
             return ThresholdConfig(range: 60...4320, step: 60, formatter: hoursFormatter)
         case .cabinOverheat:
             return ThresholdConfig(range: 30...180, step: 30, formatter: minutesOrHoursFormatter)
+        case .chargeComplete:
+            return nil
         }
     }
 
@@ -115,6 +118,8 @@ struct AutomationsListView: View {
             return "哨兵模式每小时约消耗 1% 电量。开启时间超过阈值会显示提醒并允许一键关闭。"
         case .cabinOverheat:
             return "座舱过热保护启动后，车辆会自动通风/降温。提醒只是告知正在运行，无操作按钮。"
+        case .chargeComplete:
+            return "充电进入完成状态时立即提醒，方便你及时拔枪让位给其他车主。"
         }
     }
 
@@ -123,6 +128,7 @@ struct AutomationsListView: View {
         case .campMode: return store.campModeReminderMinutes
         case .sentryMode: return store.sentryReminderMinutes
         case .cabinOverheat: return store.cabinOverheatReminderMinutes
+        case .chargeComplete: return store.chargeCompleteReminderEnabled ? 1 : 0
         }
     }
 
@@ -131,6 +137,7 @@ struct AutomationsListView: View {
         case .campMode: store.campModeReminderMinutes = minutes
         case .sentryMode: store.sentryReminderMinutes = minutes
         case .cabinOverheat: store.cabinOverheatReminderMinutes = minutes
+        case .chargeComplete: store.chargeCompleteReminderEnabled = (minutes > 0)
         }
     }
 

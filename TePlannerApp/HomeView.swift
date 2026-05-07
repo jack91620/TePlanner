@@ -32,6 +32,7 @@ struct HomeView: View {
                 CampModeAutomation(),
                 SentryModeAutomation(),
                 CabinOverheatAutomation(),
+                ChargeCompleteAutomation(),
             ],
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
