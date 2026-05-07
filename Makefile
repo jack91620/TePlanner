@@ -202,12 +202,18 @@ log-app: ## Stream just our subsystem's logs from the simulator (api/auth/vehicl
 	xcrun simctl spawn booted log stream --level debug \
 	  --predicate 'subsystem == "com.teplanner.ios"'
 
-log-device: ## Stream our subsystem's logs from a paired iPhone (USB or Wi-Fi). Set DEVICE='Name'.
-	@if [ -z "$(DEVICE)" ]; then \
-	  echo "Set DEVICE='iPhone Name' (find with \`make list-devices\`)"; exit 1; \
-	fi
-	log stream --device '$(DEVICE)' --level debug \
-	  --predicate 'subsystem == "com.teplanner.ios"'
+log-device: ## Stream TePlannerApp logs from a USB-connected iPhone via idevicesyslog (Tahoe-safe).
+	@command -v idevicesyslog >/dev/null 2>&1 || { \
+	  echo "idevicesyslog missing — brew install libimobiledevice"; exit 1; \
+	}
+	@UDID=$$(idevice_id -l 2>/dev/null | head -1); \
+	  if [ -z "$$UDID" ]; then \
+	    echo "No iPhone detected. Plug in via USB and trust this Mac."; \
+	    echo "(Tahoe broke log stream --device; we use idevicesyslog now.)"; \
+	    exit 1; \
+	  fi; \
+	  echo "Streaming TePlannerApp from $$UDID — Ctrl-C to stop"; \
+	  idevicesyslog -u "$$UDID" -p TePlannerApp
 
 # --- Hygiene -------------------------------------------------------------
 
