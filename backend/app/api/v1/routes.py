@@ -77,6 +77,65 @@ class NavigateRouteRequest(BaseModel):
     waypoints: Optional[List[LocationInput]] = None  # If not provided, uses charging stops
 
 
+class RouteOnlyRequest(BaseModel):
+    """Phase 8.2: route metadata only (no charging plan).
+
+    Used by the iOS client to get the polyline first, then run AMap
+    SDK along-route POI search locally, then post the candidate
+    POIs back via /charging-plan to compute the greedy charging stops.
+    """
+
+    origin: LocationInput
+    destination: LocationInput
+
+
+class RouteOnlyResponse(BaseModel):
+    """Lightweight response — polyline + raw distance/duration only."""
+
+    origin: dict
+    destination: dict
+    total_distance_km: float
+    driving_duration_minutes: int
+    polyline: List[dict]
+
+
+class POIInput(BaseModel):
+    """Candidate POI for the charging-plan endpoint. Shape mirrors
+    AMapRoutePOI (iOS SDK) — only id / name / lat / lng required."""
+
+    id: str
+    name: str
+    latitude: float
+    longitude: float
+    address: Optional[str] = None
+
+
+class ChargingPlanRequest(BaseModel):
+    """Phase 8.2: greedy charging-stop selection over client-provided
+    POIs. The iOS client gathers POIs via AMap SDK along-route search
+    (proper road corridor) and posts them here."""
+
+    polyline: List[List[float]] = Field(..., description="[[lat, lng], …]")
+    total_distance_km: float
+    candidate_pois: List[POIInput]
+    initial_soc: int = Field(..., ge=0, le=100)
+    car_type: str = "model_y_long_range"
+    min_arrival_soc: int = Field(20, ge=5, le=50)
+    vehicle_range_km: Optional[float] = None
+
+
+class ChargingPlanResponse(BaseModel):
+    """Output: just the charging-related fields. The iOS client merges
+    this with the previously-fetched route data to produce its
+    RoutePlanResponse-shape view model."""
+
+    charging_stops: List[ChargingStopResponse]
+    num_charging_stops: int
+    charging_duration_minutes: int
+    arrival_soc: int
+    warnings: List[str] = []
+
+
 class GeocodeRequest(BaseModel):
     """Geocode request."""
 
@@ -246,6 +305,94 @@ async def plan_route(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Route planning failed: {str(e)}",
+        )
+
+
+@router.post("/route", response_model=RouteOnlyResponse)
+async def route_only(request: RouteOnlyRequest):
+    """Phase 8.2: AMap routing only — polyline + distance + duration.
+
+    No POI search, no charging plan. iOS calls this first, then runs
+    AMap SDK along-route POI search locally, then POSTs candidate
+    POIs back to /routes/charging-plan to compute the greedy stops.
+    """
+    try:
+        async with RoutePlanner() as planner:
+            result = await planner.route_only(
+                origin=(request.origin.latitude, request.origin.longitude),
+                destination=(request.destination.latitude, request.destination.longitude),
+            )
+        polyline = [
+            {"lat": pt[0], "lng": pt[1]} if isinstance(pt, (list, tuple)) else pt
+            for pt in result.polyline
+        ]
+        return RouteOnlyResponse(
+            origin={
+                "latitude": result.origin[0],
+                "longitude": result.origin[1],
+                "name": result.origin_name,
+            },
+            destination={
+                "latitude": result.destination[0],
+                "longitude": result.destination[1],
+                "name": result.destination_name,
+            },
+            total_distance_km=result.total_distance_km,
+            driving_duration_minutes=result.driving_duration_minutes,
+            polyline=polyline,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Route lookup failed: {str(e)}",
+        )
+
+
+@router.post("/charging-plan", response_model=ChargingPlanResponse)
+async def charging_plan(request: ChargingPlanRequest):
+    """Phase 8.2: greedy charging-stop selection over client-provided
+    candidate POIs. Pure computation — no map API call."""
+    polyline_tuples = [(pt[0], pt[1]) for pt in request.polyline]
+    pois_dicts = [poi.model_dump() for poi in request.candidate_pois]
+
+    try:
+        async with RoutePlanner() as planner:
+            result = await planner.plan_charging_with_pois(
+                polyline=polyline_tuples,
+                total_distance_km=request.total_distance_km,
+                candidate_pois=pois_dicts,
+                initial_soc=request.initial_soc,
+                car_type=request.car_type,
+                min_arrival_soc=request.min_arrival_soc,
+                vehicle_range_km=request.vehicle_range_km,
+            )
+
+        stops = [
+            ChargingStopResponse(
+                station_id=s.station_id,
+                name=s.name,
+                latitude=s.latitude,
+                longitude=s.longitude,
+                address=s.address,
+                operator=s.operator,
+                distance_from_start_km=s.distance_from_start_km,
+                arrival_soc=s.arrival_soc,
+                departure_soc=s.departure_soc,
+                charging_duration_minutes=s.charging_duration_minutes,
+            )
+            for s in result.charging_stops
+        ]
+        return ChargingPlanResponse(
+            charging_stops=stops,
+            num_charging_stops=len(stops),
+            charging_duration_minutes=result.charging_duration_minutes,
+            arrival_soc=result.arrival_soc,
+            warnings=result.warnings,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Charging plan failed: {str(e)}",
         )
 
 

@@ -45,23 +45,27 @@ final class AlongRoutePOIService: NSObject {
 
         var seen: [String: AlongRoutePOI] = [:]
         for (index, chunk) in chunks.enumerated() {
+            // fail-fast: SDK / network errors propagate. Empty per-chunk
+            // result lists are kept (a rural segment legitimately has
+            // no charging stations and shouldn't fail the route).
+            let pois: [AMapRoutePOI]
             do {
-                let pois = try await searchOneChunk(chunk: chunk)
-                for raw in pois {
-                    let uid = raw.uid ?? ""
-                    guard !uid.isEmpty, seen[uid] == nil else { continue }
-                    let loc = raw.location
-                    seen[uid] = AlongRoutePOI(
-                        id: uid,
-                        name: raw.name ?? "",
-                        latitude: Double(loc?.latitude ?? 0),
-                        longitude: Double(loc?.longitude ?? 0),
-                        routeDistanceMeters: raw.distance
-                    )
-                }
+                pois = try await searchOneChunk(chunk: chunk)
             } catch {
                 Log.app.error("alongby chunk \(index, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
-                // Keep going — partial results better than aborting.
+                throw error
+            }
+            for raw in pois {
+                let uid = raw.uid ?? ""
+                guard !uid.isEmpty, seen[uid] == nil else { continue }
+                let loc = raw.location
+                seen[uid] = AlongRoutePOI(
+                    id: uid,
+                    name: raw.name ?? "",
+                    latitude: Double(loc?.latitude ?? 0),
+                    longitude: Double(loc?.longitude ?? 0),
+                    routeDistanceMeters: raw.distance
+                )
             }
         }
         return Array(seen.values)

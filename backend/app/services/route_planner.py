@@ -126,6 +126,244 @@ class RoutePlanner:
             await self.map_client.close()
             self.map_client = None
 
+    async def route_only(
+        self,
+        origin: Tuple[float, float],
+        destination: Tuple[float, float],
+    ) -> RoutePlanResult:
+        """Phase 8.2: route metadata without charging stops, for the
+        client-orchestrated flow where iOS calls AMap SDK to find
+        along-route POIs and posts them back to /routes/charging-plan.
+        Returns the same RoutePlanResult shape with empty
+        charging_stops + arrival_soc=initial_soc."""
+        map_client = await self._get_map_client()
+        route_data = await map_client.get_driving_route_detailed(
+            origin=origin,
+            destination=destination,
+        )
+        total_distance_km = route_data["distance"] / 1000
+        driving_minutes = int(route_data["duration"])
+        polyline = route_data.get("polyline", [])
+
+        origin_name = ""
+        destination_name = ""
+        try:
+            origin_geo = await map_client.reverse_geocode(origin[0], origin[1])
+            origin_name = origin_geo.get("address", "")
+        except Exception:
+            pass
+        try:
+            dest_geo = await map_client.reverse_geocode(destination[0], destination[1])
+            destination_name = dest_geo.get("address", "")
+        except Exception:
+            pass
+
+        return RoutePlanResult(
+            origin=origin,
+            destination=destination,
+            origin_name=origin_name,
+            destination_name=destination_name,
+            total_distance_km=total_distance_km,
+            driving_duration_minutes=driving_minutes,
+            charging_duration_minutes=0,
+            charging_stops=[],
+            arrival_soc=0,
+            initial_soc=0,
+            polyline=polyline,
+            warnings=[],
+        )
+
+    async def plan_charging_with_pois(
+        self,
+        polyline: List[Tuple[float, float]],
+        total_distance_km: float,
+        candidate_pois: List[dict],
+        initial_soc: int = 100,
+        car_type: str = "model_y_long_range",
+        min_arrival_soc: int = DEFAULT_ARRIVAL_SOC,
+        min_charging_soc: int = DEFAULT_MIN_SOC,
+        target_charging_soc: int = DEFAULT_TARGET_SOC,
+        vehicle_range_km: Optional[float] = None,
+    ) -> RoutePlanResult:
+        """Phase 8.2: greedy charging-stop selection over a set of
+        client-provided candidate POIs (typically from AMap iOS SDK
+        along-route search, which yields proper road-corridor POIs
+        rather than circular nearby-search noise).
+
+        `candidate_pois` items must contain at least `id`, `name`,
+        `latitude`, `longitude`. Optional `address`, `operator`.
+        We compute distance_from_start_km against the polyline,
+        sort, and run the same greedy loop the legacy plan_route uses.
+        """
+        if vehicle_range_km and vehicle_range_km > 0:
+            full_range_km = vehicle_range_km
+            soc_consumed = (total_distance_km / vehicle_range_km) * 100
+        else:
+            specs = self.energy_model.get_vehicle_specs(car_type)
+            battery_capacity = specs.get("battery_capacity_kwh", 60)
+            consumption_per_km = specs.get("consumption_wh_per_km", 150) / 1000
+            full_range_km = battery_capacity / consumption_per_km
+            consumption = self.energy_model.calculate_consumption(
+                distance_km=total_distance_km, car_type=car_type,
+            )
+            soc_consumed = consumption["soc_consumed"]
+        direct_arrival_soc = initial_soc - int(soc_consumed)
+
+        # Reshape client POIs into the dict shape the greedy loop expects.
+        service_areas: List[dict] = []
+        for poi in candidate_pois:
+            lat = float(poi.get("latitude", 0))
+            lng = float(poi.get("longitude", 0))
+            location = {"lat": lat, "lng": lng}
+            distance_km = self._calculate_distance_along_route(
+                polyline, location, total_distance_km
+            )
+            service_areas.append({
+                "id": str(poi.get("id", "")),
+                "title": poi.get("name", ""),
+                "location": location,
+                "address": poi.get("address", ""),
+                "distance_from_start_km": distance_km,
+            })
+        service_areas.sort(key=lambda x: x.get("distance_from_start_km", 0))
+
+        if direct_arrival_soc >= min_arrival_soc:
+            return RoutePlanResult(
+                origin=(0, 0), destination=(0, 0),
+                total_distance_km=total_distance_km,
+                driving_duration_minutes=0,
+                charging_duration_minutes=0,
+                charging_stops=[],
+                arrival_soc=max(0, direct_arrival_soc),
+                initial_soc=initial_soc,
+                polyline=polyline,
+                warnings=[],
+            )
+
+        if not service_areas:
+            return RoutePlanResult(
+                origin=(0, 0), destination=(0, 0),
+                total_distance_km=total_distance_km,
+                driving_duration_minutes=0,
+                charging_duration_minutes=0,
+                charging_stops=[],
+                arrival_soc=max(0, direct_arrival_soc),
+                initial_soc=initial_soc,
+                polyline=polyline,
+                warnings=["沿途未找到充电站"],
+            )
+
+        charging_stops = self._select_charging_stops_greedy(
+            service_areas=service_areas,
+            total_distance_km=total_distance_km,
+            initial_soc=initial_soc,
+            full_range_km=full_range_km,
+            min_charging_soc=min_charging_soc,
+            target_charging_soc=target_charging_soc,
+            min_arrival_soc=min_arrival_soc,
+        )
+
+        total_charging_minutes = sum(s.charging_duration_minutes for s in charging_stops)
+        final_arrival_soc = self._calculate_final_soc(
+            initial_soc=initial_soc,
+            total_distance_km=total_distance_km,
+            charging_stops=charging_stops,
+            car_type=car_type,
+            vehicle_range_km=vehicle_range_km,
+        )
+
+        return RoutePlanResult(
+            origin=(0, 0), destination=(0, 0),
+            total_distance_km=total_distance_km,
+            driving_duration_minutes=0,
+            charging_duration_minutes=total_charging_minutes,
+            charging_stops=charging_stops,
+            arrival_soc=final_arrival_soc,
+            initial_soc=initial_soc,
+            polyline=polyline,
+            warnings=[],
+        )
+
+    def _select_charging_stops_greedy(
+        self,
+        service_areas: List[dict],
+        total_distance_km: float,
+        initial_soc: int,
+        full_range_km: float,
+        min_charging_soc: int,
+        target_charging_soc: int,
+        min_arrival_soc: int,
+    ) -> List[ChargingStop]:
+        """Greedy stop selection. Pure on the input list — no I/O.
+
+        Extracted so both legacy plan_route (with backend-fetched POIs)
+        and plan_charging_with_pois (with client-fetched POIs) share
+        the same algorithm.
+        """
+        charging_stops: List[ChargingStop] = []
+        current_soc = initial_soc
+        distance_traveled = 0.0
+
+        while distance_traveled < total_distance_km:
+            usable_soc = current_soc - min_charging_soc
+            max_range_km = full_range_km * (usable_soc / 100)
+            remaining_distance = total_distance_km - distance_traveled
+            soc_to_destination = (remaining_distance / full_range_km) * 100
+            if current_soc - soc_to_destination >= min_arrival_soc:
+                break
+
+            best_area = None
+            for area in service_areas:
+                area_distance = area.get("distance_from_start_km", 0)
+                if area_distance > distance_traveled + 10:
+                    if area_distance <= distance_traveled + max_range_km * 0.9:
+                        best_area = area  # 取最远（贪心）
+
+            if not best_area:
+                for area in service_areas:
+                    area_distance = area.get("distance_from_start_km", 0)
+                    if area_distance > distance_traveled + 10:
+                        best_area = area
+                        break
+
+            if not best_area:
+                break
+
+            area_location = best_area.get("location", {})
+            station_lat = area_location.get("lat", 0)
+            station_lng = area_location.get("lng", 0)
+            station_distance = best_area.get("distance_from_start_km", 0)
+
+            segment_distance = station_distance - distance_traveled
+            soc_used = (segment_distance / full_range_km) * 100
+            arrival_soc_at_station = max(0, current_soc - int(soc_used))
+
+            estimated_battery_kwh = 70
+            soc_to_add = target_charging_soc - arrival_soc_at_station
+            energy_to_add = estimated_battery_kwh * (soc_to_add / 100)
+            charging_minutes = int((energy_to_add / self.DEFAULT_CHARGING_POWER_KW) * 60)
+
+            charging_stops.append(ChargingStop(
+                station_id=best_area.get("id", f"service_area_{len(charging_stops)}"),
+                name=best_area.get("title", "服务区充电站"),
+                latitude=station_lat,
+                longitude=station_lng,
+                distance_from_start_km=round(station_distance, 1),
+                arrival_soc=arrival_soc_at_station,
+                departure_soc=target_charging_soc,
+                charging_duration_minutes=charging_minutes,
+                operator=self._extract_operator(best_area.get("title", "")),
+                address=best_area.get("address", ""),
+            ))
+
+            distance_traveled = station_distance
+            current_soc = target_charging_soc
+
+            if len(charging_stops) >= 10:
+                break
+
+        return charging_stops
+
     async def __aenter__(self):
         return self
 
