@@ -87,6 +87,8 @@ struct MapHomeView: View {
             HomeBottomSheet(
                 apiService: apiService,
                 coordinate: viewModel.coordinate,
+                activeRoute: currentRoute,
+                vehicleId: viewModel.vehicle?.id,
                 onSelectStation: { station in
                     pendingStation = station
                 },
@@ -101,6 +103,9 @@ struct MapHomeView: View {
                             longitude: lng
                         )
                     }
+                },
+                onClearRoute: {
+                    currentRoute = nil
                 }
             )
             .presentationDetents([.height(220), .medium, .large])
