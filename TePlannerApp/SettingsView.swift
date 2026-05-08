@@ -66,6 +66,11 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("关于")
+                } footer: {
+                    Text("升级 App 不会丢失自动化规则、出行计划、充电限额等设置。"
+                         + "规则数据存于后端，与 Tesla 账户绑定；本地偏好（VCP 配对状态、"
+                         + "自定义排序等）保存在 iOS UserDefaults 里，重新安装才会清空。")
+                        .font(.caption2)
                 }
             }
             .navigationTitle("设置")
