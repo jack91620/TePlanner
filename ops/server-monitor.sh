@@ -53,7 +53,10 @@ UVICORN_ALIVE="false"
 # --- 3. polling tick recency --------------------------------------------------
 POLLING_FRESH="unknown"
 if [ -f "$SERVER_LOG" ]; then
-    LAST_TICK_LINE="$(grep 'polling tick complete' "$SERVER_LOG" | tail -1 || true)"
+    # -a forces text mode — server.log occasionally contains stray
+    # bytes from upstream Tesla SDK that grep otherwise refuses,
+    # turning matches into the literal string "Binary file matches".
+    LAST_TICK_LINE="$(grep -a 'polling tick complete' "$SERVER_LOG" | tail -1 || true)"
     if [ -n "$LAST_TICK_LINE" ]; then
         # Two log formats coexist depending on whether structlog is
         # wired this boot:
@@ -87,7 +90,8 @@ if [ -f "$SERVER_LOG" ]; then
     # Local-time prefix; matches backend logger's asctime format.
     SINCE="$(date -d '5 minutes ago' +%Y-%m-%dT%H:%M)"
     # Grep ERROR lines that are recent enough; fall back to last-N if no recent
-    ERROR_COUNT="$(awk -v since="$SINCE" '
+    # strings(1) strips embedded binary noise so awk reliably sees text.
+    ERROR_COUNT="$(strings "$SERVER_LOG" 2>/dev/null | awk -v since="$SINCE" '
         /ERROR/ {
             ts = substr($0, 1, 16)
             gsub(" ", "T", ts)
