@@ -27,6 +27,7 @@ from app.config import settings
 from app.db.session import async_session
 from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
+from app.services.automation.pending_resolver import check_and_resolve
 from app.services.telemetry.mapping import (
     map_connectivity_payload,
     map_v_payload,
@@ -159,6 +160,14 @@ async def _process_v_record(
                     state=snap,
                     settings=AutomationSettings(),
                 )
+                # Phase 9 — resolve any pending VCP commands now that
+                # we have a fresh snapshot. Match → confirmed_at;
+                # > 60 s elapsed → timed_out_at. Same eval_db, single
+                # commit so partial-state never leaks.
+                await check_and_resolve(
+                    eval_db,
+                    user_id=user_id, vehicle_id=vin, snap=snap,
+                )
                 await eval_db.commit()
             if result.pushed_count or result.cleared_count:
                 logger.info(
@@ -222,6 +231,14 @@ async def _process_connectivity_record(
                     vehicle_id=vin,
                     state=snap,
                     settings=AutomationSettings(),
+                )
+                # Phase 9 — resolve any pending VCP commands now that
+                # we have a fresh snapshot. Match → confirmed_at;
+                # > 60 s elapsed → timed_out_at. Same eval_db, single
+                # commit so partial-state never leaks.
+                await check_and_resolve(
+                    eval_db,
+                    user_id=user_id, vehicle_id=vin, snap=snap,
                 )
                 await eval_db.commit()
             if result.pushed_count or result.cleared_count:

@@ -70,3 +70,11 @@ GET {{base_url}}/api/v1/automations/state
 HTTP 401
 [Asserts]
 jsonpath "$.detail" exists
+
+
+# 7. GET /vehicles/commands/pending without auth → 401
+# (Phase 9 closed-loop confirmation endpoint).
+GET {{base_url}}/api/v1/vehicles/commands/pending
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists

@@ -43,5 +43,11 @@ class SetSentryMode(Capability):
         await ctx.tesla_client.set_sentry_mode(ctx.vin, on)
         return CapabilityResult(success=True, data={"on": on})
 
+    def expected_state(self, params: dict) -> dict:
+        on = params.get("on")
+        if not isinstance(on, bool):
+            return {}
+        return {"vehicle.sentry_mode_on": on}
+
 
 register(SetSentryMode())

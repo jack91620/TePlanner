@@ -98,6 +98,18 @@ class Capability(ABC):
         self, ctx: CapabilityCallContext, params: dict
     ) -> CapabilityResult: ...
 
+    def expected_state(self, params: dict) -> dict:
+        """Phase 9 — what tel:* state should match after this command
+        takes effect on the car. Returns a dict ``{entity: value}``
+        the resolver uses as a confirmation predicate.
+
+        Default: empty dict (no observable telemetry → UI confirms on
+        HTTP 2xx alone, no pending row written). Capabilities that
+        flip a single observable signal — set_keeper_mode,
+        set_sentry_mode — override this.
+        """
+        return {}
+
     def describe(self) -> dict:
         """Serialized form for /api/v1/capabilities listing."""
         return {

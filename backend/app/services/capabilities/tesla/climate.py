@@ -51,6 +51,14 @@ class SetClimateKeeperMode(Capability):
         await ctx.tesla_client.set_climate_keeper_mode(ctx.vin, mode)
         return CapabilityResult(success=True, data={"mode": mode})
 
+    def expected_state(self, params: dict) -> dict:
+        # After set_keeper_mode(N), the next telemetry frame should
+        # show vehicle.climate.keeper_mode == N. Phase 9 confirmation.
+        mode = params.get("mode")
+        if mode not in (0, 1, 2, 3):
+            return {}
+        return {"vehicle.climate.keeper_mode": mode}
+
 
 class Preheat(Capability):
     """Start HVAC (auto_conditioning_start) so the cabin is at temp

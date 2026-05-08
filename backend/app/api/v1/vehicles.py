@@ -1,5 +1,7 @@
 """Vehicle management endpoints."""
 
+import json
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -56,7 +58,33 @@ async def _invoke_capability(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.error or "Capability invocation failed",
         )
-    return {"success": True, **(result.data or {})}
+
+    # Phase 9 — write a CommandPending row so the resolver can confirm
+    # via the next telemetry frame. Capabilities without observable
+    # telemetry (preheat, navigation, set_charge_limit) declare an
+    # empty expected_state and write_pending no-ops.
+    pending_id: Optional[int] = None
+    if vin:
+        from app.services.capabilities import get as get_capability
+        from app.services.automation.pending_resolver import write_pending
+        cap = get_capability(capability_id)
+        if cap is not None:
+            expected = cap.expected_state(params)
+            row = await write_pending(
+                db,
+                user_id=user.id,
+                vehicle_id=vin,
+                capability_id=capability_id,
+                expected=expected,
+            )
+            if row is not None:
+                await db.commit()
+                pending_id = row.id
+
+    out = {"success": True, **(result.data or {})}
+    if pending_id is not None:
+        out["pending_command_id"] = pending_id
+    return out
 
 
 class VehicleResponse(BaseModel):
@@ -527,6 +555,81 @@ async def navigate_vehicle_address(
             status_code=e.status_code or 500,
             detail=f"Tesla API error: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 9 — closed-loop VCP confirmation: GET /vehicles/commands/pending
+
+class PendingCommandResponse(BaseModel):
+    id: int
+    capability: str
+    expected_state: dict
+    dispatched_at: datetime
+    confirmed_at: Optional[datetime] = None
+    timed_out_at: Optional[datetime] = None
+    status: str  # "pending" | "confirmed" | "timed_out"
+
+
+class PendingCommandListResponse(BaseModel):
+    pending: list[PendingCommandResponse]
+
+
+@router.get("/commands/pending", response_model=PendingCommandListResponse)
+async def list_pending_commands(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 20,
+) -> PendingCommandListResponse:
+    """Phase 9 — what VCP commands sent in the last few minutes are
+    still awaiting telemetry confirmation, plus the most recently
+    resolved ones for the iOS UI to flip to "已关闭" / "超时".
+
+    The resolver runs server-side on every Telemetry frame, so a
+    well-timed poll right after dispatch will see the row transition
+    pending → confirmed within ~1-2 s of the actual state change.
+    """
+    from datetime import timedelta
+    from sqlalchemy import desc
+    from app.db.models import CommandPending
+
+    # Window: anything dispatched within the last 5 minutes. Both
+    # still-pending (no confirmed_at / timed_out_at) and recently-
+    # resolved rows go in the response so a slow iOS poll doesn't
+    # miss the resolution.
+    cutoff = datetime.utcnow() - timedelta(minutes=5)
+    stmt = (
+        select(CommandPending)
+        .where(
+            CommandPending.user_id == user.id,
+            CommandPending.dispatched_at >= cutoff,
+        )
+        .order_by(desc(CommandPending.dispatched_at))
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+
+    out: list[PendingCommandResponse] = []
+    for row in rows:
+        try:
+            expected = json.loads(row.expected_state_json)
+        except (json.JSONDecodeError, TypeError):
+            expected = {}
+        if row.confirmed_at is not None:
+            status_str = "confirmed"
+        elif row.timed_out_at is not None:
+            status_str = "timed_out"
+        else:
+            status_str = "pending"
+        out.append(PendingCommandResponse(
+            id=row.id,
+            capability=row.capability,
+            expected_state=expected,
+            dispatched_at=row.dispatched_at,
+            confirmed_at=row.confirmed_at,
+            timed_out_at=row.timed_out_at,
+            status=status_str,
+        ))
+    return PendingCommandListResponse(pending=out)
 
 
 @router.post("/{vehicle_id}/set-primary")

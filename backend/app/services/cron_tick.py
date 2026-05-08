@@ -32,6 +32,7 @@ from app.db.models import DeviceToken, TeslaToken, Vehicle
 from app.db.session import async_session
 from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
+from app.services.automation.pending_resolver import check_and_resolve
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,12 @@ async def _tick_one_user(
         vehicle_id=vin,
         state=snapshot,
         settings=AutomationSettings(),
+    )
+    # Phase 9 — resolve pending VCP commands. Telemetry path catches
+    # confirmations on transitions; this catches timeouts that the
+    # telemetry path missed (vehicle never produced a matching frame).
+    await check_and_resolve(
+        db, user_id=user_id, vehicle_id=vin, snap=snapshot,
     )
     if result.pushed_count or result.cleared_count:
         logger.info(

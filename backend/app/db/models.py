@@ -163,6 +163,36 @@ class DeviceToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CommandPending(Base):
+    """Phase 9 — closed-loop VCP confirmation ledger.
+
+    Every successful capability dispatch with observable telemetry
+    writes one row here. The Telemetry-driven pending_resolver checks
+    on each engine tick whether the snapshot now matches the
+    capability's ``expected_state``; on match it stamps ``confirmed_at``,
+    on timeout it stamps ``timed_out_at``. iOS polls
+    ``/api/v1/commands/pending`` to flip the action button from
+    "执行中…" → "已关闭" / "超时".
+
+    Capabilities without observable telemetry (preheat, navigation,
+    charge_limit until we add a tel:* entity for it) skip writing a
+    row entirely — the iOS UI confirms on HTTP 2xx alone.
+    """
+
+    __tablename__ = "command_pending"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)  # VIN
+    capability = Column(String(80), nullable=False)
+    # JSON: {"vehicle.climate.keeper_mode": 0}.  pending_resolver loops
+    # this dict and matches each entry against the snapshot.
+    expected_state_json = Column(Text, nullable=False)
+    dispatched_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, nullable=True)
+    timed_out_at = Column(DateTime, nullable=True)
+
+
 class RoutePlan(Base):
     """Saved route plans."""
 
