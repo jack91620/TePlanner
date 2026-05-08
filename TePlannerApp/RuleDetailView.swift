@@ -14,6 +14,8 @@ struct RuleDetailView: View {
     @State private var showingDeleteConfirm = false
     @State private var workingError: String?
     @State private var pendingDuplicate: RuleRecord?
+    @State private var pendingThresholdMinutes: Int?
+    @State private var savingThreshold = false
     @Environment(\.dismiss) private var dismiss
 
     private var record: RuleRecord? {
@@ -26,6 +28,7 @@ struct RuleDetailView: View {
                 Form {
                     headerSection(r)
                     triggerSection(r.spec)
+                    thresholdSection(r)
                     actionSections(r.spec)
                     testFireSection(r)
                     if let err = workingError {
@@ -313,6 +316,85 @@ struct RuleDetailView: View {
             Text(RuleDisplay.triggerSentence(spec))
                 .font(.body)
                 .padding(.vertical, 4)
+        }
+    }
+
+    /// Inline 阈值调节. Avoids the extra round-trip through Edit →
+    /// builder → save. Only shown for state_duration rules where
+    /// for_minutes makes sense; cron / state_transition rules
+    /// suppress the section.
+    @ViewBuilder
+    private func thresholdSection(_ r: RuleRecord) -> some View {
+        if let trigger = r.spec["trigger"]?.objectValue,
+           trigger.string("type") == "state_duration",
+           let stored = trigger["for_minutes"]?.intValue {
+            let bind = Binding<Int>(
+                get: { pendingThresholdMinutes ?? stored },
+                set: { pendingThresholdMinutes = $0 },
+            )
+            Section {
+                let minutes = bind.wrappedValue
+                HStack {
+                    Text("持续时长")
+                    Spacer()
+                    Text(RuleDisplay.formatDurationMinutes(minutes))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Slider(
+                    value: Binding(
+                        get: { Double(bind.wrappedValue) },
+                        set: { bind.wrappedValue = Int($0) },
+                    ),
+                    in: 5...1440,
+                    step: 5,
+                )
+                if pendingThresholdMinutes != nil, pendingThresholdMinutes != stored {
+                    HStack {
+                        Button("撤销") {
+                            pendingThresholdMinutes = nil
+                        }
+                        .buttonStyle(.bordered)
+                        Spacer()
+                        Button {
+                            saveThreshold(r, minutes: bind.wrappedValue)
+                        } label: {
+                            if savingThreshold {
+                                ProgressView()
+                            } else {
+                                Text("保存阈值")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(savingThreshold)
+                    }
+                }
+            } header: {
+                Text("阈值")
+            } footer: {
+                Text("修改触发该规则需要的状态持续时长。也可以从「编辑」进入完整构建器调整其他字段。")
+                    .font(.caption2)
+            }
+        }
+    }
+
+    private func saveThreshold(_ r: RuleRecord, minutes: Int) {
+        savingThreshold = true
+        Task {
+            var spec = r.spec
+            if case .object(var trigger) = spec["trigger"] ?? .null {
+                trigger["for_minutes"] = .int(minutes)
+                spec["trigger"] = .object(trigger)
+            }
+            let ok = await rulesStore.update(id: r.id, spec: spec)
+            await MainActor.run {
+                savingThreshold = false
+                if ok {
+                    pendingThresholdMinutes = nil
+                } else {
+                    workingError = rulesStore.lastError
+                }
+            }
         }
     }
 
