@@ -477,35 +477,55 @@ struct HubView: View {
             now: Date()
         )
         if !suggestion.alreadyMatches, let current = suggestion.currentPercent {
-            Button {
-                applyChargeLimit(suggestion.recommendedPercent)
-            } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "battery.100.bolt")
-                        .font(.title2)
-                        .foregroundStyle(.tint)
-                        .frame(width: 32)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(chargeLimitTitle(for: suggestion))
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text(chargeLimitSubtitle(for: suggestion, current: current))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    chargeLimitBadge
+            HStack(spacing: 14) {
+                Image(systemName: "battery.100.bolt")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(chargeLimitTitle(for: suggestion))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(chargeLimitSubtitle(for: suggestion, current: current))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 16)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
-                )
+                Spacer()
+                chargeLimitApplyButton(target: suggestion.recommendedPercent)
             }
-            .buttonStyle(PressableCardButtonStyle())
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+            )
             .accessibilityIdentifier("hub_charge_limit_card")
+        }
+    }
+
+    @ViewBuilder
+    private func chargeLimitApplyButton(target: Int) -> some View {
+        switch chargeLimitStatus {
+        case .idle:
+            Button("应用") { applyChargeLimit(target) }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .foregroundStyle(.white)
+                .background(Color.accentColor, in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("hub_charge_limit_apply")
+        case .sending:
+            ProgressView().controlSize(.small)
+        case .sent:
+            Label("已应用", systemImage: "checkmark.circle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.green)
+        case .failed:
+            Label("失败", systemImage: "exclamationmark.triangle.fill")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.red)
         }
     }
 
@@ -531,19 +551,20 @@ struct HubView: View {
 
     private func chargeLimitTitle(for suggestion: ChargeLimitSuggestion) -> String {
         switch suggestion.reason {
-        case .daily: return "建议日常充电限额"
-        case .upcomingDeparture: return "建议出行充电限额"
+        case .daily:
+            return "调低充电限额到 \(suggestion.recommendedPercent)%"
+        case .upcomingDeparture:
+            return "调高充电限额到 \(suggestion.recommendedPercent)%"
         }
     }
 
     private func chargeLimitSubtitle(for suggestion: ChargeLimitSuggestion, current: Int) -> String {
-        let target = "\(current)% → \(suggestion.recommendedPercent)%"
         switch suggestion.reason {
         case .daily:
-            return "\(target) · 长期日常使用更友好"
+            return "当前 \(current)% · 长期日常使用更友好"
         case .upcomingDeparture(let hours):
-            if hours == 0 { return "\(target) · 即将出行" }
-            return "\(target) · 还有 \(hours) 小时出发"
+            if hours == 0 { return "当前 \(current)% · 即将出行" }
+            return "当前 \(current)% · 还有 \(hours) 小时出发"
         }
     }
 
@@ -592,7 +613,7 @@ struct HubView: View {
                         Text("下次出行")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text("设置出发时间，到点提醒预热")
+                        Text("设置出发时间，出发前自动提醒预热")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -688,10 +709,22 @@ struct HubView: View {
                     await pollCommandStatusesUntilSettled()
                 }
             }
-        } else if telemetryReady == false {
+        } else if telemetryReady == false && shouldShowTelemetryWaiting {
             telemetryWaitingPill
         }
         commandStatusBanner
+    }
+
+    /// Suppress the "等待车辆推送" placeholder when the status card
+    /// already shows the car is online — otherwise users see two
+    /// contradictory signals on the same screen. We keep the pill for
+    /// the genuine cold-start case (no telemetry rows AND vehicle
+    /// reports offline / unknown).
+    private var shouldShowTelemetryWaiting: Bool {
+        switch viewModel.state {
+        case .ready: return false
+        default: return true
+        }
     }
 
     /// Phase 9 + 10 — only shown when there is something to surface;
@@ -721,10 +754,10 @@ struct HubView: View {
             Image(systemName: "antenna.radiowaves.left.and.right")
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("等待车辆上线")
+                Text("自动化即将激活")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("Telemetry 在车辆下次状态变化时建立连接")
+                Text("车辆下次状态变化时建立 Telemetry 连接")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -795,13 +828,24 @@ struct HubView: View {
         return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
     }
 
-    /// "X 条已启用" — counted directly from the backend-backed rules
-    /// store; preset and user-authored rules contribute equally.
+    /// Subtitle for the automation entry card. Goal: tell the user
+    /// what the rules actually do, not a counter that requires
+    /// drilling in to make sense of. Show 2 representative rule names
+    /// + count when collapsed; "已全部禁用" when none firing.
     private var automationsSubtitle: String {
-        let total = rulesStore.rules.count
-        let enabled = rulesStore.rules.filter(\.enabled).count
+        let rules = rulesStore.rules
+        let total = rules.count
+        let enabled = rules.filter(\.enabled)
         if total == 0 { return "暂无规则" }
-        return "\(enabled)/\(total) 条已启用"
+        if enabled.isEmpty { return "全部已禁用，点击启用" }
+        // Pick the 2 most representative names. Preset rules ship
+        // with descriptive names; user-authored ones too. We just
+        // truncate so the card stays single-line.
+        let preview = enabled.prefix(2).map(\.name).joined(separator: " · ")
+        if enabled.count > 2 {
+            return "\(preview) · 共 \(enabled.count) 条"
+        }
+        return preview
     }
 }
 
