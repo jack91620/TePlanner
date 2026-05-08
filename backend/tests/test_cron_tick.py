@@ -9,12 +9,10 @@
 
 import json
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
 
 from app.db.models import (
-    AutomationRule,
     AutomationState,
     DeviceToken,
     TeslaToken,
@@ -28,7 +26,24 @@ VIN = "LRWYGCFS0NCABCDEF"
 
 
 @pytest.fixture
-async def eligible_user(db_session):
+async def patched_async_session(db_session, monkeypatch):
+    """Route cron_tick's `async_session()` to the test session so it
+    sees fixture data instead of the production DB."""
+    from app.services import cron_tick
+
+    class _SessionCM:
+        async def __aenter__(self):
+            return db_session
+        async def __aexit__(self, *a):
+            pass
+
+    monkeypatch.setattr(cron_tick, "async_session", lambda: _SessionCM())
+    return db_session
+
+
+@pytest.fixture
+async def eligible_user(patched_async_session):
+    db_session = patched_async_session
     user = User(email="t@t.com", password_hash="x", is_active=True)
     db_session.add(user)
     await db_session.flush()
@@ -124,7 +139,8 @@ async def test_run_one_tick_invokes_engine_once_per_user(eligible_user):
     assert seen[0]["locked"] is True
 
 
-async def test_user_without_vehicle_is_skipped(db_session):
+async def test_user_without_vehicle_is_skipped(patched_async_session):
+    db_session = patched_async_session
     # Has both tokens but no Vehicle row → cron tick must early-return.
     u = User(email="x@x.com", password_hash="x", is_active=True)
     db_session.add(u)
@@ -139,11 +155,13 @@ async def test_user_without_vehicle_is_skipped(db_session):
     await db_session.commit()
 
     from app.services import cron_tick
+    from app.services.automation.engine import TickResult
 
     class _SpyEngine:
         called = False
         async def run_for_vehicle(self, *a, **kw):
             type(self).called = True
+            return TickResult(alerts=[], pushed_count=0, cleared_count=0)
 
     polled = await cron_tick.run_one_tick(_SpyEngine())
     assert polled == 1  # user iterated, but…
