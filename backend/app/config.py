@@ -78,6 +78,14 @@ class Settings(BaseSettings):
     # and migrations).
     AUTOMATION_POLL_INTERVAL_SECONDS: int = 300  # 5min default
 
+    # Phase 4 — Fleet Telemetry ingestion. fleet-telemetry runs as a
+    # separate systemd unit on the same VM and publishes vehicle
+    # state-change events on a ZMQ PUB socket. The backend consumer
+    # SUBs to this address to write per-entity `since` timestamps into
+    # AutomationState. Empty string disables the consumer (default —
+    # local dev usually doesn't have fleet-telemetry running).
+    TELEMETRY_ZMQ_ADDR: str = ""
+
     # APNs (Apple Push Notification service)
     # Path to .p8 auth key downloaded from developer.apple.com
     # (Keys → Apple Push Notifications service). Empty disables push.

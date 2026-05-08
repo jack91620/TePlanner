@@ -183,6 +183,15 @@ def _eval_state_duration(spec: dict, ctx: AutomationContext, kind: AlertKind) ->
     if on_since is None:
         return None
 
+    # Phase 4: prefer fleet-telemetry's transition timestamp when it's
+    # earlier than what polling observed. Telemetry pushes within
+    # seconds of the actual change; polling can be up to 5 min late
+    # (or much later if smart-cadence skipped the tick), so the
+    # telemetry-recorded `since` is the truer "started at".
+    tel_since = ctx.memory.get(f"tel:{entity}:since")
+    if tel_since is not None and tel_since < on_since:
+        on_since = tel_since
+
     minutes = max(0, int((ctx.now - on_since).total_seconds() / 60))
     facts = {"duration_human": _format_minutes(minutes), "duration_minutes": minutes}
 

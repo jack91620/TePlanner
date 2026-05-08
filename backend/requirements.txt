@@ -29,6 +29,11 @@ redis==5.0.1
 # Push notifications (APNs)
 aioapns==3.3.1
 
+# Fleet Telemetry ingestion (Phase 4)
+# pyzmq subscribes to fleet-telemetry's ZMQ PUB socket; libzmq3 must
+# be present on the host (apt install libzmq3-dev pkg-config).
+pyzmq==26.0.3
+
 # Utils
 python-dotenv==1.0.0
 tenacity==8.2.3

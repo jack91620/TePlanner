@@ -1,0 +1,35 @@
+{
+  "host": "0.0.0.0",
+  "port": 8443,
+  "log_level": "info",
+  "json_log_enable": true,
+  "namespace": "teplanner_telemetry",
+  "monitoring": {
+    "prometheus_metrics_port": 9091,
+    "profiler_port": 4269,
+    "statsd": {
+      "host": "localhost:8125",
+      "prefix": "teplanner.telemetry",
+      "sample_rate": 100,
+      "flush_period": 5
+    }
+  },
+  "rate_limit": {
+    "enabled": true,
+    "message_interval_time": 30,
+    "message_limit": 1000
+  },
+  "records": {
+    "alerts":       ["zmq", "logger"],
+    "errors":       ["zmq", "logger"],
+    "V":            ["zmq", "logger"],
+    "connectivity": ["zmq", "logger"]
+  },
+  "zmq": {
+    "addr": "tcp://127.0.0.1:5556"
+  },
+  "tls": {
+    "server_cert": "/home/ubuntu/fleet-certs/fullchain.pem",
+    "server_key":  "/home/ubuntu/fleet-certs/key.pem"
+  }
+}

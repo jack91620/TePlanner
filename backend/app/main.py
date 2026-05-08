@@ -56,6 +56,19 @@ async def lifespan(app: FastAPI):
     else:
         print("Automation polling disabled (AUTOMATION_POLL_INTERVAL_SECONDS=0).")
 
+    telemetry_task = None
+    telemetry_stop = None
+    if settings.TELEMETRY_ZMQ_ADDR:
+        from app.services.telemetry.consumer import consume as telemetry_consume
+
+        telemetry_stop = asyncio.Event()
+        telemetry_task = asyncio.create_task(
+            telemetry_consume(telemetry_stop), name="telemetry_consumer"
+        )
+        print(f"Telemetry consumer started (zmq={settings.TELEMETRY_ZMQ_ADDR}).")
+    else:
+        print("Telemetry consumer disabled (TELEMETRY_ZMQ_ADDR empty).")
+
     yield
 
     # Shutdown
@@ -67,6 +80,13 @@ async def lifespan(app: FastAPI):
             await asyncio.wait_for(polling_task, timeout=10.0)
         except asyncio.TimeoutError:
             polling_task.cancel()
+    if telemetry_stop is not None:
+        telemetry_stop.set()
+    if telemetry_task is not None:
+        try:
+            await asyncio.wait_for(telemetry_task, timeout=5.0)
+        except asyncio.TimeoutError:
+            telemetry_task.cancel()
 
 
 app = FastAPI(
