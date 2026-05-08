@@ -105,11 +105,22 @@ struct BatteryView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
-            .disabled(manualApplyStatus == .sending || apiService == nil || vehicleId == nil)
+            .disabled(
+                manualApplyStatus == .sending ||
+                apiService == nil ||
+                vehicleId == nil ||
+                Int(manualChargeLimit) == currentChargeLimitSoc
+            )
             .accessibilityIdentifier("apply_manual_charge_limit_button")
-            Text("跳过预设直接发命令到车辆。出长途调到 100% 等一次性场景用此入口。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if Int(manualChargeLimit) == currentChargeLimitSoc {
+                Text("当前限额已是 \(Int(manualChargeLimit))%，无需重复发送")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("跳过预设直接发命令到车辆。出长途调到 100% 等一次性场景用此入口。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

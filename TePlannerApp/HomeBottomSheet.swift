@@ -199,7 +199,7 @@ private struct RouteSummaryDrawerContent: View {
                 stat(value: "\(plan.numChargingStops)", caption: "充电次数")
             }
             HStack(spacing: 18) {
-                stat(value: "\(plan.initialSoc)% → \(plan.arrivalSoc)%", caption: "电量")
+                stat(value: "\(plan.initialSoc)% → \(plan.arrivalSoc)%", caption: "预估电量")
                 if plan.chargingDurationMinutes > 0 {
                     stat(value: formatMinutes(plan.chargingDurationMinutes), caption: "充电时长")
                 }
