@@ -66,6 +66,9 @@ struct AutomationsHomeView: View {
         .navigationTitle("自动化")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "搜索规则")
+        .refreshable {
+            await rulesStore.refresh()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 EditButton()
@@ -162,6 +165,12 @@ struct AutomationsHomeView: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
+                    }
+                    if let last = record.lastFiredAt {
+                        Text("上次触发：\(Self.relative(last))")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 2)
                     }
                 }
                 Spacer(minLength: 6)
@@ -279,5 +288,14 @@ struct AutomationsHomeView: View {
         // Single source of truth — same string the rule detail view
         // uses, so list + detail can never drift.
         return RuleDisplay.triggerSentence(spec)
+    }
+
+    /// Same wording as the detail page's "上次触发" — relative time
+    /// in zh_CN locale.
+    private static func relative(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
