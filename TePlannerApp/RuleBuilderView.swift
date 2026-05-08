@@ -52,25 +52,37 @@ struct RuleBuilderView: View {
         case sentryModeOn = "vehicle.sentry_mode_on"
         case cabinOverheatOn = "vehicle.cabin_overheat_protection_on"
         case chargingState = "vehicle.charging.state"
-        case batteryLevel = "vehicle.battery_level"
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .climateKeeperMode: return "空调保持模式"
+            case .climateKeeperMode: return "露营/宠物/保持模式"
             case .sentryModeOn:      return "哨兵模式"
             case .cabinOverheatOn:   return "座舱过热保护"
             case .chargingState:     return "充电状态"
-            case .batteryLevel:      return "电量百分比"
             }
         }
         var valueKind: ValueKind {
             switch self {
-            case .climateKeeperMode, .batteryLevel: return .int
-            case .sentryModeOn, .cabinOverheatOn:    return .bool
-            case .chargingState:                     return .string
+            case .climateKeeperMode: return .keeperMode
+            case .sentryModeOn, .cabinOverheatOn: return .bool
+            case .chargingState:     return .string
             }
         }
-        enum ValueKind { case int, bool, string }
+        enum ValueKind { case keeperMode, bool, string }
+    }
+
+    /// 4 个 keeper_mode int 值 + 用户友好标签。
+    enum KeeperModeChoice: Int, CaseIterable, Identifiable {
+        case off = 0, keep = 1, dog = 2, camp = 3
+        var id: Int { rawValue }
+        var label: String {
+            switch self {
+            case .off:  return "关闭"
+            case .keep: return "保持"
+            case .dog:  return "宠物模式"
+            case .camp: return "露营模式"
+            }
+        }
     }
 
     enum ActionType: String, CaseIterable, Identifiable {
@@ -167,21 +179,19 @@ struct RuleBuilderView: View {
     @ViewBuilder
     private var stateDurationValueRow: some View {
         switch entity.valueKind {
-        case .int:
-            Stepper(
-                value: $compareValueInt,
-                in: 0...100
-            ) {
-                HStack {
-                    Text("等于")
-                    Spacer()
-                    Text("\(compareValueInt)")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+        case .keeperMode:
+            Picker("状态", selection: $compareValueInt) {
+                ForEach(KeeperModeChoice.allCases) { choice in
+                    Text(choice.label).tag(choice.rawValue)
                 }
             }
         case .bool:
-            Toggle("等于真", isOn: $compareValueBool)
+            // 哨兵 / 座舱过热只有「开/关」两态。Picker 比 Toggle 更直观，
+            // 因为「等于真」用户读起来不像句子。
+            Picker("状态", selection: $compareValueBool) {
+                Text("开启").tag(true)
+                Text("关闭").tag(false)
+            }
         case .string:
             TextField("等于（字符串）", text: $toString)
                 .textInputAutocapitalization(.never)
@@ -189,7 +199,7 @@ struct RuleBuilderView: View {
     }
 
     private var actionSection: some View {
-        Section("动作 · 那么") {
+        Section {
             Picker("类型", selection: $actionType) {
                 ForEach(ActionType.allCases) { a in
                     Text(a.label).tag(a)
@@ -197,8 +207,19 @@ struct RuleBuilderView: View {
             }
             TextField("标题（推送通知）", text: $actionTitle)
                 .accessibilityIdentifier("rule_action_title_field")
-            TextField("正文（{duration_human} 等占位符可用）", text: $actionBody, axis: .vertical)
+            TextField("正文", text: $actionBody, axis: .vertical)
                 .lineLimit(2...5)
+            if !bodyPreview.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "eye")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("用户看到：\(bodyPreview)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                }
+            }
             Picker("级别", selection: $actionSeverity) {
                 ForEach(AlertSeverityChoice.allCases) { s in
                     Text(s.label).tag(s)
@@ -213,7 +234,28 @@ struct RuleBuilderView: View {
                     }
                 }
             }
+        } header: {
+            Text("动作 · 那么")
+        } footer: {
+            Text("可在正文里插入 {duration_human}（持续时长）或 {battery_level}（当前电量）等占位符，推送时会自动替换成真实值。")
+                .font(.caption2)
         }
+    }
+
+    /// Realtime preview of the body with placeholders rendered using
+    /// the spec's current threshold. Helps users understand what a
+    /// preset's `{duration_human}` placeholder turns into without
+    /// reading docs.
+    private var bodyPreview: String {
+        guard !actionBody.isEmpty else { return "" }
+        // Build a minimal trigger spec snapshot just enough to fill
+        // the standard placeholders.
+        var spec: RuleSpec = ["trigger": .object(["for_minutes": .int(forMinutes)])]
+        spec["kind"] = .string("preview")
+        let rendered = RuleDisplay.previewTemplate(actionBody, spec: spec)
+        // Avoid showing the preview if it's literally identical to
+        // what the user typed (no placeholders in body).
+        return rendered == actionBody ? "" : rendered
     }
 
     @ViewBuilder
@@ -359,9 +401,9 @@ struct RuleBuilderView: View {
         switch triggerType {
         case .stateDuration:
             switch entity.valueKind {
-            case .int:    trigger["equals"] = .int(compareValueInt)
-            case .bool:   trigger["equals"] = .bool(compareValueBool)
-            case .string: trigger["equals"] = .string(toString)
+            case .keeperMode: trigger["equals"] = .int(compareValueInt)
+            case .bool:       trigger["equals"] = .bool(compareValueBool)
+            case .string:     trigger["equals"] = .string(toString)
             }
             trigger["for_minutes"] = .int(forMinutes)
             trigger["state_key"] = .string("user:\(kindString):startedAt")
@@ -414,7 +456,6 @@ struct RuleBuilderView: View {
         case .sentryModeOn:      return "sentryMode"
         case .cabinOverheatOn:   return "cabinOverheat"
         case .chargingState:     return "chargeComplete"
-        case .batteryLevel:      return "campMode" // fallback
         }
     }
 
