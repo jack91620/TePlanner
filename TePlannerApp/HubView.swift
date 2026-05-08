@@ -933,9 +933,13 @@ struct HubView: View {
         let enabled = rules.filter(\.enabled)
         if total == 0 { return "暂无规则" }
         if enabled.isEmpty { return "全部已禁用，点击启用" }
-        // Pick the 2 most representative names. Preset rules ship
-        // with descriptive names; user-authored ones too. We just
-        // truncate so the card stays single-line.
+        // If any rule is actively firing right now, lead with that —
+        // it's the highest-signal info ("there's something to look at").
+        let firing = automationEngine.alerts.count
+        if firing > 0 {
+            return "⚠️ \(firing) 条触发中 · 共 \(enabled.count) 条启用"
+        }
+        // Otherwise show the 2 most representative names + count.
         let preview = enabled.prefix(2).map(\.name).joined(separator: " · ")
         if enabled.count > 2 {
             return "\(preview) · 共 \(enabled.count) 条"
