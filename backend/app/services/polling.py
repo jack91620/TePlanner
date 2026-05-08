@@ -176,7 +176,7 @@ async def _poll_one_user(db: AsyncSession, user_id: int, engine: AutomationEngin
     rule_settings = AutomationSettings()
     try:
         async with TeslaClient(access_token=access_token) as client:
-            data = await client.get_vehicle_data(vehicle.tesla_vehicle_id)
+            data = await client.get_vehicle_data(vehicle.vehicle_id)
     except Exception as exc:
         # Common: vehicle is asleep (408) or token revoked (401). Skip
         # this tick rather than waking — quota / battery hostile.
@@ -187,7 +187,7 @@ async def _poll_one_user(db: AsyncSession, user_id: int, engine: AutomationEngin
     result = await engine.run_for_vehicle(
         db,
         user_id=user_id,
-        vehicle_id=str(vehicle.tesla_vehicle_id),
+        vehicle_id=str(vehicle.vehicle_id),
         state=snapshot,
         settings=rule_settings,
     )
