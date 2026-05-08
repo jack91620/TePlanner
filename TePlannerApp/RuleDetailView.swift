@@ -1,5 +1,6 @@
 import SwiftUI
 import TePlannerKit
+import UserNotifications
 
 /// 自动化规则的只读详情页。Phase 10.4 重写：不再 dump schema 字段
 /// （preset_id / dotted entity / trigger type / capability id 等），
@@ -16,7 +17,10 @@ struct RuleDetailView: View {
     @State private var pendingDuplicate: RuleRecord?
     @State private var pendingThresholdMinutes: Int?
     @State private var savingThreshold = false
+    @State private var testFireFeedback: TestFireFeedback?
     @Environment(\.dismiss) private var dismiss
+
+    enum TestFireFeedback { case sent, denied(String) }
 
     private var record: RuleRecord? {
         rulesStore.rules.first { $0.id == ruleId }
@@ -201,16 +205,63 @@ struct RuleDetailView: View {
         if let (title, body) = sampleNotificationText(for: r) {
             Section {
                 Button {
-                    LocalNotificationScheduler.shared.fireSample(
-                        title: title, body: body, identifier: r.id,
-                    )
+                    fireTestNotification(title: title, body: body, ruleId: r.id)
                 } label: {
                     Label("试发通知预览", systemImage: "bell.badge")
                 }
                 .accessibilityIdentifier("rule_test_fire_button")
+                if let feedback = testFireFeedback {
+                    switch feedback {
+                    case .sent:
+                        Label {
+                            Text("已发送 — 1 秒后会出现在通知中心。如果系统未显示横幅，请到「设置 → 通知 → Tautomation」开启横幅样式。")
+                                .font(.caption)
+                        } icon: {
+                            Image(systemName: "checkmark.circle.fill")
+                        }
+                        .foregroundStyle(.green)
+                    case .denied(let message):
+                        Label {
+                            Text(message).font(.caption)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .foregroundStyle(.orange)
+                    }
+                }
             } footer: {
                 Text("发送一条样例通知到系统，预览推送视觉。不会真触发车辆动作。")
                     .font(.caption2)
+            }
+        }
+    }
+
+    private func fireTestNotification(title: String, body: String, ruleId: String) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            Task { @MainActor in
+                guard settings.authorizationStatus == .authorized
+                        || settings.authorizationStatus == .provisional else {
+                    testFireFeedback = .denied("尚未获得通知权限。请到「设置 → 通知 → Tautomation」开启。")
+                    Task {
+                        try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                        await MainActor.run {
+                            if case .denied = testFireFeedback { testFireFeedback = nil }
+                        }
+                    }
+                    return
+                }
+                LocalNotificationScheduler.shared.fireSample(
+                    title: title, body: body, identifier: ruleId,
+                )
+                withAnimation { testFireFeedback = .sent }
+                Task {
+                    try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                    await MainActor.run {
+                        if case .sent = testFireFeedback {
+                            withAnimation { testFireFeedback = nil }
+                        }
+                    }
+                }
             }
         }
     }
