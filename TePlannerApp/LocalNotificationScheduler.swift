@@ -36,7 +36,20 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
     /// button (e.g. "关闭露营") from the lock screen / notification
     /// center. Receives the alert kind raw value so HubView can
     /// route to AutomationEngine.performPrimaryAction(...).
-    var onAlertPrimaryAction: ((String) -> Void)?
+    /// Setting this clears any buffered tap that arrived before
+    /// the callback was wired (cold-launch case).
+    var onAlertPrimaryAction: ((String) -> Void)? {
+        didSet {
+            if let buffered = bufferedAlertCategoryId, let handler = onAlertPrimaryAction {
+                bufferedAlertCategoryId = nil
+                handler(buffered)
+            }
+        }
+    }
+    /// Set on cold launch when the user tapped a notification action
+    /// before HubView had wired `onAlertPrimaryAction`. Replayed when
+    /// the callback eventually shows up.
+    private var bufferedAlertCategoryId: String?
 
     func bootstrap() {
         UNUserNotificationCenter.current().delegate = self
@@ -294,9 +307,16 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
             // User tapped the inline action button on a rule's
             // notification (e.g. "关闭露营" / "关闭哨兵"). Forward to
             // HubView so AutomationEngine can dispatch the rule's
-            // configured primary capability.
+            // configured primary capability. Cold-launch case: if
+            // HubView hasn't wired its callback yet, buffer for
+            // replay (didSet on onAlertPrimaryAction handles drain).
             Task { @MainActor in
-                LocalNotificationScheduler.shared.onAlertPrimaryAction?(categoryId)
+                let scheduler = LocalNotificationScheduler.shared
+                if let handler = scheduler.onAlertPrimaryAction {
+                    handler(categoryId)
+                } else {
+                    scheduler.bufferedAlertCategoryId = categoryId
+                }
                 completionHandler()
             }
             return
