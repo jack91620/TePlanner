@@ -154,7 +154,16 @@ async def consume(stop_event: asyncio.Event) -> None:
                 logger.warning("telemetry: undecodable payload on topic=%s", topic)
                 continue
             if topic.endswith("_V") or topic == "V":
-                await _process_v_record(writer, payload)
+                try:
+                    await _process_v_record(writer, payload)
+                except Exception:
+                    # Never let a single bad record kill the loop —
+                    # log + continue. Without this, an exception here
+                    # propagates past the inner try, breaks the while,
+                    # and we silently stop receiving.
+                    logger.exception(
+                        "telemetry V record handler crashed (topic=%s)", topic,
+                    )
     finally:
         sock.close(linger=0)
         logger.info("telemetry consumer stopped")

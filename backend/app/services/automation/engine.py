@@ -93,15 +93,30 @@ class SqlStateMemory:
         for key in self._dirty:
             value = self._cache.get(key)
             iso = value.isoformat() if value else None
-            stmt = select(AutomationState).where(
-                AutomationState.user_id == self.user_id,
-                AutomationState.vehicle_id == self.vehicle_id,
-                AutomationState.key == key,
+            stmt = (
+                select(AutomationState)
+                .where(
+                    AutomationState.user_id == self.user_id,
+                    AutomationState.vehicle_id == self.vehicle_id,
+                    AutomationState.key == key,
+                )
+                .order_by(AutomationState.id.desc())
             )
-            existing = (await self.db.execute(stmt)).scalar_one_or_none()
-            if existing:
-                existing.value = iso
-                existing.updated_at = utc_now().replace(tzinfo=None)
+            rows = (await self.db.execute(stmt)).scalars().all()
+            if rows:
+                # Self-heal: if duplicates exist (e.g. cross-loop race
+                # between polling and telemetry consumer), keep the
+                # latest and delete the rest so `scalar_one_or_none`
+                # users elsewhere stop blowing up.
+                rows[0].value = iso
+                rows[0].updated_at = utc_now().replace(tzinfo=None)
+                for stale in rows[1:]:
+                    await self.db.delete(stale)
+                if len(rows) > 1:
+                    logger.warning(
+                        "automation_state had %s dup rows for key=%s — healed",
+                        len(rows), key,
+                    )
             else:
                 self.db.add(AutomationState(
                     user_id=self.user_id,
