@@ -36,7 +36,7 @@ struct AutomationsHomeView: View {
                 emptyStateSection
             }
             if !presetRules.isEmpty {
-                Section("预设") {
+                Section {
                     ForEach(presetRules) { record in
                         ruleRow(record)
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
@@ -44,6 +44,12 @@ struct AutomationsHomeView: View {
                     .onMove { from, to in
                         moveRules(in: presetRules, from: from, to: to)
                     }
+                } header: {
+                    Text("预设")
+                } footer: {
+                    Text("左滑静音、长按更多操作；右上角钟形图标可查看历史触发。")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
             if !customRules.isEmpty {
