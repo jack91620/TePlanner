@@ -51,27 +51,30 @@ ENGINE_DEBOUNCE_SECONDS = 0.5
 def _parse_v_timestamp(payload: dict) -> datetime:
     """Pick the most authoritative timestamp from a V record. Tesla
     fills ``CreatedAt`` / ``createdAt`` (vehicle clock) most reliably;
-    ``time`` is the server's receive time. Fall through gracefully —
-    never throw.
+    ``time`` is the server's receive time. Connectivity records use
+    a unix-int ``CreatedAt``; fall through to ``time`` for those.
+    Never throw — always return *some* datetime.
     """
-    raw: Optional[str] = None
-    # protojson form: payload-level "createdAt"
-    if isinstance(payload.get("createdAt"), str):
-        raw = payload["createdAt"]
-    elif isinstance(payload.get("created_at"), str):
-        raw = payload["created_at"]
-    # legacy logger form: nested data.CreatedAt
-    if raw is None:
-        data = payload.get("data")
-        if isinstance(data, dict):
-            raw = data.get("CreatedAt")
-    if raw is None:
-        raw = payload.get("time")
-    if isinstance(raw, str):
-        try:
-            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        except ValueError:
-            pass
+    candidates = [
+        payload.get("createdAt"),
+        payload.get("created_at"),
+    ]
+    data = payload.get("data")
+    if isinstance(data, dict):
+        candidates.append(data.get("CreatedAt"))
+    candidates.append(payload.get("time"))
+
+    for raw in candidates:
+        if isinstance(raw, str) and raw:
+            try:
+                return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if isinstance(raw, (int, float)) and raw > 0:
+            try:
+                return datetime.fromtimestamp(raw, tz=timezone.utc)
+            except (ValueError, OSError, OverflowError):
+                continue
     return datetime.now(timezone.utc)
 
 

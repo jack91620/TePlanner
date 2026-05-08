@@ -100,7 +100,8 @@ async def test_connectivity_record_writes_state(seeded, db_session, monkeypatch)
         db_session, seeded.id,
         telemetry_since_key("vehicle.connectivity"),
     )
-    assert since.startswith("2026-05-08T15:55:40")
+    # CreatedAt is a unix int (1778226940) → UTC 2026-05-08T07:55:40.
+    assert since.startswith("2026-05-08T07:55:40")
 
 
 async def test_connectivity_transition_advances_since(seeded, db_session, monkeypatch):
