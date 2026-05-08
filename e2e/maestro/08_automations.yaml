@@ -1,6 +1,6 @@
-# Phase 5 自动化提醒 — Hub 入口 → 自动化列表 → 调阈值 → 保存。
-# Phase 6.1 后规则列表是 Hub 的 NavigationLink 而非嵌套在 Settings
-# 里，所以直接走 hub_entry_automations 进入。
+# Phase 10.3.C 自动化主页 — 列表入口、预设可见、能进入详情。
+# 前一版的 threshold-slider 滑块 UI 在 Phase 10.3.C 已被
+# AutomationsHomeView 替换为列表 + 详情 + 可视化构建器。
 
 appId: com.teplanner.ios
 ---
@@ -11,13 +11,12 @@ appId: com.teplanner.ios
 
 - extendedWaitUntil:
     visible: "露营模式超时提醒"
-    timeout: 5000
+    timeout: 8000
 - assertVisible: "哨兵模式长时间开启"
 - assertVisible: "座舱过热保护"
 - takeScreenshot: tmp/screenshots/maestro_automations_list
 
-# Charge-complete row sits at the bottom of the list — scroll it
-# into view before asserting (Phase 5.3 added this row).
+# 充电完成提醒在列表下方——上滑确保它进入视区
 - swipe:
     start: 50%, 80%
     end: 50%, 20%
@@ -26,12 +25,9 @@ appId: com.teplanner.ios
     timeout: 5000
 - takeScreenshot: tmp/screenshots/maestro_automations_charge_complete
 
-- tapOn:
-    id: "automations_save_button"
-
-# Saving pops back to Hub. Wait for the title (always visible) so
-# the VCP pairing prompt won't trip the assertion if it happens to
-# fire here too.
+# 进入第一条预设的详情页（点行）
+- tapOn: "露营模式超时提醒"
 - extendedWaitUntil:
-    visible: "TePlanner"
+    visible: "触发条件"
     timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_automation_detail

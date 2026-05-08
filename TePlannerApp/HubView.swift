@@ -584,11 +584,11 @@ struct HubView: View {
 
     private var automationsEntry: some View {
         NavigationLink {
-            AutomationsListView(rulesStore: rulesStore)
+            AutomationsHomeView(rulesStore: rulesStore, apiService: apiService)
         } label: {
             HubEntryCard(
                 icon: "bell.badge.fill",
-                title: "自动化提醒",
+                title: "自动化",
                 subtitle: automationsSubtitle,
                 accessibilityId: "hub_entry_automations"
             )
@@ -626,23 +626,13 @@ struct HubView: View {
         return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
     }
 
-    /// "X 条已启用" — count rules whose threshold settings are non-zero
-    /// (or for the toggle-only rule, whose enabled flag is true).
+    /// "X 条已启用" — counted directly from the backend-backed rules
+    /// store; preset and user-authored rules contribute equally.
     private var automationsSubtitle: String {
-        let store = UserDefaultsSettingsStore.shared
-        let enabled = automationEngine.registeredRules.filter { record in
-            guard let kindRaw = record.spec.string("kind"),
-                  let kind = VehicleAlert.Kind(rawValue: kindRaw) else {
-                return false
-            }
-            switch kind {
-            case .campMode: return store.campModeReminderMinutes > 0
-            case .sentryMode: return store.sentryReminderMinutes > 0
-            case .cabinOverheat: return store.cabinOverheatReminderMinutes > 0
-            case .chargeComplete: return store.chargeCompleteReminderEnabled
-            }
-        }.count
-        return "\(enabled)/\(automationEngine.registeredRules.count) 条已启用"
+        let total = rulesStore.rules.count
+        let enabled = rulesStore.rules.filter(\.enabled).count
+        if total == 0 { return "暂无规则" }
+        return "\(enabled)/\(total) 条已启用"
     }
 }
 

@@ -191,6 +191,18 @@ public final class APIService: APIServiceProtocol {
         return await delete(path: "/automations/\(id)")
     }
 
+    private struct CapabilityListDTO: Decodable {
+        let capabilities: [CapabilityInfo]
+    }
+
+    public func listCapabilities() async -> Result<[CapabilityInfo], APIError> {
+        let r: Result<CapabilityListDTO, APIError> = await get(path: "/automations/capabilities")
+        switch r {
+        case .success(let dto): return .success(dto.capabilities)
+        case .failure(let e): return .failure(e)
+        }
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {

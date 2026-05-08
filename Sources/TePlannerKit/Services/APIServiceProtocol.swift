@@ -86,4 +86,5 @@ public protocol APIServiceProtocol {
     func createAutomation(name: String, enabled: Bool, spec: RuleSpec) async -> Result<RuleRecord, APIError>
     func updateAutomation(id: String, name: String?, enabled: Bool?, spec: RuleSpec?) async -> Result<RuleRecord, APIError>
     func deleteAutomation(id: String) async -> Result<BaseResponse, APIError>
+    func listCapabilities() async -> Result<[CapabilityInfo], APIError>
 }

@@ -226,4 +226,9 @@ final class MockAPIService: APIServiceProtocol {
         lastDeleteAutomationId = id
         return .success(BaseResponse(success: true, message: "deleted"))
     }
+
+    var mockListCapabilitiesResponse: Result<[CapabilityInfo], APIError> = .success([])
+    func listCapabilities() async -> Result<[CapabilityInfo], APIError> {
+        mockListCapabilitiesResponse
+    }
 }
