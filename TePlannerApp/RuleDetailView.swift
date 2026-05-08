@@ -172,6 +172,16 @@ struct RuleDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
+                    if r.enabled, let next = nextCronFireDate(in: r.spec) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.blue)
+                            Text("下次触发：\(Self.absolute(next))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 Spacer()
             }
@@ -228,6 +238,73 @@ struct RuleDetailView: View {
         formatter.unitsStyle = .full
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// "今天 HH:mm / 明天 HH:mm / 周X HH:mm / M月d日 HH:mm" —
+    /// absolute time used for next-cron-fire labels.
+    private static func absolute(_ date: Date) -> String {
+        let cal = Calendar.current
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        if cal.isDateInToday(date) {
+            f.dateFormat = "今天 HH:mm"
+        } else if cal.isDateInTomorrow(date) {
+            f.dateFormat = "明天 HH:mm"
+        } else {
+            let dayDelta = cal.dateComponents([.day], from: cal.startOfDay(for: Date()), to: cal.startOfDay(for: date)).day ?? 0
+            if dayDelta < 7 {
+                f.dateFormat = "EEEE HH:mm"
+            } else {
+                f.dateFormat = "M月d日 HH:mm"
+            }
+        }
+        return f.string(from: date)
+    }
+
+    /// Returns the next time a cron-triggered rule will fire, or nil
+    /// for non-cron rules. Supports the v1 5-field cron the builder
+    /// emits ("M H * * W") — minute / hour / day / month / weekday.
+    /// Weekday formats supported: '*', '1-5' (workdays), '0,6'
+    /// (weekends), comma-separated digit list.
+    private func nextCronFireDate(in spec: RuleSpec) -> Date? {
+        guard let trigger = spec["trigger"]?.objectValue,
+              trigger.string("type") == "cron",
+              let expr = trigger.string("expr") else { return nil }
+        let parts = expr.split(separator: " ").map(String.init)
+        guard parts.count == 5,
+              let minute = Int(parts[0]),
+              let hour = Int(parts[1]),
+              parts[2] == "*", parts[3] == "*" else { return nil }
+        let allowedWeekdays: Set<Int>
+        switch parts[4] {
+        case "*":
+            allowedWeekdays = Set(0...6)
+        case "1-5":
+            allowedWeekdays = [1, 2, 3, 4, 5]
+        case "0,6", "6,0":
+            allowedWeekdays = [0, 6]
+        default:
+            let nums = parts[4].split(separator: ",").compactMap { Int($0) }
+            guard !nums.isEmpty, nums.allSatisfy({ (0...6).contains($0) }) else { return nil }
+            allowedWeekdays = Set(nums)
+        }
+
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
+        let now = Date()
+        for offset in 0...8 {
+            guard let day = cal.date(byAdding: .day, value: offset, to: now) else { continue }
+            // Calendar.weekday: 1 = Sunday, 7 = Saturday.
+            // Cron weekday: 0 = Sunday, 6 = Saturday.
+            let cronWeekday = (cal.component(.weekday, from: day) + 6) % 7
+            guard allowedWeekdays.contains(cronWeekday) else { continue }
+            var components = cal.dateComponents([.year, .month, .day], from: day)
+            components.hour = hour
+            components.minute = minute
+            guard let target = cal.date(from: components) else { continue }
+            if target > now { return target }
+        }
+        return nil
     }
 
     @ViewBuilder
