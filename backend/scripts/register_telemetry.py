@@ -91,6 +91,55 @@ async def get_partner_token() -> str:
         return r.json()["access_token"]
 
 
+async def get_user_access_token_for_vin(vin: str) -> str | None:
+    """Look up the latest user-OAuth access token for the user that
+    owns `vin`. Refreshes if expired. fleet_telemetry_config rejects
+    partner (M2M) tokens with VIN not_found — needs user authorization-
+    code token because the vehicle binding lives at the user level.
+    """
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from datetime import datetime, timedelta
+    from app.core.security import TokenEncryption
+    from app.db.models import TeslaToken, Vehicle
+    from app.db.session import async_session
+    from app.integrations.tesla import TeslaAuth
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        veh_q = select(Vehicle).where(Vehicle.vin == vin).limit(1)
+        veh = (await db.execute(veh_q)).scalar_one_or_none()
+        if not veh:
+            return None
+        tok_q = (
+            select(TeslaToken)
+            .where(TeslaToken.user_id == veh.user_id)
+            .order_by(TeslaToken.updated_at.desc())
+            .limit(1)
+        )
+        tok = (await db.execute(tok_q)).scalar_one_or_none()
+        if not tok:
+            return None
+
+        encryption = TokenEncryption()
+        if tok.expires_at is None or tok.expires_at < datetime.utcnow():
+            try:
+                refresh_plain = encryption.decrypt(tok.refresh_token)
+            except Exception:
+                refresh_plain = tok.refresh_token
+            new_tokens = await TeslaAuth().refresh_token(refresh_plain)
+            tok.access_token = encryption.encrypt(new_tokens["access_token"])
+            tok.refresh_token = encryption.encrypt(new_tokens["refresh_token"])
+            tok.expires_at = datetime.utcnow() + timedelta(
+                seconds=new_tokens.get("expires_in", 3600)
+            )
+            await db.commit()
+            return new_tokens["access_token"]
+        try:
+            return encryption.decrypt(tok.access_token)
+        except Exception:
+            return tok.access_token
+
+
 async def register_config(
     token: str,
     vins: list[str],
@@ -168,8 +217,15 @@ async def main():
     print(f"Exp days: {args.days}")
     print()
 
-    print("Getting partner token...")
-    token = await get_partner_token()
+    # Try the user-level access token first (required for fleet_telemetry_config).
+    # Falls back to partner token if no user token is on file.
+    print("Looking up user access token for first VIN...")
+    token = await get_user_access_token_for_vin(args.vin[0])
+    if token:
+        print("  using user OAuth access token")
+    else:
+        print("  no user token found — falling back to partner token")
+        token = await get_partner_token()
 
     print("Registering config...")
     result = await register_config(
