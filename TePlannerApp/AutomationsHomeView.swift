@@ -71,7 +71,7 @@ struct AutomationsHomeView: View {
                         moveRules(in: presetRules, from: from, to: to)
                     }
                 } header: {
-                    Text("预设")
+                    Text("预设 · \(presetRules.count)")
                 } footer: {
                     Text("左滑静音、长按更多操作；右上角钟形图标可查看历史触发。")
                         .font(.caption2)
@@ -79,7 +79,7 @@ struct AutomationsHomeView: View {
                 }
             }
             if !customRules.isEmpty {
-                Section("我的自动化") {
+                Section("我的自动化 · \(customRules.count)") {
                     ForEach(customRules) { record in
                         ruleRow(record)
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
