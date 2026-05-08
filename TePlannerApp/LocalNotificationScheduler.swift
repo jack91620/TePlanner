@@ -32,10 +32,90 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
     /// preheat tap off to the right place. nil means "no listener" —
     /// notification is silently dropped.
     var onPreheatTapped: (() -> Void)?
+    /// Fired when the user taps a notification's primary action
+    /// button (e.g. "关闭露营") from the lock screen / notification
+    /// center. Receives the alert kind raw value so HubView can
+    /// route to AutomationEngine.performPrimaryAction(...).
+    var onAlertPrimaryAction: ((String) -> Void)?
 
     func bootstrap() {
         UNUserNotificationCenter.current().delegate = self
+        registerActionCategories()
         requestPermissionIfNeeded()
+    }
+
+    /// Wire up UNNotificationCategory actions so users can act
+    /// directly from the notification center / lock screen instead
+    /// of opening the app. Mirrors iOS Shortcuts inline-action UX.
+    /// Each category is keyed by VehicleAlert.Kind so the
+    /// scheduler's per-alert `categoryIdentifier = kind.rawValue`
+    /// lights up the right buttons.
+    private func registerActionCategories() {
+        let dismissAction = UNNotificationAction(
+            identifier: "dismiss",
+            title: "我知道了",
+            options: []
+        )
+        let closeCampAction = UNNotificationAction(
+            identifier: "primary",
+            title: "关闭露营",
+            options: [.authenticationRequired]
+        )
+        let closeSentryAction = UNNotificationAction(
+            identifier: "primary",
+            title: "关闭哨兵",
+            options: [.authenticationRequired]
+        )
+        let categories: [UNNotificationCategory] = [
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.campMode.rawValue,
+                actions: [closeCampAction, dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.sentryMode.rawValue,
+                actions: [closeSentryAction, dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.chargeComplete.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.cabinOverheat.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.leftUnlocked.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.closureLeftOpen.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.lowBattery.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.weekdayPreheat.rawValue,
+                actions: [
+                    UNNotificationAction(
+                        identifier: "primary",
+                        title: "立即预热",
+                        options: [.authenticationRequired]
+                    ),
+                    dismissAction,
+                ],
+                intentIdentifiers: [], options: [],
+            ),
+        ]
+        UNUserNotificationCenter.current().setNotificationCategories(Set(categories))
     }
 
     func requestPermissionIfNeeded() {
@@ -190,13 +270,29 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        if response.notification.request.identifier == Self.preheatNotificationId {
+        let request = response.notification.request
+        let actionId = response.actionIdentifier
+        let categoryId = request.content.categoryIdentifier
+        if request.identifier == Self.preheatNotificationId {
             Task { @MainActor in
                 LocalNotificationScheduler.shared.onPreheatTapped?()
                 completionHandler()
             }
-        } else {
-            completionHandler()
+            return
         }
+        if actionId == "primary" && !categoryId.isEmpty {
+            // User tapped the inline action button on a rule's
+            // notification (e.g. "关闭露营" / "关闭哨兵"). Forward to
+            // HubView so AutomationEngine can dispatch the rule's
+            // configured primary capability.
+            Task { @MainActor in
+                LocalNotificationScheduler.shared.onAlertPrimaryAction?(categoryId)
+                completionHandler()
+            }
+            return
+        }
+        // Default tap (notification body) and "我知道了" both just
+        // open the app / dismiss; nothing else to do here.
+        completionHandler()
     }
 }

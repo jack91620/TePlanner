@@ -135,6 +135,24 @@ struct HubView: View {
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
             }
+            // Notification-center inline action: "关闭露营" / "关闭
+            // 哨兵" buttons forward through here so AutomationEngine
+            // can dispatch the rule's configured primary capability.
+            LocalNotificationScheduler.shared.onAlertPrimaryAction = { kindRaw in
+                Task { @MainActor in
+                    guard let kind = VehicleAlert.Kind(rawValue: kindRaw),
+                          let alert = automationEngine.alerts.first(where: { $0.kind == kind })
+                    else { return }
+                    let result = await automationEngine.performPrimaryAction(
+                        for: alert,
+                        vehicleId: viewModel.vehicle?.id
+                    )
+                    if case .failure(let err) = result {
+                        alertActionError = err.localizedDescription
+                    }
+                    await pollCommandStatusesUntilSettled()
+                }
+            }
             viewModel.startPolling()
             promptVCPPairingIfNeeded()
         }
