@@ -45,6 +45,20 @@ public final class AutomationEngine: ObservableObject {
         recompute()
     }
 
+    /// Phase 5: seed engine memory with the server's telemetry-derived
+    /// `since` timestamps. The interpreter prefers these over the
+    /// locally-observed `state_key` start time when computing duration,
+    /// so the HubView pill reports the same elapsed time the server
+    /// reports in push notifications. Caller (HubView) fetches via
+    /// `apiService.fetchAutomationState()` and applies the entries
+    /// before/after each `observe(...)`.
+    public func applyServerTelemetryState(_ entries: [TelemetryStateEntry]) {
+        for entry in entries {
+            memory.set("tel:\(entry.entity):since", value: entry.since)
+        }
+        recompute()
+    }
+
     /// Feed in the latest VehicleState. Each registered rule is
     /// evaluated; the union of its outputs becomes the new alert list,
     /// sorted critical-first.

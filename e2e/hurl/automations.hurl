@@ -63,3 +63,10 @@ HTTP 401
 # 5. Delete rule without auth → 401.
 DELETE {{base_url}}/api/v1/automations/some-id
 HTTP 401
+
+
+# 6. GET /state without auth → 401 (Phase 5 telemetry-since endpoint).
+GET {{base_url}}/api/v1/automations/state
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists

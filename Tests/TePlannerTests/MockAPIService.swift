@@ -231,4 +231,10 @@ final class MockAPIService: APIServiceProtocol {
     func listCapabilities() async -> Result<[CapabilityInfo], APIError> {
         mockListCapabilitiesResponse
     }
+
+    var mockFetchAutomationStateResponse: Result<TelemetryStateResponse, APIError> =
+        .success(TelemetryStateResponse(vehicleId: nil, entries: []))
+    func fetchAutomationState() async -> Result<TelemetryStateResponse, APIError> {
+        mockFetchAutomationStateResponse
+    }
 }

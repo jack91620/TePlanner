@@ -152,7 +152,17 @@ private func evalStateDuration(
 
     if !isOn { return nil }
     if threshold <= 0 { return nil }
-    guard let onSince = ctx.memory.get(stateKey) else { return nil }
+    guard var onSince = ctx.memory.get(stateKey) else { return nil }
+
+    // Phase 5: prefer the server-recorded telemetry transition time
+    // when it's earlier than what we observed locally. Fleet Telemetry
+    // pushes within seconds of the actual state change; iOS observation
+    // happens at most once per polling cycle and can be much later
+    // (especially after a fresh login or app cold start).
+    if let telSince = ctx.memory.get("tel:\(entity):since"),
+       telSince < onSince {
+        onSince = telSince
+    }
 
     let minutes = max(0, Int(ctx.now.timeIntervalSince(onSince) / 60))
     let above = minutes >= threshold

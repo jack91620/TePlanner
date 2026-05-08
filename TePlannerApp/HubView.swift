@@ -103,6 +103,7 @@ struct HubView: View {
             await viewModel.load()
             await rulesStore.refresh()
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
+            await refreshTelemetryState()
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
             statsViewModel.refresh()
             scheduledDeparture = departureStore.current()
@@ -134,6 +135,7 @@ struct HubView: View {
             chargingTracker.observe(newState, locationName: viewModel.locationName)
             statsViewModel.refresh()
             promptVCPPairingIfNeeded()
+            Task { await refreshTelemetryState() }
         }
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
@@ -199,6 +201,21 @@ struct HubView: View {
             Button("稍后再说", role: .cancel) {}
         } message: {
             Text("为了让 Tautomation 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。")
+        }
+    }
+
+    /// Pull the latest server-recorded `tel:<entity>:since` timestamps
+    /// and seed the engine memory. Errors are swallowed — a failed
+    /// fetch just means the rule keeps its locally-observed start time
+    /// (current behavior for offline / pre-Phase-5 builds).
+    private func refreshTelemetryState() async {
+        switch await apiService.fetchAutomationState() {
+        case .success(let resp):
+            await MainActor.run {
+                automationEngine.applyServerTelemetryState(resp.entries)
+            }
+        case .failure(let err):
+            Log.api.debug("fetchAutomationState skipped: \(err.localizedDescription, privacy: .public)")
         }
     }
 

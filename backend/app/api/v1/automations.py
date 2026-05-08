@@ -26,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.db.models import AutomationRule, User
+from app.db.models import AutomationRule, AutomationState, User, Vehicle
 from app.services.automation.engine import ensure_presets_seeded
 from app.services.capabilities import all_capabilities
 
@@ -208,3 +208,86 @@ async def list_capabilities() -> dict[str, list[dict]]:
     boot to populate the action-block picker.
     """
     return {"capabilities": [c.describe() for c in all_capabilities()]}
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — telemetry-derived state for iOS
+
+class TelemetryStateEntry(BaseModel):
+    """One ``tel:<entity>:since`` + value pair from automation_state."""
+    entity: str
+    value: Optional[Any]
+    since: datetime
+
+
+class TelemetryStateResponse(BaseModel):
+    vehicle_id: Optional[str]
+    entries: list[TelemetryStateEntry]
+
+
+@router.get("/state", response_model=TelemetryStateResponse)
+async def get_telemetry_state(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> TelemetryStateResponse:
+    """Return the user's telemetry-recorded entity state — the ``tel:*``
+    rows the Fleet Telemetry consumer writes into automation_state.
+
+    iOS calls this on each polling tick, before evaluating rules, and
+    seeds the local engine memory with the server's ``since`` timestamps.
+    The interpreter then prefers the earlier of (locally observed,
+    server telemetry) when computing duration. That's what closes the
+    "已开启 0 分钟" gap: the iOS HubView pill now reports the same
+    elapsed time the server reports in push notifications.
+    """
+    veh_stmt = (
+        select(Vehicle)
+        .where(Vehicle.user_id == user.id)
+        .order_by(Vehicle.id.desc())
+        .limit(1)
+    )
+    vehicle = (await db.execute(veh_stmt)).scalars().first()
+    if vehicle is None:
+        return TelemetryStateResponse(vehicle_id=None, entries=[])
+
+    state_stmt = select(AutomationState).where(
+        AutomationState.user_id == user.id,
+        AutomationState.vehicle_id == vehicle.vin,
+        AutomationState.key.like("tel:%:since"),
+    )
+    since_rows = (await db.execute(state_stmt)).scalars().all()
+
+    entries: list[TelemetryStateEntry] = []
+    for row in since_rows:
+        # Key shape: tel:<entity>:since  →  entity is everything between.
+        if not row.value:
+            continue
+        try:
+            since = datetime.fromisoformat(row.value)
+        except ValueError:
+            continue
+        if not (row.key.startswith("tel:") and row.key.endswith(":since")):
+            continue
+        entity = row.key[4:-6]  # strip prefix/suffix
+
+        # Pair with the value row if present.
+        value_stmt = select(AutomationState).where(
+            AutomationState.user_id == user.id,
+            AutomationState.vehicle_id == vehicle.vin,
+            AutomationState.key == f"tel:{entity}:value",
+        )
+        value_row = (await db.execute(value_stmt)).scalars().first()
+        decoded_value: Optional[Any] = None
+        if value_row and value_row.value:
+            try:
+                decoded_value = json.loads(value_row.value)
+            except (json.JSONDecodeError, TypeError):
+                decoded_value = value_row.value
+
+        entries.append(TelemetryStateEntry(
+            entity=entity, value=decoded_value, since=since,
+        ))
+
+    return TelemetryStateResponse(
+        vehicle_id=vehicle.vin, entries=entries,
+    )

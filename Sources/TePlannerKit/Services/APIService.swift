@@ -203,6 +203,10 @@ public final class APIService: APIServiceProtocol {
         }
     }
 
+    public func fetchAutomationState() async -> Result<TelemetryStateResponse, APIError> {
+        return await get(path: "/automations/state")
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
