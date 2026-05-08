@@ -161,8 +161,8 @@ LEFT_UNLOCKED = PresetDefinition(
                 "title": "车辆未锁",
                 "body": "停车 {duration_human}，车门仍处于未锁状态",
                 "severity": "critical",
-                "primary_action_label": "我知道了",
-                "capability": "automation.dismiss",
+                "primary_action_label": "锁车",
+                "capability": "tesla.security.door_lock",
             }
         ],
     },

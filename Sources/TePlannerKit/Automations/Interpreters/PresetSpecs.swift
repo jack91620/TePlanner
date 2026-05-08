@@ -127,8 +127,8 @@ public enum PresetSpecs {
                 "title": .string("车辆未锁"),
                 "body": .string("停车 {duration_human}，车门仍处于未锁状态"),
                 "severity": .string("critical"),
-                "primary_action_label": .string("我知道了"),
-                "capability": .string("automation.dismiss"),
+                "primary_action_label": .string("锁车"),
+                "capability": .string("tesla.security.door_lock"),
             ]),
         ]),
     ]
