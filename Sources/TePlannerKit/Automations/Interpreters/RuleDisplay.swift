@@ -44,6 +44,10 @@ public enum RuleDisplay {
         case "tesla.security.set_sentry": return "切换哨兵模式"
         case "tesla.charging.set_limit": return "调整充电限额"
         case "tesla.navigation.send": return "发送导航目的地"
+        case "tesla.comfort.set_seat_heater": return "设置座椅加热"
+        case "tesla.comfort.set_steering_wheel_heater": return "切换方向盘加热"
+        case "tesla.media.toggle_playback": return "切换车机播放"
+        case "tesla.media.set_volume": return "设置车机音量"
         case "automation.dismiss", "": return "仅关闭提醒"
         default: return capabilityId
         }
