@@ -264,50 +264,8 @@ struct RuleDetailView: View {
         return f.string(from: date)
     }
 
-    /// Returns the next time a cron-triggered rule will fire, or nil
-    /// for non-cron rules. Supports the v1 5-field cron the builder
-    /// emits ("M H * * W") — minute / hour / day / month / weekday.
-    /// Weekday formats supported: '*', '1-5' (workdays), '0,6'
-    /// (weekends), comma-separated digit list.
     private func nextCronFireDate(in spec: RuleSpec) -> Date? {
-        guard let trigger = spec["trigger"]?.objectValue,
-              trigger.string("type") == "cron",
-              let expr = trigger.string("expr") else { return nil }
-        let parts = expr.split(separator: " ").map(String.init)
-        guard parts.count == 5,
-              let minute = Int(parts[0]),
-              let hour = Int(parts[1]),
-              parts[2] == "*", parts[3] == "*" else { return nil }
-        let allowedWeekdays: Set<Int>
-        switch parts[4] {
-        case "*":
-            allowedWeekdays = Set(0...6)
-        case "1-5":
-            allowedWeekdays = [1, 2, 3, 4, 5]
-        case "0,6", "6,0":
-            allowedWeekdays = [0, 6]
-        default:
-            let nums = parts[4].split(separator: ",").compactMap { Int($0) }
-            guard !nums.isEmpty, nums.allSatisfy({ (0...6).contains($0) }) else { return nil }
-            allowedWeekdays = Set(nums)
-        }
-
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
-        let now = Date()
-        for offset in 0...8 {
-            guard let day = cal.date(byAdding: .day, value: offset, to: now) else { continue }
-            // Calendar.weekday: 1 = Sunday, 7 = Saturday.
-            // Cron weekday: 0 = Sunday, 6 = Saturday.
-            let cronWeekday = (cal.component(.weekday, from: day) + 6) % 7
-            guard allowedWeekdays.contains(cronWeekday) else { continue }
-            var components = cal.dateComponents([.year, .month, .day], from: day)
-            components.hour = hour
-            components.minute = minute
-            guard let target = cal.date(from: components) else { continue }
-            if target > now { return target }
-        }
-        return nil
+        RuleDisplay.nextCronFire(spec: spec)
     }
 
     @ViewBuilder
