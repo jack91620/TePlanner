@@ -15,6 +15,7 @@ struct AutomationsHomeView: View {
     @State private var showingBuilder = false
     @State private var workingError: String?
     @State private var pendingDelete: RuleRecord?
+    @State private var pendingDuplicate: RuleRecord?
     @State private var searchText: String = ""
 
     private let apiService: APIServiceProtocol
@@ -95,6 +96,16 @@ struct AutomationsHomeView: View {
                 )
             }
         }
+        .sheet(item: $pendingDuplicate) { source in
+            NavigationStack {
+                RuleBuilderView(
+                    initial: nil,
+                    template: cloneForDuplicate(source),
+                    rulesStore: rulesStore,
+                    capabilitiesStore: capabilitiesStore
+                )
+            }
+        }
         .confirmationDialog(
             "确定删除「\(pendingDelete?.name ?? "")」？",
             isPresented: Binding(
@@ -127,69 +138,103 @@ struct AutomationsHomeView: View {
                 capabilitiesStore: capabilitiesStore
             )
         } label: {
-            HStack(alignment: .top, spacing: 12) {
-                // iOS 快捷指令-style accent: trigger-typed icon in a
-                // colored rounded square, dimmed when rule is off.
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08))
-                    Image(systemName: RuleDisplay.triggerSymbol(record.spec))
-                        .foregroundStyle(record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary))
-                        .font(.subheadline)
+            ruleRowLabel(record)
+        }
+        .contextMenu {
+            Button {
+                Task {
+                    let ok = await rulesStore.update(
+                        id: record.id, enabled: !record.enabled,
+                    )
+                    if !ok { workingError = rulesStore.lastError }
                 }
-                .frame(width: 32, height: 32)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(record.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    // "When X happens, do Y" — the iOS Shortcuts pattern.
-                    // Dimmed prefix labels (当 / 那么) help users parse
-                    // long sentences at a glance.
+            } label: {
+                if record.enabled {
+                    Label("停用", systemImage: "pause.circle")
+                } else {
+                    Label("启用", systemImage: "play.circle")
+                }
+            }
+            Button {
+                pendingDuplicate = record
+            } label: {
+                Label("复制为新规则", systemImage: "plus.square.on.square")
+            }
+            if record.presetId == nil {
+                Divider()
+                Button(role: .destructive) {
+                    pendingDelete = record
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ruleRowLabel(_ record: RuleRecord) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            // iOS 快捷指令-style accent: trigger-typed icon in a
+            // colored rounded square, dimmed when rule is off.
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08))
+                Image(systemName: RuleDisplay.triggerSymbol(record.spec))
+                    .foregroundStyle(record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary))
+                    .font(.subheadline)
+            }
+            .frame(width: 32, height: 32)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.name)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                // "When X happens, do Y" — the iOS Shortcuts pattern.
+                // Dimmed prefix labels (当 / 那么) help users parse
+                // long sentences at a glance.
+                HStack(alignment: .top, spacing: 4) {
+                    Text("当")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(triggerSummary(record.spec))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                let action = RuleDisplay.actionSentence(record.spec)
+                if !action.isEmpty {
                     HStack(alignment: .top, spacing: 4) {
-                        Text("当")
+                        Text("那么")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
-                        Text(triggerSummary(record.spec))
+                        Text(action)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
-                    let action = RuleDisplay.actionSentence(record.spec)
-                    if !action.isEmpty {
-                        HStack(alignment: .top, spacing: 4) {
-                            Text("那么")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                            Text(action)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-                    }
-                    if let last = record.lastFiredAt {
-                        Text("上次触发：\(Self.relative(last))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 2)
-                    }
                 }
-                Spacer(minLength: 6)
-                Toggle(
-                    "",
-                    isOn: Binding(
-                        get: { record.enabled },
-                        set: { newValue in
-                            Task {
-                                let ok = await rulesStore.update(id: record.id, enabled: newValue)
-                                if !ok { workingError = rulesStore.lastError }
-                            }
-                        }
-                    )
-                )
-                .labelsHidden()
+                if let last = record.lastFiredAt {
+                    Text("上次触发：\(Self.relative(last))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 2)
+                }
             }
-            .accessibilityIdentifier("automation_row_\(record.id)")
+            Spacer(minLength: 6)
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { record.enabled },
+                    set: { newValue in
+                        Task {
+                            let ok = await rulesStore.update(id: record.id, enabled: newValue)
+                            if !ok { workingError = rulesStore.lastError }
+                        }
+                    }
+                )
+            )
+            .labelsHidden()
         }
+        .accessibilityIdentifier("automation_row_\(record.id)")
     }
 
     private var presetRules: [RuleRecord] {
@@ -288,6 +333,26 @@ struct AutomationsHomeView: View {
         // Single source of truth — same string the rule detail view
         // uses, so list + detail can never drift.
         return RuleDisplay.triggerSentence(spec)
+    }
+
+    /// Pre-populate the builder with a clone of `source` for the
+    /// "复制为新规则" path. Empty id forces save → create.
+    private func cloneForDuplicate(_ source: RuleRecord) -> RuleRecord {
+        var nextName = "\(source.name) 副本"
+        let existing = Set(rulesStore.rules.map(\.name))
+        var i = 2
+        while existing.contains(nextName) {
+            nextName = "\(source.name) 副本 \(i)"
+            i += 1
+        }
+        return RuleRecord(
+            id: "",
+            presetId: nil,
+            name: nextName,
+            enabled: source.enabled,
+            spec: source.spec,
+            version: 1
+        )
     }
 
     /// Same wording as the detail page's "上次触发" — relative time
