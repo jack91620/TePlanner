@@ -171,16 +171,19 @@ async def load_user_rules(db: AsyncSession, user_id: int) -> list[dict]:
     """Return the list of rule spec dicts for a user (parsed from
     spec_json, only enabled rules). Caller should already have
     seeded presets for first-time users via `ensure_presets_seeded`.
+
+    Ordering is deterministic: presets first, in their canonical
+    ALL_PRESETS order; user-authored rules afterwards in
+    created_at order. Sorting by ``id`` (UUID string) would scramble
+    the list alphabetically and surface differently between sessions.
     """
-    stmt = (
-        select(AutomationRule)
-        .where(
-            AutomationRule.user_id == user_id,
-            AutomationRule.enabled == True,  # noqa: E712
-        )
-        .order_by(AutomationRule.id)
+    stmt = select(AutomationRule).where(
+        AutomationRule.user_id == user_id,
+        AutomationRule.enabled == True,  # noqa: E712
     )
     rows = (await db.execute(stmt)).scalars().all()
+    rows = _sort_rules_canonically(rows)
+
     parsed: list[dict] = []
     for row in rows:
         try:
@@ -193,6 +196,22 @@ async def load_user_rules(db: AsyncSession, user_id: int) -> list[dict]:
         spec.setdefault("enabled", True)
         parsed.append(spec)
     return parsed
+
+
+def _sort_rules_canonically(rows: list[AutomationRule]) -> list[AutomationRule]:
+    """Stable sort: presets in ALL_PRESETS declaration order, then
+    user-authored rules (preset_id is None) by created_at.
+    """
+    preset_order = {p.preset_id: i for i, p in enumerate(ALL_PRESETS)}
+    fallback = len(preset_order)
+    return sorted(rows, key=lambda r: (
+        # Presets sort by their fixed index; user rules sort after.
+        preset_order.get(r.preset_id or "", fallback)
+        if r.preset_id is not None else fallback + 1,
+        # Tiebreaker for user-authored rules.
+        r.created_at or datetime.min,
+        r.id,
+    ))
 
 
 @dataclass

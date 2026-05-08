@@ -56,8 +56,22 @@ struct ScheduledDepartureSheet: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                    Slider(value: $leadTimeMinutes, in: 5...60, step: 5)
-                        .accessibilityIdentifier("departure_lead_slider")
+                    Slider(value: $leadTimeMinutes, in: 5...60, step: 5) {
+                        Text("提前提醒")
+                    } minimumValueLabel: {
+                        Text("5")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        Text("60")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("departure_lead_slider")
+                } footer: {
+                    Text("空调预热通常需要 10–20 分钟达到舒适温度，冬季可调高。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if onClear != nil {

@@ -110,15 +110,15 @@ async def list_rules(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> RuleListResponse:
-    """List all of the user's rules. Lazy-seeds the 4 presets on
-    first call (when user has zero rules)."""
+    """List all of the user's rules. Lazy-seeds the presets on
+    first call (when user has zero rules). Order is canonical: each
+    preset in its ALL_PRESETS-declared position, user-authored rules
+    after, by creation time."""
     await ensure_presets_seeded(db, user.id)
-    stmt = (
-        select(AutomationRule)
-        .where(AutomationRule.user_id == user.id)
-        .order_by(AutomationRule.id)
-    )
+    stmt = select(AutomationRule).where(AutomationRule.user_id == user.id)
     rows = (await db.execute(stmt)).scalars().all()
+    from app.services.automation.engine import _sort_rules_canonically
+    rows = _sort_rules_canonically(rows)
     return RuleListResponse(rules=[_row_to_response(r) for r in rows])
 
 
