@@ -307,8 +307,14 @@ struct RuleBuilderView: View {
                         Text(e.label).tag(e)
                     }
                 }
-                TextField("目标值", text: $toString)
-                    .textInputAutocapitalization(.never)
+                HStack {
+                    Text("变为")
+                    Spacer()
+                    TextField("如 Complete", text: $toString)
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.never)
+                        .foregroundStyle(.secondary)
+                }
             case .cron:
                 cronEditor
             }
