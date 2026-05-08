@@ -109,6 +109,11 @@ def _read_entity(state, entity: str) -> Any:
 # Template rendering.
 
 def _format_minutes(minutes: int) -> str:
+    # Mirror Swift formatMinutes — show "不到 1 分钟" instead of "0 分钟"
+    # because the rule may evaluate the instant we first observe the
+    # condition (delta = 0).
+    if minutes < 1:
+        return "不到 1 分钟"
     if minutes < 60:
         return f"{minutes} 分钟"
     hours = minutes // 60

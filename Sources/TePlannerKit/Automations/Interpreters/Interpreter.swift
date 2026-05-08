@@ -45,6 +45,10 @@ private func readEntity(_ entity: String, from state: VehicleState?) -> JSONValu
 }
 
 private func formatMinutes(_ minutes: Int) -> String {
+    // 0 分钟显示为「不到 1 分钟」更诚实——iOS 只能从首次观察到状态
+    // 那一刻起算，触发评估的当下与首次观察是同一时刻，所以 0 是必然
+    // 出现的瞬时值。直接显示 "0 分钟" 让用户以为坏了。
+    if minutes < 1 { return "不到 1 分钟" }
     if minutes < 60 { return "\(minutes) 分钟" }
     let h = minutes / 60
     let m = minutes % 60

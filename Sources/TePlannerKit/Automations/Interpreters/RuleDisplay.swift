@@ -105,6 +105,7 @@ public enum RuleDisplay {
     }
 
     public static func formatDurationMinutes(_ minutes: Int) -> String {
+        if minutes < 1 { return "不到 1 分钟" }
         if minutes < 60 { return "\(minutes) 分钟" }
         let h = minutes / 60
         let m = minutes % 60
