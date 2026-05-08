@@ -65,7 +65,11 @@ async def dispatch(
 # but listing all brand modules here prevents the "import cycle" trap
 # of touching only some on cold start.
 from app.services.capabilities.tesla import climate as _climate  # noqa: E402,F401
+from app.services.capabilities.tesla import climate_extra as _climate_extra  # noqa: E402,F401
 from app.services.capabilities.tesla import security as _security  # noqa: E402,F401
 from app.services.capabilities.tesla import charging as _charging  # noqa: E402,F401
+from app.services.capabilities.tesla import charging_extra as _charging_extra  # noqa: E402,F401
 from app.services.capabilities.tesla import navigation as _navigation  # noqa: E402,F401
 from app.services.capabilities.tesla import comfort as _comfort  # noqa: E402,F401
+from app.services.capabilities.tesla import closures as _closures  # noqa: E402,F401
+from app.services.capabilities.tesla import attention as _attention  # noqa: E402,F401

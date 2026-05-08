@@ -39,16 +39,47 @@ public enum RuleDisplay {
     /// 为"仅关闭提醒"。
     public static func capabilityName(_ capabilityId: String) -> String {
         switch capabilityId {
-        case "tesla.climate.set_keeper_mode": return "调整空调保持模式"
-        case "tesla.climate.preheat": return "启动预热"
-        case "tesla.security.set_sentry": return "切换哨兵模式"
-        case "tesla.charging.set_limit": return "调整充电限额"
-        case "tesla.navigation.send": return "发送导航目的地"
-        case "tesla.comfort.set_seat_heater": return "设置座椅加热"
+        // Climate (climate.py + climate_extra.py)
+        case "tesla.climate.set_keeper_mode":           return "调整空调保持模式"
+        case "tesla.climate.preheat":                   return "启动预热"
+        case "tesla.climate.stop":                      return "关闭空调"
+        case "tesla.climate.set_temps":                 return "设置温度"
+        case "tesla.climate.set_preconditioning_max":   return "切换最大预热"
+        case "tesla.climate.set_cabin_overheat":        return "切换座舱过热保护"
+        // Charging (charging.py + charging_extra.py)
+        case "tesla.charging.set_limit":                return "调整充电限额"
+        case "tesla.charging.start":                    return "开始充电"
+        case "tesla.charging.stop":                     return "停止充电"
+        case "tesla.charging.port_open":                return "打开充电口"
+        case "tesla.charging.port_close":               return "关闭充电口"
+        case "tesla.charging.set_amps":                 return "调整充电电流"
+        // Security (security.py + closures.py)
+        case "tesla.security.set_sentry":               return "切换哨兵模式"
+        case "tesla.security.door_lock":                return "锁车"
+        case "tesla.security.door_unlock":              return "解锁"
+        case "tesla.security.actuate_frunk":            return "打开前备箱"
+        case "tesla.security.actuate_trunk":            return "操作后备箱"
+        // Closures (closures.py)
+        case "tesla.closures.window_vent":              return "通风开窗"
+        case "tesla.closures.window_close":             return "关闭车窗"
+        case "tesla.closures.sun_roof_vent":            return "通风开天窗"
+        case "tesla.closures.sun_roof_close":           return "关闭天窗"
+        // Comfort (comfort.py)
+        case "tesla.comfort.set_seat_heater":           return "设置座椅加热"
         case "tesla.comfort.set_steering_wheel_heater": return "切换方向盘加热"
-        case "tesla.media.toggle_playback": return "切换车机播放"
-        case "tesla.media.set_volume": return "设置车机音量"
-        case "automation.dismiss", "": return "仅关闭提醒"
+        // Media (comfort.py + attention.py)
+        case "tesla.media.toggle_playback":             return "切换车机播放"
+        case "tesla.media.set_volume":                  return "设置车机音量"
+        case "tesla.media.next_track":                  return "下一首"
+        case "tesla.media.prev_track":                  return "上一首"
+        // Navigation (navigation.py + attention.py)
+        case "tesla.navigation.send":                   return "发送导航目的地"
+        case "tesla.navigation.send_address":           return "发送地址到车"
+        // Attention (attention.py)
+        case "tesla.attention.flash_lights":            return "闪灯"
+        case "tesla.attention.honk_horn":               return "鸣笛"
+        case "tesla.attention.trigger_homelink":        return "触发 HomeLink"
+        case "automation.dismiss", "":                  return "仅关闭提醒"
         default: return capabilityId
         }
     }
