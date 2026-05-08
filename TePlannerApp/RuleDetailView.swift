@@ -13,6 +13,7 @@ struct RuleDetailView: View {
     @State private var showingEditor = false
     @State private var showingDeleteConfirm = false
     @State private var workingError: String?
+    @State private var pendingDuplicate: RuleRecord?
     @Environment(\.dismiss) private var dismiss
 
     private var record: RuleRecord? {
@@ -44,7 +45,7 @@ struct RuleDetailView: View {
                         )
                     }
                 }
-                .confirmationDialog("确定删除这条自动化？", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
+                .confirmationDialog("确定删除「\(r.name)」？", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
                     Button("删除", role: .destructive) {
                         Task {
                             let ok = await rulesStore.delete(id: r.id)
@@ -56,6 +57,21 @@ struct RuleDetailView: View {
                         }
                     }
                     Button("取消", role: .cancel) {}
+                } message: {
+                    Text("删除后无法恢复。")
+                }
+                .sheet(item: $pendingDuplicate) { source in
+                    // "复制为新规则" — open the builder pre-filled with
+                    // a clone of this rule. Saving creates a separate
+                    // user-authored rule; the source stays untouched.
+                    NavigationStack {
+                        RuleBuilderView(
+                            initial: nil,
+                            template: cloneForDuplicate(source),
+                            rulesStore: rulesStore,
+                            capabilitiesStore: capabilitiesStore
+                        )
+                    }
                 }
             } else {
                 ProgressView()
@@ -63,11 +79,35 @@ struct RuleDetailView: View {
         }
     }
 
+    /// Build a clone of `source` for "复制为新规则": null id (forces
+    /// create on save), null preset_id (clone is user-authored), and
+    /// a "副本" suffix on the name. Same trigger + actions otherwise.
+    private func cloneForDuplicate(_ source: RuleRecord) -> RuleRecord {
+        var nextName = "\(source.name) 副本"
+        let existing = Set(rulesStore.rules.map(\.name))
+        var i = 2
+        while existing.contains(nextName) {
+            nextName = "\(source.name) 副本 \(i)"
+            i += 1
+        }
+        return RuleRecord(
+            id: "",                  // empty → builder treats as new
+            presetId: nil,           // user-authored copy
+            name: nextName,
+            enabled: source.enabled,
+            spec: source.spec,
+            version: 1
+        )
+    }
+
     @ToolbarContentBuilder
     private func toolbarContent(_ r: RuleRecord) -> some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button("编辑", systemImage: "pencil") { showingEditor = true }
+                Button("复制为新规则", systemImage: "plus.square.on.square") {
+                    pendingDuplicate = r
+                }
                 if r.presetId == nil {
                     Button("删除", systemImage: "trash", role: .destructive) {
                         showingDeleteConfirm = true

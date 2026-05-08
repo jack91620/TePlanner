@@ -11,8 +11,25 @@ import TePlannerKit
 ///     "我已知道" toggle before saving the rule
 struct RuleBuilderView: View {
     let initial: RuleRecord?
+    /// Optional template to pre-fill the form with (used by "复制为
+    /// 新规则" from RuleDetailView). Form fields hydrate from this on
+    /// first appear; save() still creates a brand-new rule (because
+    /// `initial` is nil in this path).
+    let template: RuleRecord?
     @ObservedObject var rulesStore: AutomationRulesStore
     @ObservedObject var capabilitiesStore: CapabilitiesStore
+
+    init(
+        initial: RuleRecord?,
+        template: RuleRecord? = nil,
+        rulesStore: AutomationRulesStore,
+        capabilitiesStore: CapabilitiesStore,
+    ) {
+        self.initial = initial
+        self.template = template
+        self.rulesStore = rulesStore
+        self.capabilitiesStore = capabilitiesStore
+    }
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
@@ -522,7 +539,10 @@ struct RuleBuilderView: View {
     }
 
     private func hydrateFromInitialIfPresent() {
-        guard let r = initial else { return }
+        // Either editing an existing rule (`initial`) or duplicating
+        // one (`template`). Same hydration shape; only `save()` checks
+        // `initial` to decide create vs update.
+        guard let r = initial ?? template else { return }
         name = r.name
         enabled = r.enabled
         let spec = r.spec
