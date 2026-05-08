@@ -242,6 +242,14 @@ class AutomationEngine:
             alert = evaluate_rule(spec, ctx)
             if alert is not None:
                 alerts.append(alert)
+                # Phase 11 — if the rule's primary action is
+                # wait_for_state, we record a pending_wait row instead
+                # of (or in addition to) firing the alert immediately.
+                # The actual notification happens once the predicate
+                # matches, via the resolver below.
+                await self._maybe_enqueue_wait(
+                    db, user_id, vehicle_id, spec, alert,
+                )
             transition = await self._resolve_transition(
                 db, user_id, vehicle_id, kind, alert
             )
@@ -252,9 +260,66 @@ class AutomationEngine:
             elif transition == "cleared":
                 cleared_count += 1
 
+        # Phase 11 — resolve any pending_wait rows whose predicate
+        # the current snapshot now satisfies (or whose deadline has
+        # passed). Resolved rows emit additional alerts which we
+        # append to the tick result so push notifications fire.
+        from app.services.automation.wait_resolver import (
+            check_and_resolve as resolve_waits,
+        )
+        if state is not None:
+            wait_alerts = await resolve_waits(
+                db, user_id=user_id, vehicle_id=vehicle_id, snap=state, now=ctx.now,
+            )
+            for w_alert in wait_alerts:
+                alerts.append(w_alert)
+                if push:
+                    ok = await self._push_alert(db, user_id, w_alert)
+                    if ok:
+                        pushed_count += 1
+
         await memory.flush()
         return TickResult(
             alerts=alerts, pushed_count=pushed_count, cleared_count=cleared_count
+        )
+
+    async def _maybe_enqueue_wait(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        vehicle_id: str,
+        spec: dict,
+        primary_alert: Alert,
+    ) -> None:
+        """If the rule's first action (the one that produced the alert)
+        is ``wait_for_state``, persist a pending_wait row so the next
+        engine tick can fire the chained ``then`` action when the
+        predicate matches."""
+        # Pull the action the interpreter would have emitted.
+        bucket_keys = ("actions_above", "actions_below", "actions")
+        action: Optional[dict] = None
+        for k in bucket_keys:
+            arr = spec.get(k)
+            if isinstance(arr, list) and arr:
+                if isinstance(arr[0], dict) and arr[0].get("type") == "wait_for_state":
+                    action = arr[0]
+                    break
+        if action is None:
+            return
+        predicate = action.get("predicate")
+        then_action = action.get("then")
+        if not isinstance(predicate, dict) or not isinstance(then_action, dict):
+            return
+        timeout_minutes = int(action.get("timeout_minutes", 15))
+        from app.services.automation.wait_resolver import enqueue_wait
+        await enqueue_wait(
+            db,
+            user_id=user_id,
+            vehicle_id=vehicle_id,
+            rule_id=spec.get("_rule_id"),
+            predicate=predicate,
+            then_action=then_action,
+            timeout_minutes=timeout_minutes,
         )
 
     async def _resolve_transition(

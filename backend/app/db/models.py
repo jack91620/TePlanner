@@ -163,6 +163,35 @@ class DeviceToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PendingWait(Base):
+    """Phase 11 — state-gated wait actions.
+
+    Rules can chain ``wait_for_state`` action: dispatch a primary
+    action, then sit waiting for an entity predicate to match (e.g.
+    ``vehicle.inside_temp_c >= 20``). When the next telemetry-driven
+    engine eval sees the predicate satisfied, it emits the chained
+    ``then`` action (a notify or invoke) and resolves this row.
+
+    Default timeout 15 minutes; ``resolved_at`` stamps on success,
+    ``timed_out_at`` on deadline. Cap 1 unresolved row per
+    ``(rule_id, user, vehicle)`` — newest wins; any prior unresolved
+    row gets timed_out_at when superseded.
+    """
+
+    __tablename__ = "pending_wait"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)
+    rule_id = Column(String(64), nullable=True, index=True)
+    predicate_json = Column(Text, nullable=False)
+    then_action_json = Column(Text, nullable=False)
+    deadline_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    timed_out_at = Column(DateTime, nullable=True)
+
+
 class CommandQueue(Base):
     """Phase 10 — sleep-aware command dispatch.
 
