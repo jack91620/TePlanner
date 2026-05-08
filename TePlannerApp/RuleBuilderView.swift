@@ -525,14 +525,14 @@ struct RuleBuilderView: View {
                 }
             }
             HStack(spacing: 0) {
-                TextField("标题（推送通知）", text: $actionTitle)
+                TextField("标题（如「车辆未锁」）", text: $actionTitle)
                     .accessibilityIdentifier("rule_action_title_field")
                 if actionTitle.isEmpty {
                     Text("*").foregroundStyle(.red).font(.footnote)
                 }
             }
             HStack(alignment: .top, spacing: 0) {
-                TextField("正文", text: $actionBody, axis: .vertical)
+                TextField("正文（如「停车 {duration_human}，请确认」）", text: $actionBody, axis: .vertical)
                     .lineLimit(2...5)
                 if actionBody.isEmpty {
                     Text("*").foregroundStyle(.red).font(.footnote)
