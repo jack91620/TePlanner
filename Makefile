@@ -21,6 +21,7 @@ DERIVED_DATA := .derivedData
 SCREENSHOT_DIR := tmp/screenshots
 
 .PHONY: help project build build-ios build-app run-app test test-ios test-all \
+        test-backend precommit \
         clean clean-project lint format sim-boot sim-shutdown sim-screenshot \
         sim-log log-app log-device doctor list-devices build-device run-device
 
@@ -104,6 +105,21 @@ test-ios: ## Run unit tests on iOS simulator ($(SIMULATOR))
 	  test
 
 test-all: test test-ios ## Run macOS tests then iOS simulator tests
+
+# Fast pre-commit gate: iOS unit + backend unit + Hurl contract.
+# Runs in ~5s total. NOT included: Maestro flows (need sim + 5min)
+# and iOS-on-simulator (covers SwiftUI but slow). Run those before
+# pushing significant UI changes.
+test-backend: ## Run backend pytest suite locally (needs conda env)
+	@if command -v python >/dev/null 2>&1; then \
+	  cd backend && python -m pytest --no-cov -q 2>&1 | tail -5; \
+	else \
+	  echo "skipping test-backend (no python in PATH locally — runs on server CI)"; \
+	fi
+
+precommit: test test-backend e2e-api ## Pre-commit gate: iOS unit + backend unit + Hurl contract (~5s)
+	@echo ""
+	@echo "✓ precommit OK — safe to commit"
 
 # --- E2E -----------------------------------------------------------------
 

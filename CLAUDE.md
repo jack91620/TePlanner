@@ -126,6 +126,8 @@ make run-device    # Build + install + launch on a paired iPhone
 make test          # swift test on macOS (~1s, default for VM/service work)
 make test-ios      # xcodebuild test on iOS Simulator
 make test-all      # both
+make test-backend  # backend pytest (skips locally if no python; runs on server)
+make precommit     # ★ pre-commit gate: iOS unit + backend unit + Hurl (~5s)
 make doctor        # toolchain + simulator + scheme diagnostics
 make sim-screenshot          # PNG of booted simulator → tmp/screenshots/
 make log-app                 # stream simulator app logs (com.teplanner.ios)
@@ -442,14 +444,24 @@ prefixes are `.public` for triage.
 
 ## Test strategy
 
-Default to `make test` (macOS host) — fastest, no simulator boot,
-covers all view-model / service / model / automation engine logic.
-Use `make test-ios` only when the change touches SwiftUI or other
-iOS-only APIs.
+**Workflow rule**: every feature commit ships with the matching
+test. Pre-commit must pass `make precommit` (iOS unit + backend
+pytest + Hurl HTTP contracts; ~5s total). Maestro flows + iOS
+simulator tests are heavier and run before pushing significant UI
+changes — but they should never go red on `main`.
 
-Maestro covers UI flow integration (login, search→preview→send,
-settings, automations, battery management, charger detail, unbind).
-~5 minutes for the full suite of 10 flows.
+| Layer | Make target | Runtime | When to run |
+|---|---|---|---|
+| iOS unit (Swift package) | `make test` | ~1s | every iteration |
+| Backend unit (pytest) | `make test-backend` | ~1s | every backend change |
+| Hurl HTTP contracts | `make e2e-api` | ~1s | every API change |
+| **Pre-commit gate** | **`make precommit`** | **~5s** | **before each commit** |
+| iOS sim tests (SwiftUI) | `make test-ios` | ~30s | before UI-heavy push |
+| Maestro flows | `make e2e-ios` | ~5min | before significant UI push |
+
+When adding new backend endpoints: write the Hurl contract test the
+same commit. When adding iOS UI surface: write the Maestro flow the
+same commit. Don't let the test debt accumulate.
 
 The AMap-using code in `TePlannerApp/` (Hub, MapHomeView, AlongRoute
 service, sheets) has unit-test coverage gaps; Maestro is the safety

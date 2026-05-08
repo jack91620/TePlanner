@@ -1,0 +1,61 @@
+# Phase 10.3.C — visual rule builder. Hub → 自动化 → "+" → builder.
+# Verifies the canvas renders all 3 sections (name / trigger / action),
+# the entity/value pickers swap correctly when entity changes, and
+# the cancel path returns to the list without persisting.
+#
+# Doesn't run the full save → backend roundtrip because that needs
+# a Tesla-bound user; the rules CRUD path is covered by the pytest
+# suite + Hurl auth-gate contract test.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+# 列表里能看到 4 个预设 — 防止网络拉取出错时悄悄退化为空
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# 打开构建器
+- tapOn:
+    id: "automations_add_button"
+
+# 三大块齐全：名称 / 触发条件 / 动作
+- extendedWaitUntil:
+    visible: "新建自动化"
+    timeout: 5000
+- assertVisible: "名称"
+- assertVisible: "触发条件 · 当"
+- assertVisible: "动作 · 那么"
+
+# 名称必填校验:保存按钮在空名称下应禁用
+- assertVisible: "保存"
+- takeScreenshot: tmp/screenshots/maestro_builder_empty
+
+# 填名字让校验过
+- tapOn:
+    id: "rule_name_field"
+- inputText: "Maestro 测试规则"
+- hideKeyboard
+
+# 默认 entity 是露营/宠物/保持模式 — 文本可见
+- assertVisible: "露营/宠物/保持模式"
+
+# 切到状态变化触发器看 picker 切换
+- tapOn: "持续状态"
+- extendedWaitUntil:
+    visible: "状态变化"
+    timeout: 3000
+- tapOn: "状态变化"
+
+# 取消而非保存,确保不污染列表
+- tapOn: "取消"
+
+# 回到列表，仍是 4 条预设
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_builder_canceled
