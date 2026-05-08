@@ -163,6 +163,36 @@ class DeviceToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CommandQueue(Base):
+    """Phase 10 — sleep-aware command dispatch.
+
+    When a user invokes a capability and the car is offline (per the
+    last-seen ``tel:vehicle.connectivity:value`` row), we don't want
+    to bang on a sleeping vehicle. Capabilities tagged with
+    ``dispatch_policy: queue`` (the default) park the request here;
+    when the next ``CONNECTED`` connectivity event arrives, the
+    consumer drains rows oldest-first.
+
+    Rows are pruned by ``dropped_at`` after ``ttl_seconds`` — a 30-min
+    cron-tick sweep handles expiry so stale "preheat at 7am" doesn't
+    fire at noon when the car finally wakes.
+    """
+
+    __tablename__ = "command_queue"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)  # VIN
+    capability = Column(String(80), nullable=False)
+    params_json = Column(Text, nullable=False)
+    dispatch_policy = Column(String(32), nullable=False, default="queue")
+    ttl_seconds = Column(Integer, nullable=False, default=1800)  # 30 min
+    queued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=True)
+    dropped_at = Column(DateTime, nullable=True)
+    error = Column(String(256), nullable=True)
+
+
 class CommandPending(Base):
     """Phase 9 — closed-loop VCP confirmation ledger.
 

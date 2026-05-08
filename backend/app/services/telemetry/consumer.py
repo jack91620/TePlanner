@@ -28,6 +28,7 @@ from app.db.session import async_session
 from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
 from app.services.automation.pending_resolver import check_and_resolve
+from app.services.command_queue import drain_for_vehicle
 from app.services.telemetry.mapping import (
     map_connectivity_payload,
     map_v_payload,
@@ -178,6 +179,30 @@ async def _process_v_record(
             logger.exception("telemetry-driven engine tick failed (vin=%s)", vin)
 
 
+async def _drain_if_came_online(
+    db, user_id: int, vin: str, payload: dict,
+) -> None:
+    """Phase 10 — when telemetry says the car just came back online,
+    flush any commands that were queued while it was asleep. Errors
+    are isolated so one bad row doesn't block subsequent drains."""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return
+    if data.get("Status") != "CONNECTED":
+        return
+    try:
+        summary = await drain_for_vehicle(
+            db, user_id=user_id, vin=vin,
+        )
+        if summary.get("sent") or summary.get("dropped"):
+            logger.info(
+                "drain on connectivity-online user=%s vin=%s %s",
+                user_id, vin, summary,
+            )
+    except Exception:
+        logger.exception("queue drain after CONNECTED failed (vin=%s)", vin)
+
+
 async def _process_connectivity_record(
     writer: TelemetryStateWriter,
     payload: dict,
@@ -218,34 +243,35 @@ async def _process_connectivity_record(
             await db.rollback()
             return
 
-        if not transitions or engine is None:
+        if not transitions:
             return
         try:
             async with async_session() as eval_db:
-                snap = await build_snapshot_from_telemetry(
-                    eval_db, user_id=user_id, vehicle_id=vin,
-                )
-                result = await engine.run_for_vehicle(
-                    eval_db,
-                    user_id=user_id,
-                    vehicle_id=vin,
-                    state=snap,
-                    settings=AutomationSettings(),
-                )
-                # Phase 9 — resolve any pending VCP commands now that
-                # we have a fresh snapshot. Match → confirmed_at;
-                # > 60 s elapsed → timed_out_at. Same eval_db, single
-                # commit so partial-state never leaks.
-                await check_and_resolve(
-                    eval_db,
-                    user_id=user_id, vehicle_id=vin, snap=snap,
-                )
+                # Phase 10 — if the car just came online, drain queued
+                # commands first so a "queued at 7am" set_keeper_mode
+                # fires within seconds of wake-up.
+                await _drain_if_came_online(eval_db, user_id, vin, payload)
+                if engine is not None:
+                    snap = await build_snapshot_from_telemetry(
+                        eval_db, user_id=user_id, vehicle_id=vin,
+                    )
+                    result = await engine.run_for_vehicle(
+                        eval_db,
+                        user_id=user_id,
+                        vehicle_id=vin,
+                        state=snap,
+                        settings=AutomationSettings(),
+                    )
+                    await check_and_resolve(
+                        eval_db,
+                        user_id=user_id, vehicle_id=vin, snap=snap,
+                    )
+                    if result.pushed_count or result.cleared_count:
+                        logger.info(
+                            "connectivity-driven tick user=%s vin=%s pushed=%s",
+                            user_id, vin, result.pushed_count,
+                        )
                 await eval_db.commit()
-            if result.pushed_count or result.cleared_count:
-                logger.info(
-                    "connectivity-driven tick user=%s vin=%s pushed=%s",
-                    user_id, vin, result.pushed_count,
-                )
         except Exception:
             logger.exception("connectivity-driven engine tick failed (vin=%s)", vin)
 

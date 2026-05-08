@@ -40,6 +40,40 @@ async def _invoke_capability(
         tesla_client=tesla_client,
         user_id=user.id,
     )
+
+    # Phase 10 — if the car is offline (per cached telemetry
+    # connectivity), respect the capability's dispatch_policy:
+    #   queue           → write CommandQueue row, return 202
+    #   drop_if_offline → 503 immediately (preheat / navigation)
+    #   force / unknown → fall through to normal dispatch
+    if vin:
+        from app.services.capabilities import get as get_capability
+        from app.services.command_queue import connectivity_state, enqueue
+        cap = get_capability(capability_id)
+        conn = await connectivity_state(db, user.id, vin)
+        if cap is not None and conn == "DISCONNECTED":
+            policy = cap.dispatch_policy
+            if policy == "drop_if_offline":
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Vehicle offline; this command can't be queued.",
+                )
+            if policy == "queue":
+                row = await enqueue(
+                    db,
+                    user_id=user.id, vin=vin,
+                    capability_id=capability_id,
+                    params=params,
+                    dispatch_policy=policy,
+                )
+                await db.commit()
+                return {
+                    "success": True,
+                    "queued": True,
+                    "queued_command_id": row.id,
+                    "message": "Vehicle offline. Command will run on next connect.",
+                }
+
     try:
         async with tesla_client:
             result = await capability_dispatch(capability_id, ctx, params)
@@ -630,6 +664,111 @@ async def list_pending_commands(
             status=status_str,
         ))
     return PendingCommandListResponse(pending=out)
+
+
+# ---------------------------------------------------------------------------
+# Phase 10 — sleep-aware command queue: list / cancel queued commands.
+
+class QueuedCommandResponse(BaseModel):
+    id: int
+    capability: str
+    params: dict
+    dispatch_policy: str
+    queued_at: datetime
+    sent_at: Optional[datetime] = None
+    dropped_at: Optional[datetime] = None
+    ttl_seconds: int
+    error: Optional[str] = None
+    status: str  # "queued" | "sent" | "dropped"
+
+
+class QueuedCommandListResponse(BaseModel):
+    queued: list[QueuedCommandResponse]
+
+
+@router.get("/commands/queued", response_model=QueuedCommandListResponse)
+async def list_queued_commands(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 20,
+) -> QueuedCommandListResponse:
+    """Return commands waiting on the car's next CONNECTED telemetry
+    event, plus recently-resolved ones for the iOS UI to flip badges.
+    """
+    from datetime import timedelta
+    from sqlalchemy import desc
+    from app.db.models import CommandQueue
+
+    cutoff = datetime.utcnow() - timedelta(hours=2)
+    stmt = (
+        select(CommandQueue)
+        .where(
+            CommandQueue.user_id == user.id,
+            CommandQueue.queued_at >= cutoff,
+        )
+        .order_by(desc(CommandQueue.queued_at))
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+
+    out: list[QueuedCommandResponse] = []
+    for row in rows:
+        try:
+            params = json.loads(row.params_json)
+        except (json.JSONDecodeError, TypeError):
+            params = {}
+        if row.sent_at is not None:
+            status_str = "sent"
+        elif row.dropped_at is not None:
+            status_str = "dropped"
+        else:
+            status_str = "queued"
+        out.append(QueuedCommandResponse(
+            id=row.id,
+            capability=row.capability,
+            params=params,
+            dispatch_policy=row.dispatch_policy,
+            queued_at=row.queued_at,
+            sent_at=row.sent_at,
+            dropped_at=row.dropped_at,
+            ttl_seconds=row.ttl_seconds,
+            error=row.error,
+            status=status_str,
+        ))
+    return QueuedCommandListResponse(queued=out)
+
+
+@router.delete("/commands/queued/{queued_id}")
+async def cancel_queued_command(
+    queued_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Cancel a still-queued command before it drains. 404 if the
+    user doesn't own it; 409 if it's already been sent/dropped."""
+    from app.db.models import CommandQueue
+
+    stmt = select(CommandQueue).where(
+        CommandQueue.id == queued_id,
+        CommandQueue.user_id == user.id,
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Queued command not found")
+    if row.sent_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Already dispatched",
+        )
+    if row.dropped_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Already dropped",
+        )
+    row.dropped_at = datetime.utcnow()
+    row.error = "cancelled by user"
+    await db.commit()
+    return {"success": True, "cancelled": queued_id}
 
 
 @router.post("/{vehicle_id}/set-primary")

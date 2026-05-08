@@ -78,3 +78,16 @@ GET {{base_url}}/api/v1/vehicles/commands/pending
 HTTP 401
 [Asserts]
 jsonpath "$.detail" exists
+
+
+# 8. GET /vehicles/commands/queued without auth → 401
+# (Phase 10 sleep-aware command queue listing).
+GET {{base_url}}/api/v1/vehicles/commands/queued
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists
+
+
+# 9. DELETE /vehicles/commands/queued/{id} without auth → 401.
+DELETE {{base_url}}/api/v1/vehicles/commands/queued/1
+HTTP 401

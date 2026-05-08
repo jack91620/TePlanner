@@ -110,6 +110,25 @@ class Capability(ABC):
         """
         return {}
 
+    @property
+    def dispatch_policy(self) -> str:
+        """Phase 10 — what to do when the vehicle is currently offline
+        (per ``tel:vehicle.connectivity:value`` last-seen):
+
+          * ``queue``           — write CommandQueue row, return 202;
+                                  drained when next CONNECTED event arrives
+          * ``drop_if_offline`` — return 503 immediately. For time-
+                                  sensitive commands where a delayed
+                                  fire would surprise the user
+                                  (preheat, navigation).
+          * ``force``           — try anyway. Default for nothing today;
+                                  exists for an admin override later.
+
+        Default ``queue`` because our 5 current capabilities are
+        idempotent state-setters that benefit from eventual delivery.
+        """
+        return "queue"
+
     def describe(self) -> dict:
         """Serialized form for /api/v1/capabilities listing."""
         return {

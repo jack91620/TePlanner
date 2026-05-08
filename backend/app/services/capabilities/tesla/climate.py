@@ -80,6 +80,13 @@ class Preheat(Capability):
         await ctx.tesla_client.auto_conditioning_start(ctx.vin)
         return CapabilityResult(success=True)
 
+    @property
+    def dispatch_policy(self) -> str:
+        # Preheat is time-sensitive: a "preheat at 7am" command that
+        # finally lands at 9am because the car was asleep would
+        # surprise the user. Drop instead of queue.
+        return "drop_if_offline"
+
 
 register(SetClimateKeeperMode())
 register(Preheat())

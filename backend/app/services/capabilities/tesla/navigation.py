@@ -59,5 +59,12 @@ class SendNavigation(Capability):
             data={"destination": {"latitude": lat, "longitude": lon}},
         )
 
+    @property
+    def dispatch_policy(self) -> str:
+        # User wanted directions NOW. Holding the request for a sleeping
+        # car and dispatching hours later would push to a destination
+        # the user no longer wants.
+        return "drop_if_offline"
+
 
 register(SendNavigation())

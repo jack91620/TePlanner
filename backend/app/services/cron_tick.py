@@ -33,6 +33,7 @@ from app.db.session import async_session
 from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
 from app.services.automation.pending_resolver import check_and_resolve
+from app.services.command_queue import drain_for_vehicle
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,10 @@ async def _tick_one_user(
     await check_and_resolve(
         db, user_id=user_id, vehicle_id=vin, snap=snapshot,
     )
+    # Phase 10 — sweep the command queue for TTL-expired rows so
+    # "preheat at 7am" doesn't fire at noon. The connectivity-online
+    # consumer path is the fast lane; this is the safety net.
+    await drain_for_vehicle(db, user_id=user_id, vin=vin)
     if result.pushed_count or result.cleared_count:
         logger.info(
             "cron tick user=%s vin=%s pushed=%s cleared=%s",
