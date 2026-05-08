@@ -68,6 +68,14 @@ struct AlertPillView: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(severityColor.opacity(0.4), lineWidth: 1)
         )
+        .contextMenu {
+            Button {
+                let text = "【\(alert.title)】\n\(alert.detail)"
+                UIPasteboard.general.string = text
+            } label: {
+                Label("复制提醒内容", systemImage: "doc.on.doc")
+            }
+        }
         .accessibilityIdentifier("alert_pill_\(alert.kind.rawValue)")
     }
 
