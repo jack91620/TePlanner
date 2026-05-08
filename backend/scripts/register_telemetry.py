@@ -32,6 +32,12 @@ load_dotenv()
 FLEET_API_BASE = os.getenv(
     "TESLA_FLEET_API_BASE_URL", "https://fleet-api.prd.cn.vn.cloud.tesla.cn"
 )
+# fleet_telemetry_config requires VCP-signed delivery — Tesla rejects
+# direct Fleet API calls. Route through tesla-http-proxy which holds
+# our partner private key and signs the request before forwarding.
+VCP_PROXY_URL = os.getenv(
+    "TESLA_VEHICLE_COMMAND_PROXY_URL", "https://127.0.0.1:4443"
+)
 DEFAULT_HOSTNAME = "fleet.teplanner.cloud"
 DEFAULT_PORT = 8443
 # Path on the production VM where the LE intermediate + ISRG root
@@ -101,9 +107,12 @@ async def register_config(
         },
         "vins": vins,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
+    # Route via VCP proxy: it signs the request with our partner private
+    # key and forwards to Tesla. verify=False because proxy uses a
+    # self-signed cert on 127.0.0.1.
+    async with httpx.AsyncClient(timeout=30, verify=False) as client:
         r = await client.post(
-            f"{FLEET_API_BASE}/api/1/vehicles/fleet_telemetry_config",
+            f"{VCP_PROXY_URL}/api/1/vehicles/fleet_telemetry_config",
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
@@ -111,7 +120,7 @@ async def register_config(
             json=body,
         )
         print(f"status: {r.status_code}")
-        print(f"response: {r.text[:1000]}")
+        print(f"response: {r.text[:1500]}")
         if r.status_code == 200:
             return r.json()
         return {"error": r.text}
