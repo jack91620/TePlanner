@@ -179,6 +179,46 @@ async def test_transition_invokes_engine_run_for_vehicle(seeded, db_session, mon
             return TickResult(alerts=[], pushed_count=0, cleared_count=0)
 
     writer = TelemetryStateWriter()
+    # Separate debounce dicts so we don't coalesce — we want to see
+    # both transitions individually drive the engine.
+    await _process_v_record(
+        writer, INITIAL_V, engine=_FakeEngine(), debounce_until={},
+    )
+    await _process_v_record(
+        writer, CAMP_MODE_TRANSITION_V, engine=_FakeEngine(), debounce_until={},
+    )
+
+    # Both V records had transitions → engine called twice.
+    assert len(calls) == 2, calls
+    assert calls[0]["vehicle_id"] == VIN
+    # Second invocation sees keeper_mode=3 from the just-written tel row.
+    assert calls[-1]["keeper_mode"] == 3
+
+
+async def test_debounce_coalesces_burst_transitions(seeded, db_session, monkeypatch):
+    """Within the 500 ms window, two adjacent transitions for the same
+    (user, vehicle) collapse into one engine call. Real-world traffic
+    is bursty (Tesla can ship 5+ field deltas in the same second), and
+    we don't want APN spam."""
+    from app.services.telemetry import consumer
+
+    class _SessionCM:
+        async def __aenter__(self):
+            return db_session
+        async def __aexit__(self, *a):
+            pass
+
+    monkeypatch.setattr(consumer, "async_session", lambda: _SessionCM())
+
+    calls: list = []
+
+    class _FakeEngine:
+        async def run_for_vehicle(self, *a, **kw):
+            calls.append(1)
+            from app.services.automation.engine import TickResult
+            return TickResult(alerts=[], pushed_count=0, cleared_count=0)
+
+    writer = TelemetryStateWriter()
     debounce: dict = {}
     await _process_v_record(
         writer, INITIAL_V, engine=_FakeEngine(), debounce_until=debounce,
@@ -188,11 +228,9 @@ async def test_transition_invokes_engine_run_for_vehicle(seeded, db_session, mon
         engine=_FakeEngine(), debounce_until=debounce,
     )
 
-    # Both V records had transitions → engine called twice.
-    assert len(calls) == 2, calls
-    assert calls[0]["vehicle_id"] == VIN
-    # Second invocation sees keeper_mode=3 from the just-written tel row.
-    assert calls[-1]["keeper_mode"] == 3
+    # Same debounce dict + back-to-back calls → only first one drives
+    # the engine; second is squashed.
+    assert len(calls) == 1
 
 
 async def test_no_transition_skips_engine(seeded, db_session, monkeypatch):

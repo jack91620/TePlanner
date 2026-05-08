@@ -67,9 +67,25 @@ class SqlStateMemory:
         )
         rows = (await self.db.execute(stmt)).scalars().all()
         for row in rows:
-            self._cache[row.key] = (
-                datetime.fromisoformat(row.value) if row.value else None
-            )
+            # Skip Phase 4's `tel:<entity>:value` rows — those store
+            # JSON-encoded scalars (booleans/ints/strings), not ISO
+            # datetimes, and would crash fromisoformat. The interpreter
+            # reads them via build_snapshot_from_telemetry() instead.
+            if row.key.startswith("tel:") and row.key.endswith(":value"):
+                continue
+            if row.value is None:
+                self._cache[row.key] = None
+                continue
+            try:
+                self._cache[row.key] = datetime.fromisoformat(row.value)
+            except ValueError:
+                # Defensive: any non-datetime value found here is a
+                # write bug elsewhere. Skip rather than crash the whole
+                # tick — log so we notice.
+                logger.warning(
+                    "automation_state row key=%s holds non-ISO value, skipping",
+                    row.key,
+                )
         self._loaded = True
 
     def get(self, key: str) -> Optional[datetime]:
