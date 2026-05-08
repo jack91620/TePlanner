@@ -250,6 +250,42 @@ async def delete_rule(
     return {"success": True, "deleted": rule_id}
 
 
+class RecentFireEntry(BaseModel):
+    kind: str
+    pushed_at: datetime
+    cleared_at: Optional[datetime] = None
+
+
+class RecentFiresResponse(BaseModel):
+    fires: list[RecentFireEntry]
+
+
+@router.get("/recent-fires", response_model=RecentFiresResponse)
+async def list_recent_fires(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 50,
+) -> RecentFiresResponse:
+    """Recent rule-fire timeline for the user. Drives the iOS '活动'
+    page — answers 'did my露营 rule fire today?' without the user
+    having to scrub through notification center.
+    """
+    from sqlalchemy import desc
+    from app.db.models import PushedAlert
+
+    stmt = (
+        select(PushedAlert)
+        .where(PushedAlert.user_id == user.id)
+        .order_by(desc(PushedAlert.pushed_at))
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return RecentFiresResponse(fires=[
+        RecentFireEntry(kind=r.kind, pushed_at=r.pushed_at, cleared_at=r.cleared_at)
+        for r in rows
+    ])
+
+
 @router.get("/capabilities")
 async def list_capabilities() -> dict[str, list[dict]]:
     """Registry introspection. iOS visual builder calls this once at

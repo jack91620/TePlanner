@@ -246,6 +246,10 @@ public final class APIService: APIServiceProtocol {
         return await delete(path: "/vehicles/commands/queued/\(id)")
     }
 
+    public func fetchRecentFires(limit: Int = 50) async -> Result<RecentFiresResponse, APIError> {
+        return await get(path: "/automations/recent-fires?limit=\(limit)")
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {

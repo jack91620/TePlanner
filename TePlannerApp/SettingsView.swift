@@ -8,11 +8,13 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     private let appVersion: String
     private let buildNumber: String
+    private let apiService: APIServiceProtocol?
 
-    init() {
+    init(apiService: APIServiceProtocol? = nil) {
         let info = Bundle.main.infoDictionary
         self.appVersion = info?["CFBundleShortVersionString"] as? String ?? "0.0"
         self.buildNumber = info?["CFBundleVersion"] as? String ?? "0"
+        self.apiService = apiService
     }
 
     var body: some View {
@@ -38,6 +40,13 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    if let api = apiService {
+                        NavigationLink {
+                            RecentFiresView(apiService: api)
+                        } label: {
+                            Label("活动 (触发记录)", systemImage: "clock.arrow.circlepath")
+                        }
+                    }
                     NavigationLink {
                         AutomationOrderResetView()
                     } label: {
@@ -46,7 +55,7 @@ struct SettingsView: View {
                 } header: {
                     Text("自动化")
                 } footer: {
-                    Text("将自动化列表恢复为默认顺序。规则本身不会受影响。")
+                    Text("活动 — 查看最近的规则触发推送时间线。\n重置自定义排序 — 将自动化列表恢复为默认顺序。")
                 }
 
                 Section {

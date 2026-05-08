@@ -91,4 +91,5 @@ public protocol APIServiceProtocol {
     func fetchPendingCommands() async -> Result<PendingCommandListResponse, APIError>
     func fetchQueuedCommands() async -> Result<QueuedCommandListResponse, APIError>
     func cancelQueuedCommand(id: Int) async -> Result<BaseResponse, APIError>
+    func fetchRecentFires(limit: Int) async -> Result<RecentFiresResponse, APIError>
 }

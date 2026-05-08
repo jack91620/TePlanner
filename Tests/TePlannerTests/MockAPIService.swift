@@ -255,4 +255,10 @@ final class MockAPIService: APIServiceProtocol {
         lastCancelQueuedId = id
         return .success(BaseResponse(success: true, message: "cancelled"))
     }
+
+    var mockRecentFires: Result<RecentFiresResponse, APIError> =
+        .success(RecentFiresResponse(fires: []))
+    func fetchRecentFires(limit: Int) async -> Result<RecentFiresResponse, APIError> {
+        mockRecentFires
+    }
 }

@@ -243,7 +243,7 @@ struct HubView: View {
             Text(alertActionError ?? "")
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            SettingsView(apiService: apiService)
         }
         .alert("配对车辆控制", isPresented: $showingPairingPrompt) {
             Button("立即配对") {
