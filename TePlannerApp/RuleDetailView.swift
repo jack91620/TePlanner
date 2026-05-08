@@ -30,6 +30,7 @@ struct RuleDetailView: View {
                     triggerSection(r.spec)
                     thresholdSection(r)
                     actionSections(r.spec)
+                    presetExplanationSection(r)
                     testFireSection(r)
                     if let err = workingError {
                         Section {
@@ -333,6 +334,51 @@ struct RuleDetailView: View {
                 Text("修改触发该规则需要的状态持续时长。也可以从「编辑」进入完整构建器调整其他字段。")
                     .font(.caption2)
             }
+        }
+    }
+
+    /// Inline 'why this rule matters' callout for presets — explains
+    /// the underlying Tesla behavior so users without deep familiarity
+    /// (e.g. 露营模式 = HVAC stays on while parked) understand why
+    /// the reminder exists. User-authored rules suppress the section.
+    @ViewBuilder
+    private func presetExplanationSection(_ r: RuleRecord) -> some View {
+        if let presetId = r.presetId, let text = Self.presetExplanation(presetId) {
+            Section {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundStyle(.yellow)
+                    Text(text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            } header: {
+                Text("为什么需要这条规则？")
+            }
+        }
+    }
+
+    private static func presetExplanation(_ presetId: String) -> String? {
+        switch presetId {
+        case "camp_mode_overstay":
+            return "露营模式（Camp Mode）开启时空调会持续运行，电池每小时消耗约 2–4%。长时间停车未撤销容易回来发现电量大降，这条规则在你设定的时长后提醒你确认状态。"
+        case "sentry_mode_overstay":
+            return "哨兵模式（Sentry Mode）持续摄录车辆四周，每天约消耗 8–10% 电量。长期开启会显著加速行车电脑老化，建议在固定停车场（家、公司）关闭。"
+        case "cabin_overheat_protection":
+            return "夏季阳光下停车，车舱温度可在 20 分钟内升到 60℃ 以上，对宠物、儿童、车内电子设备都不安全。Tesla 的座舱过热保护会自动开启风扇/空调，本规则在它启动时通知你。"
+        case "charge_complete":
+            return "充电完成后再插枪会占用充电桩位置，影响其他车主。这条规则在你的车充满后立即提醒，方便你及时拔枪。"
+        case "left_unlocked_warning":
+            return "Tesla 在你下车后会按设置自动锁车，但偶尔会因为钥匙信号、网络等原因失败。这条规则在停车 N 分钟仍未锁车时提醒你确认。"
+        case "closure_left_open_warning":
+            return "车窗 / 后备箱忘关会让降雨、灰尘、虫子进入车内。这条规则在长时间未关闭时提醒。"
+        case "low_battery_warning":
+            return "电量过低会触发限速 / 关闭非关键功能；冬季低电量还可能造成无法解锁。本规则在你设定的阈值（默认 30%）时提醒及时充电。"
+        case "weekday_preheat":
+            return "出发前 10–20 分钟启动 HVAC 可让车舱达到舒适温度，冬天还能为电池预热提升续航。本规则按工作日的固定时间提醒你启动预热。"
+        default:
+            return nil
         }
     }
 
