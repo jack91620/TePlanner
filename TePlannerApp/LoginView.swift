@@ -82,7 +82,7 @@ struct LoginView: View {
                 feature(icon: "moon.zzz.fill", text: "露营 / 哨兵 / 充电完成自动提醒")
                 feature(icon: "antenna.radiowaves.left.and.right",
                         text: "Telemetry 实时车况，秒级响应")
-                feature(icon: "location.fill", text: "进出地理围栏触发自动化")
+                feature(icon: "hand.tap.fill", text: "推送通知一键执行车辆动作")
                 feature(icon: "checkmark.circle.fill", text: "命令已确认/排队透明可见")
             }
             .padding(.horizontal, 32)
