@@ -8,6 +8,7 @@ import TePlannerKit
 struct AlertPillView: View {
     let alert: VehicleAlert
     let onPrimaryAction: (() -> Void)?
+    @State private var isFiring = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -25,15 +26,35 @@ struct AlertPillView: View {
             }
             Spacer(minLength: 8)
             if let label = alert.primaryActionLabel, let action = onPrimaryAction {
-                Button(action: action) {
-                    Text(label)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(severityColor, in: Capsule())
-                        .foregroundStyle(.white)
+                Button {
+                    isFiring = true
+                    action()
+                    // Re-enable in case the alert lingers (action
+                    // failed) so user can retry. Engine drops the
+                    // alert on success → pill goes away → state is
+                    // discarded with the view.
+                    Task {
+                        try? await Task.sleep(nanoseconds: 6 * 1_000_000_000)
+                        await MainActor.run { isFiring = false }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        if isFiring {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.mini)
+                                .tint(.white)
+                        }
+                        Text(isFiring ? "执行中" : label)
+                            .font(.caption.weight(.semibold))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(severityColor, in: Capsule())
+                    .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
+                .disabled(isFiring)
                 .accessibilityIdentifier("alert_primary_action_\(alert.kind.rawValue)")
             }
         }
