@@ -198,6 +198,34 @@ WINDOW_OR_BOX_LEFT_OPEN = PresetDefinition(
 )
 
 
+LOW_BATTERY = PresetDefinition(
+    preset_id="low_battery_warning",
+    name="电量过低提醒",
+    spec={
+        "kind": "lowBattery",
+        "trigger": {
+            "type": "state_duration",
+            "entity": "vehicle.battery_level",
+            "op": "<",
+            "value": 30,
+            "for_minutes": 1,
+            "state_key": "lowBattery:startedAt",
+        },
+        "actions_below": [],
+        "actions_above": [
+            {
+                "type": "notify_and_offer",
+                "title": "电量较低",
+                "body": "电池电量已低于 30%，建议尽快充电",
+                "severity": "critical",
+                "primary_action_label": "我知道了",
+                "capability": "automation.dismiss",
+            }
+        ],
+    },
+)
+
+
 ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
@@ -205,4 +233,5 @@ ALL_PRESETS: list[PresetDefinition] = [
     CHARGE_COMPLETE,
     LEFT_UNLOCKED,
     WINDOW_OR_BOX_LEFT_OPEN,
+    LOW_BATTERY,
 ]

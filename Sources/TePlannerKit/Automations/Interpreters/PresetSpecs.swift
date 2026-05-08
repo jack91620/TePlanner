@@ -133,6 +133,29 @@ public enum PresetSpecs {
         ]),
     ]
 
+    public static let lowBattery: RuleSpec = [
+        "kind": .string("lowBattery"),
+        "trigger": .object([
+            "type": .string("state_duration"),
+            "entity": .string("vehicle.battery_level"),
+            "op": .string("<"),
+            "value": .int(30),
+            "for_minutes": .int(1),
+            "state_key": .string("lowBattery:startedAt"),
+        ]),
+        "actions_below": .array([]),
+        "actions_above": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("电量较低"),
+                "body": .string("电池电量已低于 30%，建议尽快充电"),
+                "severity": .string("critical"),
+                "primary_action_label": .string("我知道了"),
+                "capability": .string("automation.dismiss"),
+            ]),
+        ]),
+    ]
+
     public static let closureLeftOpen: RuleSpec = [
         "kind": .string("closureLeftOpen"),
         "trigger": .object([
@@ -199,6 +222,13 @@ public enum PresetSpecs {
             name: "车窗 / 后备箱忘关提醒",
             enabled: true,
             spec: closureLeftOpen
+        ),
+        RuleRecord(
+            id: "preset:low_battery_warning",
+            presetId: "low_battery_warning",
+            name: "电量过低提醒",
+            enabled: true,
+            spec: lowBattery
         ),
     ]
 }

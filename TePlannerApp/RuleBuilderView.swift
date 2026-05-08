@@ -24,6 +24,8 @@ struct RuleBuilderView: View {
     @State private var compareValueBool: Bool = true
     @State private var forMinutes: Int = 60
     @State private var toString: String = "Complete"
+    @State private var numericOp: NumericOp = .lt
+    @State private var numericValue: Int = 30
 
     @State private var actionType: ActionType = .notify
     @State private var actionTitle: String = ""
@@ -60,6 +62,8 @@ struct RuleBuilderView: View {
         case parkedWithWindowOpen = "vehicle.parked_with_window_open"
         case parkedWithFrunkOpen = "vehicle.parked_with_frunk_open"
         case parkedWithTrunkOpen = "vehicle.parked_with_trunk_open"
+        // Slice B — numeric (uses comparator picker)
+        case batteryLevel = "vehicle.battery_level"
         var id: String { rawValue }
         var label: String {
             switch self {
@@ -72,6 +76,7 @@ struct RuleBuilderView: View {
             case .parkedWithWindowOpen: return "停车后车窗开"
             case .parkedWithFrunkOpen:  return "停车后前备箱开"
             case .parkedWithTrunkOpen:  return "停车后后备箱开"
+            case .batteryLevel:         return "电量百分比"
             }
         }
         var valueKind: ValueKind {
@@ -82,9 +87,29 @@ struct RuleBuilderView: View {
                  .parkedWithWindowOpen, .parkedWithFrunkOpen,
                  .parkedWithTrunkOpen: return .bool
             case .chargingState:     return .string
+            case .batteryLevel:      return .numeric
             }
         }
-        enum ValueKind { case keeperMode, bool, string }
+        enum ValueKind { case keeperMode, bool, string, numeric }
+    }
+
+    /// Comparator for numeric entities. Backend reads as `op` field.
+    enum NumericOp: String, CaseIterable, Identifiable {
+        case lt = "<"
+        case lte = "<="
+        case eq = "=="
+        case gte = ">="
+        case gt = ">"
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .lt:  return "低于"
+            case .lte: return "不超过"
+            case .eq:  return "等于"
+            case .gte: return "不低于"
+            case .gt:  return "高于"
+            }
+        }
     }
 
     /// 4 个 keeper_mode int 值 + 用户友好标签。
@@ -211,6 +236,24 @@ struct RuleBuilderView: View {
         case .string:
             TextField("等于（字符串）", text: $toString)
                 .textInputAutocapitalization(.never)
+        case .numeric:
+            // Slice B — comparator + threshold for entities like
+            // battery_level. Step by 5 because 1% precision is
+            // overkill for "提醒我电量低".
+            Picker("比较", selection: $numericOp) {
+                ForEach(NumericOp.allCases) { op in
+                    Text(op.label).tag(op)
+                }
+            }
+            Stepper(value: $numericValue, in: 0...100, step: 5) {
+                HStack {
+                    Text("阈值")
+                    Spacer()
+                    Text("\(numericValue)%")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
         }
     }
 
@@ -340,6 +383,12 @@ struct RuleBuilderView: View {
                 if let b = v.boolValue { compareValueBool = b }
                 if let s = v.stringValue { toString = s }
             }
+            // Slice B — numeric op + threshold
+            if let opString = trigger.string("op"),
+               let parsedOp = NumericOp(rawValue: opString) {
+                numericOp = parsedOp
+            }
+            if let val = trigger.int("value") { numericValue = val }
             if let mins = trigger.int("for_minutes") { forMinutes = mins }
             if let target = trigger.string("to") { toString = target }
         }
@@ -385,6 +434,12 @@ struct RuleBuilderView: View {
                 if let b = v.boolValue { compareValueBool = b }
                 if let s = v.stringValue { toString = s }
             }
+            // Slice B — numeric op + threshold
+            if let opString = trigger.string("op"),
+               let parsedOp = NumericOp(rawValue: opString) {
+                numericOp = parsedOp
+            }
+            if let val = trigger.int("value") { numericValue = val }
             if let mins = trigger.int("for_minutes") { forMinutes = mins }
             if let target = trigger.string("to") { toString = target }
         }
@@ -420,6 +475,9 @@ struct RuleBuilderView: View {
             case .keeperMode: trigger["equals"] = .int(compareValueInt)
             case .bool:       trigger["equals"] = .bool(compareValueBool)
             case .string:     trigger["equals"] = .string(toString)
+            case .numeric:
+                trigger["op"] = .string(numericOp.rawValue)
+                trigger["value"] = .int(numericValue)
             }
             trigger["for_minutes"] = .int(forMinutes)
             trigger["state_key"] = .string("user:\(kindString):startedAt")
@@ -463,10 +521,6 @@ struct RuleBuilderView: View {
     }
 
     private func inferKind() -> String {
-        // Map entity to a known kind for backward-compatibility with
-        // the AlertKind enum. Custom rules built from scratch fall
-        // through to the entity-derived synthetic kind so the engine
-        // still routes pushes correctly.
         switch entity {
         case .climateKeeperMode:    return "campMode"
         case .sentryModeOn:         return "sentryMode"
@@ -477,6 +531,7 @@ struct RuleBuilderView: View {
              .parkedWithWindowOpen,
              .parkedWithFrunkOpen,
              .parkedWithTrunkOpen:  return "closureLeftOpen"
+        case .batteryLevel:         return "lowBattery"
         }
     }
 

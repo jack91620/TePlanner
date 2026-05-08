@@ -96,6 +96,33 @@ private func valuesEqual(_ a: JSONValue, _ b: JSONValue) -> Bool {
     a == b
 }
 
+/// Slice B: state_duration may carry an `op` ("<", ">", "<=", ">=",
+/// "==", "!="). Mirrors backend `_matches`. For numeric ops the
+/// trigger's threshold lives under `value` (with fallback to `equals`
+/// for compat).
+private func matches(_ actual: JSONValue, op: String, trigger: [String: JSONValue]) -> Bool {
+    if op == "==" {
+        return trigger["equals"].map { valuesEqual(actual, $0) } ?? false
+    }
+    if op == "!=" {
+        if let expected = trigger["equals"] {
+            return !valuesEqual(actual, expected)
+        }
+        return false
+    }
+    let thresholdValue = trigger["value"] ?? trigger["equals"] ?? .null
+    guard let a = actual.doubleValue, let t = thresholdValue.doubleValue else {
+        return false
+    }
+    switch op {
+    case "<":  return a < t
+    case ">":  return a > t
+    case "<=": return a <= t
+    case ">=": return a >= t
+    default:   return false
+    }
+}
+
 private func evalStateDuration(
     _ spec: RuleSpec,
     ctx: AutomationContext,
@@ -103,13 +130,13 @@ private func evalStateDuration(
 ) -> VehicleAlert? {
     guard let trigger = spec["trigger"]?.objectValue,
           let entity = trigger.string("entity"),
-          let expected = trigger["equals"],
           let stateKey = trigger.string("state_key"),
           let threshold = trigger.int("for_minutes") else {
         return nil
     }
+    let op = trigger.string("op") ?? "=="
     let actual = readEntity(entity, from: ctx.vehicleState) ?? .null
-    let isOn = valuesEqual(actual, expected)
+    let isOn = matches(actual, op: op, trigger: trigger)
     let recorded = ctx.memory.get(stateKey)
 
     // Memory bookkeeping for on/off transitions.

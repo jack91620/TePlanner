@@ -140,6 +140,7 @@ struct AutomationsHomeView: View {
         case "chargeComplete": return "bolt.batteryblock.fill"
         case "leftUnlocked": return "lock.open.fill"
         case "closureLeftOpen": return "door.left.hand.open"
+        case "lowBattery": return "battery.25"
         default: return "bell.badge.fill"
         }
     }

@@ -28,6 +28,7 @@ from app.services.automation.presets import (
     CAMP_MODE,
     CHARGE_COMPLETE,
     LEFT_UNLOCKED,
+    LOW_BATTERY,
     SENTRY_MODE,
     WINDOW_OR_BOX_LEFT_OPEN,
 )
@@ -207,6 +208,48 @@ def test_left_unlocked_clears_when_locked():
     # Lock the car → memory clears, no further alert
     evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state_locked, now=later, memory=memory))
     assert memory.get("leftUnlocked:startedAt") is None
+
+
+# ---------- LowBattery (Slice B — comparator) ----------
+
+def test_low_battery_silent_above_threshold():
+    state = VehicleStateSnapshot(battery_level=80)
+    assert evaluate_rule(LOW_BATTERY.spec, _ctx(state, memory=InMemoryStateMemory())) is None
+
+
+def test_low_battery_fires_below_threshold_after_minute():
+    state = VehicleStateSnapshot(battery_level=29)
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=2)
+    memory = InMemoryStateMemory()
+    evaluate_rule(LOW_BATTERY.spec, _ctx(state, now=started, memory=memory))
+    alert = evaluate_rule(LOW_BATTERY.spec, _ctx(state, now=later, memory=memory))
+    assert alert is not None
+    assert alert.kind == AlertKind.LOW_BATTERY
+    assert alert.severity == AlertSeverity.CRITICAL
+
+
+def test_low_battery_at_exact_threshold_is_silent():
+    # op is "<" not "<=" — 30% should NOT trigger.
+    state = VehicleStateSnapshot(battery_level=30)
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=2)
+    memory = InMemoryStateMemory()
+    evaluate_rule(LOW_BATTERY.spec, _ctx(state, now=started, memory=memory))
+    assert evaluate_rule(LOW_BATTERY.spec, _ctx(state, now=later, memory=memory)) is None
+
+
+def test_low_battery_clears_when_recharged_above_threshold():
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=2)
+    memory = InMemoryStateMemory()
+    state_low = VehicleStateSnapshot(battery_level=20)
+    state_recharged = VehicleStateSnapshot(battery_level=70)
+    evaluate_rule(LOW_BATTERY.spec, _ctx(state_low, now=started, memory=memory))
+    assert evaluate_rule(LOW_BATTERY.spec, _ctx(state_low, now=later, memory=memory)) is not None
+    # Recharged → memory clears, no further alert
+    evaluate_rule(LOW_BATTERY.spec, _ctx(state_recharged, now=later, memory=memory))
+    assert memory.get("lowBattery:startedAt") is None
 
 
 # ---------- WindowOrBoxLeftOpen (Slice A) ----------

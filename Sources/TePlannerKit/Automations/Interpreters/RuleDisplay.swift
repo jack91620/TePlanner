@@ -103,10 +103,27 @@ public enum RuleDisplay {
         }
         switch type {
         case "state_duration":
-            let entity = entityName(trigger.string("entity") ?? "")
-            let value = trigger["equals"].flatMap { describeValue($0, entity: trigger.string("entity") ?? "") } ?? "?"
+            let entityRaw = trigger.string("entity") ?? ""
+            let entity = entityName(entityRaw)
             let mins = trigger.int("for_minutes") ?? 0
-            return "「\(entity)」处于「\(value)」状态持续 \(formatDurationMinutes(mins))"
+            let op = trigger.string("op") ?? "=="
+            switch op {
+            case "<":
+                let v = trigger["value"]?.intValue ?? 0
+                return "「\(entity)」低于 \(v)% 持续 \(formatDurationMinutes(mins))"
+            case "<=":
+                let v = trigger["value"]?.intValue ?? 0
+                return "「\(entity)」不超过 \(v)% 持续 \(formatDurationMinutes(mins))"
+            case ">":
+                let v = trigger["value"]?.intValue ?? 0
+                return "「\(entity)」高于 \(v)% 持续 \(formatDurationMinutes(mins))"
+            case ">=":
+                let v = trigger["value"]?.intValue ?? 0
+                return "「\(entity)」不低于 \(v)% 持续 \(formatDurationMinutes(mins))"
+            default:
+                let value = trigger["equals"].flatMap { describeValue($0, entity: entityRaw) } ?? "?"
+                return "「\(entity)」处于「\(value)」状态持续 \(formatDurationMinutes(mins))"
+            }
         case "state_transition":
             let entity = entityName(trigger.string("entity") ?? "")
             let target = trigger.string("to") ?? "?"

@@ -64,6 +64,32 @@ _ENTITY_MAP = {
 }
 
 
+def _matches(actual: Any, op: str, trigger: dict) -> bool:
+    """Slice B: state_duration may compare with a numeric operator
+    (``<``, ``>``, ``<=``, ``>=``) instead of the default equality.
+    For backward compat, ``==`` reads the trigger's `equals` field
+    while numeric ops read `value` (falling back to `equals` if a
+    rule still uses the old shape).
+    """
+    if op == "==":
+        return actual == trigger.get("equals")
+    if op == "!=":
+        return actual is not None and actual != trigger.get("equals")
+    threshold = trigger.get("value", trigger.get("equals"))
+    if actual is None or threshold is None:
+        return False
+    try:
+        a = float(actual)
+        t = float(threshold)
+    except (TypeError, ValueError):
+        return False
+    if op == "<":  return a < t
+    if op == ">":  return a > t
+    if op == "<=": return a <= t
+    if op == ">=": return a >= t
+    return False
+
+
 def _read_entity(state, entity: str) -> Any:
     """Read a dotted entity path off a VehicleStateSnapshot.
 
@@ -129,12 +155,12 @@ def _emit_action(action: dict, kind: AlertKind, facts: dict) -> Optional[Alert]:
 def _eval_state_duration(spec: dict, ctx: AutomationContext, kind: AlertKind) -> Optional[Alert]:
     trigger = spec["trigger"]
     entity = trigger["entity"]
-    expected = trigger["equals"]
+    op = trigger.get("op", "==")
     threshold = int(trigger["for_minutes"])
     state_key = trigger["state_key"]
 
     actual = _read_entity(ctx.vehicle_state, entity)
-    is_on = (actual == expected)
+    is_on = _matches(actual, op, trigger)
     recorded = ctx.memory.get(state_key)
 
     # Memory bookkeeping: open / close the on-window.

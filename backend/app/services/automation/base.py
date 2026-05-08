@@ -29,6 +29,8 @@ class AlertKind(str, Enum):
     # Slice A
     LEFT_UNLOCKED = "leftUnlocked"
     CLOSURE_LEFT_OPEN = "closureLeftOpen"
+    # Slice B
+    LOW_BATTERY = "lowBattery"
 
 
 class AlertSeverity(str, Enum):
