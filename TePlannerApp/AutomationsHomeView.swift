@@ -35,6 +35,29 @@ struct AutomationsHomeView: View {
             if rulesStore.rules.isEmpty && !rulesStore.isLoading {
                 emptyStateSection
             }
+            if snoozedCount > 0 {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "moon.zzz.fill")
+                            .foregroundStyle(.orange)
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(snoozedCount) 条规则当前静音中")
+                                .font(.subheadline.weight(.medium))
+                            Text("静音期间不会推送通知；点击规则可查看到期时间。")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("全部恢复") {
+                            unsnoozeAll()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                .listRowBackground(Color.orange.opacity(0.08))
+            }
             if !presetRules.isEmpty {
                 Section {
                     ForEach(presetRules) { record in
@@ -203,6 +226,15 @@ struct AutomationsHomeView: View {
         s.removeValue(forKey: record.id)
         store.ruleSnooze = s
         rulesStore.objectWillChange.send()
+    }
+
+    private func unsnoozeAll() {
+        UserDefaultsSettingsStore.shared.ruleSnooze = [:]
+        rulesStore.objectWillChange.send()
+    }
+
+    private var snoozedCount: Int {
+        UserDefaultsSettingsStore.shared.ruleSnooze.count
     }
 
     @ViewBuilder
