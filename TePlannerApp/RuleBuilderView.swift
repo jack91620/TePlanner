@@ -206,10 +206,10 @@ struct RuleBuilderView: View {
             }
             if actionType == .notifyAndOffer {
                 TextField("按钮文字", text: $primaryActionLabel)
-                Picker("调用 capability", selection: $selectedCapabilityId) {
-                    Text("（无 — 仅 dismiss）").tag("")
+                Picker("点击按钮后执行", selection: $selectedCapabilityId) {
+                    Text("仅关闭提醒").tag("")
                     ForEach(capabilitiesStore.capabilities) { cap in
-                        Text(cap.id).tag(cap.id)
+                        Text(RuleDisplay.capabilityName(cap.id)).tag(cap.id)
                     }
                 }
             }

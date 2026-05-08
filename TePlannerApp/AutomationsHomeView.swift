@@ -149,22 +149,17 @@ struct AutomationsHomeView: View {
         }
         switch type {
         case "state_duration":
+            let entity = RuleDisplay.entityName(trigger.string("entity") ?? "")
             let mins = trigger.int("for_minutes") ?? 0
-            return "持续 \(formatDuration(mins))"
+            return "\(entity) 持续 \(RuleDisplay.formatDurationMinutes(mins))"
         case "state_transition":
-            let target = trigger["to"]?.stringValue ?? "?"
-            return "状态变成 \(target)"
+            let entity = RuleDisplay.entityName(trigger.string("entity") ?? "")
+            let target = trigger.string("to") ?? "?"
+            return "\(entity) → \(target)"
         case "cron":
             return "定时: \(trigger.string("expr") ?? "")"
         default:
             return type
         }
-    }
-
-    private func formatDuration(_ minutes: Int) -> String {
-        if minutes < 60 { return "\(minutes) 分钟" }
-        let h = minutes / 60
-        let m = minutes % 60
-        return m == 0 ? "\(h) 小时" : "\(h) 小时 \(m) 分钟"
     }
 }
