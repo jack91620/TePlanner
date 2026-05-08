@@ -1,0 +1,53 @@
+# 12. 规则静音 — 长按 → 静音菜单 → 选择时长 → 列表上看到橙色徽章
+#
+# Snooze flow: pick a preset, long-press, expand 静音 submenu, tap
+# 静音 1 小时 (any duration), confirm the orange badge appears on
+# the row. Then long-press again, 取消静音, confirm badge gone.
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Long-press the camp mode preset → context menu pops up
+- longPressOn: "露营模式超时提醒"
+
+# 静音 has a chevron submenu
+- extendedWaitUntil:
+    visible: "静音"
+    timeout: 3000
+- tapOn: "静音"
+
+# Submenu opens — pick 静音 1 小时
+- extendedWaitUntil:
+    visible: "静音 1 小时"
+    timeout: 3000
+- tapOn: "静音 1 小时"
+
+# Row should now show the orange '已静音至 ...' badge.
+- extendedWaitUntil:
+    visible: "已静音至"
+    timeout: 3000
+- takeScreenshot: tmp/screenshots/maestro_rule_snoozed
+
+# Top-of-list banner mentions the snooze count.
+- assertVisible: "条规则当前静音中"
+
+# Unsnooze via long-press → 取消静音
+- longPressOn: "露营模式超时提醒"
+- extendedWaitUntil:
+    visible: "取消静音"
+    timeout: 3000
+- tapOn: "取消静音"
+
+# Badge disappears
+- extendedWaitUntil:
+    notVisible: "已静音至"
+    timeout: 3000
+- takeScreenshot: tmp/screenshots/maestro_rule_unsnoozed
