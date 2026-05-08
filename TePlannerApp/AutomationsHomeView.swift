@@ -59,6 +59,13 @@ struct AutomationsHomeView: View {
                     .onMove { from, to in
                         moveRules(in: customRules, from: from, to: to)
                     }
+                    // EditButton 进入编辑模式时也支持点 - 圆圈删除，
+                    // 而不只是拖拽。匹配 iOS 标准 List 行为。
+                    .onDelete { offsets in
+                        if let idx = offsets.first {
+                            pendingDelete = customRules[idx]
+                        }
+                    }
                 }
             }
             if let err = workingError {

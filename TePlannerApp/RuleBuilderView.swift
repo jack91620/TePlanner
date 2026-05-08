@@ -62,6 +62,7 @@ struct RuleBuilderView: View {
     @State private var startFromPresetSheet = false
     @State private var saving = false
     @State private var saveError: String?
+    @State private var showingDeleteConfirm = false
 
     enum TriggerType: String, CaseIterable, Identifiable {
         case stateDuration = "state_duration"
@@ -220,6 +221,23 @@ struct RuleBuilderView: View {
                 fillFromPreset(selected)
                 startFromPresetSheet = false
             }
+        }
+        .confirmationDialog(
+            "确定删除「\(initial?.name ?? "")」？",
+            isPresented: $showingDeleteConfirm,
+            titleVisibility: .visible,
+        ) {
+            Button("删除", role: .destructive) {
+                Task {
+                    guard let r = initial else { return }
+                    let ok = await rulesStore.delete(id: r.id)
+                    if ok { dismiss() }
+                    else { saveError = rulesStore.lastError }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除后无法恢复。")
         }
         .onAppear { hydrateFromInitialIfPresent() }
     }
@@ -526,6 +544,19 @@ struct RuleBuilderView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!isValid || saving)
             .accessibilityIdentifier("rule_save_button")
+            // Inline 删除 button when editing an existing user-
+            // authored rule. Was a hidden affordance behind the
+            // detail page menu before — putting it here means users
+            // who reach 编辑 don't have to back out to delete.
+            if let r = initial, r.presetId == nil {
+                Button(role: .destructive) {
+                    showingDeleteConfirm = true
+                } label: {
+                    Text("删除规则")
+                        .frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier("rule_delete_button")
+            }
         }
     }
 
