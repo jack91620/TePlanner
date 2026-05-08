@@ -487,6 +487,12 @@ struct RuleBuilderView: View {
                         Text(RuleDisplay.capabilityName(cap.id)).tag(cap.id)
                     }
                 }
+                .onChange(of: selectedCapabilityId) { _, newId in
+                    paramOverrides = Self.defaultParams[newId] ?? [:]
+                }
+                if !selectedCapabilityId.isEmpty {
+                    capabilityParamRows
+                }
             }
         } header: {
             Text("那么")
@@ -844,6 +850,113 @@ struct RuleBuilderView: View {
             let new = await rulesStore.create(name: name, enabled: enabled, spec: spec)
             if new != nil { dismiss() } else { saveError = rulesStore.lastError }
         }
+    }
+
+    /// Default params for each capability — populated when the user
+    /// picks a capability so the rule has sensible defaults.
+    /// Capability-specific UI rows below let them tweak.
+    private static let defaultParams: [String: [String: JSONValue]] = [
+        "tesla.climate.set_keeper_mode":           ["mode": .int(0)],
+        "tesla.climate.set_temps":                 ["driver_temp": .double(22), "passenger_temp": .double(22)],
+        "tesla.climate.set_preconditioning_max":   ["on": .bool(true)],
+        "tesla.climate.set_cabin_overheat":        ["mode": .int(2)],
+        "tesla.charging.set_limit":                ["percent": .int(80)],
+        "tesla.charging.set_amps":                 ["amps": .int(16)],
+        "tesla.security.set_sentry":               ["on": .bool(false)],
+        "tesla.comfort.set_seat_heater":           ["seat": .int(0), "level": .int(2)],
+        "tesla.comfort.set_steering_wheel_heater": ["on": .bool(true)],
+        "tesla.media.set_volume":                  ["volume": .double(5)],
+    ]
+
+    /// Per-capability param-editing UI. Renders a small inline form
+    /// keyed off the selected capability id; falls through to a
+    /// "无需参数" caption for capabilities that take none.
+    @ViewBuilder
+    private var capabilityParamRows: some View {
+        switch selectedCapabilityId {
+        case "tesla.climate.set_keeper_mode":
+            Picker("模式", selection: paramIntBinding("mode", default: 0)) {
+                Text("关闭").tag(0); Text("保持").tag(1)
+                Text("宠物模式").tag(2); Text("露营模式").tag(3)
+            }
+        case "tesla.security.set_sentry":
+            Toggle("开启哨兵", isOn: paramBoolBinding("on", default: false))
+        case "tesla.charging.set_limit":
+            Stepper(value: paramIntBinding("percent", default: 80), in: 50...100, step: 5) {
+                HStack { Text("限额"); Spacer()
+                    Text("\(paramIntBinding("percent", default: 80).wrappedValue)%")
+                        .foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+        case "tesla.charging.set_amps":
+            Stepper(value: paramIntBinding("amps", default: 16), in: 5...48) {
+                HStack { Text("电流"); Spacer()
+                    Text("\(paramIntBinding("amps", default: 16).wrappedValue) A")
+                        .foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+        case "tesla.climate.set_temps":
+            HStack { Text("主驾"); Spacer()
+                Stepper(value: paramDoubleBinding("driver_temp", default: 22), in: 15...28, step: 0.5) {
+                    Text("\(paramDoubleBinding("driver_temp", default: 22).wrappedValue, specifier: "%.1f") °C")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack { Text("副驾"); Spacer()
+                Stepper(value: paramDoubleBinding("passenger_temp", default: 22), in: 15...28, step: 0.5) {
+                    Text("\(paramDoubleBinding("passenger_temp", default: 22).wrappedValue, specifier: "%.1f") °C")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case "tesla.climate.set_preconditioning_max":
+            Toggle("开启最大预热", isOn: paramBoolBinding("on", default: true))
+        case "tesla.climate.set_cabin_overheat":
+            Picker("模式", selection: paramIntBinding("mode", default: 2)) {
+                Text("关闭").tag(0); Text("空调").tag(1); Text("仅风扇").tag(2)
+            }
+        case "tesla.comfort.set_seat_heater":
+            Picker("座位", selection: paramIntBinding("seat", default: 0)) {
+                Text("主驾").tag(0); Text("副驾").tag(1)
+                Text("后排左").tag(2); Text("后排中").tag(4); Text("后排右").tag(5)
+            }
+            Picker("档位", selection: paramIntBinding("level", default: 2)) {
+                Text("关闭").tag(0); Text("低").tag(1); Text("中").tag(2); Text("高").tag(3)
+            }
+        case "tesla.comfort.set_steering_wheel_heater":
+            Toggle("开启方向盘加热", isOn: paramBoolBinding("on", default: true))
+        case "tesla.media.set_volume":
+            HStack { Text("音量"); Spacer()
+                Stepper(value: paramDoubleBinding("volume", default: 5), in: 0...11, step: 0.5) {
+                    Text("\(paramDoubleBinding("volume", default: 5).wrappedValue, specifier: "%.1f")")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        default:
+            Text("无需参数")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func paramIntBinding(_ key: String, default def: Int) -> Binding<Int> {
+        Binding(
+            get: { paramOverrides[key]?.intValue ?? def },
+            set: { paramOverrides[key] = .int($0) }
+        )
+    }
+
+    private func paramBoolBinding(_ key: String, default def: Bool) -> Binding<Bool> {
+        Binding(
+            get: { paramOverrides[key]?.boolValue ?? def },
+            set: { paramOverrides[key] = .bool($0) }
+        )
+    }
+
+    private func paramDoubleBinding(_ key: String, default def: Double) -> Binding<Double> {
+        Binding(
+            get: { paramOverrides[key]?.doubleValue ?? def },
+            set: { paramOverrides[key] = .double($0) }
+        )
     }
 
     /// Build a 5-field cron expression from the picker state.
