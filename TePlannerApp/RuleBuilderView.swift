@@ -333,9 +333,14 @@ struct RuleBuilderView: View {
         )
         DatePicker("时间", selection: timeBinding, displayedComponents: .hourAndMinute)
 
-        // 重复日 — multi-select chips. ISO 1..7 = Mon..Sun.
+        // Quick presets — borrowed from iOS 时钟 / 提醒事项.
         VStack(alignment: .leading, spacing: 8) {
             Text("重复").font(.subheadline)
+            HStack(spacing: 8) {
+                cronPresetChip(label: "每天",   days: Set(1...7))
+                cronPresetChip(label: "工作日", days: Set(1...5))
+                cronPresetChip(label: "周末",   days: Set([6, 7]))
+            }
             HStack(spacing: 6) {
                 ForEach(1...7, id: \.self) { day in
                     let label = ["一", "二", "三", "四", "五", "六", "日"][day - 1]
@@ -354,6 +359,23 @@ struct RuleBuilderView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func cronPresetChip(label: String, days: Set<Int>) -> some View {
+        let active = (cronWeekdays == days)
+        Text(label)
+            .font(.caption.weight(active ? .semibold : .regular))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                active ? Color.accentColor.opacity(0.18) : Color(.tertiarySystemFill),
+                in: Capsule()
+            )
+            .foregroundStyle(active ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .onTapGesture {
+                cronWeekdays = days
+            }
     }
 
     @ViewBuilder
