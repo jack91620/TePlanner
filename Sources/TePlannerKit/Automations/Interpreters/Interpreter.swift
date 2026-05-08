@@ -39,6 +39,15 @@ private func readEntity(_ entity: String, from state: VehicleState?) -> JSONValu
         return .bool(state.parkedWithFrunkOpen)
     case "vehicle.parked_with_trunk_open":
         return .bool(state.parkedWithTrunkOpen)
+    // Phase 7 — physical-state entities. iOS exposes these via the
+    // existing VehicleState DTO (lat/lng/speed) plus a few new
+    // optional fields synthesized from telemetry on the next refresh.
+    case "vehicle.location.latitude":
+        return state.latitude.map { .double($0) } ?? .null
+    case "vehicle.location.longitude":
+        return state.longitude.map { .double($0) } ?? .null
+    case "vehicle.speed_kmh":
+        return state.speed.map { .double(Double($0)) } ?? .null
     default:
         return nil
     }

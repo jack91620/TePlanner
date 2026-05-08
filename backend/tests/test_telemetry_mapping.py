@@ -194,3 +194,119 @@ def test_protojson_camp_mode_transition_payload():
          "value": {"stringValue": "ClimateKeeperModeStateOff"}},
     ]
     assert _decode(proto_data) == {"vehicle.climate.keeper_mode": 0}
+
+
+# ---------- Phase 7 entity expansion ----------
+
+def test_door_state_composite_yields_individuals_plus_aggregates():
+    # All four doors closed, frunk and trunk closed.
+    out = _decode({"DoorState": {
+        "DriverFront": False, "DriverRear": False,
+        "PassengerFront": False, "PassengerRear": False,
+        "TrunkFront": False, "TrunkRear": False,
+    }})
+    assert out["vehicle.door_open"] is False
+    assert out["vehicle.frunk_open"] is False
+    assert out["vehicle.trunk_open"] is False
+    assert out["vehicle.door.df"] is False
+    assert out["vehicle.door.dr"] is False
+    assert out["vehicle.door.pf"] is False
+    assert out["vehicle.door.pr"] is False
+
+
+def test_door_state_one_open_flips_aggregate_only():
+    out = _decode({"DoorState": {
+        "DriverFront": True, "DriverRear": False,
+        "PassengerFront": False, "PassengerRear": False,
+        "TrunkFront": False, "TrunkRear": False,
+    }})
+    assert out["vehicle.door_open"] is True
+    assert out["vehicle.door.df"] is True
+    assert out["vehicle.door.dr"] is False
+    assert out["vehicle.frunk_open"] is False
+    assert out["vehicle.trunk_open"] is False
+
+
+def test_door_state_with_only_trunk_open():
+    out = _decode({"DoorState": {
+        "DriverFront": False, "DriverRear": False,
+        "PassengerFront": False, "PassengerRear": False,
+        "TrunkFront": False, "TrunkRear": True,
+    }})
+    assert out["vehicle.door_open"] is False  # trunk doesn't count as door
+    assert out["vehicle.trunk_open"] is True
+    assert out["vehicle.frunk_open"] is False
+
+
+def test_window_string_enum_decoded_as_bool():
+    # Each window arrives as its own delta field. Every value other
+    # than "WindowStateClosed" counts as open (vented, partially-open,
+    # fully-open all want the same automation alert).
+    assert _decode({"FdWindow": "WindowStateClosed"}) == {
+        "vehicle.window.fd": False,
+    }
+    assert _decode({"FpWindow": "WindowStateOpen"}) == {
+        "vehicle.window.fp": True,
+    }
+    assert _decode({"RdWindow": "WindowStateVented"}) == {
+        "vehicle.window.rd": True,
+    }
+
+
+def test_location_composite():
+    out = _decode({"Location": {"latitude": 39.9, "longitude": 116.4}})
+    assert out == {
+        "vehicle.location.latitude": 39.9,
+        "vehicle.location.longitude": 116.4,
+    }
+
+
+def test_location_uppercase_keys_also_supported():
+    # Defensive: protojson may serialize as "Latitude" / "Longitude"
+    # depending on the proto's json_name annotation.
+    out = _decode({"Location": {"Latitude": 39.9, "Longitude": 116.4}})
+    assert out == {
+        "vehicle.location.latitude": 39.9,
+        "vehicle.location.longitude": 116.4,
+    }
+
+
+def test_temps_speed_charger_power_decoded_as_floats():
+    assert _decode({"InsideTemp": 22.5})["vehicle.inside_temp_c"] == 22.5
+    assert _decode({"OutsideTemp": -3.0})["vehicle.outside_temp_c"] == -3.0
+    assert _decode({"VehicleSpeed": 80.5})["vehicle.speed_kmh"] == 80.5
+    assert _decode({"ChargerPower": 11.0})["vehicle.charger_power_kw"] == 11.0
+
+
+def test_software_version_decoded_as_string():
+    assert _decode({"Version": "2024.44.25.5"})["vehicle.software_version"] == "2024.44.25.5"
+
+
+def test_protojson_doors_composite_via_oneof():
+    # The protojson form: {"key":"DoorState","value":{"doorValue":{...}}}.
+    # normalize_datum_list unwraps unknown oneof variants by returning
+    # the inner dict; mapping then sees a dict and the composite
+    # handler does the rest.
+    proto_data = [
+        {"key": "DoorState",
+         "value": {"doorValue": {
+             "DriverFront": True, "DriverRear": False,
+             "PassengerFront": False, "PassengerRear": False,
+             "TrunkFront": False, "TrunkRear": False,
+         }}}
+    ]
+    out = _decode(proto_data)
+    assert out["vehicle.door_open"] is True
+    assert out["vehicle.door.df"] is True
+
+
+def test_protojson_location_composite():
+    proto_data = [
+        {"key": "Location",
+         "value": {"locationValue": {"latitude": 39.9, "longitude": 116.4}}},
+    ]
+    out = _decode(proto_data)
+    assert out == {
+        "vehicle.location.latitude": 39.9,
+        "vehicle.location.longitude": 116.4,
+    }

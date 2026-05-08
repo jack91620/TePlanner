@@ -164,6 +164,94 @@ async def test_cold_start_recovers_value_from_db(seeded_user, db_session):
     assert since == t0.isoformat()
 
 
+async def test_window_aggregate_flips_on_first_open(seeded_user, db_session):
+    """Phase 7: writing a single window component recomputes the
+    aggregate ``vehicle.window_open`` from the cached values of all
+    four windows. After the first one flips open, aggregate must be
+    True."""
+    writer = TelemetryStateWriter()
+    t0 = datetime(2026, 5, 8, 8, 0, 0, tzinfo=timezone.utc)
+
+    # Establish a baseline: all four windows closed.
+    for window in ("vehicle.window.fd", "vehicle.window.fp",
+                   "vehicle.window.rd", "vehicle.window.rp"):
+        await writer.record(
+            db_session,
+            user_id=seeded_user.id,
+            vehicle_id=VIN,
+            entity=window,
+            value=False,
+            observed_at=t0,
+        )
+    await db_session.commit()
+    assert await _state_value(
+        db_session, seeded_user.id,
+        telemetry_value_key("vehicle.window_open"),
+    ) == "false"
+
+    # Open the rear-driver window — aggregate flips True.
+    t1 = t0 + timedelta(seconds=30)
+    await writer.record(
+        db_session,
+        user_id=seeded_user.id,
+        vehicle_id=VIN,
+        entity="vehicle.window.rd",
+        value=True,
+        observed_at=t1,
+    )
+    await db_session.commit()
+
+    agg = await _state_value(
+        db_session, seeded_user.id,
+        telemetry_value_key("vehicle.window_open"),
+    )
+    assert agg == "true"
+    # And the aggregate's `since` is the moment we flipped it.
+    agg_since = await _state_value(
+        db_session, seeded_user.id,
+        telemetry_since_key("vehicle.window_open"),
+    )
+    assert agg_since == t1.isoformat()
+
+
+async def test_window_aggregate_stays_open_until_all_close(seeded_user, db_session):
+    writer = TelemetryStateWriter()
+    t0 = datetime(2026, 5, 8, 8, 0, 0, tzinfo=timezone.utc)
+    # All open.
+    for w in ("vehicle.window.fd", "vehicle.window.fp",
+              "vehicle.window.rd", "vehicle.window.rp"):
+        await writer.record(
+            db_session, user_id=seeded_user.id, vehicle_id=VIN,
+            entity=w, value=True, observed_at=t0,
+        )
+    await db_session.commit()
+    # Close one — aggregate still True.
+    await writer.record(
+        db_session, user_id=seeded_user.id, vehicle_id=VIN,
+        entity="vehicle.window.fd", value=False, observed_at=t0 + timedelta(seconds=10),
+    )
+    await db_session.commit()
+    agg = await _state_value(
+        db_session, seeded_user.id,
+        telemetry_value_key("vehicle.window_open"),
+    )
+    assert agg == "true"
+
+    # Close the remaining three — aggregate flips False.
+    t_final = t0 + timedelta(seconds=20)
+    for w in ("vehicle.window.fp", "vehicle.window.rd", "vehicle.window.rp"):
+        await writer.record(
+            db_session, user_id=seeded_user.id, vehicle_id=VIN,
+            entity=w, value=False, observed_at=t_final,
+        )
+    await db_session.commit()
+    agg = await _state_value(
+        db_session, seeded_user.id,
+        telemetry_value_key("vehicle.window_open"),
+    )
+    assert agg == "false"
+
+
 async def test_multiple_entities_independent(seeded_user, db_session):
     writer = TelemetryStateWriter()
     t0 = datetime(2026, 5, 8, 7, 0, 0, tzinfo=timezone.utc)

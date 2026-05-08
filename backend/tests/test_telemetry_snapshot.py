@@ -143,6 +143,39 @@ async def test_has_any_telemetry_ignores_non_tel_keys(user, db_session):
     assert await has_any_telemetry(db_session, user.id, VIN) is False
 
 
+async def test_phase7_entities_round_trip(user, db_session):
+    """Phase 7 entities (location, temps, speed, charger_power,
+    software_version, doors/windows/frunk/trunk aggregates) must be
+    reconstructed into the snapshot dataclass."""
+    db_session.add_all([
+        _value_row(user.id, "vehicle.location.latitude", 39.9),
+        _value_row(user.id, "vehicle.location.longitude", 116.4),
+        _value_row(user.id, "vehicle.inside_temp_c", 22.5),
+        _value_row(user.id, "vehicle.outside_temp_c", -3.0),
+        _value_row(user.id, "vehicle.speed_kmh", 0.0),
+        _value_row(user.id, "vehicle.charger_power_kw", 11.0),
+        _value_row(user.id, "vehicle.software_version", "2024.44.25.5"),
+        _value_row(user.id, "vehicle.door_open", True),
+        _value_row(user.id, "vehicle.window_open", False),
+        _value_row(user.id, "vehicle.frunk_open", False),
+        _value_row(user.id, "vehicle.trunk_open", True),
+    ])
+    await db_session.commit()
+
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.latitude == 39.9
+    assert snap.longitude == 116.4
+    assert snap.inside_temp_c == 22.5
+    assert snap.outside_temp_c == -3.0
+    assert snap.speed_kmh == 0.0
+    assert snap.charger_power_kw == 11.0
+    assert snap.software_version == "2024.44.25.5"
+    assert snap.door_open is True
+    assert snap.window_open is False
+    assert snap.frunk_open is False
+    assert snap.trunk_open is True
+
+
 async def test_malformed_value_decodes_gracefully(user, db_session):
     # Non-JSON garbage in the row — _decode falls back to raw string,
     # then type coercion drops it (battery_level isn't a string).

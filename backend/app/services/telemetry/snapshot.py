@@ -82,6 +82,19 @@ async def build_snapshot_from_telemetry(
     locked = await _read_value(db, user_id, vehicle_id, "vehicle.locked")
     shift_state = await _read_value(db, user_id, vehicle_id, "vehicle.shift_state")
 
+    # Phase 7 entities.
+    door_open = await _read_value(db, user_id, vehicle_id, "vehicle.door_open")
+    window_open = await _read_value(db, user_id, vehicle_id, "vehicle.window_open")
+    frunk_open = await _read_value(db, user_id, vehicle_id, "vehicle.frunk_open")
+    trunk_open = await _read_value(db, user_id, vehicle_id, "vehicle.trunk_open")
+    latitude = await _read_value(db, user_id, vehicle_id, "vehicle.location.latitude")
+    longitude = await _read_value(db, user_id, vehicle_id, "vehicle.location.longitude")
+    inside_temp = await _read_value(db, user_id, vehicle_id, "vehicle.inside_temp_c")
+    outside_temp = await _read_value(db, user_id, vehicle_id, "vehicle.outside_temp_c")
+    speed = await _read_value(db, user_id, vehicle_id, "vehicle.speed_kmh")
+    charger_power = await _read_value(db, user_id, vehicle_id, "vehicle.charger_power_kw")
+    software_version = await _read_value(db, user_id, vehicle_id, "vehicle.software_version")
+
     return VehicleStateSnapshot(
         battery_level=int(battery_level) if isinstance(battery_level, (int, float)) else None,
         charging_state=charging_state if isinstance(charging_state, str) else None,
@@ -92,13 +105,19 @@ async def build_snapshot_from_telemetry(
         climate_keeper_mode=int(keeper_mode) if isinstance(keeper_mode, (int, float)) else None,
         locked=locked if isinstance(locked, bool) else None,
         shift_state=shift_state if isinstance(shift_state, str) else None,
-        # Doors / windows / frunk / trunk wait on Phase 7 (cross-event
-        # aggregation in TelemetryStateWriter). Until then rules that
-        # depend on them simply don't fire from telemetry-driven evals.
-        door_open=None,
-        window_open=None,
-        frunk_open=None,
-        trunk_open=None,
+        door_open=door_open if isinstance(door_open, bool) else None,
+        window_open=window_open if isinstance(window_open, bool) else None,
+        frunk_open=frunk_open if isinstance(frunk_open, bool) else None,
+        trunk_open=trunk_open if isinstance(trunk_open, bool) else None,
+        latitude=float(latitude) if isinstance(latitude, (int, float)) else None,
+        longitude=float(longitude) if isinstance(longitude, (int, float)) else None,
+        inside_temp_c=float(inside_temp) if isinstance(inside_temp, (int, float)) else None,
+        outside_temp_c=float(outside_temp) if isinstance(outside_temp, (int, float)) else None,
+        speed_kmh=float(speed) if isinstance(speed, (int, float)) else None,
+        charger_power_kw=(
+            float(charger_power) if isinstance(charger_power, (int, float)) else None
+        ),
+        software_version=software_version if isinstance(software_version, str) else None,
     )
 
 

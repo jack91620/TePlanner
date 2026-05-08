@@ -72,6 +72,18 @@ class VehicleStateSnapshot:
     frunk_open: Optional[bool] = None
     trunk_open: Optional[bool] = None
 
+    # Phase 7 — physical state useful for richer rules. Location
+    # feeds the geofence trigger (Phase 8); temps drive
+    # "preheat-finished" rules; charger_power_kw distinguishes
+    # actively charging from connected-but-paused.
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    inside_temp_c: Optional[float] = None
+    outside_temp_c: Optional[float] = None
+    speed_kmh: Optional[float] = None
+    charger_power_kw: Optional[float] = None
+    software_version: Optional[str] = None
+
     @property
     def is_camp_mode_on(self) -> bool:
         return self.climate_keeper_mode == 3

@@ -21,7 +21,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,29 @@ def telemetry_value_key(entity: str) -> str:
     value (as JSON, so bool/int/str all round-trip).
     """
     return f"tel:{entity}:value"
+
+
+# Phase 7 — entity → list of components that make up the aggregate.
+# Each component event triggers a recompute of the aggregate via OR.
+# Doors / frunk / trunk are derived inside the DoorState composite
+# handler (single event has all 4 values), so they're NOT in here —
+# only the windows need cross-event aggregation since each window
+# arrives as a separate delta field.
+_OR_AGGREGATIONS: Dict[str, list] = {
+    "vehicle.window_open": [
+        "vehicle.window.fd",
+        "vehicle.window.fp",
+        "vehicle.window.rd",
+        "vehicle.window.rp",
+    ],
+}
+
+# Reverse index: component entity → aggregate that depends on it.
+_COMPONENT_TO_AGGREGATE: Dict[str, str] = {
+    component: aggregate
+    for aggregate, components in _OR_AGGREGATIONS.items()
+    for component in components
+}
 
 
 @dataclass
@@ -109,7 +132,61 @@ class TelemetryStateWriter:
             "telemetry transition vehicle=%s entity=%s value=%s since=%s",
             vehicle_id, entity, value, observed_at.isoformat(),
         )
+
+        # Phase 7: if this entity is a component of an OR-aggregate
+        # (e.g. one of the four windows feeds vehicle.window_open),
+        # recompute the aggregate from cached components and emit a
+        # transition for it if changed. Doors / frunk / trunk are NOT
+        # handled here — they're derived in the mapping layer from the
+        # DoorState composite (which always has all values).
+        aggregate_entity = _COMPONENT_TO_AGGREGATE.get(entity)
+        if aggregate_entity is not None:
+            await self._recompute_or_aggregate(
+                db, user_id, vehicle_id, aggregate_entity, observed_at,
+            )
+
         return True
+
+    async def _recompute_or_aggregate(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        vehicle_id: str,
+        aggregate_entity: str,
+        observed_at: datetime,
+    ) -> None:
+        """Read the latest cached values of every component, OR them,
+        and call ``record(...)`` recursively for the aggregate. The
+        recursion terminates on the next call: aggregate is not itself
+        a component of anything.
+        """
+        components = _OR_AGGREGATIONS.get(aggregate_entity) or []
+        any_open: Optional[bool] = None
+        for comp in components:
+            v = self._last_value.get((vehicle_id, comp))
+            if v is None:
+                # Not in process cache — try DB cold start.
+                v = await self._load_cached_value(db, user_id, vehicle_id, comp)
+                if v is not None:
+                    self._last_value[(vehicle_id, comp)] = v
+            if v is True:
+                any_open = True
+                break
+            if v is False:
+                # At least one component observed and closed; aggregate
+                # is False unless we later see a True.
+                any_open = False if any_open is None else any_open
+        if any_open is None:
+            # No component values observed yet — can't compute.
+            return
+        await self.record(
+            db,
+            user_id=user_id,
+            vehicle_id=vehicle_id,
+            entity=aggregate_entity,
+            value=any_open,
+            observed_at=observed_at,
+        )
 
     async def _load_cached_value(
         self,
