@@ -44,7 +44,11 @@ public struct CampModeAutomation: Automation {
 
     public func primaryAction(context: AutomationContext) -> AutomationAction? {
         guard let vehicleId = context.vehicleId else { return nil }
-        return .setClimateKeeperMode(vehicleId: vehicleId, mode: 0)
+        return .capability(
+            id: "tesla.climate.set_keeper_mode",
+            params: ["mode": .int(0)],
+            vehicleId: vehicleId
+        )
     }
 
     public func onActionSucceeded(memory: AutomationStateMemory) {

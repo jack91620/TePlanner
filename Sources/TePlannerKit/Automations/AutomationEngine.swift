@@ -82,12 +82,23 @@ public final class AutomationEngine: ObservableObject {
 
         let result: Result<BaseResponse, APIError>
         switch action {
-        case .setClimateKeeperMode(let vid, let mode):
-            Log.vehicle.notice("automation \(rule.id, privacy: .public) → setClimateKeeperMode(\(mode, privacy: .public))")
-            result = await apiService.setClimateKeeperMode(vehicleId: vid, mode: mode)
-        case .setSentryMode(let vid, let on):
-            Log.vehicle.notice("automation \(rule.id, privacy: .public) → setSentryMode(\(on, privacy: .public))")
-            result = await apiService.setSentryMode(vehicleId: vid, on: on)
+        case .capability(let id, let params, let vid):
+            Log.vehicle.notice("automation \(rule.id, privacy: .public) → \(id, privacy: .public)")
+            let capCtx = CapabilityContext(vehicleId: vid)
+            let cap = await CapabilityRegistry.shared.dispatch(
+                capabilityId: id,
+                ctx: capCtx,
+                params: params,
+                api: apiService
+            )
+            if cap.success {
+                result = .success(BaseResponse(success: true, message: nil))
+            } else {
+                result = .failure(.serverError(
+                    statusCode: 500,
+                    message: cap.error ?? "Capability dispatch failed"
+                ))
+            }
         case .dismiss:
             result = .success(BaseResponse(success: true, message: nil))
         }

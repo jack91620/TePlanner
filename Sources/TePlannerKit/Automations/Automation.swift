@@ -11,11 +11,17 @@ public enum AutomationCategory: String, CaseIterable, Sendable {
 }
 
 /// Concrete API call the engine should run when the user taps an
-/// alert's primary button. Modeled as a value type so tests can assert
-/// on the produced action without mocking the API surface.
+/// alert's primary button. Phase 10.1: rules now return a capability
+/// dispatch instead of typed Tesla-method enum cases — the engine
+/// looks up the id in CapabilityRegistry.shared and invokes it. Same
+/// network side-effect, but the dispatcher stays generic so user-
+/// authored rules (Phase 10.3) can carry capability ids without the
+/// engine having to know about each one.
 public enum AutomationAction: Equatable, Sendable {
-    case setClimateKeeperMode(vehicleId: String, mode: Int)
-    case setSentryMode(vehicleId: String, on: Bool)
+    case capability(id: String, params: [String: JSONValue], vehicleId: String?)
+    /// No-op action — used by rules whose primary button just clears
+    /// the alert (e.g. ChargeComplete's "我知道了"). Engine treats this
+    /// as immediate success without hitting Tesla.
     case dismiss
 }
 

@@ -54,7 +54,11 @@ public struct SentryModeAutomation: Automation {
 
     public func primaryAction(context: AutomationContext) -> AutomationAction? {
         guard let vehicleId = context.vehicleId else { return nil }
-        return .setSentryMode(vehicleId: vehicleId, on: false)
+        return .capability(
+            id: "tesla.security.set_sentry",
+            params: ["on": .bool(false)],
+            vehicleId: vehicleId
+        )
     }
 
     public func onActionSucceeded(memory: AutomationStateMemory) {
