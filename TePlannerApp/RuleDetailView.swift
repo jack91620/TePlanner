@@ -296,7 +296,9 @@ struct RuleDetailView: View {
     }
 
     /// "今天 HH:mm / 明天 HH:mm / 周X HH:mm / M月d日 HH:mm" —
-    /// absolute time used for next-cron-fire labels.
+    /// absolute time used for next-cron-fire labels. When the target
+    /// is less than 24 h away the relative-time suffix is appended
+    /// (e.g. '今天 07:30（约 30 分钟后）').
     private static func absolute(_ date: Date) -> String {
         let cal = Calendar.current
         let f = DateFormatter()
@@ -313,7 +315,24 @@ struct RuleDetailView: View {
                 f.dateFormat = "M月d日 HH:mm"
             }
         }
-        return f.string(from: date)
+        let base = f.string(from: date)
+        let secondsAway = date.timeIntervalSinceNow
+        guard secondsAway > 0, secondsAway < 24 * 3600 else { return base }
+        let relative: String
+        if secondsAway < 60 {
+            relative = "1 分钟内"
+        } else if secondsAway < 3600 {
+            relative = "约 \(Int(secondsAway / 60)) 分钟后"
+        } else {
+            let hours = Int(secondsAway / 3600)
+            let mins = Int(secondsAway.truncatingRemainder(dividingBy: 3600) / 60)
+            if mins < 5 {
+                relative = "约 \(hours) 小时后"
+            } else {
+                relative = "\(hours) 小时 \(mins) 分钟后"
+            }
+        }
+        return "\(base)（\(relative)）"
     }
 
     private func nextCronFireDate(in spec: RuleSpec) -> Date? {
