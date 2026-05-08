@@ -254,6 +254,94 @@ WEEKDAY_PREHEAT = PresetDefinition(
 )
 
 
+# Phase 8 — geofence presets. Lat/lng are placeholders (0, 0); the
+# iOS builder forces the user to set a real location via the map
+# picker before save (isValid checks the lat is non-zero). Disabled
+# by default so a fresh-seeded user doesn't fire on (0, 0).
+
+GEOFENCE_ARRIVE_HOME = PresetDefinition(
+    preset_id="geofence_arrive_home",
+    name="到家提示",
+    spec={
+        "kind": "geofenceEnter",
+        "enabled": False,
+        "trigger": {
+            "type": "geofence",
+            "lat": 0.0,
+            "lng": 0.0,
+            "radius_m": 200,
+            "event": "enter",
+            "state_key": "geo:home_arrive",
+        },
+        "actions": [
+            {
+                "type": "notify",
+                "title": "已到家",
+                "body": "车辆进入「家」附近 {distance_m} 米",
+                "severity": "info",
+            }
+        ],
+    },
+)
+
+
+GEOFENCE_LEAVE_HOME_SENTRY = PresetDefinition(
+    preset_id="geofence_leave_home_sentry",
+    name="离家自动开哨兵",
+    spec={
+        "kind": "geofenceExit",
+        "enabled": False,
+        "trigger": {
+            "type": "geofence",
+            "lat": 0.0,
+            "lng": 0.0,
+            "radius_m": 200,
+            "event": "exit",
+            "state_key": "geo:home_leave_sentry",
+        },
+        "actions": [
+            {
+                "type": "notify_and_offer",
+                "title": "已离开「家」",
+                "body": "是否启动哨兵模式保护车辆？",
+                "severity": "info",
+                "primary_action_label": "启动哨兵",
+                "capability": "tesla.security.set_sentry",
+                "params": {"on": True},
+            }
+        ],
+    },
+)
+
+
+GEOFENCE_ARRIVE_WORK_LOCK = PresetDefinition(
+    preset_id="geofence_arrive_work_lock",
+    name="到达公司锁车",
+    spec={
+        "kind": "geofenceEnter",
+        "enabled": False,
+        "trigger": {
+            "type": "geofence",
+            "lat": 0.0,
+            "lng": 0.0,
+            "radius_m": 100,
+            "event": "enter",
+            "state_key": "geo:work_arrive_lock",
+        },
+        "actions": [
+            {
+                "type": "notify_and_offer",
+                "title": "到达「公司」",
+                "body": "是否锁车？",
+                "severity": "info",
+                "primary_action_label": "锁车",
+                "capability": "tesla.security.door_lock",
+            }
+        ],
+    },
+)
+
+
 ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
@@ -263,4 +351,7 @@ ALL_PRESETS: list[PresetDefinition] = [
     WINDOW_OR_BOX_LEFT_OPEN,
     LOW_BATTERY,
     WEEKDAY_PREHEAT,
+    GEOFENCE_ARRIVE_HOME,
+    GEOFENCE_LEAVE_HOME_SENTRY,
+    GEOFENCE_ARRIVE_WORK_LOCK,
 ]

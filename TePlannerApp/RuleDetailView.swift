@@ -451,6 +451,12 @@ struct RuleDetailView: View {
             return "电量过低会触发限速 / 关闭非关键功能；冬季低电量还可能造成无法解锁。本规则在你设定的阈值（默认 30%）时提醒及时充电。"
         case "weekday_preheat":
             return "出发前 10–20 分钟启动 HVAC 可让车舱达到舒适温度，冬天还能为电池预热提升续航。本规则按工作日的固定时间提醒你启动预热。"
+        case "geofence_arrive_home":
+            return "车辆进入你设定的「家」范围时通知你。可以作为车机轨迹的私人提示，也能配合家庭智能设备（车回家就开门 / 灯）。先用「编辑」打开地图选好家的位置再启用。"
+        case "geofence_leave_home_sentry":
+            return "出小区自动开哨兵，回家自动关——可以代替手动每次切换。先用「编辑」打开地图选「家」的位置再启用。"
+        case "geofence_arrive_work_lock":
+            return "下车前忘锁车的常见场景：到公司停好就走人。本规则在车辆进入公司范围时提示一键锁车。先用「编辑」打开地图选「公司」位置再启用。"
         default:
             return nil
         }

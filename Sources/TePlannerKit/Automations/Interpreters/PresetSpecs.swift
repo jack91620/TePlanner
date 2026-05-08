@@ -199,6 +199,76 @@ public enum PresetSpecs {
         ]),
     ]
 
+    /// Phase 8 — geofence presets. Lat/lng are placeholders (0, 0);
+    /// the builder forces user to pick a real location via the map
+    /// picker before save (isValid checks lat != nil).
+    public static let geofenceArriveHome: RuleSpec = [
+        "kind": .string("geofenceEnter"),
+        "trigger": .object([
+            "type": .string("geofence"),
+            "lat": .double(0),
+            "lng": .double(0),
+            "radius_m": .int(200),
+            "event": .string("enter"),
+            "state_key": .string("geo:home_arrive"),
+        ]),
+        "actions": .array([
+            .object([
+                "type": .string("notify"),
+                "title": .string("已到家"),
+                "body": .string("车辆进入「家」附近 {distance_m} 米"),
+                "severity": .string("info"),
+            ]),
+        ]),
+    ]
+
+    public static let geofenceLeaveHomeSentry: RuleSpec = [
+        "kind": .string("geofenceExit"),
+        "trigger": .object([
+            "type": .string("geofence"),
+            "lat": .double(0),
+            "lng": .double(0),
+            "radius_m": .int(200),
+            "event": .string("exit"),
+            "state_key": .string("geo:home_leave_sentry"),
+        ]),
+        "actions": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("已离开「家」"),
+                "body": .string("是否启动哨兵模式保护车辆？"),
+                "severity": .string("info"),
+                "primary_action_label": .string("启动哨兵"),
+                "capability": .string("tesla.security.set_sentry"),
+                "params": .object([
+                    "on": .bool(true),
+                ]),
+            ]),
+        ]),
+    ]
+
+    public static let geofenceArriveWorkLock: RuleSpec = [
+        "kind": .string("geofenceEnter"),
+        "trigger": .object([
+            "type": .string("geofence"),
+            "lat": .double(0),
+            "lng": .double(0),
+            "radius_m": .int(100),
+            "event": .string("enter"),
+            "state_key": .string("geo:work_arrive_lock"),
+        ]),
+        "actions": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("到达「公司」"),
+                "body": .string("是否锁车？"),
+                "severity": .string("info"),
+                "primary_action_label": .string("锁车"),
+                "capability": .string("tesla.security.door_lock"),
+            ]),
+        ]),
+    ]
+
     /// Records ready to seed into the engine. Each carries the same
     /// `preset_id` and `name` strings as `presets.py`.
     public static let allPresets: [RuleRecord] = [
@@ -257,6 +327,29 @@ public enum PresetSpecs {
             name: "工作日早 7:30 自动预热",
             enabled: true,
             spec: weekdayPreheat
+        ),
+        // Geofence presets — disabled by default since lat/lng are
+        // placeholders; user enables after picking a real location.
+        RuleRecord(
+            id: "preset:geofence_arrive_home",
+            presetId: "geofence_arrive_home",
+            name: "到家提示",
+            enabled: false,
+            spec: geofenceArriveHome
+        ),
+        RuleRecord(
+            id: "preset:geofence_leave_home_sentry",
+            presetId: "geofence_leave_home_sentry",
+            name: "离家自动开哨兵",
+            enabled: false,
+            spec: geofenceLeaveHomeSentry
+        ),
+        RuleRecord(
+            id: "preset:geofence_arrive_work_lock",
+            presetId: "geofence_arrive_work_lock",
+            name: "到达公司锁车",
+            enabled: false,
+            spec: geofenceArriveWorkLock
         ),
     ]
 }

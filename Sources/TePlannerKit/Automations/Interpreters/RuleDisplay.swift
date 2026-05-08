@@ -404,6 +404,18 @@ public enum RuleDisplay {
             return "「\(entity)」变为「\(transitionTargetName(entity: trigger.string("entity") ?? "", target: target))」"
         case "cron":
             return cronSentence(trigger.string("expr") ?? "")
+        case "geofence":
+            let event = trigger.string("event") ?? "enter"
+            let radius = trigger.int("radius_m") ?? 0
+            let verb = event == "enter" ? "进入" : "离开"
+            let lat = trigger.double("lat") ?? 0
+            let lng = trigger.double("lng") ?? 0
+            // 0,0 is the placeholder for unconfigured presets — call
+            // out the user-action needed instead of leaking coords.
+            if abs(lat) < 0.0001 && abs(lng) < 0.0001 {
+                return "\(verb)某个区域 · \(radius)m（待选择地点）"
+            }
+            return "\(verb)区域 \(radius)m 范围"
         default:
             return type
         }

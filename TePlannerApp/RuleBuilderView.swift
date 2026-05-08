@@ -49,6 +49,21 @@ struct RuleBuilderView: View {
     @State private var cronHour: Int = 7
     @State private var cronMinute: Int = 30
     @State private var cronWeekdays: Set<Int> = [1, 2, 3, 4, 5]
+    // Slice D — geofence trigger state. center is nil until the user
+    // picks a point on the map. radius defaults to 200 m which covers
+    // 'home compound / parking lot' without overlapping neighbours.
+    @State private var geofenceLat: Double? = nil
+    @State private var geofenceLng: Double? = nil
+    @State private var geofenceAddress: String = ""
+    @State private var geofenceRadiusM: Int = 200
+    @State private var geofenceEvent: GeofenceEvent = .enter
+    @State private var showingGeofencePicker = false
+
+    enum GeofenceEvent: String, CaseIterable, Identifiable {
+        case enter, exit
+        var id: String { rawValue }
+        var label: String { self == .enter ? "进入" : "离开" }
+    }
 
     @State private var actionType: ActionType = .notify
     @State private var actionTitle: String = ""
@@ -69,12 +84,14 @@ struct RuleBuilderView: View {
         case stateDuration = "state_duration"
         case stateTransition = "state_transition"
         case cron = "cron"
+        case geofence = "geofence"
         var id: String { rawValue }
         var label: String {
             switch self {
             case .stateDuration:   return "持续状态"
             case .stateTransition: return "状态变化"
             case .cron:            return "定时"
+            case .geofence:        return "进出区域"
             }
         }
         var symbol: String {
@@ -82,6 +99,7 @@ struct RuleBuilderView: View {
             case .stateDuration:   return "timer"
             case .stateTransition: return "arrow.right.arrow.left.circle.fill"
             case .cron:            return "clock.fill"
+            case .geofence:        return "location.fill"
             }
         }
         var description: String {
@@ -92,6 +110,8 @@ struct RuleBuilderView: View {
                 return "状态发生变化（充电完成、车辆上线…）"
             case .cron:
                 return "按时间触发（每个工作日 7:30、每天晚上…）"
+            case .geofence:
+                return "车辆进入或离开某个区域（到家、离开公司…）"
             }
         }
         var accent: Color {
@@ -99,6 +119,7 @@ struct RuleBuilderView: View {
             case .stateDuration:   return .indigo
             case .stateTransition: return .purple
             case .cron:            return .blue
+            case .geofence:        return .green
             }
         }
     }
@@ -264,6 +285,21 @@ struct RuleBuilderView: View {
                 startFromPresetSheet = false
             }
         }
+        .sheet(isPresented: $showingGeofencePicker) {
+            GeofenceMapPickerSheet(
+                initialLat: geofenceLat,
+                initialLng: geofenceLng,
+                initialRadiusM: geofenceRadiusM,
+                vehicleLat: nil,
+                vehicleLng: nil,
+            ) { lat, lng, radius, address in
+                geofenceLat = lat
+                geofenceLng = lng
+                geofenceRadiusM = radius
+                geofenceAddress = address
+                showingGeofencePicker = false
+            }
+        }
         .confirmationDialog(
             "确定删除「\(initial?.name ?? "")」？",
             isPresented: $showingDeleteConfirm,
@@ -369,8 +405,63 @@ struct RuleBuilderView: View {
                 }
             case .cron:
                 cronEditor
+            case .geofence:
+                geofenceEditor
             }
         }
+    }
+
+    @ViewBuilder
+    private var geofenceEditor: some View {
+        Button {
+            showingGeofencePicker = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 2) {
+                    if geofenceLat != nil, geofenceLng != nil {
+                        Text(geofenceAddress.isEmpty ? "已选择位置" : geofenceAddress)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        if let lat = geofenceLat, let lng = geofenceLng {
+                            Text(String(format: "%.5f, %.5f", lat, lng))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else {
+                        Text("选择中心位置")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.tint)
+                        Text("点击在地图上选点 / 搜索地址")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        Stepper(value: $geofenceRadiusM, in: 50...2000, step: 50) {
+            HStack {
+                Text("范围")
+                Spacer()
+                Text("\(geofenceRadiusM) m")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        Picker("触发", selection: $geofenceEvent) {
+            ForEach(GeofenceEvent.allCases) { e in
+                Text(e.label).tag(e)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     /// Sectioned entity picker — same play as the capability picker:
@@ -644,6 +735,9 @@ struct RuleBuilderView: View {
            && primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             missing.append("按钮文字")
         }
+        if triggerType == .geofence && (geofenceLat == nil || geofenceLng == nil) {
+            missing.append("地点")
+        }
         if let cap = capabilitiesStore.get(selectedCapabilityId),
            cap.safetyClass != .read, cap.safetyClass != .writable,
            !unsafeAcknowledged {
@@ -716,6 +810,16 @@ struct RuleBuilderView: View {
             trigger["to"] = .string(toString)
         case .cron:
             trigger["expr"] = .string(buildCronExpr())
+        case .geofence:
+            if let lat = geofenceLat { trigger["lat"] = .double(lat) }
+            if let lng = geofenceLng { trigger["lng"] = .double(lng) }
+            trigger["radius_m"] = .int(geofenceRadiusM)
+            trigger["event"] = .string(geofenceEvent.rawValue)
+            // state_key namespaces the engine memory keys for this rule
+            // — derive from the existing kind so re-edits don't orphan
+            // the inside/last_fired entries we already wrote.
+            let suffix = (initial?.spec.string("kind") ?? "geofence_user").replacingOccurrences(of: ".", with: "_")
+            trigger["state_key"] = .string("geo:\(suffix)")
         }
         return trigger
     }
@@ -760,6 +864,9 @@ struct RuleBuilderView: View {
         if actionTitle.trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if actionBody.trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if actionType == .notifyAndOffer && primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
+            return false
+        }
+        if triggerType == .geofence && (geofenceLat == nil || geofenceLng == nil) {
             return false
         }
         if let cap = capabilitiesStore.get(selectedCapabilityId),
@@ -820,6 +927,14 @@ struct RuleBuilderView: View {
                         cronWeekdays = Set(nums.filter { (1...7).contains($0) })
                     }
                 }
+            }
+            // Slice D — geofence
+            if let lat = trigger.double("lat") { geofenceLat = lat }
+            if let lng = trigger.double("lng") { geofenceLng = lng }
+            if let r = trigger.int("radius_m") { geofenceRadiusM = r }
+            if let evt = trigger.string("event"),
+               let parsed = GeofenceEvent(rawValue: evt) {
+                geofenceEvent = parsed
             }
         }
         // Pull first action.
@@ -907,6 +1022,14 @@ struct RuleBuilderView: View {
                     }
                 }
             }
+            // Slice D — geofence
+            if let lat = trigger.double("lat") { geofenceLat = lat }
+            if let lng = trigger.double("lng") { geofenceLng = lng }
+            if let r = trigger.int("radius_m") { geofenceRadiusM = r }
+            if let evt = trigger.string("event"),
+               let parsed = GeofenceEvent(rawValue: evt) {
+                geofenceEvent = parsed
+            }
         }
         let candidates: [String] = ["actions_above", "actions"]
         for key in candidates {
@@ -956,6 +1079,13 @@ struct RuleBuilderView: View {
             trigger["expr"] = .string(cronExpression())
             trigger["tz"] = .string("Asia/Shanghai")
             trigger["last_fired_key"] = .string("user:\(kindString):lastFiredAt")
+        case .geofence:
+            trigger.removeValue(forKey: "entity")
+            if let lat = geofenceLat { trigger["lat"] = .double(lat) }
+            if let lng = geofenceLng { trigger["lng"] = .double(lng) }
+            trigger["radius_m"] = .int(geofenceRadiusM)
+            trigger["event"] = .string(geofenceEvent.rawValue)
+            trigger["state_key"] = .string("user:geo:\(kindString)")
         }
 
         var action: [String: JSONValue] = [
@@ -984,7 +1114,7 @@ struct RuleBuilderView: View {
         case .stateDuration:
             spec["actions_above"] = .array([.object(action)])
             spec["actions_below"] = .array([])
-        case .stateTransition, .cron:
+        case .stateTransition, .cron, .geofence:
             spec["actions"] = .array([.object(action)])
         }
         return spec
@@ -992,6 +1122,9 @@ struct RuleBuilderView: View {
 
     private func inferKind() -> String {
         if triggerType == .cron { return "weekdayPreheat" }
+        if triggerType == .geofence {
+            return geofenceEvent == .enter ? "geofenceEnter" : "geofenceExit"
+        }
         switch entity {
         case .climateKeeperMode:    return "campMode"
         case .sentryModeOn:         return "sentryMode"
