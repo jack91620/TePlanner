@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Iterable, List, Optional
 
@@ -161,6 +162,60 @@ async def _eligible_user_ids(db: AsyncSession) -> List[int]:
     return sorted(device_users & tesla_users)
 
 
+@dataclass
+class _PollState:
+    """In-memory cache of the last /vehicle_data result per user.
+    Drives smart-cadence: don't re-poll an idle parked car every 5 min,
+    let it actually go to sleep. Reset on backend restart (acceptable
+    — first tick after restart will fetch and re-establish.)
+    """
+    fetched_at: datetime
+    was_asleep: bool
+    snapshot: Optional[VehicleStateSnapshot]
+
+
+# user_id → last poll outcome. Held by the polling loop; cleared on
+# process restart. Memory-only; persistence not worth the schema add.
+_user_poll_cache: dict[int, _PollState] = {}
+
+
+def _is_vehicle_idle(snap: Optional[VehicleStateSnapshot]) -> bool:
+    """Idle = parked AND not charging AND no climate keeper running
+    AND sentry off. In this state the car wants to sleep; don't
+    interrupt it with another /vehicle_data call.
+    """
+    if snap is None:
+        return False
+    if snap.shift_state not in (None, "P"):
+        return False
+    if snap.charging_state in ("Charging", "Starting"):
+        return False
+    if snap.climate_keeper_mode not in (None, 0):
+        return False
+    if snap.sentry_mode_on:
+        return False
+    return True
+
+
+def _should_skip_fetch(prev: Optional[_PollState], now: datetime) -> bool:
+    """Decide whether THIS tick can skip the /vehicle_data call.
+    Engine still ticks (cron rules need it), just uses cached state.
+
+    Skip when either:
+      - Last poll got 408 (asleep) AND elapsed < 30min — let it sleep
+      - Last poll was active-but-idle-state AND elapsed < 30min —
+        same intuition, the car wants to drift to sleep
+    """
+    if prev is None:
+        return False
+    elapsed = now - prev.fetched_at
+    if elapsed >= timedelta(minutes=30):
+        return False
+    if prev.was_asleep:
+        return True
+    return _is_vehicle_idle(prev.snapshot)
+
+
 async def _poll_one_user(db: AsyncSession, user_id: int, engine: AutomationEngine) -> None:
     access_token = await _get_or_refresh_tesla_token(db, user_id)
     if not access_token:
@@ -174,16 +229,37 @@ async def _poll_one_user(db: AsyncSession, user_id: int, engine: AutomationEngin
         return
 
     rule_settings = AutomationSettings()
-    try:
-        async with TeslaClient(access_token=access_token) as client:
-            data = await client.get_vehicle_data(vehicle.vehicle_id)
-    except Exception as exc:
-        # Common: vehicle is asleep (408) or token revoked (401). Skip
-        # this tick rather than waking — quota / battery hostile.
-        logger.info("vehicle_data skipped user=%s vid=%s: %s", user_id, vehicle.id, exc)
-        return
+    now = utc_now()
+    prev = _user_poll_cache.get(user_id)
+    snapshot: Optional[VehicleStateSnapshot]
 
-    snapshot = _build_snapshot(data)
+    if _should_skip_fetch(prev, now):
+        # Reuse last snapshot. Cron rules still tick. Don't update
+        # fetched_at — we want the 30min clock to count from the LAST
+        # actual fetch, not from skip ticks.
+        snapshot = prev.snapshot if prev else None
+        logger.debug(
+            "vehicle_data skipped (idle/asleep window) user=%s",
+            user_id,
+        )
+    else:
+        try:
+            async with TeslaClient(access_token=access_token) as client:
+                data = await client.get_vehicle_data(vehicle.vehicle_id)
+            snapshot = _build_snapshot(data)
+            _user_poll_cache[user_id] = _PollState(
+                fetched_at=now, was_asleep=False, snapshot=snapshot,
+            )
+        except Exception as exc:
+            # Common: vehicle is asleep (408) or token revoked (401).
+            # Either way: do NOT wake — record the asleep window and
+            # back off polling for 30min so the car can actually sleep.
+            logger.info("vehicle_data skipped user=%s vid=%s: %s", user_id, vehicle.id, exc)
+            _user_poll_cache[user_id] = _PollState(
+                fetched_at=now, was_asleep=True, snapshot=prev.snapshot if prev else None,
+            )
+            return
+
     result = await engine.run_for_vehicle(
         db,
         user_id=user_id,
