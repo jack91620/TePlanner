@@ -3,17 +3,22 @@
 Lifecycle of one tick (one user, one vehicle):
   1. polling layer fetches /vehicles/{id}/state and builds VehicleStateSnapshot
   2. engine.run_for_vehicle(...) is called
-  3. each rule evaluates; rules write to a SqlStateMemory backed by AutomationState
-  4. engine compares each rule's resulting severity against PushedAlert ledger:
+  3. preset rules are seeded for first-time users (no automation_rules
+     rows yet)
+  4. rules are loaded from `automation_rules` table; each spec_json is
+     parsed and run through `evaluate_rule(spec, ctx)` from interpreters.py
+  5. engine compares each rule's resulting severity against PushedAlert ledger:
         new critical → fire APNs to all the user's device tokens, ledger row
         was-critical-now-resolved → mark cleared_at on ledger row
         no transition → no-op
-  5. all DB writes commit at end of tick
+  6. all DB writes commit at end of tick
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -21,20 +26,20 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AutomationState, DeviceToken, PushedAlert
+from app.db.models import AutomationRule, AutomationState, DeviceToken, PushedAlert
 from app.services.apns import apns_client
 from app.services.automation.base import (
     Alert,
     AlertKind,
     AlertSeverity,
-    Automation,
     AutomationContext,
     AutomationSettings,
     StateMemory,
     VehicleStateSnapshot,
     utc_now,
 )
-from app.services.automation.rules import all_rules
+from app.services.automation.interpreters import evaluate_rule
+from app.services.automation.presets import ALL_PRESETS, PresetDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +73,6 @@ class SqlStateMemory:
         self._loaded = True
 
     def get(self, key: str) -> Optional[datetime]:
-        # Sync interface (matches Protocol). Loading is async, so callers
-        # must `await preload()` first; we assert here to surface bugs.
         if not self._loaded:
             raise RuntimeError("SqlStateMemory.get called before preload()")
         return self._cache.get(key)
@@ -109,6 +112,58 @@ class SqlStateMemory:
         self._dirty.clear()
 
 
+async def ensure_presets_seeded(db: AsyncSession, user_id: int) -> int:
+    """If `user_id` has zero automation_rules rows, seed all 4 presets.
+    Returns the number of preset rows inserted (0 if user already had
+    any rules — including disabled ones).
+    """
+    stmt = select(AutomationRule).where(AutomationRule.user_id == user_id).limit(1)
+    existing = (await db.execute(stmt)).scalar_one_or_none()
+    if existing is not None:
+        return 0
+    for preset in ALL_PRESETS:
+        db.add(AutomationRule(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            preset_id=preset.preset_id,
+            name=preset.name,
+            enabled=True,
+            spec_json=json.dumps(preset.spec, ensure_ascii=False),
+            version=1,
+        ))
+    await db.flush()
+    logger.info("seeded %s presets for user %s", len(ALL_PRESETS), user_id)
+    return len(ALL_PRESETS)
+
+
+async def load_user_rules(db: AsyncSession, user_id: int) -> list[dict]:
+    """Return the list of rule spec dicts for a user (parsed from
+    spec_json, only enabled rules). Caller should already have
+    seeded presets for first-time users via `ensure_presets_seeded`.
+    """
+    stmt = (
+        select(AutomationRule)
+        .where(
+            AutomationRule.user_id == user_id,
+            AutomationRule.enabled == True,  # noqa: E712
+        )
+        .order_by(AutomationRule.id)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    parsed: list[dict] = []
+    for row in rows:
+        try:
+            spec = json.loads(row.spec_json)
+        except json.JSONDecodeError:
+            logger.exception("rule %s has invalid spec_json — skipping", row.id)
+            continue
+        # Carry the row's enabled / id along for transitions / debugging.
+        spec["_rule_id"] = row.id
+        spec.setdefault("enabled", True)
+        parsed.append(spec)
+    return parsed
+
+
 @dataclass
 class TickResult:
     alerts: List[Alert]
@@ -117,8 +172,10 @@ class TickResult:
 
 
 class AutomationEngine:
-    def __init__(self, rules: Optional[List[Automation]] = None):
-        self.rules = rules if rules is not None else all_rules()
+    """Stateless engine that fans rule evaluation across one user+vehicle
+    tick. State lives in DB rows the engine reads/writes through
+    SqlStateMemory + the AutomationRule / PushedAlert tables.
+    """
 
     async def run_for_vehicle(
         self,
@@ -129,6 +186,9 @@ class AutomationEngine:
         settings: AutomationSettings,
         push: bool = True,
     ) -> TickResult:
+        await ensure_presets_seeded(db, user_id)
+        rules = await load_user_rules(db, user_id)
+
         memory = await SqlStateMemory(db, user_id, vehicle_id).preload()
         ctx = AutomationContext(
             vehicle_state=state,
@@ -142,12 +202,17 @@ class AutomationEngine:
         pushed_count = 0
         cleared_count = 0
 
-        for rule in self.rules:
-            alert = rule.evaluate(ctx)
+        for spec in rules:
+            try:
+                kind = AlertKind(spec["kind"])
+            except (KeyError, ValueError):
+                logger.warning("rule %s has invalid kind — skipping", spec.get("_rule_id"))
+                continue
+            alert = evaluate_rule(spec, ctx)
             if alert is not None:
                 alerts.append(alert)
             transition = await self._resolve_transition(
-                db, user_id, vehicle_id, rule.kind, alert
+                db, user_id, vehicle_id, kind, alert
             )
             if transition == "newly_critical" and push and alert is not None:
                 ok = await self._push_alert(db, user_id, alert)
@@ -169,12 +234,6 @@ class AutomationEngine:
         kind: AlertKind,
         alert: Optional[Alert],
     ) -> str:
-        """Compare current rule output against the PushedAlert ledger
-        for this (user, vehicle, kind). Returns one of:
-          - "newly_critical": now critical, no active ledger row → push + add row
-          - "cleared":         had active ledger row, now resolved → mark cleared
-          - "noop":             no transition needed
-        """
         stmt = select(PushedAlert).where(
             PushedAlert.user_id == user_id,
             PushedAlert.vehicle_id == vehicle_id,

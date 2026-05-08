@@ -1,13 +1,13 @@
-"""Phase 10.2 parity-gate spike — generic rule interpreter.
+"""Generic declarative-rule interpreter (Phase 10.2).
 
-This module is NOT wired into production. It exists only to validate
-that the JSON rule schema from the approved plan
-(/Users/dongxinbo/.claude/plans/warm-roaming-engelbart.md) can faithfully
-reproduce all 4 hardcoded rules' behavior with byte-identical alert
-output. If the parity test passes, Phase 10.1 is unblocked and this
-file gets promoted to `interpreters.py` (replacing the spike prefix).
+Promoted from `spike_interpreter.py` after the parity gate cleared
+14/14 in commit 80b5757. The engine now consumes user-authored rule
+docs through this module; the old per-class rules in `rules.py` are
+gone.
 
-Schema discovered during the spike (drives final design):
+Schema (drives the iOS Swift port too — matching templates and
+trigger semantics is what keeps APNs and live UI saying the same
+thing):
 
   STATE_DURATION trigger
     - entity: dotted path into VehicleStateSnapshot
@@ -190,9 +190,10 @@ def _eval_state_transition(spec: dict, ctx: AutomationContext, kind: AlertKind) 
 # Top-level: evaluate one declarative rule.
 
 def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
-    """Spike entry point. `spec` is the JSON rule shape; returns Alert
-    or None matching the existing per-class behavior byte-for-byte
-    (parity gate)."""
+    """Evaluate one declarative rule body. `spec` is the JSON rule
+    shape — Trigger / actions_above|below for state_duration; Trigger
+    / actions for state_transition. Returns Alert or None.
+    """
     if not spec.get("enabled", True):
         return None
     kind = AlertKind(spec["kind"])
@@ -202,124 +203,3 @@ def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
     if trigger_type == "state_transition":
         return _eval_state_transition(spec, ctx, kind)
     return None
-
-
-# ---------------------------------------------------------------------------
-# 4 preset specs as JSON (Python dicts, since they live in Python).
-
-PRESET_CAMP_MODE = {
-    "id": "camp_mode_overstay",
-    "kind": "campMode",
-    "enabled": True,
-    "trigger": {
-        "type": "state_duration",
-        "entity": "vehicle.climate.keeper_mode",
-        "equals": 3,
-        "for_minutes": 120,
-        "state_key": "campMode:startedAt",
-    },
-    "actions_below": [
-        {
-            "type": "notify",
-            "title": "露营模式开启中",
-            "body": "已开启 {duration_human}",
-            "severity": "info",
-        }
-    ],
-    "actions_above": [
-        {
-            "type": "notify_and_offer",
-            "title": "露营模式开启中",
-            "body": "已开启 {duration_human}，电池正在缓慢消耗",
-            "severity": "critical",
-            "primary_action_label": "关闭",
-            "capability": "tesla.climate.set_keeper_mode",
-            "params": {"mode": 0},
-        }
-    ],
-}
-
-PRESET_SENTRY_MODE = {
-    "id": "sentry_mode_overstay",
-    "kind": "sentryMode",
-    "enabled": True,
-    "trigger": {
-        "type": "state_duration",
-        "entity": "vehicle.sentry_mode_on",
-        "equals": True,
-        "for_minutes": 1440,
-        "state_key": "sentryMode:startedAt",
-    },
-    "actions_below": [
-        {
-            "type": "notify",
-            "title": "哨兵模式开启中",
-            "body": "已开启 {duration_human}",
-            "severity": "info",
-        }
-    ],
-    "actions_above": [
-        {
-            "type": "notify_and_offer",
-            "title": "哨兵模式开启中",
-            "body": "已开启 {duration_human}，正在持续耗电",
-            "severity": "critical",
-            "primary_action_label": "关闭哨兵",
-            "capability": "tesla.security.set_sentry",
-            "params": {"on": False},
-        }
-    ],
-}
-
-PRESET_CABIN_OVERHEAT = {
-    "id": "cabin_overheat_alert",
-    "kind": "cabinOverheat",
-    "enabled": True,
-    "trigger": {
-        "type": "state_duration",
-        "entity": "vehicle.cabin_overheat_protection_on",
-        "equals": True,
-        "for_minutes": 60,
-        "state_key": "cabinOverheat:startedAt",
-    },
-    "actions_below": [],
-    "actions_above": [
-        {
-            "type": "notify",
-            "title": "座舱过热保护已启动",
-            "body": "已运行 {duration_human}，车辆正在自动通风/降温",
-            "severity": "info",
-        }
-    ],
-}
-
-PRESET_CHARGE_COMPLETE = {
-    "id": "charge_complete_reminder",
-    "kind": "chargeComplete",
-    "enabled": True,
-    "trigger": {
-        "type": "state_transition",
-        "entity": "vehicle.charging.state",
-        "to": "Complete",
-        "first_seen_key": "chargeComplete:firstSeenAt",
-        "dismissed_key": "chargeComplete:dismissedAt",
-        "reset_when_not_to": True,
-    },
-    "actions": [
-        {
-            "type": "notify_and_offer",
-            "title": "充电已完成",
-            "body": "电量 {battery_level}%，可拔枪了",
-            "severity": "critical",
-            "primary_action_label": "我知道了",
-            "capability": "automation.dismiss",
-        }
-    ],
-}
-
-ALL_PRESETS = [
-    PRESET_CAMP_MODE,
-    PRESET_SENTRY_MODE,
-    PRESET_CABIN_OVERHEAT,
-    PRESET_CHARGE_COMPLETE,
-]

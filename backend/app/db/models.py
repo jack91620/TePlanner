@@ -87,6 +87,27 @@ class Vehicle(Base):
     user = relationship("User", back_populates="vehicles")
 
 
+class AutomationRule(Base):
+    """Declarative automation rule — Phase 10.2 replaces the hardcoded
+    Python rule classes. `spec_json` is the rule body (trigger /
+    conditions / actions); `preset_id` is non-null for the 4 seeded
+    presets (camp / sentry / cabin / charge complete). User-authored
+    rules added in Phase 10.3 have `preset_id = NULL`.
+    """
+
+    __tablename__ = "automation_rules"
+
+    id = Column(String(36), primary_key=True)  # uuid
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    preset_id = Column(String(64), nullable=True)
+    name = Column(String(128), nullable=False)
+    enabled = Column(Boolean, default=True, nullable=False)
+    spec_json = Column(Text, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AutomationState(Base):
     """Per-rule scratchpad keyed by (user_id, vehicle_id, key). Used by
     automation rules to remember "first time I observed X on" timestamps

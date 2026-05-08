@@ -15,7 +15,6 @@ backend restarts.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -108,20 +107,6 @@ class AutomationContext:
     now: datetime
     settings: AutomationSettings
     memory: StateMemory
-
-
-class Automation(ABC):
-    """Base class. Subclasses implement evaluate(); the engine takes
-    care of running each rule, dispatching pushes, and updating the
-    pushed-alerts ledger.
-    """
-
-    @property
-    @abstractmethod
-    def kind(self) -> AlertKind: ...
-
-    @abstractmethod
-    def evaluate(self, ctx: AutomationContext) -> Optional[Alert]: ...
 
 
 def utc_now() -> datetime:
