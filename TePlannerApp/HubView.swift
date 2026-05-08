@@ -420,31 +420,38 @@ struct HubView: View {
     }
 
     private var batteryRing: some View {
-        let level = viewModel.batteryLevel ?? 0
+        let knownLevel = viewModel.batteryLevel
+        let level = knownLevel ?? 0
         let progress = Double(max(0, min(100, level))) / 100.0
+        // While loading we don't know the SOC yet — drawing a 0%
+        // empty ring + 'red' tint reads as 'battery dead'. Render a
+        // dimmed placeholder ring + '— %' instead.
+        let isUnknown = knownLevel == nil
         return ZStack {
             Circle()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 10)
-            Circle()
-                .trim(from: 0, to: CGFloat(progress))
-                .stroke(
-                    batteryColor(for: level),
-                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.4), value: level)
+            if !isUnknown {
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress))
+                    .stroke(
+                        batteryColor(for: level),
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.4), value: level)
+            }
             VStack(spacing: 0) {
-                Text("\(level)%")
+                Text(isUnknown ? "—" : "\(level)%")
                     .font(.system(size: 22, weight: .bold).monospacedDigit())
-                    .foregroundStyle(.primary)
-                Image(systemName: batteryIcon)
+                    .foregroundStyle(isUnknown ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                Image(systemName: isUnknown ? "battery.50" : batteryIcon)
                     .font(.caption)
-                    .foregroundStyle(batteryColor(for: level))
+                    .foregroundStyle(isUnknown ? AnyShapeStyle(.tertiary) : AnyShapeStyle(batteryColor(for: level)))
             }
         }
         .frame(width: 92, height: 92)
         .accessibilityIdentifier("hub_battery_ring")
-        .accessibilityLabel("电量 \(level) 百分")
+        .accessibilityLabel(isUnknown ? "电量加载中" : "电量 \(level) 百分")
     }
 
     private func batteryColor(for level: Int) -> Color {
