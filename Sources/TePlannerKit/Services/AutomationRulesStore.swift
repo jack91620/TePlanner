@@ -18,6 +18,7 @@ public final class AutomationRulesStore: ObservableObject {
     private let apiService: APIServiceProtocol
     private let settings: SettingsStore
     private let migrationFlagKey = "automations_settings_migration_done_v1"
+    private let leftUnlockedMigrationFlagKey = "automations_left_unlocked_lock_migration_v1"
 
     public init(apiService: APIServiceProtocol, settings: SettingsStore) {
         self.apiService = apiService
@@ -91,6 +92,7 @@ public final class AutomationRulesStore: ObservableObject {
     /// preference.
     private func applyAndMaybeMigrate(_ fetched: [RuleRecord]) async {
         rules = fetched
+        await maybeUpgradeLeftUnlockedLockCapability(fetched)
         let alreadyMigrated = UserDefaults.standard.bool(forKey: migrationFlagKey)
         guard !alreadyMigrated else { return }
 
@@ -126,6 +128,66 @@ public final class AutomationRulesStore: ObservableObject {
         }
         UserDefaults.standard.set(true, forKey: migrationFlagKey)
         Log.app.notice("automations: migrated SettingsStore thresholds → backend")
+    }
+
+    /// One-shot migration: upgrade the leftUnlocked preset rule's
+    /// primary action from `automation.dismiss` (the original
+    /// 「我知道了」behaviour) to `tesla.security.door_lock`
+    /// (「锁车」). Only fires when the rule's spec EXACTLY matches
+    /// the canonical legacy form — any user customisation (different
+    /// title, body, label, severity, threshold) suppresses the
+    /// migration so we don't overwrite intentional changes.
+    ///
+    /// Run-once: persists `leftUnlockedMigrationFlagKey` after first
+    /// successful (or skipped-as-customised) attempt.
+    private func maybeUpgradeLeftUnlockedLockCapability(_ fetched: [RuleRecord]) async {
+        guard !UserDefaults.standard.bool(forKey: leftUnlockedMigrationFlagKey) else {
+            return
+        }
+        guard let record = fetched.first(where: {
+            $0.presetId == "left_unlocked_warning"
+        }) else {
+            UserDefaults.standard.set(true, forKey: leftUnlockedMigrationFlagKey)
+            return
+        }
+
+        // The canonical legacy spec we know how to safely upgrade.
+        // Any user customisation diverges from this and we bail.
+        guard isLegacyLeftUnlockedSpec(record.spec) else {
+            Log.app.notice("automations: leftUnlocked rule customised — skipping lock-capability migration")
+            UserDefaults.standard.set(true, forKey: leftUnlockedMigrationFlagKey)
+            return
+        }
+
+        // Build the upgraded spec — preserve everything except the
+        // primary_action_label + capability inside actions_above[0].
+        guard var spec = record.spec as RuleSpec?,
+              case .array(var aboveArr) = spec["actions_above"] ?? .null,
+              !aboveArr.isEmpty,
+              case .object(var actionDict) = aboveArr[0] else {
+            UserDefaults.standard.set(true, forKey: leftUnlockedMigrationFlagKey)
+            return
+        }
+        actionDict["primary_action_label"] = .string("锁车")
+        actionDict["capability"] = .string("tesla.security.door_lock")
+        aboveArr[0] = .object(actionDict)
+        spec["actions_above"] = .array(aboveArr)
+
+        let ok = await update(id: record.id, spec: spec)
+        if ok {
+            Log.app.notice("automations: leftUnlocked upgraded → 锁车 / tesla.security.door_lock")
+        } else {
+            Log.app.error("automations: leftUnlocked upgrade failed: \(self.lastError ?? "?", privacy: .public)")
+        }
+        UserDefaults.standard.set(true, forKey: leftUnlockedMigrationFlagKey)
+    }
+
+    private func isLegacyLeftUnlockedSpec(_ spec: RuleSpec) -> Bool {
+        guard case .array(let arr) = spec["actions_above"] ?? .null,
+              arr.count == 1,
+              case .object(let action) = arr[0] else { return false }
+        return action.string("primary_action_label") == "我知道了"
+            && action.string("capability") == "automation.dismiss"
     }
 
     private func migratePresetThreshold(_ record: RuleRecord, minutes: Int) async {

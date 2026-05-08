@@ -102,7 +102,14 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
             ),
             UNNotificationCategory(
                 identifier: VehicleAlert.Kind.leftUnlocked.rawValue,
-                actions: [dismissAction],
+                actions: [
+                    UNNotificationAction(
+                        identifier: "primary",
+                        title: "锁车",
+                        options: [.authenticationRequired]
+                    ),
+                    dismissAction,
+                ],
                 intentIdentifiers: [], options: [],
             ),
             UNNotificationCategory(
