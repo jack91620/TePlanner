@@ -86,12 +86,20 @@ struct AutomationsHomeView: View {
                     .accessibilityIdentifier("automations_edit_button")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingBuilder = true
-                } label: {
-                    Image(systemName: "plus")
+                HStack(spacing: 12) {
+                    NavigationLink {
+                        RecentFiresView(apiService: apiService)
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    .accessibilityIdentifier("automations_activity_button")
+                    Button {
+                        showingBuilder = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityIdentifier("automations_add_button")
                 }
-                .accessibilityIdentifier("automations_add_button")
             }
         }
         .task {
