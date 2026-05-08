@@ -946,6 +946,12 @@ struct HubView: View {
         if firing > 0 {
             return "⚠️ \(firing) 条触发中 · 共 \(enabled.count) 条启用"
         }
+        // Snoozed count shown when no fires — gives the user a passive
+        // reminder that some rules are temporarily muted.
+        let snoozed = UserDefaultsSettingsStore.shared.ruleSnooze.count
+        if snoozed > 0 {
+            return "🔕 \(snoozed) 条静音中 · 共 \(enabled.count) 条启用"
+        }
         // Otherwise show the 2 most representative names + count.
         let preview = enabled.prefix(2).map(\.name).joined(separator: " · ")
         if enabled.count > 2 {
