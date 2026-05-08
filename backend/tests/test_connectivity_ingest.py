@@ -50,7 +50,11 @@ CONNECTED_PAYLOAD = {
 
 DISCONNECTED_PAYLOAD = {
     **CONNECTED_PAYLOAD,
-    "data": {**CONNECTED_PAYLOAD["data"], "Status": "DISCONNECTED"},
+    "data": {
+        **CONNECTED_PAYLOAD["data"],
+        "Status": "DISCONNECTED",
+        "CreatedAt": 1778227344,  # 6m44s later than CONNECTED
+    },
     "time": "2026-05-08T16:02:24+08:00",
 }
 
