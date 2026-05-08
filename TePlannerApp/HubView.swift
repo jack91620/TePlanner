@@ -782,24 +782,32 @@ struct HubView: View {
 
     @ViewBuilder
     private var alertPill: some View {
-        if let alert = automationEngine.alerts.first {
-            AlertPillView(alert: alert) {
-                Task {
-                    let result = await automationEngine.performPrimaryAction(
-                        for: alert,
-                        vehicleId: viewModel.vehicle?.id
-                    )
-                    if case .failure(let err) = result {
-                        alertActionError = err.localizedDescription
+        ZStack {
+            if let alert = automationEngine.alerts.first {
+                AlertPillView(alert: alert) {
+                    Task {
+                        let result = await automationEngine.performPrimaryAction(
+                            for: alert,
+                            vehicleId: viewModel.vehicle?.id
+                        )
+                        if case .failure(let err) = result {
+                            alertActionError = err.localizedDescription
+                        }
+                        // Phase 9 — start a quick-poll burst so the user
+                        // sees "正在关闭…" within a second of the tap.
+                        await pollCommandStatusesUntilSettled()
                     }
-                    // Phase 9 — start a quick-poll burst so the user
-                    // sees "正在关闭…" within a second of the tap.
-                    await pollCommandStatusesUntilSettled()
                 }
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.9).combined(with: .opacity),
+                    removal: .opacity,
+                ))
+            } else if telemetryReady == false && shouldShowTelemetryWaiting {
+                telemetryWaitingPill
+                    .transition(.opacity)
             }
-        } else if telemetryReady == false && shouldShowTelemetryWaiting {
-            telemetryWaitingPill
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: automationEngine.alerts.first?.kind)
         commandStatusBanner
     }
 
