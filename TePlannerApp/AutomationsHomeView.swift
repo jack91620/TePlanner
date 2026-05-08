@@ -17,6 +17,7 @@ struct AutomationsHomeView: View {
     @State private var pendingDelete: RuleRecord?
     @State private var pendingDuplicate: RuleRecord?
     @State private var searchText: String = ""
+    @State private var snoozeDialogRule: RuleRecord?
 
     private let apiService: APIServiceProtocol
 
@@ -38,6 +39,7 @@ struct AutomationsHomeView: View {
                 Section("预设") {
                     ForEach(presetRules) { record in
                         ruleRow(record)
+                            .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                     }
                     .onMove { from, to in
                         moveRules(in: presetRules, from: from, to: to)
@@ -48,6 +50,7 @@ struct AutomationsHomeView: View {
                 Section("我的自动化") {
                     ForEach(customRules) { record in
                         ruleRow(record)
+                            .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                             .swipeActions {
                                 Button(role: .destructive) {
                                     pendingDelete = record
@@ -145,6 +148,55 @@ struct AutomationsHomeView: View {
         } message: {
             Text("删除后无法恢复。如只想暂停，可在右侧关闭开关。")
         }
+        .confirmationDialog(
+            snoozeDialogRule.map { "「\($0.name)」" } ?? "",
+            isPresented: Binding(
+                get: { snoozeDialogRule != nil },
+                set: { if !$0 { snoozeDialogRule = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let r = snoozeDialogRule {
+                if snoozeUntil(for: r.id) != nil {
+                    Button("取消静音") {
+                        unsnooze(r)
+                        snoozeDialogRule = nil
+                    }
+                } else {
+                    Button("静音 1 小时")    { snooze(r, hours: 1); snoozeDialogRule = nil }
+                    Button("静音 4 小时")    { snooze(r, hours: 4); snoozeDialogRule = nil }
+                    Button("静音至明早 8 点") { snoozeUntilMorning(r); snoozeDialogRule = nil }
+                }
+                Button("取消", role: .cancel) { snoozeDialogRule = nil }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func snoozeSwipeButton(for record: RuleRecord) -> some View {
+        if snoozeUntil(for: record.id) != nil {
+            Button {
+                unsnooze(record)
+            } label: {
+                Label("取消静音", systemImage: "bell.slash.fill")
+            }
+            .tint(.orange)
+        } else {
+            Button {
+                snoozeDialogRule = record
+            } label: {
+                Label("静音", systemImage: "bell.slash")
+            }
+            .tint(.orange)
+        }
+    }
+
+    private func unsnooze(_ record: RuleRecord) {
+        let store = UserDefaultsSettingsStore.shared
+        var s = store.ruleSnooze
+        s.removeValue(forKey: record.id)
+        store.ruleSnooze = s
+        rulesStore.objectWillChange.send()
     }
 
     @ViewBuilder
