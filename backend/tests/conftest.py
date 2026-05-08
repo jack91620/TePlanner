@@ -5,7 +5,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.main import app
-from app.models.base import Base
+from app.models.base import Base as ModelsBase
+from app.db.models import Base as DbModelsBase
 from app.db.session import get_db
 
 
@@ -31,13 +32,19 @@ def anyio_backend():
 async def db_session():
     """Create a fresh database session for each test."""
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(ModelsBase.metadata.create_all)
+        # The codebase has two declarative bases — `app.models.base.Base`
+        # (used by the route-planning tests) and `app.db.models.Base`
+        # (used by Phase-4 telemetry + polling state). Create both so
+        # any test can persist via either namespace.
+        await conn.run_sync(DbModelsBase.metadata.create_all)
 
     async with test_async_session() as session:
         yield session
 
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(DbModelsBase.metadata.drop_all)
+        await conn.run_sync(ModelsBase.metadata.drop_all)
 
 
 @pytest.fixture(scope="function")
