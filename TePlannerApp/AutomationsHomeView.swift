@@ -31,6 +31,9 @@ struct AutomationsHomeView: View {
             if rulesStore.rules.isEmpty && rulesStore.isLoading {
                 Section { ProgressView("加载规则…") }
             }
+            if rulesStore.rules.isEmpty && !rulesStore.isLoading {
+                emptyStateSection
+            }
             if !presetRules.isEmpty {
                 Section("预设") {
                     ForEach(presetRules) { record in
@@ -333,6 +336,34 @@ struct AutomationsHomeView: View {
         // Single source of truth — same string the rule detail view
         // uses, so list + detail can never drift.
         return RuleDisplay.triggerSentence(spec)
+    }
+
+    @ViewBuilder
+    private var emptyStateSection: some View {
+        Section {
+            VStack(spacing: 12) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(.tint.opacity(0.6))
+                Text("还没有自动化")
+                    .font(.headline)
+                Text("从预设规则开始，或自己写一条新的。Tautomation 会用 Telemetry 实时车况监听，并在条件满足时推送通知。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button {
+                    showingBuilder = true
+                } label: {
+                    Label("新建自动化", systemImage: "plus.circle.fill")
+                        .padding(.horizontal, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 4)
+            }
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+        }
+        .listRowBackground(Color.clear)
     }
 
     /// Pre-populate the builder with a clone of `source` for the
