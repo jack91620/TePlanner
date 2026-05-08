@@ -23,13 +23,13 @@ appId: com.teplanner.ios
 - tapOn:
     id: "automations_add_button"
 
-# 三大块齐全：名称 / 触发条件 / 动作
+# 三大块齐全：名称 / 当 / 那么 (Shortcuts-style section headers)
 - extendedWaitUntil:
     visible: "新建自动化"
     timeout: 5000
 - assertVisible: "名称"
-- assertVisible: "触发条件 · 当"
-- assertVisible: "动作 · 那么"
+- assertVisible: "当"
+- assertVisible: "那么"
 
 # 名称必填校验:保存按钮在空名称下应禁用
 - assertVisible: "保存"

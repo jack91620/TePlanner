@@ -12,10 +12,12 @@ appId: com.teplanner.ios
         id: "hub_charge_limit_card"
     commands:
       - takeScreenshot: tmp/screenshots/maestro_charge_limit_before
+      # Round 12+: card itself is no longer a button — the explicit
+      # "应用" capsule on the right is. Tap that.
       - tapOn:
-          id: "hub_charge_limit_card"
-      # 期望：点击后卡片出现 "已应用" badge 或在 ~3s 后回到 idle
-      # 不期望：alert 弹出 "操作失败"
+          id: "hub_charge_limit_apply"
+      # 期望：点击后按钮短暂转 ProgressView，然后变 "已应用" 对勾，
+      # 或最终回到 idle。不期望弹出 "操作失败" alert。
       - extendedWaitUntil:
           notVisible: "操作失败"
           timeout: 5000

@@ -28,6 +28,9 @@ appId: com.teplanner.ios
 # 进入第一条预设的详情页（点行）
 - tapOn: "露营模式超时提醒"
 - extendedWaitUntil:
-    visible: "触发条件"
+    # Round 5: section header "触发条件" → "当", to match
+    # the iOS Shortcuts vocabulary the list view also uses.
+    visible: "当"
     timeout: 5000
+- assertVisible: "那么"
 - takeScreenshot: tmp/screenshots/maestro_automation_detail
