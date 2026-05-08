@@ -188,13 +188,16 @@ export-ipa: archive ## Export an IPA from the latest archive (requires deploy/Ex
 	@echo "IPA: $(EXPORT_DIR)/TePlannerApp.ipa"
 
 upload-testflight: export-ipa ## Upload the latest IPA to App Store Connect via altool
-	@test -n "$$ASC_API_KEY_ID" || { echo "Set ASC_API_KEY_ID (App Store Connect API Key id)"; exit 1; }
-	@test -n "$$ASC_API_KEY_ISSUER" || { echo "Set ASC_API_KEY_ISSUER (issuer UUID from App Store Connect)"; exit 1; }
-	xcrun altool --upload-app \
-	  -f $(EXPORT_DIR)/TePlannerApp.ipa \
-	  --type ios \
-	  --apiKey "$$ASC_API_KEY_ID" \
-	  --apiIssuer "$$ASC_API_KEY_ISSUER"
+	@# Auto-source .env if present so ASC_API_KEY_ID + ASC_API_KEY_ISSUER
+	@# don't have to be in the user's shell profile. .env is gitignored.
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	  test -n "$$ASC_API_KEY_ID" || { echo "Set ASC_API_KEY_ID in .env or shell"; exit 1; }; \
+	  test -n "$$ASC_API_KEY_ISSUER" || { echo "Set ASC_API_KEY_ISSUER in .env or shell"; exit 1; }; \
+	  xcrun altool --upload-app \
+	    -f $(EXPORT_DIR)/TePlannerApp.ipa \
+	    --type ios \
+	    --apiKey "$$ASC_API_KEY_ID" \
+	    --apiIssuer "$$ASC_API_KEY_ISSUER"
 
 # --- Simulator helpers (used by Claude to verify UI) ---------------------
 
