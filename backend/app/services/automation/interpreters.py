@@ -62,6 +62,18 @@ _ENTITY_MAP = {
     "vehicle.parked_with_window_open": "parked_with_window_open",
     "vehicle.parked_with_frunk_open": "parked_with_frunk_open",
     "vehicle.parked_with_trunk_open": "parked_with_trunk_open",
+    # Phase 7 — physical-state entities for richer rules.
+    "vehicle.location.latitude": "latitude",
+    "vehicle.location.longitude": "longitude",
+    "vehicle.inside_temp_c": "inside_temp_c",
+    "vehicle.outside_temp_c": "outside_temp_c",
+    "vehicle.speed_kmh": "speed_kmh",
+    "vehicle.charger_power_kw": "charger_power_kw",
+    "vehicle.software_version": "software_version",
+    # Phase 8 — connectivity ingested from fleet-telemetry's
+    # connectivity channel; pair with state_transition trigger to
+    # detect online/offline edges.
+    "vehicle.connectivity": "connectivity",
 }
 
 
@@ -294,6 +306,103 @@ def _eval_state_transition(spec: dict, ctx: AutomationContext, kind: AlertKind) 
 
 
 # ---------------------------------------------------------------------------
+# Phase 8 — Geofence trigger.
+
+def _haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance between two lat/lng points in meters.
+    Standard formula; Earth radius 6371 km. Accuracy is plenty for
+    geofence radii of 50–1000 m which is what cars actually use.
+    """
+    import math
+    r_m = 6_371_000.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r_m * math.asin(math.sqrt(a))
+
+
+_GEOFENCE_DEBOUNCE_SECONDS = 60
+
+
+def _eval_geofence(spec: dict, ctx: AutomationContext, kind: AlertKind) -> Optional[Alert]:
+    """Spatial trigger. Fires when the vehicle crosses the boundary
+    of a circular region centered at (lat, lng) with `radius_m`.
+
+    Schema::
+
+        {
+          "type": "geofence",
+          "lat": 39.90, "lng": 116.40, "radius_m": 200,
+          "event": "enter" | "exit",
+          "state_key": "geo:home"
+        }
+
+    Memory layout:
+      ``<state_key>:inside``   — datetime if currently inside, else None
+      ``<state_key>:last_fired`` — most recent fire (for the 60 s debounce)
+
+    The debounce protects against position jitter near the boundary —
+    Tesla telemetry can spit ±20 m drift while parked, and we don't
+    want a flapping fence to fire enter/exit alerts every cycle.
+    """
+    trigger = spec["trigger"]
+    try:
+        center_lat = float(trigger["lat"])
+        center_lng = float(trigger["lng"])
+        radius_m = float(trigger["radius_m"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    state_key = trigger.get("state_key")
+    if not state_key:
+        return None
+    event = trigger.get("event", "enter")
+
+    actual_lat = _read_entity(ctx.vehicle_state, "vehicle.location.latitude")
+    actual_lng = _read_entity(ctx.vehicle_state, "vehicle.location.longitude")
+    if not isinstance(actual_lat, (int, float)) or not isinstance(actual_lng, (int, float)):
+        return None
+
+    distance = _haversine_meters(actual_lat, actual_lng, center_lat, center_lng)
+    inside = distance <= radius_m
+    inside_key = f"{state_key}:inside"
+    fired_key = f"{state_key}:last_fired"
+
+    was_inside = ctx.memory.get(inside_key) is not None
+
+    fired = False
+    if event == "enter" and inside and not was_inside:
+        fired = True
+    elif event == "exit" and not inside and was_inside:
+        fired = True
+
+    # Always update the inside record so future polls have the right
+    # baseline — even when we don't fire (we still observed the state).
+    ctx.memory.set(inside_key, ctx.now if inside else None)
+
+    if not fired:
+        return None
+
+    last_fired = ctx.memory.get(fired_key)
+    if last_fired is not None:
+        elapsed = (ctx.now - last_fired).total_seconds()
+        if elapsed < _GEOFENCE_DEBOUNCE_SECONDS:
+            return None
+    ctx.memory.set(fired_key, ctx.now)
+
+    actions = spec.get("actions", [])
+    if not actions:
+        return None
+    facts = {
+        "lat": f"{actual_lat:.5f}",
+        "lng": f"{actual_lng:.5f}",
+        "distance_m": f"{distance:.0f}",
+    }
+    return _emit_action(actions[0], kind, facts)
+
+
+# ---------------------------------------------------------------------------
 # Top-level: evaluate one declarative rule.
 
 def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
@@ -311,4 +420,6 @@ def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
         return _eval_state_transition(spec, ctx, kind)
     if trigger_type == "cron":
         return _eval_cron(spec, ctx, kind)
+    if trigger_type == "geofence":
+        return _eval_geofence(spec, ctx, kind)
     return None

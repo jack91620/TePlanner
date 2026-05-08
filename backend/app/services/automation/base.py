@@ -33,6 +33,10 @@ class AlertKind(str, Enum):
     LOW_BATTERY = "lowBattery"
     # Slice C
     WEEKDAY_PREHEAT = "weekdayPreheat"
+    # Phase 8 — geofence + connectivity
+    GEOFENCE_ENTER = "geofenceEnter"
+    GEOFENCE_EXIT = "geofenceExit"
+    CONNECTIVITY = "connectivity"
 
 
 class AlertSeverity(str, Enum):
@@ -83,6 +87,9 @@ class VehicleStateSnapshot:
     speed_kmh: Optional[float] = None
     charger_power_kw: Optional[float] = None
     software_version: Optional[str] = None
+    # Phase 8 — fleet-telemetry connectivity channel.
+    # "CONNECTED" / "DISCONNECTED"; None until first observation.
+    connectivity: Optional[str] = None
 
     @property
     def is_camp_mode_on(self) -> bool:

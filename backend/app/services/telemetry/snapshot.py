@@ -94,6 +94,7 @@ async def build_snapshot_from_telemetry(
     speed = await _read_value(db, user_id, vehicle_id, "vehicle.speed_kmh")
     charger_power = await _read_value(db, user_id, vehicle_id, "vehicle.charger_power_kw")
     software_version = await _read_value(db, user_id, vehicle_id, "vehicle.software_version")
+    connectivity = await _read_value(db, user_id, vehicle_id, "vehicle.connectivity")
 
     return VehicleStateSnapshot(
         battery_level=int(battery_level) if isinstance(battery_level, (int, float)) else None,
@@ -118,6 +119,7 @@ async def build_snapshot_from_telemetry(
             float(charger_power) if isinstance(charger_power, (int, float)) else None
         ),
         software_version=software_version if isinstance(software_version, str) else None,
+        connectivity=connectivity if isinstance(connectivity, str) else None,
     )
 
 

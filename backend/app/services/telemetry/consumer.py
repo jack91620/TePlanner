@@ -27,7 +27,10 @@ from app.config import settings
 from app.db.session import async_session
 from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
-from app.services.telemetry.mapping import map_v_payload
+from app.services.telemetry.mapping import (
+    map_connectivity_payload,
+    map_v_payload,
+)
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 from app.services.telemetry.state_writer import TelemetryStateWriter
 
@@ -163,6 +166,70 @@ async def _process_v_record(
             logger.exception("telemetry-driven engine tick failed (vin=%s)", vin)
 
 
+async def _process_connectivity_record(
+    writer: TelemetryStateWriter,
+    payload: dict,
+    engine: Optional[AutomationEngine] = None,
+) -> None:
+    """Phase 8: ingest fleet-telemetry's connectivity channel as the
+    ``vehicle.connectivity`` entity (CONNECTED / DISCONNECTED). Drives
+    the engine on each transition so a rule can react to online/offline
+    edges via the existing ``state_transition`` trigger."""
+    vin = _vin_for_payload(payload)
+    if not vin:
+        return
+    observed_at = _parse_v_timestamp(payload)
+
+    async with async_session() as db:
+        try:
+            user_id = await writer.resolve_user_id(db, vin)
+            if user_id is None:
+                return
+            transitions = 0
+            for entity, value in map_connectivity_payload(payload):
+                changed = await writer.record(
+                    db,
+                    user_id=user_id,
+                    vehicle_id=vin,
+                    entity=entity,
+                    value=value,
+                    observed_at=observed_at,
+                )
+                if changed:
+                    transitions += 1
+            if transitions:
+                await db.commit()
+            else:
+                await db.rollback()
+        except Exception:
+            logger.exception("connectivity record write failed (vin=%s)", vin)
+            await db.rollback()
+            return
+
+        if not transitions or engine is None:
+            return
+        try:
+            async with async_session() as eval_db:
+                snap = await build_snapshot_from_telemetry(
+                    eval_db, user_id=user_id, vehicle_id=vin,
+                )
+                result = await engine.run_for_vehicle(
+                    eval_db,
+                    user_id=user_id,
+                    vehicle_id=vin,
+                    state=snap,
+                    settings=AutomationSettings(),
+                )
+                await eval_db.commit()
+            if result.pushed_count or result.cleared_count:
+                logger.info(
+                    "connectivity-driven tick user=%s vin=%s pushed=%s",
+                    user_id, vin, result.pushed_count,
+                )
+        except Exception:
+            logger.exception("connectivity-driven engine tick failed (vin=%s)", vin)
+
+
 async def consume(stop_event: asyncio.Event) -> None:
     """Long-running coroutine subscribing to fleet-telemetry's ZMQ
     socket. Pure no-op when ``TELEMETRY_ZMQ_ADDR`` is empty so dev
@@ -188,9 +255,12 @@ async def consume(stop_event: asyncio.Event) -> None:
     sock = ctx.socket(zmq.SUB)
     sock.connect(addr)
     v_topic = f"{TELEMETRY_NAMESPACE}_V".encode()
+    conn_topic = f"{TELEMETRY_NAMESPACE}_connectivity".encode()
     sock.setsockopt(zmq.SUBSCRIBE, v_topic)
+    sock.setsockopt(zmq.SUBSCRIBE, conn_topic)
     logger.info(
-        "telemetry zmq consumer connected: %s topic=%s", addr, v_topic.decode(),
+        "telemetry zmq consumer connected: %s topics=[%s, %s]",
+        addr, v_topic.decode(), conn_topic.decode(),
     )
 
     writer = TelemetryStateWriter()
@@ -230,6 +300,15 @@ async def consume(stop_event: asyncio.Event) -> None:
                     # and we silently stop receiving.
                     logger.exception(
                         "telemetry V record handler crashed (topic=%s)", topic,
+                    )
+            elif topic.endswith("_connectivity") or topic == "connectivity":
+                try:
+                    await _process_connectivity_record(
+                        writer, payload, engine=engine,
+                    )
+                except Exception:
+                    logger.exception(
+                        "telemetry connectivity handler crashed (topic=%s)", topic,
                     )
     finally:
         sock.close(linger=0)

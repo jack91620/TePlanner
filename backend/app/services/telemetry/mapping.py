@@ -228,6 +228,25 @@ _COMPOSITE_HANDLERS = {
 }
 
 
+def map_connectivity_payload(payload: dict) -> Iterator[Tuple[str, Any]]:
+    """fleet-telemetry's ``connectivity`` channel emits records like::
+
+        {"data": {"ConnectionID": "...", "NetworkInterface": "cellular",
+                  "Status": "CONNECTED" | "DISCONNECTED", ...}}
+
+    Yield a single ``vehicle.connectivity`` entity with the Status
+    string. Combined with the existing ``state_transition`` trigger
+    type (no new evaluator needed), users can write rules like
+    "when vehicle goes online → re-send a queued navigation".
+    """
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return
+    status = data.get("Status")
+    if isinstance(status, str) and status:
+        yield "vehicle.connectivity", status
+
+
 def normalize_datum_list(data: list) -> dict:
     """Convert protojson-shaped ``data: repeated Datum`` to the flat
     dict shape map_v_payload expects.

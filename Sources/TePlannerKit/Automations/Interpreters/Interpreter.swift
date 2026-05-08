@@ -229,6 +229,85 @@ private func evalStateTransition(
     return emitAction(actionDict, kind: kind, facts: facts)
 }
 
+// MARK: - Geofence (Phase 8)
+
+private let geofenceDebounceSeconds: TimeInterval = 60
+
+/// Great-circle distance (meters) between two lat/lng points.
+/// Standard haversine; Earth radius 6_371_000 m.
+private func haversineMeters(
+    lat1: Double, lng1: Double,
+    lat2: Double, lng2: Double
+) -> Double {
+    let r = 6_371_000.0
+    let p1 = lat1 * .pi / 180
+    let p2 = lat2 * .pi / 180
+    let dp = (lat2 - lat1) * .pi / 180
+    let dl = (lng2 - lng1) * .pi / 180
+    let a = sin(dp / 2) * sin(dp / 2) +
+            cos(p1) * cos(p2) * sin(dl / 2) * sin(dl / 2)
+    return 2 * r * asin(sqrt(a))
+}
+
+private func evalGeofence(
+    _ spec: RuleSpec,
+    ctx: AutomationContext,
+    kind: VehicleAlert.Kind
+) -> VehicleAlert? {
+    guard let trigger = spec["trigger"]?.objectValue,
+          let centerLat = trigger.double("lat"),
+          let centerLng = trigger.double("lng"),
+          let radiusM = trigger.double("radius_m"),
+          let stateKey = trigger.string("state_key") else {
+        return nil
+    }
+    let event = trigger.string("event") ?? "enter"
+
+    // Read current vehicle position from the snapshot. Both must be
+    // present; if telemetry hasn't reported a fix yet we silently skip.
+    guard let actualLat = readEntity("vehicle.location.latitude", from: ctx.vehicleState)?.doubleValue,
+          let actualLng = readEntity("vehicle.location.longitude", from: ctx.vehicleState)?.doubleValue else {
+        return nil
+    }
+
+    let distance = haversineMeters(
+        lat1: actualLat, lng1: actualLng, lat2: centerLat, lng2: centerLng,
+    )
+    let inside = distance <= radiusM
+    let insideKey = "\(stateKey):inside"
+    let firedKey = "\(stateKey):last_fired"
+
+    let wasInside = ctx.memory.get(insideKey) != nil
+
+    var fired = false
+    if event == "enter" && inside && !wasInside { fired = true }
+    if event == "exit" && !inside && wasInside { fired = true }
+
+    // Persist the inside baseline regardless of whether we fire so
+    // the next evaluation sees a correct previous-state.
+    ctx.memory.set(insideKey, value: inside ? ctx.now : nil)
+
+    if !fired { return nil }
+
+    if let lastFired = ctx.memory.get(firedKey) {
+        if ctx.now.timeIntervalSince(lastFired) < geofenceDebounceSeconds {
+            return nil
+        }
+    }
+    ctx.memory.set(firedKey, value: ctx.now)
+
+    let facts: [String: String] = [
+        "lat": String(format: "%.5f", actualLat),
+        "lng": String(format: "%.5f", actualLng),
+        "distance_m": String(format: "%.0f", distance),
+    ]
+    guard let actions = spec["actions"]?.arrayValue,
+          let actionDict = actions.first?.objectValue else {
+        return nil
+    }
+    return emitAction(actionDict, kind: kind, facts: facts)
+}
+
 /// Top-level entry: evaluate a single rule body against a context.
 /// Returns nil if the rule is disabled or doesn't fire.
 public func evaluateRule(
@@ -246,6 +325,8 @@ public func evaluateRule(
         return evalStateDuration(spec, ctx: ctx, kind: kind)
     case "state_transition":
         return evalStateTransition(spec, ctx: ctx, kind: kind)
+    case "geofence":
+        return evalGeofence(spec, ctx: ctx, kind: kind)
     default:
         return nil
     }

@@ -17,6 +17,10 @@ public struct VehicleAlert: Identifiable, Equatable {
         case lowBattery
         // Slice C
         case weekdayPreheat
+        // Phase 8 — geofence + connectivity rules
+        case geofenceEnter
+        case geofenceExit
+        case connectivity
     }
 
     public enum Severity: String, Sendable {
