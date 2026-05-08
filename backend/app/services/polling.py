@@ -35,6 +35,7 @@ from app.integrations.tesla import TeslaAuth, TeslaClient
 from app.services.automation.base import (
     AutomationSettings,
     VehicleStateSnapshot,
+    utc_now,
 )
 from app.services.automation.engine import AutomationEngine
 
