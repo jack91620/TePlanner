@@ -32,12 +32,15 @@ def anyio_backend():
 async def db_session():
     """Create a fresh database session for each test."""
     async with test_engine.begin() as conn:
-        await conn.run_sync(ModelsBase.metadata.create_all)
         # The codebase has two declarative bases — `app.models.base.Base`
         # (used by the route-planning tests) and `app.db.models.Base`
-        # (used by Phase-4 telemetry + polling state). Create both so
-        # any test can persist via either namespace.
+        # (User, Vehicle, AutomationState, etc — used by Phase-4 telemetry
+        # and polling state). Both define a `users` table with different
+        # column sets. Create the richer (DbModelsBase) one first; when
+        # ModelsBase.create_all runs it sees the tables already exist
+        # and skips, leaving the superset schema in place.
         await conn.run_sync(DbModelsBase.metadata.create_all)
+        await conn.run_sync(ModelsBase.metadata.create_all)
 
     async with test_async_session() as session:
         yield session
