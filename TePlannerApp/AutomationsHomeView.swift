@@ -170,6 +170,7 @@ struct AutomationsHomeView: View {
             } label: {
                 Label("复制为新规则", systemImage: "plus.square.on.square")
             }
+            snoozeMenu(for: record)
             if record.presetId == nil {
                 Divider()
                 Button(role: .destructive) {
@@ -222,7 +223,16 @@ struct AutomationsHomeView: View {
                             .lineLimit(2)
                     }
                 }
-                if let last = record.lastFiredAt {
+                if let until = snoozeUntil(for: record.id) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "moon.zzz.fill")
+                            .font(.caption2)
+                        Text("已静音至 \(Self.snoozeLabel(until))")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.top, 2)
+                } else if let last = record.lastFiredAt {
                     Text("上次触发：\(Self.relative(last))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -400,5 +410,76 @@ struct AutomationsHomeView: View {
         formatter.unitsStyle = .short
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Compact "HH:mm" or "明天 HH:mm" depending on whether the snooze
+    /// crosses midnight from now. Used on the muted-rule badge.
+    static func snoozeLabel(_ date: Date) -> String {
+        let cal = Calendar.current
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        if cal.isDateInToday(date) {
+            f.dateFormat = "HH:mm"
+            return f.string(from: date)
+        }
+        if cal.isDateInTomorrow(date) {
+            f.dateFormat = "HH:mm"
+            return "明天 " + f.string(from: date)
+        }
+        f.dateFormat = "M月d日 HH:mm"
+        return f.string(from: date)
+    }
+
+    private func snoozeUntil(for ruleId: String) -> Date? {
+        let store = UserDefaultsSettingsStore.shared
+        guard let ts = store.ruleSnooze[ruleId] else { return nil }
+        return Date(timeIntervalSince1970: ts)
+    }
+
+    @ViewBuilder
+    private func snoozeMenu(for record: RuleRecord) -> some View {
+        let store = UserDefaultsSettingsStore.shared
+        if snoozeUntil(for: record.id) != nil {
+            Button {
+                var s = store.ruleSnooze
+                s.removeValue(forKey: record.id)
+                store.ruleSnooze = s
+                rulesStore.objectWillChange.send()
+            } label: {
+                Label("取消静音", systemImage: "bell.slash.fill")
+            }
+        } else {
+            Menu {
+                Button { snooze(record, hours: 1) } label: { Text("静音 1 小时") }
+                Button { snooze(record, hours: 4) } label: { Text("静音 4 小时") }
+                Button { snoozeUntilMorning(record) } label: { Text("静音至明早 8 点") }
+            } label: {
+                Label("静音", systemImage: "bell.slash")
+            }
+        }
+    }
+
+    private func snooze(_ record: RuleRecord, hours: Double) {
+        let store = UserDefaultsSettingsStore.shared
+        var s = store.ruleSnooze
+        s[record.id] = Date().addingTimeInterval(hours * 3600).timeIntervalSince1970
+        store.ruleSnooze = s
+        rulesStore.objectWillChange.send()
+    }
+
+    private func snoozeUntilMorning(_ record: RuleRecord) {
+        let cal = Calendar.current
+        var components = cal.dateComponents([.year, .month, .day], from: Date())
+        components.hour = 8
+        components.minute = 0
+        var target = cal.date(from: components) ?? Date().addingTimeInterval(8 * 3600)
+        if target <= Date() {
+            target = cal.date(byAdding: .day, value: 1, to: target) ?? target
+        }
+        let store = UserDefaultsSettingsStore.shared
+        var s = store.ruleSnooze
+        s[record.id] = target.timeIntervalSince1970
+        store.ruleSnooze = s
+        rulesStore.objectWillChange.send()
     }
 }

@@ -29,6 +29,13 @@ public protocol SettingsStore: AnyObject {
     /// Whether the user has dismissed the first-launch welcome banner
     /// on the hub. Set true on first dismiss; banner never re-shows.
     var hasSeenHubWelcome: Bool { get set }
+    /// Per-rule snooze: rule_id → unix timestamp (seconds) at which
+    /// the snooze ends. Stored as JSON [String: Double]. While the
+    /// snooze is active, iOS hides the rule's alert from the engine
+    /// recompute and the local notification scheduler suppresses any
+    /// push for that kind. Backend continues evaluating; this is a
+    /// client-side mute.
+    var ruleSnooze: [String: Double] { get set }
     func reset()
 }
 
@@ -52,6 +59,7 @@ public enum SettingsKey {
     public static let hasPromptedVCPPairing = "has_prompted_vcp_pairing"
     public static let automationRuleOrder = "automation_rule_order"
     public static let hasSeenHubWelcome = "has_seen_hub_welcome"
+    public static let ruleSnooze = "rule_snooze_until"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -154,6 +162,23 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         set { defaults.set(newValue, forKey: SettingsKey.hasSeenHubWelcome) }
     }
 
+    public var ruleSnooze: [String: Double] {
+        get {
+            guard let data = defaults.data(forKey: SettingsKey.ruleSnooze),
+                  let dict = try? JSONDecoder().decode([String: Double].self, from: data) else {
+                return [:]
+            }
+            let now = Date().timeIntervalSince1970
+            return dict.filter { $0.value > now }
+        }
+        set {
+            let now = Date().timeIntervalSince1970
+            let pruned = newValue.filter { $0.value > now }
+            let data = (try? JSONEncoder().encode(pruned)) ?? Data()
+            defaults.set(data, forKey: SettingsKey.ruleSnooze)
+        }
+    }
+
     public func reset() {
         for key in [
             SettingsKey.teslaLinked,
@@ -170,6 +195,7 @@ public final class UserDefaultsSettingsStore: SettingsStore {
             SettingsKey.hasPromptedVCPPairing,
             SettingsKey.automationRuleOrder,
             SettingsKey.hasSeenHubWelcome,
+            SettingsKey.ruleSnooze,
         ] {
             defaults.removeObject(forKey: key)
         }

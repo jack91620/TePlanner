@@ -77,7 +77,10 @@ public final class AutomationEngine: ObservableObject {
             memory: memory
         )
         var emitted: [VehicleAlert] = []
+        let snoozes = settings.ruleSnooze
+        let nowTs = now().timeIntervalSince1970
         for record in registry where record.enabled {
+            if let until = snoozes[record.id], until > nowTs { continue }
             if let alert = evaluateRule(record.spec, context: ctx) {
                 emitted.append(alert)
             }
