@@ -234,13 +234,34 @@ class AutomationEngine:
         kind: AlertKind,
         alert: Optional[Alert],
     ) -> str:
-        stmt = select(PushedAlert).where(
-            PushedAlert.user_id == user_id,
-            PushedAlert.vehicle_id == vehicle_id,
-            PushedAlert.kind == kind.value,
-            PushedAlert.cleared_at.is_(None),
+        # Order by pushed_at desc + use .all() (not scalar_one_or_none)
+        # so we self-heal multi-row corruption. Two un-cleared rows
+        # for the same (user, vehicle, kind) shouldn't exist, but a
+        # crashed mid-tick can leave them. Keep the latest, clear
+        # the rest so the ledger collapses back to single-active.
+        stmt = (
+            select(PushedAlert)
+            .where(
+                PushedAlert.user_id == user_id,
+                PushedAlert.vehicle_id == vehicle_id,
+                PushedAlert.kind == kind.value,
+                PushedAlert.cleared_at.is_(None),
+            )
+            .order_by(PushedAlert.pushed_at.desc())
         )
-        active = (await db.execute(stmt)).scalar_one_or_none()
+        active_rows = (await db.execute(stmt)).scalars().all()
+        active: Optional[PushedAlert] = active_rows[0] if active_rows else None
+        if len(active_rows) > 1:
+            now_naive = utc_now().replace(tzinfo=None)
+            for stale in active_rows[1:]:
+                stale.cleared_at = now_naive
+            logger.warning(
+                "PushedAlert multi-row healed: kept %s, cleared %s duplicates "
+                "(user=%s vehicle=%s kind=%s)",
+                active.id if active else None,
+                len(active_rows) - 1,
+                user_id, vehicle_id, kind.value,
+            )
         is_critical = alert is not None and alert.severity == AlertSeverity.CRITICAL
 
         if is_critical and active is None:
