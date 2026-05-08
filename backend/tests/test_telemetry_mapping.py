@@ -130,14 +130,8 @@ def test_real_camp_mode_payload_from_production():
         "vehicle.charging.state": "Disconnected",
         "vehicle.battery_level": 52,
         "vehicle.locked": True,
-        # Phase 7 — DoorState composite + 4 windows now map.
-        "vehicle.door_open": False,
-        "vehicle.frunk_open": False,
-        "vehicle.trunk_open": False,
-        "vehicle.door.df": False,
-        "vehicle.door.dr": False,
-        "vehicle.door.pf": False,
-        "vehicle.door.pr": False,
+        # Phase 7 — 4 windows decode (the production payload didn't
+        # include DoorState in this particular V record).
         "vehicle.window.fd": False,
         "vehicle.window.fp": False,
         "vehicle.window.rd": False,
