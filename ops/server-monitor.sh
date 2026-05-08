@@ -55,10 +55,13 @@ POLLING_FRESH="unknown"
 if [ -f "$SERVER_LOG" ]; then
     LAST_TICK_LINE="$(grep 'polling tick complete' "$SERVER_LOG" | tail -1 || true)"
     if [ -n "$LAST_TICK_LINE" ]; then
-        # Log format: "2026-05-08 02:32:50 - INFO - app.services.polling - polling tick complete: ..."
-        LAST_TICK_TS="$(echo "$LAST_TICK_LINE" | awk '{print $1" "$2}')"
-        # Backend logger emits asctime in the server's local TZ — parse
-        # without forcing UTC so the comparison works regardless of host TZ.
+        # Backend logs are structlog-style JSON. Pull `.timestamp` out,
+        # which is ISO-8601 UTC (e.g. "2026-05-08T05:25:04.596542Z").
+        # An earlier awk-based parser tried to read plain-text columns
+        # and silently failed on JSON, returning epoch 0 → pollingAgeS
+        # = current epoch (~1.7B s) → false-positive "polling stale"
+        # restart loops. Captured 2 unnecessary restarts on May 8.
+        LAST_TICK_TS="$(echo "$LAST_TICK_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('timestamp',''))" 2>/dev/null || true)"
         LAST_TICK_EPOCH="$(date -d "$LAST_TICK_TS" +%s 2>/dev/null || echo 0)"
         NOW_EPOCH="$(date +%s)"
         AGE_S=$((NOW_EPOCH - LAST_TICK_EPOCH))
