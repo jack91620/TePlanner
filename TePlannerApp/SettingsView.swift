@@ -45,10 +45,20 @@ struct SettingsView: View {
                         }
                     }
                     .foregroundStyle(.primary)
+                    Button {
+                        LocalNotificationScheduler.shared.fireSample(
+                            title: "Tautomation 测试通知",
+                            body: "如果你看到这条，推送通知工作正常。",
+                            identifier: "settings_diagnostic",
+                        )
+                    } label: {
+                        Label("发送测试通知", systemImage: "paperplane.fill")
+                    }
+                    .foregroundStyle(.primary)
                 } header: {
                     Text("通知")
                 } footer: {
-                    Text("Tautomation 通过系统通知中心推送自动化提醒。可在系统设置里调整声音、横幅样式等。")
+                    Text("Tautomation 通过系统通知中心推送自动化提醒。可在系统设置里调整声音、横幅样式等。「发送测试通知」会在 1 秒后弹出一条样例消息——前台或锁屏都能验证。")
                 }
 
                 Section {
