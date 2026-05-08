@@ -14,6 +14,7 @@ import TePlannerKit
 struct HubView: View {
     @StateObject private var viewModel: HomeViewModel
     @StateObject private var automationEngine: AutomationEngine
+    @StateObject private var rulesStore: AutomationRulesStore
     @StateObject private var statsViewModel: ChargingStatsViewModel
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
@@ -35,8 +36,17 @@ struct HubView: View {
             apiService: apiService,
             authSession: authSession
         ))
+        // Bootstrap with hardcoded PresetSpecs so the engine is ready
+        // before the first `/api/v1/automations` fetch lands. As soon
+        // as the rulesStore returns, we replace the registry via
+        // updateRegistry. If the user is offline / backend is down,
+        // the bootstrapped specs keep the engine functional.
         _automationEngine = StateObject(wrappedValue: AutomationEngine(
             registry: PresetSpecs.allPresets,
+            apiService: apiService,
+            settings: UserDefaultsSettingsStore.shared
+        ))
+        _rulesStore = StateObject(wrappedValue: AutomationRulesStore(
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
@@ -59,67 +69,12 @@ struct HubView: View {
         ScrollView {
             VStack(spacing: 12) {
                 statusCard
-                if let alert = automationEngine.alerts.first {
-                    AlertPillView(alert: alert) {
-                        Task {
-                            let result = await automationEngine.performPrimaryAction(
-                                for: alert,
-                                vehicleId: viewModel.vehicle?.id
-                            )
-                            if case .failure(let err) = result {
-                                alertActionError = err.localizedDescription
-                            }
-                        }
-                    }
-                }
+                alertPill
                 departureCard
                 chargeLimitCard
-                NavigationLink {
-                    MapHomeView(
-                        apiService: apiService,
-                        viewModel: viewModel
-                    )
-                } label: {
-                    HubEntryCard(
-                        icon: "bolt.fill",
-                        title: "充电规划",
-                        subtitle: "搜目的地 / 沿途充电站 / 发送到车辆",
-                        accessibilityId: "hub_entry_planning"
-                    )
-                }
-                .buttonStyle(PressableCardButtonStyle())
-
-                NavigationLink {
-                    AutomationsListView(
-                        rules: automationEngine.registeredRules,
-                        store: UserDefaultsSettingsStore.shared
-                    )
-                } label: {
-                    HubEntryCard(
-                        icon: "bell.badge.fill",
-                        title: "自动化提醒",
-                        subtitle: automationsSubtitle,
-                        accessibilityId: "hub_entry_automations"
-                    )
-                }
-                .buttonStyle(PressableCardButtonStyle())
-
-                NavigationLink {
-                    BatteryView(
-                        apiService: apiService,
-                        vehicleId: viewModel.vehicle?.id,
-                        currentChargeLimitSoc: viewModel.vehicleState?.chargeLimitSoc,
-                        onLimitApplied: { Task { await viewModel.refresh() } }
-                    )
-                } label: {
-                    HubEntryCard(
-                        icon: "battery.100.bolt",
-                        title: "电池管理",
-                        subtitle: batterySubtitle,
-                        accessibilityId: "hub_entry_battery"
-                    )
-                }
-                .buttonStyle(PressableCardButtonStyle())
+                planningEntry
+                automationsEntry
+                batteryEntry
             }
             .padding(16)
         }
@@ -146,6 +101,7 @@ struct HubView: View {
         }
         .task {
             await viewModel.load()
+            await rulesStore.refresh()
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
             statsViewModel.refresh()
@@ -155,6 +111,14 @@ struct HubView: View {
             }
             viewModel.startPolling()
             promptVCPPairingIfNeeded()
+        }
+        .onChange(of: rulesStore.rules) { _, fetched in
+            // Keep the engine registry in sync with whatever the
+            // backend last returned. If the fetch fails the engine
+            // keeps running on the PresetSpecs bootstrap.
+            if !fetched.isEmpty {
+                automationEngine.updateRegistry(fetched)
+            }
         }
         .onDisappear { viewModel.stopPolling() }
         .onChange(of: scenePhase) { _, newPhase in
@@ -585,6 +549,70 @@ struct HubView: View {
                 if case .failed = preheatStatus { preheatStatus = .idle }
             }
         }
+    }
+
+    @ViewBuilder
+    private var alertPill: some View {
+        if let alert = automationEngine.alerts.first {
+            AlertPillView(alert: alert) {
+                Task {
+                    let result = await automationEngine.performPrimaryAction(
+                        for: alert,
+                        vehicleId: viewModel.vehicle?.id
+                    )
+                    if case .failure(let err) = result {
+                        alertActionError = err.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    private var planningEntry: some View {
+        NavigationLink {
+            MapHomeView(apiService: apiService, viewModel: viewModel)
+        } label: {
+            HubEntryCard(
+                icon: "bolt.fill",
+                title: "充电规划",
+                subtitle: "搜目的地 / 沿途充电站 / 发送到车辆",
+                accessibilityId: "hub_entry_planning"
+            )
+        }
+        .buttonStyle(PressableCardButtonStyle())
+    }
+
+    private var automationsEntry: some View {
+        NavigationLink {
+            AutomationsListView(rulesStore: rulesStore)
+        } label: {
+            HubEntryCard(
+                icon: "bell.badge.fill",
+                title: "自动化提醒",
+                subtitle: automationsSubtitle,
+                accessibilityId: "hub_entry_automations"
+            )
+        }
+        .buttonStyle(PressableCardButtonStyle())
+    }
+
+    private var batteryEntry: some View {
+        NavigationLink {
+            BatteryView(
+                apiService: apiService,
+                vehicleId: viewModel.vehicle?.id,
+                currentChargeLimitSoc: viewModel.vehicleState?.chargeLimitSoc,
+                onLimitApplied: { Task { await viewModel.refresh() } }
+            )
+        } label: {
+            HubEntryCard(
+                icon: "battery.100.bolt",
+                title: "电池管理",
+                subtitle: batterySubtitle,
+                accessibilityId: "hub_entry_battery"
+            )
+        }
+        .buttonStyle(PressableCardButtonStyle())
     }
 
     private var batterySubtitle: String {

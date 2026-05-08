@@ -80,4 +80,10 @@ public protocol APIServiceProtocol {
     /// Hand the iOS APNs device token to the backend so the polling
     /// layer can deliver automation alerts when the app is closed.
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError>
+
+    // Automation rules
+    func listAutomations() async -> Result<[RuleRecord], APIError>
+    func createAutomation(name: String, enabled: Bool, spec: RuleSpec) async -> Result<RuleRecord, APIError>
+    func updateAutomation(id: String, name: String?, enabled: Bool?, spec: RuleSpec?) async -> Result<RuleRecord, APIError>
+    func deleteAutomation(id: String) async -> Result<BaseResponse, APIError>
 }

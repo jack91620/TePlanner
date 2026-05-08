@@ -201,4 +201,29 @@ final class MockAPIService: APIServiceProtocol {
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
         return .success(BaseResponse(success: true, message: "ok"))
     }
+
+    var mockListAutomationsResponse: Result<[RuleRecord], APIError> = .success([])
+    var listAutomationsCallCount = 0
+    func listAutomations() async -> Result<[RuleRecord], APIError> {
+        listAutomationsCallCount += 1
+        return mockListAutomationsResponse
+    }
+
+    var lastCreateAutomationArgs: (name: String, enabled: Bool, spec: RuleSpec)?
+    func createAutomation(name: String, enabled: Bool, spec: RuleSpec) async -> Result<RuleRecord, APIError> {
+        lastCreateAutomationArgs = (name, enabled, spec)
+        return .success(RuleRecord(id: "new-id", presetId: nil, name: name, enabled: enabled, spec: spec))
+    }
+
+    var lastUpdateAutomationArgs: (id: String, name: String?, enabled: Bool?, spec: RuleSpec?)?
+    func updateAutomation(id: String, name: String?, enabled: Bool?, spec: RuleSpec?) async -> Result<RuleRecord, APIError> {
+        lastUpdateAutomationArgs = (id, name, enabled, spec)
+        return .success(RuleRecord(id: id, presetId: nil, name: name ?? "", enabled: enabled ?? true, spec: spec ?? [:]))
+    }
+
+    var lastDeleteAutomationId: String?
+    func deleteAutomation(id: String) async -> Result<BaseResponse, APIError> {
+        lastDeleteAutomationId = id
+        return .success(BaseResponse(success: true, message: "deleted"))
+    }
 }

@@ -155,6 +155,42 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/devices/register", body: Body(token: token, bundle_id: bundleId))
     }
 
+    // MARK: - Automation rules
+
+    private struct RuleListResponseDTO: Decodable {
+        let rules: [RuleRecord]
+    }
+
+    public func listAutomations() async -> Result<[RuleRecord], APIError> {
+        let result: Result<RuleListResponseDTO, APIError> = await get(path: "/automations/")
+        switch result {
+        case .success(let dto): return .success(dto.rules)
+        case .failure(let err): return .failure(err)
+        }
+    }
+
+    public func createAutomation(name: String, enabled: Bool, spec: RuleSpec) async -> Result<RuleRecord, APIError> {
+        struct Body: Encodable {
+            let name: String
+            let enabled: Bool
+            let spec: RuleSpec
+        }
+        return await postJSON(path: "/automations/", body: Body(name: name, enabled: enabled, spec: spec))
+    }
+
+    public func updateAutomation(id: String, name: String?, enabled: Bool?, spec: RuleSpec?) async -> Result<RuleRecord, APIError> {
+        struct Body: Encodable {
+            let name: String?
+            let enabled: Bool?
+            let spec: RuleSpec?
+        }
+        return await putJSON(path: "/automations/\(id)", body: Body(name: name, enabled: enabled, spec: spec))
+    }
+
+    public func deleteAutomation(id: String) async -> Result<BaseResponse, APIError> {
+        return await delete(path: "/automations/\(id)")
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
@@ -181,6 +217,26 @@ public final class APIService: APIServiceProtocol {
         } catch {
             return .failure(.decodingError(error))
         }
+        return await perform(req)
+    }
+
+    private func putJSON<Body: Encodable, T: Decodable>(path: String, body: Body, query: [URLQueryItem] = []) async -> Result<T, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            req.httpBody = try encoder.encode(body)
+        } catch {
+            return .failure(.decodingError(error))
+        }
+        return await perform(req)
+    }
+
+    private func delete<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
         return await perform(req)
     }
 

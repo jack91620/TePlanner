@@ -1,45 +1,30 @@
 import SwiftUI
 import TePlannerKit
 
-/// Settings sub-page that lists every registered Automation rule and
-/// lets the user toggle it on/off + adjust its threshold. Mirrors
-/// Android's "提醒" intent but each rule's display range is hand-tuned
-/// for its own semantics (camp 1–12h, sentry 12–72h, cabin 30min–3h)
-/// rather than using one shared slider config.
+/// Lists every automation rule on the user's account and lets them
+/// flip enabled / tweak the duration threshold. Phase 10.3.B reads
+/// from `AutomationRulesStore` (backend-backed) instead of
+/// SettingsStore. The visual builder (Phase 10.3.C) is a separate
+/// "+" entry that lands later; for now this stays the threshold-
+/// slider view.
 ///
-/// Backed directly by `SettingsStore` — saves are immediate so the
-/// engine picks up changes on its next tick. Threshold = 0 disables
-/// the rule entirely (the rule's `evaluate` short-circuits).
+/// Threshold ranges are still hand-tuned per kind (camp 1–12h, sentry
+/// 12–72h, cabin 30min–3h). When the visual builder ships, those
+/// ranges become inferred from the capability registry.
 struct AutomationsListView: View {
     @Environment(\.dismiss) private var dismiss
-    private let store: SettingsStore
-    private let rules: [RuleRecord]
+    @ObservedObject var rulesStore: AutomationRulesStore
 
-    @State private var rows: [Row]
-
-    init(rules: [RuleRecord], store: SettingsStore = UserDefaultsSettingsStore.shared) {
-        self.store = store
-        self.rules = rules
-        let initialRows = rules.compactMap { record -> Row? in
-            guard let kindRaw = record.spec.string("kind"),
-                  let kind = VehicleAlert.Kind(rawValue: kindRaw) else {
-                return nil
-            }
-            let mins = Self.minutes(for: kind, store: store)
-            let lowerBound = Self.config(for: kind)?.range.lowerBound ?? 0
-            return Row(
-                kind: kind,
-                displayName: record.name,
-                enabled: mins > 0,
-                minutes: max(mins, lowerBound)
-            )
-        }
-        _rows = State(initialValue: initialRows)
-    }
+    @State private var rows: [Row] = []
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         Form {
-            ForEach(Array(rows.enumerated()), id: \.element.kind) { index, row in
+            if rows.isEmpty && rulesStore.isLoading {
+                ProgressView("加载规则…")
+            }
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                 Section {
                     Toggle(row.displayName, isOn: $rows[index].enabled)
                         .accessibilityIdentifier("automation_toggle_\(row.kind.rawValue)")
@@ -65,29 +50,92 @@ struct AutomationsListView: View {
                     Text(Self.footer(for: row.kind))
                 }
             }
+            if let err = saveError {
+                Section {
+                    Text(err).foregroundStyle(.red).font(.caption)
+                }
+            }
         }
         .navigationTitle("自动化提醒")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("保存") { save() }.bold()
+                Button("保存") { Task { await save() } }
+                    .bold()
+                    .disabled(saving || rows.isEmpty)
                     .accessibilityIdentifier("automations_save_button")
             }
         }
+        .onAppear { reloadRows() }
+        .onChange(of: rulesStore.rules) { _, _ in reloadRows() }
     }
 
-    private func save() {
-        for row in rows {
-            let mins = row.enabled ? row.minutes : 0
-            Self.write(minutes: mins, for: row.kind, store: store)
+    private func reloadRows() {
+        rows = rulesStore.rules.compactMap { record -> Row? in
+            guard let kindRaw = record.spec.string("kind"),
+                  let kind = VehicleAlert.Kind(rawValue: kindRaw) else {
+                return nil
+            }
+            let mins = currentMinutes(record: record, kind: kind)
+            let lowerBound = Self.config(for: kind)?.range.lowerBound ?? 0
+            return Row(
+                id: record.id,
+                kind: kind,
+                displayName: record.name,
+                enabled: record.enabled,
+                minutes: max(mins, lowerBound)
+            )
         }
-        Log.app.notice("automations saved")
+    }
+
+    private func currentMinutes(record: RuleRecord, kind: VehicleAlert.Kind) -> Int {
+        if let trigger = record.spec["trigger"]?.objectValue,
+           let mins = trigger.int("for_minutes") {
+            return mins
+        }
+        return Self.config(for: kind)?.range.lowerBound ?? 60
+    }
+
+    private func save() async {
+        saving = true
+        saveError = nil
+        for row in rows {
+            guard let record = rulesStore.rules.first(where: { $0.id == row.id }) else { continue }
+            let mutatedSpec = applyThreshold(record.spec, kind: row.kind, minutes: row.minutes)
+            let ok = await rulesStore.update(
+                id: row.id,
+                enabled: row.enabled,
+                spec: mutatedSpec
+            )
+            if !ok {
+                saveError = rulesStore.lastError ?? "保存失败"
+                saving = false
+                return
+            }
+        }
+        saving = false
+        Log.app.notice("automations saved (count=\(self.rows.count, privacy: .public))")
         dismiss()
+    }
+
+    /// Returns `spec` with the trigger.for_minutes overridden — only
+    /// for state_duration triggers, which is all 3 of the threshold-
+    /// adjustable presets. ChargeComplete (state_transition) just uses
+    /// the toggle.
+    private func applyThreshold(_ spec: RuleSpec, kind: VehicleAlert.Kind, minutes: Int) -> RuleSpec {
+        var out = spec
+        if case .object(var trigger) = out["trigger"] ?? .null,
+           trigger.string("type") == "state_duration" {
+            trigger["for_minutes"] = .int(minutes)
+            out["trigger"] = .object(trigger)
+        }
+        return out
     }
 
     // MARK: - Per-kind config tables
 
-    private struct Row: Equatable {
+    private struct Row: Equatable, Identifiable {
+        let id: String
         let kind: VehicleAlert.Kind
         let displayName: String
         var enabled: Bool
@@ -124,24 +172,6 @@ struct AutomationsListView: View {
             return "座舱过热保护启动后，车辆会自动通风/降温。提醒只是告知正在运行，无操作按钮。"
         case .chargeComplete:
             return "充电进入完成状态时立即提醒，方便你及时拔枪让位给其他车主。"
-        }
-    }
-
-    private static func minutes(for kind: VehicleAlert.Kind, store: SettingsStore) -> Int {
-        switch kind {
-        case .campMode: return store.campModeReminderMinutes
-        case .sentryMode: return store.sentryReminderMinutes
-        case .cabinOverheat: return store.cabinOverheatReminderMinutes
-        case .chargeComplete: return store.chargeCompleteReminderEnabled ? 1 : 0
-        }
-    }
-
-    private static func write(minutes: Int, for kind: VehicleAlert.Kind, store: SettingsStore) {
-        switch kind {
-        case .campMode: store.campModeReminderMinutes = minutes
-        case .sentryMode: store.sentryReminderMinutes = minutes
-        case .cabinOverheat: store.cabinOverheatReminderMinutes = minutes
-        case .chargeComplete: store.chargeCompleteReminderEnabled = (minutes > 0)
         }
     }
 
