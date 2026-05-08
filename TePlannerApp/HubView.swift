@@ -29,6 +29,7 @@ struct HubView: View {
     @State private var preheatStatus: PreheatStatus = .idle
     @State private var chargeLimitStatus: ChargeLimitStatus = .idle
     @State private var showingPairingPrompt = false
+    @State private var showingSettings = false
     /// Phase 6: nil = haven't fetched yet; false = fetched, no
     /// `tel:*:since` rows exist (server hasn't seen any telemetry from
     /// this car). Drives the "等待车辆上线" placeholder.
@@ -98,6 +99,9 @@ struct HubView: View {
                 Menu {
                     Button("配对车辆控制", systemImage: "key.fill") {
                         openVCPPairingURL()
+                    }
+                    Button("设置", systemImage: "gearshape.fill") {
+                        showingSettings = true
                     }
                     Divider()
                     Button("退出登录", systemImage: "arrow.right.square", role: .destructive) {
@@ -212,6 +216,9 @@ struct HubView: View {
             Button("好") { alertActionError = nil }
         } message: {
             Text(alertActionError ?? "")
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
         .alert("配对车辆控制", isPresented: $showingPairingPrompt) {
             Button("立即配对") {

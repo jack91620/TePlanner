@@ -15,6 +15,7 @@ struct AutomationsHomeView: View {
     @State private var showingBuilder = false
     @State private var workingError: String?
     @State private var pendingDelete: RuleRecord?
+    @State private var searchText: String = ""
 
     private let apiService: APIServiceProtocol
 
@@ -64,6 +65,7 @@ struct AutomationsHomeView: View {
         }
         .navigationTitle("自动化")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "搜索规则")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 EditButton()
@@ -182,11 +184,28 @@ struct AutomationsHomeView: View {
     }
 
     private var presetRules: [RuleRecord] {
-        applyUserOrder(rulesStore.rules.filter { $0.presetId != nil })
+        applyUserOrder(applySearch(rulesStore.rules.filter { $0.presetId != nil }))
     }
 
     private var customRules: [RuleRecord] {
-        applyUserOrder(rulesStore.rules.filter { $0.presetId == nil })
+        applyUserOrder(applySearch(rulesStore.rules.filter { $0.presetId == nil }))
+    }
+
+    /// Filter by search text. Matches both the rule name and the
+    /// trigger / action sentences so users can find a rule by what
+    /// it does as well as by what it's called.
+    private func applySearch(_ rules: [RuleRecord]) -> [RuleRecord] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return rules }
+        let lower = q.lowercased()
+        return rules.filter { record in
+            if record.name.lowercased().contains(lower) { return true }
+            let trigger = RuleDisplay.triggerSentence(record.spec).lowercased()
+            if trigger.contains(lower) { return true }
+            let action = RuleDisplay.actionSentence(record.spec).lowercased()
+            if action.contains(lower) { return true }
+            return false
+        }
     }
 
     /// Apply the user's drag-reordered sequence on top of whatever
