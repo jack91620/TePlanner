@@ -59,6 +59,7 @@ struct AlertPillView: View {
         case .leftUnlocked: return "lock.open.fill"
         case .closureLeftOpen: return "door.left.hand.open"
         case .lowBattery: return "battery.25"
+        case .weekdayPreheat: return "alarm.fill"
         }
     }
 

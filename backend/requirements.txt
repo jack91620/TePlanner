@@ -36,6 +36,7 @@ structlog==24.1.0
 
 # Date/Time
 python-dateutil==2.8.2
+croniter==2.0.5
 
 # Type hints
 typing-extensions==4.9.0

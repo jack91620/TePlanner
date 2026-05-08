@@ -33,6 +33,7 @@ thing):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta, timezone
 from typing import Any, Optional
 
 from app.services.automation.base import (
@@ -188,6 +189,63 @@ def _eval_state_duration(spec: dict, ctx: AutomationContext, kind: AlertKind) ->
     return _emit_action(bucket[0], kind, facts)
 
 
+def _eval_cron(spec: dict, ctx: AutomationContext, kind: AlertKind) -> Optional[Alert]:
+    """Slice C: time-driven trigger. Fires once per matching cron
+    minute. Polling tick runs every 5min, so we look back over the
+    window since `last_fired_at` (or the last 6min on first run) and
+    fire if any cron occurrence falls inside it.
+    """
+    trigger = spec["trigger"]
+    expr = trigger.get("expr")
+    if not expr:
+        return None
+    last_fired_key = trigger.get("last_fired_key", f"cron:{expr}:lastFiredAt")
+    tz_name = trigger.get("tz", "Asia/Shanghai")
+
+    try:
+        from zoneinfo import ZoneInfo
+        from croniter import croniter
+    except ImportError:
+        # croniter not installed — silently skip cron rules so the
+        # rest of the engine keeps working.
+        return None
+
+    try:
+        local_tz = ZoneInfo(tz_name)
+    except Exception:
+        local_tz = timezone.utc
+
+    now_local = ctx.now.astimezone(local_tz)
+    last_fired = ctx.memory.get(last_fired_key)
+    # First run: only look back 6 min (one polling tick + 1min fudge).
+    # Otherwise look back since last fire.
+    window_start_local = (
+        last_fired.astimezone(local_tz) if last_fired
+        else now_local - timedelta(minutes=6)
+    )
+    if window_start_local >= now_local:
+        return None
+
+    try:
+        cron = croniter(expr, window_start_local)
+        next_match = cron.get_next(ret_type=type(now_local))
+    except Exception:
+        return None
+    if next_match > now_local:
+        return None
+
+    # We have a match in (window_start, now]. Fire and update last_fired.
+    ctx.memory.set(last_fired_key, ctx.now)
+    actions = spec.get("actions", [])
+    if not actions:
+        return None
+    facts = {
+        "expr": expr,
+        "battery_level": _read_entity(ctx.vehicle_state, "vehicle.battery_level") or 0,
+    }
+    return _emit_action(actions[0], kind, facts)
+
+
 def _eval_state_transition(spec: dict, ctx: AutomationContext, kind: AlertKind) -> Optional[Alert]:
     trigger = spec["trigger"]
     entity = trigger["entity"]
@@ -237,4 +295,6 @@ def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
         return _eval_state_duration(spec, ctx, kind)
     if trigger_type == "state_transition":
         return _eval_state_transition(spec, ctx, kind)
+    if trigger_type == "cron":
+        return _eval_cron(spec, ctx, kind)
     return None

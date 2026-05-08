@@ -31,6 +31,8 @@ class AlertKind(str, Enum):
     CLOSURE_LEFT_OPEN = "closureLeftOpen"
     # Slice B
     LOW_BATTERY = "lowBattery"
+    # Slice C
+    WEEKDAY_PREHEAT = "weekdayPreheat"
 
 
 class AlertSeverity(str, Enum):

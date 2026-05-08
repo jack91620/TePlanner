@@ -30,6 +30,7 @@ from app.services.automation.presets import (
     LEFT_UNLOCKED,
     LOW_BATTERY,
     SENTRY_MODE,
+    WEEKDAY_PREHEAT,
     WINDOW_OR_BOX_LEFT_OPEN,
 )
 
@@ -208,6 +209,50 @@ def test_left_unlocked_clears_when_locked():
     # Lock the car → memory clears, no further alert
     evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state_locked, now=later, memory=memory))
     assert memory.get("leftUnlocked:startedAt") is None
+
+
+# ---------- WeekdayPreheat (Slice C — cron) ----------
+
+def _shanghai(year: int, month: int, day: int, hour: int, minute: int) -> datetime:
+    """Shanghai-local datetime, naive then tz-aware in UTC for ctx."""
+    from zoneinfo import ZoneInfo
+    return datetime(year, month, day, hour, minute, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+
+def test_cron_does_not_fire_outside_window():
+    # 06:30 Shanghai — too early for the 07:30 cron.
+    now = _shanghai(2026, 5, 11, 6, 30)
+    state = VehicleStateSnapshot()
+    assert evaluate_rule(WEEKDAY_PREHEAT.spec, _ctx(state, now=now, memory=InMemoryStateMemory())) is None
+
+
+def test_cron_fires_on_matching_minute():
+    # Monday 2026-05-11 07:30 Shanghai → matches "30 7 * * 1-5"
+    now = _shanghai(2026, 5, 11, 7, 30)
+    memory = InMemoryStateMemory()
+    state = VehicleStateSnapshot()
+    alert = evaluate_rule(WEEKDAY_PREHEAT.spec, _ctx(state, now=now, memory=memory))
+    assert alert is not None
+    assert alert.kind == AlertKind.WEEKDAY_PREHEAT
+
+
+def test_cron_does_not_double_fire():
+    # Same tick fires once; another tick 1min later should NOT fire
+    # again because last_fired_at memory key suppresses.
+    memory = InMemoryStateMemory()
+    state = VehicleStateSnapshot()
+    first = _shanghai(2026, 5, 11, 7, 30)
+    second = first + timedelta(minutes=1)
+    a = evaluate_rule(WEEKDAY_PREHEAT.spec, _ctx(state, now=first, memory=memory))
+    b = evaluate_rule(WEEKDAY_PREHEAT.spec, _ctx(state, now=second, memory=memory))
+    assert a is not None and b is None
+
+
+def test_cron_skips_weekend():
+    # Saturday 2026-05-09 07:30 — cron is MON-FRI only.
+    now = _shanghai(2026, 5, 9, 7, 30)
+    state = VehicleStateSnapshot()
+    assert evaluate_rule(WEEKDAY_PREHEAT.spec, _ctx(state, now=now, memory=InMemoryStateMemory())) is None
 
 
 # ---------- LowBattery (Slice B — comparator) ----------

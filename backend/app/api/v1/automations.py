@@ -94,6 +94,9 @@ def _validate_spec(spec: dict) -> Optional[str]:
         for required in ("entity", "to", "first_seen_key", "dismissed_key"):
             if required not in trigger:
                 return f"state_transition trigger missing '{required}'"
+    elif t_type == "cron":
+        if "expr" not in trigger:
+            return "cron trigger missing 'expr'"
     else:
         return f"unsupported trigger type: {t_type}"
     return None

@@ -26,6 +26,12 @@ struct RuleBuilderView: View {
     @State private var toString: String = "Complete"
     @State private var numericOp: NumericOp = .lt
     @State private var numericValue: Int = 30
+    // Slice C — cron trigger state. cronWeekdays uses ISO numbers
+    // (1..7 Mon..Sun) to match croniter's default; we render as
+    // 周一..周日 in the chips.
+    @State private var cronHour: Int = 7
+    @State private var cronMinute: Int = 30
+    @State private var cronWeekdays: Set<Int> = [1, 2, 3, 4, 5]
 
     @State private var actionType: ActionType = .notify
     @State private var actionTitle: String = ""
@@ -43,9 +49,14 @@ struct RuleBuilderView: View {
     enum TriggerType: String, CaseIterable, Identifiable {
         case stateDuration = "state_duration"
         case stateTransition = "state_transition"
+        case cron = "cron"
         var id: String { rawValue }
         var label: String {
-            self == .stateDuration ? "持续状态" : "状态变化"
+            switch self {
+            case .stateDuration:   return "持续状态"
+            case .stateTransition: return "状态变化"
+            case .cron:            return "定时"
+            }
         }
     }
 
@@ -189,19 +200,15 @@ struct RuleBuilderView: View {
                     Text(t.label).tag(t)
                 }
             }
-            Picker("观察项", selection: $entity) {
-                ForEach(VehicleEntity.allCases) { e in
-                    Text(e.label).tag(e)
-                }
-            }
             switch triggerType {
             case .stateDuration:
+                Picker("观察项", selection: $entity) {
+                    ForEach(VehicleEntity.allCases) { e in
+                        Text(e.label).tag(e)
+                    }
+                }
                 stateDurationValueRow
-                Stepper(
-                    value: $forMinutes,
-                    in: 1...4320,
-                    step: 30
-                ) {
+                Stepper(value: $forMinutes, in: 1...4320, step: 30) {
                     HStack {
                         Text("持续时长")
                         Spacer()
@@ -211,10 +218,58 @@ struct RuleBuilderView: View {
                     }
                 }
             case .stateTransition:
+                Picker("观察项", selection: $entity) {
+                    ForEach(VehicleEntity.allCases) { e in
+                        Text(e.label).tag(e)
+                    }
+                }
                 TextField("目标值", text: $toString)
                     .textInputAutocapitalization(.never)
+            case .cron:
+                cronEditor
             }
         }
+    }
+
+    @ViewBuilder
+    private var cronEditor: some View {
+        // 时间
+        let timeBinding = Binding<Date>(
+            get: {
+                var components = DateComponents()
+                components.hour = cronHour
+                components.minute = cronMinute
+                return Calendar.current.date(from: components) ?? Date()
+            },
+            set: { newValue in
+                let comp = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                cronHour = comp.hour ?? 0
+                cronMinute = comp.minute ?? 0
+            }
+        )
+        DatePicker("时间", selection: timeBinding, displayedComponents: .hourAndMinute)
+
+        // 重复日 — multi-select chips. ISO 1..7 = Mon..Sun.
+        VStack(alignment: .leading, spacing: 8) {
+            Text("重复").font(.subheadline)
+            HStack(spacing: 6) {
+                ForEach(1...7, id: \.self) { day in
+                    let label = ["一", "二", "三", "四", "五", "六", "日"][day - 1]
+                    let on = cronWeekdays.contains(day)
+                    Text("周\(label)")
+                        .font(.caption)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(on ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemFill), in: Capsule())
+                        .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        .onTapGesture {
+                            if on { cronWeekdays.remove(day) }
+                            else { cronWeekdays.insert(day) }
+                        }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -391,6 +446,27 @@ struct RuleBuilderView: View {
             if let val = trigger.int("value") { numericValue = val }
             if let mins = trigger.int("for_minutes") { forMinutes = mins }
             if let target = trigger.string("to") { toString = target }
+            // Slice C — cron expr → time + weekdays
+            if let expr = trigger.string("expr") {
+                let parts = expr.split(separator: " ").map(String.init)
+                if parts.count == 5,
+                   let m = Int(parts[0]),
+                   let h = Int(parts[1]) {
+                    cronMinute = m
+                    cronHour = h
+                    let weekdayField = parts[4]
+                    if weekdayField == "*" {
+                        cronWeekdays = Set(1...7)
+                    } else if weekdayField == "1-5" {
+                        cronWeekdays = Set(1...5)
+                    } else {
+                        let nums = weekdayField
+                            .split(separator: ",")
+                            .compactMap { Int($0) }
+                        cronWeekdays = Set(nums.filter { (1...7).contains($0) })
+                    }
+                }
+            }
         }
         // Pull first action.
         let candidates: [String] = ["actions_above", "actions"]
@@ -442,6 +518,27 @@ struct RuleBuilderView: View {
             if let val = trigger.int("value") { numericValue = val }
             if let mins = trigger.int("for_minutes") { forMinutes = mins }
             if let target = trigger.string("to") { toString = target }
+            // Slice C — cron expr → time + weekdays
+            if let expr = trigger.string("expr") {
+                let parts = expr.split(separator: " ").map(String.init)
+                if parts.count == 5,
+                   let m = Int(parts[0]),
+                   let h = Int(parts[1]) {
+                    cronMinute = m
+                    cronHour = h
+                    let weekdayField = parts[4]
+                    if weekdayField == "*" {
+                        cronWeekdays = Set(1...7)
+                    } else if weekdayField == "1-5" {
+                        cronWeekdays = Set(1...5)
+                    } else {
+                        let nums = weekdayField
+                            .split(separator: ",")
+                            .compactMap { Int($0) }
+                        cronWeekdays = Set(nums.filter { (1...7).contains($0) })
+                    }
+                }
+            }
         }
         let candidates: [String] = ["actions_above", "actions"]
         for key in candidates {
@@ -486,6 +583,11 @@ struct RuleBuilderView: View {
             trigger["first_seen_key"] = .string("user:\(kindString):firstSeenAt")
             trigger["dismissed_key"] = .string("user:\(kindString):dismissedAt")
             trigger["reset_when_not_to"] = .bool(true)
+        case .cron:
+            trigger.removeValue(forKey: "entity")
+            trigger["expr"] = .string(cronExpression())
+            trigger["tz"] = .string("Asia/Shanghai")
+            trigger["last_fired_key"] = .string("user:\(kindString):lastFiredAt")
         }
 
         var action: [String: JSONValue] = [
@@ -514,13 +616,14 @@ struct RuleBuilderView: View {
         case .stateDuration:
             spec["actions_above"] = .array([.object(action)])
             spec["actions_below"] = .array([])
-        case .stateTransition:
+        case .stateTransition, .cron:
             spec["actions"] = .array([.object(action)])
         }
         return spec
     }
 
     private func inferKind() -> String {
+        if triggerType == .cron { return "weekdayPreheat" }
         switch entity {
         case .climateKeeperMode:    return "campMode"
         case .sentryModeOn:         return "sentryMode"
@@ -546,6 +649,22 @@ struct RuleBuilderView: View {
             let new = await rulesStore.create(name: name, enabled: enabled, spec: spec)
             if new != nil { dismiss() } else { saveError = rulesStore.lastError }
         }
+    }
+
+    /// Build a 5-field cron expression from the picker state.
+    /// Backend uses croniter — supports comma-list weekdays (1,3,5)
+    /// and ranges, but we just emit comma-separated for simplicity.
+    private func cronExpression() -> String {
+        let weekdayPart: String
+        if cronWeekdays.count == 7 {
+            weekdayPart = "*"
+        } else if cronWeekdays.isEmpty {
+            // Fallback to "every day" rather than emit invalid cron.
+            weekdayPart = "*"
+        } else {
+            weekdayPart = cronWeekdays.sorted().map(String.init).joined(separator: ",")
+        }
+        return "\(cronMinute) \(cronHour) * * \(weekdayPart)"
     }
 
     private func formatMinutes(_ m: Int) -> String {

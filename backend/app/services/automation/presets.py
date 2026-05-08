@@ -226,6 +226,34 @@ LOW_BATTERY = PresetDefinition(
 )
 
 
+WEEKDAY_PREHEAT = PresetDefinition(
+    preset_id="weekday_preheat",
+    name="工作日早 7:30 自动预热",
+    spec={
+        "kind": "weekdayPreheat",
+        "trigger": {
+            "type": "cron",
+            "expr": "30 7 * * 1-5",  # MON..FRI 07:30
+            "tz": "Asia/Shanghai",
+            "last_fired_key": "weekdayPreheat:lastFiredAt",
+        },
+        # state_transition shape's `actions` reused for cron; the
+        # interpreter feeds facts={battery_level, expr}.
+        "actions": [
+            {
+                "type": "notify_and_offer",
+                "title": "出发前预热",
+                "body": "已到工作日 7:30，自动预热即将开始",
+                "severity": "info",
+                "primary_action_label": "立即启动",
+                "capability": "tesla.climate.preheat",
+                "params": {},
+            }
+        ],
+    },
+)
+
+
 ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
@@ -234,4 +262,5 @@ ALL_PRESETS: list[PresetDefinition] = [
     LEFT_UNLOCKED,
     WINDOW_OR_BOX_LEFT_OPEN,
     LOW_BATTERY,
+    WEEKDAY_PREHEAT,
 ]

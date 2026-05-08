@@ -73,6 +73,37 @@ public enum RuleDisplay {
         }
     }
 
+    /// 把简单的 5-字段 cron expr 翻译成中文。覆盖 v1 builder 生成的
+    /// 形态："分 时 * * 周几"。复杂表达式 fall-through 显示原 expr。
+    public static func cronSentence(_ expr: String) -> String {
+        let parts = expr.split(separator: " ").map(String.init)
+        guard parts.count == 5 else { return "定时：\(expr)" }
+        let (minute, hour, dom, month, weekday) = (parts[0], parts[1], parts[2], parts[3], parts[4])
+        guard dom == "*", month == "*",
+              let h = Int(hour), let m = Int(minute) else {
+            return "定时：\(expr)"
+        }
+        let timeText = String(format: "%02d:%02d", h, m)
+        let dayText: String
+        if weekday == "*" {
+            dayText = "每天"
+        } else if weekday == "1-5" {
+            dayText = "每个工作日"
+        } else if weekday == "0,6" || weekday == "6,0" {
+            dayText = "每个周末"
+        } else {
+            // Try comma-separated digit list "1,3,5" → 周一/周三/周五
+            let cnDays = ["周日","周一","周二","周三","周四","周五","周六"]
+            let nums = weekday.split(separator: ",").compactMap { Int($0) }
+            if !nums.isEmpty, nums.allSatisfy({ (0...6).contains($0) }) {
+                dayText = nums.map { cnDays[$0] }.joined(separator: "、")
+            } else {
+                dayText = "定时（\(weekday)）"
+            }
+        }
+        return "\(dayText) \(timeText)"
+    }
+
     public static func formatDurationMinutes(_ minutes: Int) -> String {
         if minutes < 60 { return "\(minutes) 分钟" }
         let h = minutes / 60
@@ -129,7 +160,7 @@ public enum RuleDisplay {
             let target = trigger.string("to") ?? "?"
             return "「\(entity)」变为「\(target)」"
         case "cron":
-            return "定时：\(trigger.string("expr") ?? "")"
+            return cronSentence(trigger.string("expr") ?? "")
         default:
             return type
         }

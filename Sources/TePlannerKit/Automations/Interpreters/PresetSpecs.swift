@@ -133,6 +133,27 @@ public enum PresetSpecs {
         ]),
     ]
 
+    public static let weekdayPreheat: RuleSpec = [
+        "kind": .string("weekdayPreheat"),
+        "trigger": .object([
+            "type": .string("cron"),
+            "expr": .string("30 7 * * 1-5"),
+            "tz": .string("Asia/Shanghai"),
+            "last_fired_key": .string("weekdayPreheat:lastFiredAt"),
+        ]),
+        "actions": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("出发前预热"),
+                "body": .string("已到工作日 7:30，自动预热即将开始"),
+                "severity": .string("info"),
+                "primary_action_label": .string("立即启动"),
+                "capability": .string("tesla.climate.preheat"),
+                "params": .object([:]),
+            ]),
+        ]),
+    ]
+
     public static let lowBattery: RuleSpec = [
         "kind": .string("lowBattery"),
         "trigger": .object([
@@ -229,6 +250,13 @@ public enum PresetSpecs {
             name: "电量过低提醒",
             enabled: true,
             spec: lowBattery
+        ),
+        RuleRecord(
+            id: "preset:weekday_preheat",
+            presetId: "weekday_preheat",
+            name: "工作日早 7:30 自动预热",
+            enabled: true,
+            spec: weekdayPreheat
         ),
     ]
 }

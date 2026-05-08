@@ -15,6 +15,8 @@ public struct VehicleAlert: Identifiable, Equatable {
         case closureLeftOpen
         // Slice B
         case lowBattery
+        // Slice C
+        case weekdayPreheat
     }
 
     public enum Severity: String, Sendable {
