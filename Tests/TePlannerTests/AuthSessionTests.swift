@@ -121,6 +121,7 @@ final class InMemorySettingsStore: SettingsStore {
     var tripChargeLimitSoc: Int = 90
     var hasPromptedVCPPairing: Bool = false
     var automationRuleOrder: [String] = []
+    var hasSeenHubWelcome: Bool = false
 
     func reset() {
         teslaLinked = false
@@ -136,5 +137,6 @@ final class InMemorySettingsStore: SettingsStore {
         tripChargeLimitSoc = 90
         hasPromptedVCPPairing = false
         automationRuleOrder = []
+        hasSeenHubWelcome = false
     }
 }

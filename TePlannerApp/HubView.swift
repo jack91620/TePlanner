@@ -30,6 +30,10 @@ struct HubView: View {
     @State private var chargeLimitStatus: ChargeLimitStatus = .idle
     @State private var showingPairingPrompt = false
     @State private var showingSettings = false
+    /// First-launch welcome banner: shown until the user dismisses
+    /// it the first time. Persisted in SettingsStore.hasSeenHubWelcome.
+    @State private var showWelcomeBanner: Bool =
+        !UserDefaultsSettingsStore.shared.hasSeenHubWelcome
     /// Phase 6: nil = haven't fetched yet; false = fetched, no
     /// `tel:*:since` rows exist (server hasn't seen any telemetry from
     /// this car). Drives the "等待车辆上线" placeholder.
@@ -82,6 +86,9 @@ struct HubView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                if showWelcomeBanner {
+                    welcomeBanner
+                }
                 statusCard
                 alertPill
                 departureCard
@@ -697,6 +704,52 @@ struct HubView: View {
                 if case .failed = preheatStatus { preheatStatus = .idle }
             }
         }
+    }
+
+    /// First-launch welcome banner — explains what the app does +
+    /// how to dismiss. Auto-hides after first dismiss; reset via
+    /// "重置" if we ever add it. Inspired by Shortcuts' first-run
+    /// "Get Started" card.
+    private var welcomeBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.tint)
+                    .font(.title3)
+                Text("欢迎使用 Tautomation")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    UserDefaultsSettingsStore.shared.hasSeenHubWelcome = true
+                    withAnimation { showWelcomeBanner = false }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("welcome_banner_dismiss")
+            }
+            Text("已为你预设 8 条常用自动化提醒——露营超时、忘锁车、充电完成等。在「自动化」中可逐条查看、调整或新增。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                Label("Telemetry 实时车况", systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Label("地理围栏触发", systemImage: "location.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.accentColor.opacity(0.25), lineWidth: 1)
+        )
+        .accessibilityIdentifier("hub_welcome_banner")
     }
 
     @ViewBuilder

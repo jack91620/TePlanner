@@ -26,6 +26,9 @@ public protocol SettingsStore: AnyObject {
     /// canonical order; rules not in the array fall back to server
     /// order at the end. Persisted as a JSON-encoded array of rule IDs.
     var automationRuleOrder: [String] { get set }
+    /// Whether the user has dismissed the first-launch welcome banner
+    /// on the hub. Set true on first dismiss; banner never re-shows.
+    var hasSeenHubWelcome: Bool { get set }
     func reset()
 }
 
@@ -48,6 +51,7 @@ public enum SettingsKey {
     public static let tripChargeLimitSoc = "trip_charge_limit_soc"
     public static let hasPromptedVCPPairing = "has_prompted_vcp_pairing"
     public static let automationRuleOrder = "automation_rule_order"
+    public static let hasSeenHubWelcome = "has_seen_hub_welcome"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -145,6 +149,11 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         }
     }
 
+    public var hasSeenHubWelcome: Bool {
+        get { defaults.bool(forKey: SettingsKey.hasSeenHubWelcome) }
+        set { defaults.set(newValue, forKey: SettingsKey.hasSeenHubWelcome) }
+    }
+
     public func reset() {
         for key in [
             SettingsKey.teslaLinked,
@@ -160,6 +169,7 @@ public final class UserDefaultsSettingsStore: SettingsStore {
             SettingsKey.tripChargeLimitSoc,
             SettingsKey.hasPromptedVCPPairing,
             SettingsKey.automationRuleOrder,
+            SettingsKey.hasSeenHubWelcome,
         ] {
             defaults.removeObject(forKey: key)
         }
