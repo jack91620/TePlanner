@@ -92,10 +92,12 @@ async def get_partner_token() -> str:
 
 
 async def get_user_access_token_for_vin(vin: str) -> str | None:
-    """Look up the latest user-OAuth access token for the user that
-    owns `vin`. Refreshes if expired. fleet_telemetry_config rejects
-    partner (M2M) tokens with VIN not_found — needs user authorization-
-    code token because the vehicle binding lives at the user level.
+    """Find ANY user that owns `vin` AND has a usable Tesla token.
+    Walks tokens newest-first; tries refresh on each expired one;
+    returns first valid token. Multiple Vehicle rows can share a VIN
+    (one per user that logged in via OAuth) and only some users keep
+    a fresh refresh_token, so brute-search rather than picking by
+    earliest user_id.
     """
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from datetime import datetime, timedelta
@@ -105,39 +107,48 @@ async def get_user_access_token_for_vin(vin: str) -> str | None:
     from app.integrations.tesla import TeslaAuth
     from sqlalchemy import select
 
+    encryption = TokenEncryption()
+
     async with async_session() as db:
-        veh_q = select(Vehicle).where(Vehicle.vin == vin).limit(1)
-        veh = (await db.execute(veh_q)).scalar_one_or_none()
-        if not veh:
-            return None
-        tok_q = (
-            select(TeslaToken)
-            .where(TeslaToken.user_id == veh.user_id)
-            .order_by(TeslaToken.updated_at.desc())
-            .limit(1)
-        )
-        tok = (await db.execute(tok_q)).scalar_one_or_none()
-        if not tok:
+        veh_q = select(Vehicle.user_id).where(Vehicle.vin == vin)
+        user_ids = [row for row in (await db.execute(veh_q)).scalars().all()]
+        if not user_ids:
             return None
 
-        encryption = TokenEncryption()
-        if tok.expires_at is None or tok.expires_at < datetime.utcnow():
+        tok_q = (
+            select(TeslaToken)
+            .where(TeslaToken.user_id.in_(user_ids))
+            .order_by(TeslaToken.updated_at.desc())
+        )
+        tokens = (await db.execute(tok_q)).scalars().all()
+        print(f"  candidate tokens for VIN {vin}: {len(tokens)} users")
+
+        for tok in tokens:
+            # Try as-is if not yet expired
+            if tok.expires_at and tok.expires_at > datetime.utcnow():
+                try:
+                    return encryption.decrypt(tok.access_token)
+                except Exception:
+                    return tok.access_token
+            # Otherwise try refresh
             try:
                 refresh_plain = encryption.decrypt(tok.refresh_token)
             except Exception:
                 refresh_plain = tok.refresh_token
-            new_tokens = await TeslaAuth().refresh_token(refresh_plain)
+            try:
+                new_tokens = await TeslaAuth().refresh_token(refresh_plain)
+            except Exception as exc:
+                print(f"  user={tok.user_id} refresh failed: {exc}")
+                continue
             tok.access_token = encryption.encrypt(new_tokens["access_token"])
             tok.refresh_token = encryption.encrypt(new_tokens["refresh_token"])
             tok.expires_at = datetime.utcnow() + timedelta(
                 seconds=new_tokens.get("expires_in", 3600)
             )
             await db.commit()
+            print(f"  using freshly-refreshed token from user={tok.user_id}")
             return new_tokens["access_token"]
-        try:
-            return encryption.decrypt(tok.access_token)
-        except Exception:
-            return tok.access_token
+        return None
 
 
 async def register_config(
