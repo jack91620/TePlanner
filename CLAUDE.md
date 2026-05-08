@@ -351,19 +351,41 @@ commands):
 
 ## Backend deploy
 
+**Workflow rule**: server is git-pull-only. **Never `scp` files
+to the server**, even for "fast" iteration — it creates state drift
+between working tree and HEAD that's painful to clean up. Every
+change goes:
+
+  local edit → `make precommit` → `git commit` → `git push origin
+  ios-development` → ssh server → `git fetch + git reset --hard
+  origin/ios-development` → restart backend.
+
 Server tracks `origin/ios-development`. After pushing local commits:
 
 ```
 ssh ubuntu@82.156.248.135
-cd ~/TePlanner && git pull origin ios-development
+cd ~/TePlanner && git fetch origin ios-development \
+                && git reset --hard origin/ios-development
 cd backend && echo y | bash start.sh -d -s
 curl -sS https://api.teplanner.cloud/health   # 200
 ```
+
+`reset --hard` instead of `pull` because the server occasionally
+ends up with stray modifications (a daily-review autonomous run, a
+manual experiment); reset converges cleanly. If anything important
+on the server isn't yet in git, commit it locally first via the
+proper flow before resetting.
 
 Tesla `tesla-http-proxy` is its own systemd service:
 `sudo systemctl status tesla-http-proxy`. Don't restart it casually
 — the per-vehicle session cache in `~/.tesla-cache.json` would be
 warm, and a cold start adds latency to the first command.
+
+The watchdog at `/home/ubuntu/ops/server-monitor.sh` is a copy of
+`ops/server-monitor.sh` in the repo — `git pull` doesn't touch the
+deployed copy. To update it run
+`SSHPASS=... ./ops/install-server-monitor.sh` (also re-registers
+the cron entry; safe to re-run).
 
 See `reference_backend_deploy.md` (memory) for ssh creds workflow.
 
