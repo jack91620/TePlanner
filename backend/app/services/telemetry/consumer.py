@@ -5,9 +5,11 @@ Lifecycle is bound to FastAPI's lifespan — the consumer task is
 cancellable; cancelling closes the SUB socket cleanly.
 
 fleet-telemetry's ZMQ dispatcher publishes each record as a 2-frame
-multipart message:
-    frame[0] = topic (txtype: V / alerts / errors / connectivity)
-    frame[1] = JSON payload (same shape as logger output)
+multipart message via ``BuildTopicName(namespace, recordName)``, which
+formats topic as ``"<namespace>_<recordName>"`` — e.g.
+``"teplanner_telemetry_V"``. The payload is the raw flatbuffer-decoded
+PayloadBytes; with ``transmit_decoded_records: true`` in
+fleet-telemetry config that's already JSON-encoded.
 
 We subscribe only to V (vehicle data) for now. Connectivity events
 (online / offline) are useful but not yet consumed.
@@ -27,6 +29,11 @@ from app.services.telemetry.mapping import map_v_payload
 from app.services.telemetry.state_writer import TelemetryStateWriter
 
 logger = logging.getLogger(__name__)
+
+
+# Must match fleet-telemetry's `namespace` config field — fleet-tel
+# prepends it to every record's topic via BuildTopicName.
+TELEMETRY_NAMESPACE = "teplanner_telemetry"
 
 
 def _parse_v_timestamp(payload: dict) -> datetime:
@@ -118,8 +125,11 @@ async def consume(stop_event: asyncio.Event) -> None:
     ctx = zmq.asyncio.Context.instance()
     sock = ctx.socket(zmq.SUB)
     sock.connect(addr)
-    sock.setsockopt(zmq.SUBSCRIBE, b"V")
-    logger.info("telemetry zmq consumer connected: %s", addr)
+    v_topic = f"{TELEMETRY_NAMESPACE}_V".encode()
+    sock.setsockopt(zmq.SUBSCRIBE, v_topic)
+    logger.info(
+        "telemetry zmq consumer connected: %s topic=%s", addr, v_topic.decode(),
+    )
 
     writer = TelemetryStateWriter()
 
@@ -143,7 +153,7 @@ async def consume(stop_event: asyncio.Event) -> None:
             except (json.JSONDecodeError, UnicodeDecodeError):
                 logger.warning("telemetry: undecodable payload on topic=%s", topic)
                 continue
-            if topic == "V":
+            if topic.endswith("_V") or topic == "V":
                 await _process_v_record(writer, payload)
     finally:
         sock.close(linger=0)
