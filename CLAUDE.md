@@ -65,8 +65,6 @@ TePlannerApp/              # iOS app target (driven by project.yml).
                            # alert (camp/sentry/cabin/charge complete).
   ScheduledDepartureSheet.swift # Set/edit "下次出行" time + lead minutes.
   RoutePlanningSettingsSheet.swift # 路线规划设置 sheet (target SOC etc.).
-  RoutePreviewView.swift   # Search → preview → send-to-vehicle flow.
-                           # Hosts RoutePreviewViewModel + AlongRoutePOIService.
   ChargingStationDetailView.swift # Tap a row in 附近 → detail sheet.
   SearchView.swift         # POI keyword search (AMap iOS SDK).
   NearbyChargersView.swift # 附近 tab content; filter chips.
