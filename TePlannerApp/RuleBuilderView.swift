@@ -926,6 +926,45 @@ struct RuleBuilderView: View {
     /// buckets (空调 / 充电 / 安全与门窗 / 座椅与方向盘 / 车机媒体 /
     /// 导航 / 提示与车辆控制) so users can scan to the area they want
     /// instead of reading the whole list.
+    /// Short verb used as the inline notification button label.
+    /// Distinct from `RuleDisplay.capabilityName` (which is descriptive,
+    /// e.g. '调整空调保持模式') because the button gets ~6 Chinese
+    /// characters before iOS truncates on the lock screen.
+    private static let defaultButtonLabel: [String: String] = [
+        "tesla.climate.set_keeper_mode":           "关闭模式",
+        "tesla.climate.preheat":                   "预热",
+        "tesla.climate.stop":                      "关空调",
+        "tesla.climate.set_temps":                 "调温",
+        "tesla.climate.set_preconditioning_max":   "最大预热",
+        "tesla.climate.set_cabin_overheat":        "切换",
+        "tesla.charging.set_limit":                "调限额",
+        "tesla.charging.start":                    "开始充电",
+        "tesla.charging.stop":                     "停止充电",
+        "tesla.charging.port_open":                "开充电口",
+        "tesla.charging.port_close":               "关充电口",
+        "tesla.charging.set_amps":                 "调电流",
+        "tesla.security.set_sentry":               "切换哨兵",
+        "tesla.security.door_lock":                "锁车",
+        "tesla.security.door_unlock":              "解锁",
+        "tesla.security.actuate_frunk":            "前备箱",
+        "tesla.security.actuate_trunk":            "后备箱",
+        "tesla.closures.window_vent":              "通风",
+        "tesla.closures.window_close":             "关车窗",
+        "tesla.closures.sun_roof_vent":            "天窗通风",
+        "tesla.closures.sun_roof_close":           "关天窗",
+        "tesla.comfort.set_seat_heater":           "座椅加热",
+        "tesla.comfort.set_steering_wheel_heater": "方向盘加热",
+        "tesla.media.toggle_playback":             "播/暂停",
+        "tesla.media.set_volume":                  "调音量",
+        "tesla.media.next_track":                  "下一首",
+        "tesla.media.prev_track":                  "上一首",
+        "tesla.navigation.send":                   "导航",
+        "tesla.navigation.send_address":           "导航",
+        "tesla.attention.flash_lights":            "闪灯",
+        "tesla.attention.honk_horn":               "鸣笛",
+        "tesla.attention.trigger_homelink":        "HomeLink",
+    ]
+
     private var capabilityPicker: some View {
         let buckets: [(RuleDisplay.CapabilityCategory, [CapabilityInfo])] = {
             var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
@@ -973,6 +1012,12 @@ struct RuleBuilderView: View {
         }
         .onChange(of: selectedCapabilityId) { _, newId in
             paramOverrides = Self.defaultParams[newId] ?? [:]
+            // Only seed the button label when the user has left it
+            // blank — don't clobber a custom one they already typed.
+            if primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty,
+               let suggested = Self.defaultButtonLabel[newId] {
+                primaryActionLabel = suggested
+            }
         }
     }
 
