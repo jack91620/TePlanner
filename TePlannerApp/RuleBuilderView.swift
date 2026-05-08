@@ -481,15 +481,7 @@ struct RuleBuilderView: View {
             }
             if actionType == .notifyAndOffer {
                 TextField("按钮文字", text: $primaryActionLabel)
-                Picker("点击按钮后执行", selection: $selectedCapabilityId) {
-                    Text("仅关闭提醒").tag("")
-                    ForEach(capabilitiesStore.capabilities) { cap in
-                        Text(RuleDisplay.capabilityName(cap.id)).tag(cap.id)
-                    }
-                }
-                .onChange(of: selectedCapabilityId) { _, newId in
-                    paramOverrides = Self.defaultParams[newId] ?? [:]
-                }
+                capabilityPicker
                 if !selectedCapabilityId.isEmpty {
                     capabilityParamRows
                 }
@@ -867,6 +859,62 @@ struct RuleBuilderView: View {
         "tesla.comfort.set_steering_wheel_heater": ["on": .bool(true)],
         "tesla.media.set_volume":                  ["volume": .double(5)],
     ]
+
+    /// Sectioned capability picker. Backed by a `Menu` (not `Picker`)
+    /// because Picker can't show section dividers inside a Form. The
+    /// menu groups the 30+ Tesla capabilities into 7 user-facing
+    /// buckets (空调 / 充电 / 安全与门窗 / 座椅与方向盘 / 车机媒体 /
+    /// 导航 / 提示与车辆控制) so users can scan to the area they want
+    /// instead of reading the whole list.
+    private var capabilityPicker: some View {
+        let buckets: [(RuleDisplay.CapabilityCategory, [CapabilityInfo])] = {
+            var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
+            for cap in capabilitiesStore.capabilities {
+                byCategory[RuleDisplay.capabilityCategory(cap.id), default: []].append(cap)
+            }
+            return RuleDisplay.CapabilityCategory.allCases.compactMap { cat in
+                guard let arr = byCategory[cat], !arr.isEmpty else { return nil }
+                let sorted = arr.sorted { RuleDisplay.capabilityName($0.id) < RuleDisplay.capabilityName($1.id) }
+                return (cat, sorted)
+            }
+        }()
+        let label = selectedCapabilityId.isEmpty
+            ? "仅关闭提醒"
+            : RuleDisplay.capabilityName(selectedCapabilityId)
+        return Menu {
+            Button {
+                selectedCapabilityId = ""
+            } label: {
+                Label("仅关闭提醒", systemImage: "checkmark.circle")
+            }
+            ForEach(buckets, id: \.0) { (category, caps) in
+                Section(category.label) {
+                    ForEach(caps) { cap in
+                        Button {
+                            selectedCapabilityId = cap.id
+                        } label: {
+                            Label(RuleDisplay.capabilityName(cap.id), systemImage: category.symbol)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Text("点击按钮后执行")
+                Spacer()
+                Text(label)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .onChange(of: selectedCapabilityId) { _, newId in
+            paramOverrides = Self.defaultParams[newId] ?? [:]
+        }
+    }
 
     /// Per-capability param-editing UI. Renders a small inline form
     /// keyed off the selected capability id; falls through to a

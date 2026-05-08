@@ -84,6 +84,56 @@ public enum RuleDisplay {
         }
     }
 
+    /// Group capabilities into user-facing categories so the rule
+    /// builder can render a sectioned picker. Order in the returned
+    /// `categories` array drives display order; categories with no
+    /// matching capability are filtered out by the caller.
+    public static func capabilityCategory(_ capabilityId: String) -> CapabilityCategory {
+        switch capabilityId {
+        case let id where id.hasPrefix("tesla.climate."):    return .climate
+        case let id where id.hasPrefix("tesla.charging."):   return .charging
+        case let id where id.hasPrefix("tesla.security."),
+             let id where id.hasPrefix("tesla.closures."):   return .security
+        case let id where id.hasPrefix("tesla.comfort."):    return .comfort
+        case let id where id.hasPrefix("tesla.media."):      return .media
+        case let id where id.hasPrefix("tesla.navigation."): return .navigation
+        case let id where id.hasPrefix("tesla.attention."):  return .attention
+        default:                                              return .other
+        }
+    }
+
+    public enum CapabilityCategory: String, CaseIterable {
+        case climate, charging, security, comfort, media, navigation, attention, other
+
+        public var label: String {
+            switch self {
+            case .climate:    return "空调与温度"
+            case .charging:   return "充电"
+            case .security:   return "安全与门窗"
+            case .comfort:    return "座椅与方向盘"
+            case .media:      return "车机媒体"
+            case .navigation: return "导航"
+            case .attention:  return "提示与车辆控制"
+            case .other:      return "其他"
+            }
+        }
+
+        /// SF Symbol name for the category — surfaces the section
+        /// visually on the picker even when expanded.
+        public var symbol: String {
+            switch self {
+            case .climate:    return "thermometer.medium"
+            case .charging:   return "bolt.fill"
+            case .security:   return "lock.shield.fill"
+            case .comfort:    return "carseat.left.fill"
+            case .media:      return "play.rectangle.fill"
+            case .navigation: return "location.fill"
+            case .attention:  return "light.beacon.max.fill"
+            case .other:      return "square.grid.2x2"
+            }
+        }
+    }
+
     /// 把 trigger 的 equals/to 值渲染成对应 entity 语境下用户看得懂的
     /// 形式。布尔 → 开/关，keeper_mode int → 露营/保持/宠物/关闭，等。
     public static func describeValue(_ value: JSONValue, entity: String) -> String {
