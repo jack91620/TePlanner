@@ -138,6 +138,8 @@ struct AutomationsHomeView: View {
         case "sentryMode": return "shield.fill"
         case "cabinOverheat": return "thermometer.sun.fill"
         case "chargeComplete": return "bolt.batteryblock.fill"
+        case "leftUnlocked": return "lock.open.fill"
+        case "closureLeftOpen": return "door.left.hand.open"
         default: return "bell.badge.fill"
         }
     }

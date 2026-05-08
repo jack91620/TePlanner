@@ -52,6 +52,15 @@ _ENTITY_MAP = {
     "vehicle.cabin_overheat_protection_on": "cabin_overheat_protection_on",
     "vehicle.charging.state": "charging_state",
     "vehicle.battery_level": "battery_level",
+    # Slice A — security / closure derived states.
+    # Use the parked_* virtual entities so rules naturally filter
+    # out the "I'm sitting in the car with door open" false positives.
+    "vehicle.locked": "locked",
+    "vehicle.parked_unlocked": "parked_unlocked",
+    "vehicle.parked_with_door_open": "parked_with_door_open",
+    "vehicle.parked_with_window_open": "parked_with_window_open",
+    "vehicle.parked_with_frunk_open": "parked_with_frunk_open",
+    "vehicle.parked_with_trunk_open": "parked_with_trunk_open",
 }
 
 

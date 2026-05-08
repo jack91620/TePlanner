@@ -111,6 +111,50 @@ public enum PresetSpecs {
         ]),
     ]
 
+    public static let leftUnlocked: RuleSpec = [
+        "kind": .string("leftUnlocked"),
+        "trigger": .object([
+            "type": .string("state_duration"),
+            "entity": .string("vehicle.parked_unlocked"),
+            "equals": .bool(true),
+            "for_minutes": .int(5),
+            "state_key": .string("leftUnlocked:startedAt"),
+        ]),
+        "actions_below": .array([]),
+        "actions_above": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("车辆未锁"),
+                "body": .string("停车 {duration_human}，车门仍处于未锁状态"),
+                "severity": .string("critical"),
+                "primary_action_label": .string("我知道了"),
+                "capability": .string("automation.dismiss"),
+            ]),
+        ]),
+    ]
+
+    public static let closureLeftOpen: RuleSpec = [
+        "kind": .string("closureLeftOpen"),
+        "trigger": .object([
+            "type": .string("state_duration"),
+            "entity": .string("vehicle.parked_with_window_open"),
+            "equals": .bool(true),
+            "for_minutes": .int(5),
+            "state_key": .string("closureLeftOpen:startedAt"),
+        ]),
+        "actions_below": .array([]),
+        "actions_above": .array([
+            .object([
+                "type": .string("notify_and_offer"),
+                "title": .string("车窗未关闭"),
+                "body": .string("已停车 {duration_human}，仍有车窗处于打开状态"),
+                "severity": .string("critical"),
+                "primary_action_label": .string("我知道了"),
+                "capability": .string("automation.dismiss"),
+            ]),
+        ]),
+    ]
+
     /// Records ready to seed into the engine. Each carries the same
     /// `preset_id` and `name` strings as `presets.py`.
     public static let allPresets: [RuleRecord] = [
@@ -141,6 +185,20 @@ public enum PresetSpecs {
             name: "充电完成提醒",
             enabled: true,
             spec: chargeComplete
+        ),
+        RuleRecord(
+            id: "preset:left_unlocked_warning",
+            presetId: "left_unlocked_warning",
+            name: "停车后忘锁车提醒",
+            enabled: true,
+            spec: leftUnlocked
+        ),
+        RuleRecord(
+            id: "preset:closure_left_open_warning",
+            presetId: "closure_left_open_warning",
+            name: "车窗 / 后备箱忘关提醒",
+            enabled: true,
+            spec: closureLeftOpen
         ),
     ]
 }

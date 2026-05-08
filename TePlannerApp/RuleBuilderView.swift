@@ -52,19 +52,35 @@ struct RuleBuilderView: View {
         case sentryModeOn = "vehicle.sentry_mode_on"
         case cabinOverheatOn = "vehicle.cabin_overheat_protection_on"
         case chargingState = "vehicle.charging.state"
+        // Slice A — closure / lock virtual entities. They embed
+        // "停车后" so users can build "锁车忘了" rules without worrying
+        // about driving false-positives.
+        case parkedUnlocked = "vehicle.parked_unlocked"
+        case parkedWithDoorOpen = "vehicle.parked_with_door_open"
+        case parkedWithWindowOpen = "vehicle.parked_with_window_open"
+        case parkedWithFrunkOpen = "vehicle.parked_with_frunk_open"
+        case parkedWithTrunkOpen = "vehicle.parked_with_trunk_open"
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .climateKeeperMode: return "露营/宠物/保持模式"
-            case .sentryModeOn:      return "哨兵模式"
-            case .cabinOverheatOn:   return "座舱过热保护"
-            case .chargingState:     return "充电状态"
+            case .climateKeeperMode:    return "露营/宠物/保持模式"
+            case .sentryModeOn:         return "哨兵模式"
+            case .cabinOverheatOn:      return "座舱过热保护"
+            case .chargingState:        return "充电状态"
+            case .parkedUnlocked:       return "停车后未锁车"
+            case .parkedWithDoorOpen:   return "停车后车门开"
+            case .parkedWithWindowOpen: return "停车后车窗开"
+            case .parkedWithFrunkOpen:  return "停车后前备箱开"
+            case .parkedWithTrunkOpen:  return "停车后后备箱开"
             }
         }
         var valueKind: ValueKind {
             switch self {
             case .climateKeeperMode: return .keeperMode
-            case .sentryModeOn, .cabinOverheatOn: return .bool
+            case .sentryModeOn, .cabinOverheatOn,
+                 .parkedUnlocked, .parkedWithDoorOpen,
+                 .parkedWithWindowOpen, .parkedWithFrunkOpen,
+                 .parkedWithTrunkOpen: return .bool
             case .chargingState:     return .string
             }
         }
@@ -448,14 +464,19 @@ struct RuleBuilderView: View {
 
     private func inferKind() -> String {
         // Map entity to a known kind for backward-compatibility with
-        // the four AlertKind enum values. Custom rules built from
-        // scratch fall through to the entity-derived synthetic kind
-        // so the engine still routes pushes correctly.
+        // the AlertKind enum. Custom rules built from scratch fall
+        // through to the entity-derived synthetic kind so the engine
+        // still routes pushes correctly.
         switch entity {
-        case .climateKeeperMode: return "campMode"
-        case .sentryModeOn:      return "sentryMode"
-        case .cabinOverheatOn:   return "cabinOverheat"
-        case .chargingState:     return "chargeComplete"
+        case .climateKeeperMode:    return "campMode"
+        case .sentryModeOn:         return "sentryMode"
+        case .cabinOverheatOn:      return "cabinOverheat"
+        case .chargingState:        return "chargeComplete"
+        case .parkedUnlocked:       return "leftUnlocked"
+        case .parkedWithDoorOpen,
+             .parkedWithWindowOpen,
+             .parkedWithFrunkOpen,
+             .parkedWithTrunkOpen:  return "closureLeftOpen"
         }
     }
 

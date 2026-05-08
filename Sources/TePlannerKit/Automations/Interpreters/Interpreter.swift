@@ -24,6 +24,21 @@ private func readEntity(_ entity: String, from state: VehicleState?) -> JSONValu
         return state.chargingState.map { .string($0) } ?? .null
     case "vehicle.battery_level":
         return state.batteryLevel.map { .int($0) } ?? .null
+    // Slice A — closure / lock virtual entities. parked_* combine
+    // shift_state with the raw signal so rules don't false-positive
+    // while the user is sitting in the car with door open.
+    case "vehicle.locked":
+        return .bool(state.locked ?? false)
+    case "vehicle.parked_unlocked":
+        return .bool(state.parkedUnlocked)
+    case "vehicle.parked_with_door_open":
+        return .bool(state.parkedWithDoorOpen)
+    case "vehicle.parked_with_window_open":
+        return .bool(state.parkedWithWindowOpen)
+    case "vehicle.parked_with_frunk_open":
+        return .bool(state.parkedWithFrunkOpen)
+    case "vehicle.parked_with_trunk_open":
+        return .bool(state.parkedWithTrunkOpen)
     default:
         return nil
     }

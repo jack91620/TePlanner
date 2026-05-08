@@ -27,7 +27,9 @@ from app.services.automation.presets import (
     CABIN_OVERHEAT,
     CAMP_MODE,
     CHARGE_COMPLETE,
+    LEFT_UNLOCKED,
     SENTRY_MODE,
+    WINDOW_OR_BOX_LEFT_OPEN,
 )
 
 
@@ -158,6 +160,73 @@ def test_charge_complete_disabled_returns_none():
     spec = copy.deepcopy(CHARGE_COMPLETE.spec)
     spec["enabled"] = False
     assert evaluate_rule(spec, _ctx(state, memory=InMemoryStateMemory())) is None
+
+
+# ---------- LeftUnlocked (Slice A) ----------
+
+def test_left_unlocked_silent_when_locked():
+    state = VehicleStateSnapshot(locked=True, shift_state="P")
+    assert evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state)) is None
+
+
+def test_left_unlocked_silent_while_driving_even_if_unlocked():
+    # While driving (shift != P) the parked_unlocked virtual entity
+    # is False, so the rule shouldn't fire.
+    state = VehicleStateSnapshot(locked=False, shift_state="D")
+    assert evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state)) is None
+
+
+def test_left_unlocked_below_threshold_no_actions_below():
+    state = VehicleStateSnapshot(locked=False, shift_state="P")
+    # actions_below is empty for this preset — we don't want to nag
+    # while user might still be packing up. First few minutes are silent.
+    assert evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state, memory=InMemoryStateMemory())) is None
+
+
+def test_left_unlocked_after_threshold_fires_critical():
+    state = VehicleStateSnapshot(locked=False, shift_state="P")
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=6)
+    memory = InMemoryStateMemory()
+    evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state, now=started, memory=memory))
+    alert = evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state, now=later, memory=memory))
+    assert alert is not None
+    assert alert.kind == AlertKind.LEFT_UNLOCKED
+    assert alert.severity == AlertSeverity.CRITICAL
+    assert alert.title == "车辆未锁"
+
+
+def test_left_unlocked_clears_when_locked():
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=6)
+    memory = InMemoryStateMemory()
+    state_open = VehicleStateSnapshot(locked=False, shift_state="P")
+    state_locked = VehicleStateSnapshot(locked=True, shift_state="P")
+    evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state_open, now=started, memory=memory))
+    assert evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state_open, now=later, memory=memory)) is not None
+    # Lock the car → memory clears, no further alert
+    evaluate_rule(LEFT_UNLOCKED.spec, _ctx(state_locked, now=later, memory=memory))
+    assert memory.get("leftUnlocked:startedAt") is None
+
+
+# ---------- WindowOrBoxLeftOpen (Slice A) ----------
+
+def test_window_left_open_only_when_parked():
+    # Window open while driving — rule should not fire.
+    state_drive = VehicleStateSnapshot(window_open=True, shift_state="D")
+    assert evaluate_rule(WINDOW_OR_BOX_LEFT_OPEN.spec, _ctx(state_drive)) is None
+
+
+def test_window_left_open_fires_after_threshold_when_parked():
+    state = VehicleStateSnapshot(window_open=True, shift_state="P")
+    started = datetime(2026, 5, 7, 12, 0, 0, tzinfo=timezone.utc)
+    later = started + timedelta(minutes=6)
+    memory = InMemoryStateMemory()
+    evaluate_rule(WINDOW_OR_BOX_LEFT_OPEN.spec, _ctx(state, now=started, memory=memory))
+    alert = evaluate_rule(WINDOW_OR_BOX_LEFT_OPEN.spec, _ctx(state, now=later, memory=memory))
+    assert alert is not None
+    assert alert.kind == AlertKind.CLOSURE_LEFT_OPEN
+    assert alert.severity == AlertSeverity.CRITICAL
 
 
 def test_charge_complete_dismissed_then_unplugged_rearms():

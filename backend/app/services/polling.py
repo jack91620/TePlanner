@@ -89,6 +89,7 @@ def _build_snapshot(vehicle_data: dict) -> VehicleStateSnapshot:
     charge_state = response.get("charge_state", {}) or {}
     climate_state = response.get("climate_state", {}) or {}
     vehicle_state = response.get("vehicle_state", {}) or {}
+    drive_state = response.get("drive_state", {}) or {}
 
     raw_keeper = climate_state.get("climate_keeper_mode")
     keeper_int: Optional[int]
@@ -110,12 +111,41 @@ def _build_snapshot(vehicle_data: dict) -> VehicleStateSnapshot:
     else:
         cabin_overheat_on = None
 
+    # Slice A — closure / lock state. Tesla returns each door + window
+    # as int (0=closed, non-zero=open) at the vehicle_state.* path;
+    # frunk/trunk are `ft`/`rt`. Reduce to a single bool per category
+    # so rules can speak "any door open" without enumerating four ids.
+    def _any_nonzero(*keys: str) -> Optional[bool]:
+        seen_value = False
+        any_open = False
+        for k in keys:
+            v = vehicle_state.get(k)
+            if v is None:
+                continue
+            seen_value = True
+            try:
+                if int(v) != 0:
+                    any_open = True
+                    break
+            except (TypeError, ValueError):
+                pass
+        return any_open if seen_value else None
+
+    locked_raw = vehicle_state.get("locked")
+    locked: Optional[bool] = bool(locked_raw) if isinstance(locked_raw, bool) else None
+
     return VehicleStateSnapshot(
         battery_level=charge_state.get("battery_level"),
         charging_state=charge_state.get("charging_state"),
         sentry_mode_on=vehicle_state.get("sentry_mode"),
         cabin_overheat_protection_on=cabin_overheat_on,
         climate_keeper_mode=keeper_int,
+        locked=locked,
+        shift_state=drive_state.get("shift_state"),
+        door_open=_any_nonzero("df", "dr", "pf", "pr"),
+        window_open=_any_nonzero("fd_window", "fp_window", "rd_window", "rp_window"),
+        frunk_open=_any_nonzero("ft"),
+        trunk_open=_any_nonzero("rt"),
     )
 
 

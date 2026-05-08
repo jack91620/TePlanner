@@ -142,9 +142,67 @@ CHARGE_COMPLETE = PresetDefinition(
 )
 
 
+LEFT_UNLOCKED = PresetDefinition(
+    preset_id="left_unlocked_warning",
+    name="停车后忘锁车提醒",
+    spec={
+        "kind": "leftUnlocked",
+        "trigger": {
+            "type": "state_duration",
+            "entity": "vehicle.parked_unlocked",
+            "equals": True,
+            "for_minutes": 5,
+            "state_key": "leftUnlocked:startedAt",
+        },
+        "actions_below": [],
+        "actions_above": [
+            {
+                "type": "notify_and_offer",
+                "title": "车辆未锁",
+                "body": "停车 {duration_human}，车门仍处于未锁状态",
+                "severity": "critical",
+                "primary_action_label": "我知道了",
+                "capability": "automation.dismiss",
+            }
+        ],
+    },
+)
+
+WINDOW_OR_BOX_LEFT_OPEN = PresetDefinition(
+    preset_id="closure_left_open_warning",
+    name="车窗 / 后备箱忘关提醒",
+    spec={
+        "kind": "closureLeftOpen",
+        "trigger": {
+            "type": "state_duration",
+            # Use the most-likely-actionable signal: window open while
+            # parked. Door / trunk variants land as separate user-
+            # authored rules until we add multi-condition support.
+            "entity": "vehicle.parked_with_window_open",
+            "equals": True,
+            "for_minutes": 5,
+            "state_key": "closureLeftOpen:startedAt",
+        },
+        "actions_below": [],
+        "actions_above": [
+            {
+                "type": "notify_and_offer",
+                "title": "车窗未关闭",
+                "body": "已停车 {duration_human}，仍有车窗处于打开状态",
+                "severity": "critical",
+                "primary_action_label": "我知道了",
+                "capability": "automation.dismiss",
+            }
+        ],
+    },
+)
+
+
 ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
     CABIN_OVERHEAT,
     CHARGE_COMPLETE,
+    LEFT_UNLOCKED,
+    WINDOW_OR_BOX_LEFT_OPEN,
 ]

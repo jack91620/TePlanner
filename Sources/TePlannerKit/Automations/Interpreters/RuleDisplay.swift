@@ -12,6 +12,15 @@ public enum RuleDisplay {
         case "vehicle.cabin_overheat_protection_on": return "座舱过热保护"
         case "vehicle.charging.state": return "充电状态"
         case "vehicle.battery_level": return "电量百分比"
+        // Slice A — closure / lock virtual entities. Names embed
+        // "停车后" because that's the precondition baked into the
+        // virtual signal (filters out driving false-positives).
+        case "vehicle.locked": return "车锁"
+        case "vehicle.parked_unlocked": return "停车后未锁车"
+        case "vehicle.parked_with_door_open": return "停车后车门开"
+        case "vehicle.parked_with_window_open": return "停车后车窗开"
+        case "vehicle.parked_with_frunk_open": return "停车后前备箱开"
+        case "vehicle.parked_with_trunk_open": return "停车后后备箱开"
         default: return entity
         }
     }

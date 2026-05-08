@@ -10,6 +10,9 @@ public struct VehicleAlert: Identifiable, Equatable {
         case sentryMode
         case cabinOverheat
         case chargeComplete
+        // Slice A
+        case leftUnlocked
+        case closureLeftOpen
     }
 
     public enum Severity: String, Sendable {

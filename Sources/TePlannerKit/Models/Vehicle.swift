@@ -93,6 +93,13 @@ public struct VehicleState: Codable, Equatable {
     /// the iOS "智能充电限额建议" card — only surface a suggestion when
     /// this differs from the user's daily / pre-trip preference.
     public let chargeLimitSoc: Int?
+    // Slice A — closure / lock state. Match backend VehicleStateSnapshot.
+    public let locked: Bool?
+    public let shiftState: String?
+    public let doorOpen: Bool?
+    public let windowOpen: Bool?
+    public let frunkOpen: Bool?
+    public let trunkOpen: Bool?
 
     public init(
         vehicleId: String? = nil,
@@ -113,7 +120,13 @@ public struct VehicleState: Codable, Equatable {
         isClimateOn: Bool? = nil,
         sentryModeOn: Bool? = nil,
         cabinOverheatProtectionOn: Bool? = nil,
-        chargeLimitSoc: Int? = nil
+        chargeLimitSoc: Int? = nil,
+        locked: Bool? = nil,
+        shiftState: String? = nil,
+        doorOpen: Bool? = nil,
+        windowOpen: Bool? = nil,
+        frunkOpen: Bool? = nil,
+        trunkOpen: Bool? = nil
     ) {
         self.vehicleId = vehicleId
         self.displayName = displayName
@@ -134,6 +147,12 @@ public struct VehicleState: Codable, Equatable {
         self.sentryModeOn = sentryModeOn
         self.cabinOverheatProtectionOn = cabinOverheatProtectionOn
         self.chargeLimitSoc = chargeLimitSoc
+        self.locked = locked
+        self.shiftState = shiftState
+        self.doorOpen = doorOpen
+        self.windowOpen = windowOpen
+        self.frunkOpen = frunkOpen
+        self.trunkOpen = trunkOpen
     }
 
     public enum CodingKeys: String, CodingKey {
@@ -153,10 +172,32 @@ public struct VehicleState: Codable, Equatable {
         case sentryModeOn = "sentry_mode_on"
         case cabinOverheatProtectionOn = "cabin_overheat_protection_on"
         case chargeLimitSoc = "charge_limit_soc"
+        case locked
+        case shiftState = "shift_state"
+        case doorOpen = "door_open"
+        case windowOpen = "window_open"
+        case frunkOpen = "frunk_open"
+        case trunkOpen = "trunk_open"
     }
 
     /// Whether the vehicle is currently in 露营模式 (camp mode).
     public var isCampModeOn: Bool { climateKeeperMode == 3 }
+
+    /// Treats null shift_state as parked (matches backend behavior —
+    /// car-asleep returns null for drive_state.shift_state).
+    public var isParked: Bool {
+        guard let s = shiftState else { return true }
+        return s == "P"
+    }
+
+    /// Virtual entities — the rule layer reads these instead of
+    /// (locked / door_open) raw so it filters out "I'm sitting in
+    /// the car with the door open" automatically.
+    public var parkedUnlocked: Bool { isParked && (locked == false) }
+    public var parkedWithDoorOpen: Bool { isParked && (doorOpen == true) }
+    public var parkedWithWindowOpen: Bool { isParked && (windowOpen == true) }
+    public var parkedWithFrunkOpen: Bool { isParked && (frunkOpen == true) }
+    public var parkedWithTrunkOpen: Bool { isParked && (trunkOpen == true) }
 }
 
 public struct WakeResponse: Codable {

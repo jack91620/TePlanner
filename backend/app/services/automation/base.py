@@ -26,6 +26,9 @@ class AlertKind(str, Enum):
     SENTRY_MODE = "sentryMode"
     CABIN_OVERHEAT = "cabinOverheat"
     CHARGE_COMPLETE = "chargeComplete"
+    # Slice A
+    LEFT_UNLOCKED = "leftUnlocked"
+    CLOSURE_LEFT_OPEN = "closureLeftOpen"
 
 
 class AlertSeverity(str, Enum):
@@ -55,9 +58,48 @@ class VehicleStateSnapshot:
     cabin_overheat_protection_on: Optional[bool] = None
     climate_keeper_mode: Optional[int] = None  # 0=off, 1=keep, 2=dog, 3=camp
 
+    # Slice A — security + closure state. Tesla returns each as int
+    # (0=closed, non-zero=open) or bool (locked). We normalize to bool
+    # at snapshot construction so rules don't have to care.
+    locked: Optional[bool] = None
+    shift_state: Optional[str] = None  # "P" / "R" / "N" / "D" / None when parked-asleep
+    door_open: Optional[bool] = None       # any of df/dr/pf/pr open
+    window_open: Optional[bool] = None     # any window non-zero
+    frunk_open: Optional[bool] = None
+    trunk_open: Optional[bool] = None
+
     @property
     def is_camp_mode_on(self) -> bool:
         return self.climate_keeper_mode == 3
+
+    @property
+    def is_parked(self) -> bool:
+        # Tesla emits None when the car is asleep; treat as parked
+        # since the practical behavior (forgot to lock / window open)
+        # only matters when stationary.
+        if self.shift_state is None:
+            return True
+        return self.shift_state == "P"
+
+    @property
+    def parked_unlocked(self) -> bool:
+        return self.is_parked and (self.locked is False)
+
+    @property
+    def parked_with_door_open(self) -> bool:
+        return self.is_parked and (self.door_open is True)
+
+    @property
+    def parked_with_window_open(self) -> bool:
+        return self.is_parked and (self.window_open is True)
+
+    @property
+    def parked_with_frunk_open(self) -> bool:
+        return self.is_parked and (self.frunk_open is True)
+
+    @property
+    def parked_with_trunk_open(self) -> bool:
+        return self.is_parked and (self.trunk_open is True)
 
 
 class StateMemory(Protocol):
