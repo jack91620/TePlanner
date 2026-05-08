@@ -128,12 +128,64 @@ _FIELD_HANDLERS = {
 }
 
 
-def map_v_payload(data: dict) -> Iterator[Tuple[str, Any]]:
-    """Yield (entity, decoded_value) pairs from a fleet-telemetry V
-    record's ``data`` field. Skips unrecognized fields and entries that
-    decode to None (Tesla sometimes ships ``"<invalid>"`` for
-    transient values).
+def normalize_datum_list(data: list) -> dict:
+    """Convert protojson-shaped ``data: repeated Datum`` to the flat
+    dict shape map_v_payload expects.
+
+    With ``transmit_decoded_records: true`` in fleet-telemetry config,
+    the ZMQ payload uses protojson encoding of the proto's
+    ``vehicle_data.Payload``. ``data`` is a JSON array of
+    ``{"key": "<FieldName>", "value": {<oneof>}}`` items. The logger
+    output, by contrast, is the legacy flat ``{key: value}`` dict.
+    Normalize to the dict shape so the same mapping works for both.
+
+    Each ``value`` is a oneof: ``stringValue`` / ``intValue`` /
+    ``floatValue`` / ``doubleValue`` / ``booleanValue`` / etc.
+    Pick whichever variant is present.
     """
+    flat: dict = {}
+    if not isinstance(data, list):
+        return flat
+    for datum in data:
+        if not isinstance(datum, dict):
+            continue
+        key = datum.get("key")
+        if not isinstance(key, str):
+            continue
+        value = datum.get("value")
+        if not isinstance(value, dict):
+            continue
+        # protojson serializes oneof as a single key. Extract whichever
+        # one was set; if multiple, prefer scalar over composite.
+        unwrapped: Any = None
+        for variant in (
+            "stringValue", "boolValue", "booleanValue",
+            "intValue", "longValue", "floatValue", "doubleValue",
+        ):
+            if variant in value:
+                unwrapped = value[variant]
+                break
+        if unwrapped is None:
+            # Composite type (location, etc.) — pass through.
+            unwrapped = next(iter(value.values()), None)
+        if unwrapped is not None:
+            flat[key] = unwrapped
+    return flat
+
+
+def map_v_payload(data) -> Iterator[Tuple[str, Any]]:
+    """Yield (entity, decoded_value) pairs from a fleet-telemetry V
+    record's ``data`` field. Accepts either:
+
+      * ``dict`` (legacy / logger output): ``{"BatteryLevel": 52, ...}``
+      * ``list`` (protojson output with ``transmit_decoded_records``):
+        ``[{"key": "BatteryLevel", "value": {"floatValue": 52}}, ...]``
+
+    Skips unrecognized fields and entries that decode to None (Tesla
+    sometimes ships ``"<invalid>"`` for transient values).
+    """
+    if isinstance(data, list):
+        data = normalize_datum_list(data)
     if not isinstance(data, dict):
         return
     for raw_key, raw_value in data.items():

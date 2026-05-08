@@ -146,3 +146,51 @@ def test_camp_mode_transition_payload():
 def test_empty_payload_yields_nothing():
     assert _decode({}) == {}
     assert _decode({"Vin": "..."}) == {}
+
+
+# ---------- protojson list form (transmit_decoded_records=true) ----------
+
+def test_normalize_protojson_datum_list():
+    """When fleet-telemetry's transmit_decoded_records is enabled, the
+    ZMQ payload uses protojson encoding: data is a list of Datum
+    objects with key/value-oneof shape, not a flat dict.
+    """
+    proto_data = [
+        {"key": "ClimateKeeperMode",
+         "value": {"stringValue": "ClimateKeeperModeStateParty"}},
+        {"key": "BatteryLevel",
+         "value": {"floatValue": 52.5}},
+        {"key": "Locked",
+         "value": {"booleanValue": True}},
+        {"key": "SentryMode",
+         "value": {"stringValue": "SentryModeStateOff"}},
+    ]
+    out = _decode(proto_data)
+    assert out == {
+        "vehicle.climate.keeper_mode": 3,
+        "vehicle.battery_level": 52,
+        "vehicle.locked": True,
+        "vehicle.sentry_mode_on": False,
+    }
+
+
+def test_protojson_skips_unknown_oneof_variant():
+    # If a datum has a value oneof variant we don't model (e.g. a
+    # composite location_value), normalize_datum_list passes the raw
+    # nested dict through; mapping then can't decode and skips it.
+    proto_data = [
+        {"key": "Location",
+         "value": {"locationValue": {"latitude": 39.9, "longitude": 116.4}}},
+        {"key": "BatteryLevel",
+         "value": {"floatValue": 52}},
+    ]
+    out = _decode(proto_data)
+    assert out == {"vehicle.battery_level": 52}
+
+
+def test_protojson_camp_mode_transition_payload():
+    proto_data = [
+        {"key": "ClimateKeeperMode",
+         "value": {"stringValue": "ClimateKeeperModeStateOff"}},
+    ]
+    assert _decode(proto_data) == {"vehicle.climate.keeper_mode": 0}

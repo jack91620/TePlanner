@@ -38,12 +38,23 @@ TELEMETRY_NAMESPACE = "teplanner_telemetry"
 
 def _parse_v_timestamp(payload: dict) -> datetime:
     """Pick the most authoritative timestamp from a V record. Tesla
-    fills ``CreatedAt`` (vehicle clock) most reliably; ``time`` is the
-    server's receive time which can be skewed if the vehicle was
-    offline for a while. Fall through gracefully — never throw.
+    fills ``CreatedAt`` / ``createdAt`` (vehicle clock) most reliably;
+    ``time`` is the server's receive time. Fall through gracefully —
+    never throw.
     """
-    data = payload.get("data") or {}
-    raw = data.get("CreatedAt") or payload.get("time")
+    raw: Optional[str] = None
+    # protojson form: payload-level "createdAt"
+    if isinstance(payload.get("createdAt"), str):
+        raw = payload["createdAt"]
+    elif isinstance(payload.get("created_at"), str):
+        raw = payload["created_at"]
+    # legacy logger form: nested data.CreatedAt
+    if raw is None:
+        data = payload.get("data")
+        if isinstance(data, dict):
+            raw = data.get("CreatedAt")
+    if raw is None:
+        raw = payload.get("time")
     if isinstance(raw, str):
         try:
             return datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -53,12 +64,17 @@ def _parse_v_timestamp(payload: dict) -> datetime:
 
 
 def _vin_for_payload(payload: dict) -> Optional[str]:
-    metadata = payload.get("metadata") or {}
-    vin = metadata.get("vin") or payload.get("vin")
+    # protojson form: payload-level "vin"
+    vin = payload.get("vin")
     if isinstance(vin, str) and vin:
         return vin
-    data = payload.get("data") or {}
-    if isinstance(data.get("Vin"), str):
+    # logger envelope form
+    metadata = payload.get("metadata") or {}
+    vin = metadata.get("vin")
+    if isinstance(vin, str) and vin:
+        return vin
+    data = payload.get("data")
+    if isinstance(data, dict) and isinstance(data.get("Vin"), str):
         return data["Vin"]
     return None
 
