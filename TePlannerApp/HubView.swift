@@ -78,7 +78,7 @@ struct HubView: View {
             }
             .padding(16)
         }
-        .navigationTitle("TePlanner")
+        .navigationTitle("Tautomation")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -198,7 +198,7 @@ struct HubView: View {
             Button("立即配对") { openVCPPairingURL() }
             Button("稍后再说", role: .cancel) {}
         } message: {
-            Text("为了让 TePlanner 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。")
+            Text("为了让 Tautomation 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。")
         }
     }
 

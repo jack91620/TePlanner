@@ -53,9 +53,9 @@ struct LoginView: View {
                 .background(Color(.secondarySystemBackground), in: Circle())
 
             VStack(spacing: 8) {
-                Text("TePlanner")
+                Text("Tautomation")
                     .font(.largeTitle.bold())
-                Text("Tesla 充电路线规划")
+                Text("让天下没有难用的特斯拉")
                     .foregroundStyle(.secondary)
             }
 

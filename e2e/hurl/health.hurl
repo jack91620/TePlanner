@@ -9,5 +9,5 @@ jsonpath "$.status" == "healthy"
 GET {{base_url}}/
 HTTP 200
 [Asserts]
-jsonpath "$.name" == "TePlanner"
+jsonpath "$.name" == "Tautomation"
 jsonpath "$.status" == "running"

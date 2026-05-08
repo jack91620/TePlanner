@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     """Application settings."""
 
     # App
-    APP_NAME: str = "TePlanner"
+    APP_NAME: str = "Tautomation"
     APP_ENV: str = "development"
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production"

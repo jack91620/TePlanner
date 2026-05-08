@@ -16,7 +16,7 @@ env:
     clearState: true
     clearKeychain: true
 
-- assertVisible: "TePlanner"
+- assertVisible: "Tautomation"
 - assertVisible:
     id: "login_button"
 
@@ -45,7 +45,7 @@ env:
 # safest "we're on hub" marker since the VCP pairing prompt may
 # overlay status_card right after first login on a fresh install.
 - extendedWaitUntil:
-    visible: "TePlanner"
+    visible: "Tautomation"
     timeout: 60000
 
 # Dismiss VCP pairing prompt if it pops on first login.

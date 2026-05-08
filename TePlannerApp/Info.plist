@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh-Hans</string>
 	<key>CFBundleDisplayName</key>
-	<string>TePlanner</string>
+	<string>Tautomation</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,9 +36,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>TePlanner 需要您的位置以显示地图、追踪车辆并规划路线</string>
+	<string>Tautomation 需要您的位置以显示地图、追踪车辆并规划路线</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>TePlanner 需要后台位置以持续监控车辆并优化充电路线</string>
+	<string>Tautomation 需要后台位置以持续监控车辆并优化充电路线</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- Production traffic goes to api.teplanner.cloud over HTTPS,

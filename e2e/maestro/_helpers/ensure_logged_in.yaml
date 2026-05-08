@@ -37,7 +37,7 @@ env:
 # which the Phase 7 配对车辆控制 prompt may overlay right after
 # first login.
 - extendedWaitUntil:
-    visible: "TePlanner"
+    visible: "Tautomation"
     timeout: 60000
 
 # Phase 7 (VCP): dismiss the one-time pairing prompt if it pops.
