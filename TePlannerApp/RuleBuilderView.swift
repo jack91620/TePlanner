@@ -63,6 +63,7 @@ struct RuleBuilderView: View {
     @State private var saving = false
     @State private var saveError: String?
     @State private var showingDeleteConfirm = false
+    @State private var showingDiscardConfirm = false
 
     enum TriggerType: String, CaseIterable, Identifiable {
         case stateDuration = "state_duration"
@@ -235,13 +236,27 @@ struct RuleBuilderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("取消") { dismiss() }
+                Button("取消") {
+                    if hasUnsavedChanges {
+                        showingDiscardConfirm = true
+                    } else {
+                        dismiss()
+                    }
+                }
             }
             if initial == nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("从预设") { startFromPresetSheet = true }
                 }
             }
+        }
+        .confirmationDialog(
+            "丢弃未保存的修改？",
+            isPresented: $showingDiscardConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("丢弃", role: .destructive) { dismiss() }
+            Button("继续编辑", role: .cancel) {}
         }
         .sheet(isPresented: $startFromPresetSheet) {
             PresetPickerSheet { selected in
@@ -639,6 +654,106 @@ struct RuleBuilderView: View {
     }
 
     // MARK: - Data plumbing
+
+    /// Whether any user-editable field differs from the initial spec
+    /// (or the empty / preset-template starting state). Used by the
+    /// 取消 button to confirm before discarding work in progress.
+    private var hasUnsavedChanges: Bool {
+        if initial == nil {
+            // New rule: any non-empty field counts as work in progress.
+            return !name.trimmingCharacters(in: .whitespaces).isEmpty
+                || !actionTitle.trimmingCharacters(in: .whitespaces).isEmpty
+                || !actionBody.trimmingCharacters(in: .whitespaces).isEmpty
+                || !primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty
+                || !selectedCapabilityId.isEmpty
+        }
+        // Editing existing rule: compare current snapshot to initial.
+        guard let r = initial else { return false }
+        if name != r.name { return true }
+        if enabled != r.enabled { return true }
+        // Spec comparison via re-encoded JSON is robust against key
+        // ordering, but `RuleSpec` is `[String: JSONValue]` already —
+        // compare the rebuilt spec dict to the initial one.
+        return rebuiltSpec() != r.spec
+    }
+
+    /// Build the spec the way save() would, without persisting.
+    /// Used only by hasUnsavedChanges.
+    private func rebuiltSpec() -> RuleSpec {
+        // Reuse the same logic as save() to construct trigger / actions
+        // dictionaries. If the construction logic ever drifts, this
+        // dirty-check returns false-positives — they're harmless
+        // (just shows the confirm dialog).
+        var spec: RuleSpec = [:]
+        if let kind = initial?.spec["kind"] { spec["kind"] = kind }
+        spec["trigger"] = .object(buildTriggerDict())
+        let action = buildActionDict()
+        if triggerType == .stateDuration {
+            spec["actions_above"] = .array([.object(action)])
+            if let below = initial?.spec["actions_below"] { spec["actions_below"] = below }
+        } else {
+            spec["actions"] = .array([.object(action)])
+        }
+        return spec
+    }
+
+    private func buildTriggerDict() -> [String: JSONValue] {
+        var trigger: [String: JSONValue] = ["type": .string(triggerType.rawValue)]
+        switch triggerType {
+        case .stateDuration:
+            trigger["entity"] = .string(entity.rawValue)
+            trigger["for_minutes"] = .int(forMinutes)
+            switch entity.valueKind {
+            case .keeperMode: trigger["equals"] = .int(compareValueInt)
+            case .bool:       trigger["equals"] = .bool(compareValueBool)
+            case .string:     trigger["equals"] = .string(toString)
+            case .numeric:
+                trigger["op"] = .string(numericOp.rawValue)
+                trigger["value"] = .int(numericValue)
+            }
+        case .stateTransition:
+            trigger["entity"] = .string(entity.rawValue)
+            trigger["to"] = .string(toString)
+        case .cron:
+            trigger["expr"] = .string(buildCronExpr())
+        }
+        return trigger
+    }
+
+    private func buildActionDict() -> [String: JSONValue] {
+        var action: [String: JSONValue] = [
+            "type": .string(actionType.rawValue),
+            "title": .string(actionTitle),
+            "body": .string(actionBody),
+            "severity": .string(actionSeverity.rawValue),
+        ]
+        if actionType == .notifyAndOffer {
+            action["primary_action_label"] = .string(primaryActionLabel)
+            if !selectedCapabilityId.isEmpty {
+                action["capability"] = .string(selectedCapabilityId)
+            } else {
+                action["capability"] = .string("automation.dismiss")
+            }
+            if !paramOverrides.isEmpty {
+                action["params"] = .object(paramOverrides)
+            }
+        }
+        return action
+    }
+
+    private func buildCronExpr() -> String {
+        let weekdayPart: String
+        if cronWeekdays.count == 7 {
+            weekdayPart = "*"
+        } else if cronWeekdays == Set([1, 2, 3, 4, 5]) {
+            weekdayPart = "1-5"
+        } else if cronWeekdays == Set([0, 6]) || cronWeekdays == Set([6, 0]) {
+            weekdayPart = "0,6"
+        } else {
+            weekdayPart = cronWeekdays.sorted().map(String.init).joined(separator: ",")
+        }
+        return "\(cronMinute) \(cronHour) * * \(weekdayPart)"
+    }
 
     private var isValid: Bool {
         if name.trimmingCharacters(in: .whitespaces).isEmpty { return false }
