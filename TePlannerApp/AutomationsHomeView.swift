@@ -14,6 +14,7 @@ struct AutomationsHomeView: View {
     @StateObject private var capabilitiesStore: CapabilitiesStore
     @State private var showingBuilder = false
     @State private var workingError: String?
+    @State private var pendingDelete: RuleRecord?
 
     private let apiService: APIServiceProtocol
 
@@ -44,10 +45,7 @@ struct AutomationsHomeView: View {
                         ruleRow(record)
                             .swipeActions {
                                 Button(role: .destructive) {
-                                    Task {
-                                        let ok = await rulesStore.delete(id: record.id)
-                                        if !ok { workingError = rulesStore.lastError }
-                                    }
+                                    pendingDelete = record
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
@@ -91,6 +89,27 @@ struct AutomationsHomeView: View {
                     capabilitiesStore: capabilitiesStore
                 )
             }
+        }
+        .confirmationDialog(
+            "确定删除「\(pendingDelete?.name ?? "")」？",
+            isPresented: Binding(
+                get: { pendingDelete != nil },
+                set: { if !$0 { pendingDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                if let target = pendingDelete {
+                    Task {
+                        let ok = await rulesStore.delete(id: target.id)
+                        if !ok { workingError = rulesStore.lastError }
+                    }
+                }
+                pendingDelete = nil
+            }
+            Button("取消", role: .cancel) { pendingDelete = nil }
+        } message: {
+            Text("删除后无法恢复。如只想暂停，可在右侧关闭开关。")
         }
     }
 
