@@ -115,15 +115,10 @@ struct RuleDetailView: View {
 
     @ViewBuilder
     private func triggerSection(_ spec: RuleSpec) -> some View {
-        Section("触发条件") {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("当")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(RuleDisplay.triggerSentence(spec))
-                    .font(.body)
-            }
-            .padding(.vertical, 4)
+        Section("当") {
+            Text(RuleDisplay.triggerSentence(spec))
+                .font(.body)
+                .padding(.vertical, 4)
         }
     }
 
@@ -132,7 +127,7 @@ struct RuleDetailView: View {
         // state_duration: 优先展示 actions_above（达到阈值时执行），
         // actions_below 作为补充信息靠后展示。
         if case .array(let above) = spec["actions_above"] ?? .null, !above.isEmpty {
-            Section("满足条件后") {
+            Section("那么") {
                 ForEach(0..<above.count, id: \.self) { i in
                     if let dict = above[i].objectValue {
                         actionCard(dict, spec: spec)
@@ -148,15 +143,15 @@ struct RuleDetailView: View {
                     }
                 }
             } header: {
-                Text("未达阈值时")
+                Text("尚未达到阈值时")
             } footer: {
-                Text("仅在状态成立但未达阈值时显示，作为状态指示。")
+                Text("条件已成立但未到阈值。仅作为状态指示，不会推送通知。")
                     .font(.caption2)
             }
         }
         // state_transition 用 `actions`
         if case .array(let actions) = spec["actions"] ?? .null, !actions.isEmpty {
-            Section("满足条件后") {
+            Section("那么") {
                 ForEach(0..<actions.count, id: \.self) { i in
                     if let dict = actions[i].objectValue {
                         actionCard(dict, spec: spec)
