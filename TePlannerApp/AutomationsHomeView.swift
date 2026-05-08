@@ -32,7 +32,10 @@ struct AutomationsHomeView: View {
             if rulesStore.rules.isEmpty && rulesStore.isLoading {
                 Section { ProgressView("加载规则…") }
             }
-            if rulesStore.rules.isEmpty && !rulesStore.isLoading {
+            if rulesStore.rules.isEmpty && !rulesStore.isLoading,
+               let err = rulesStore.lastError {
+                loadErrorSection(message: err)
+            } else if rulesStore.rules.isEmpty && !rulesStore.isLoading {
                 emptyStateSection
             }
             if snoozedCount > 0 {
@@ -451,6 +454,34 @@ struct AutomationsHomeView: View {
         // Single source of truth — same string the rule detail view
         // uses, so list + detail can never drift.
         return RuleDisplay.triggerSentence(spec)
+    }
+
+    @ViewBuilder
+    private func loadErrorSection(message: String) -> some View {
+        Section {
+            VStack(spacing: 12) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.largeTitle)
+                    .foregroundStyle(.orange)
+                Text("加载规则失败")
+                    .font(.headline)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button {
+                    Task { await rulesStore.refresh() }
+                } label: {
+                    Label("重试", systemImage: "arrow.clockwise")
+                        .padding(.horizontal, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 4)
+            }
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+        }
+        .listRowBackground(Color.clear)
     }
 
     @ViewBuilder
