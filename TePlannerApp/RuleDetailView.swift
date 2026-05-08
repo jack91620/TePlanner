@@ -27,6 +27,7 @@ struct RuleDetailView: View {
                     headerSection(r)
                     triggerSection(r.spec)
                     actionSections(r.spec)
+                    testFireSection(r)
                     if let err = workingError {
                         Section {
                             Text(err).foregroundStyle(.red).font(.caption)
@@ -165,6 +166,49 @@ struct RuleDetailView: View {
                 Spacer()
             }
         }
+    }
+
+    /// 试发一条 sample 通知到系统 — 让用户在保存前预览推送视觉。
+    /// Pulls title + body from the rule's first notify action; falls
+    /// through gracefully on rules without a notify-shaped action
+    /// (cron+invoke, future wait_for_state).
+    @ViewBuilder
+    private func testFireSection(_ r: RuleRecord) -> some View {
+        if let (title, body) = sampleNotificationText(for: r) {
+            Section {
+                Button {
+                    LocalNotificationScheduler.shared.fireSample(
+                        title: title, body: body, identifier: r.id,
+                    )
+                } label: {
+                    Label("试发通知预览", systemImage: "bell.badge")
+                }
+                .accessibilityIdentifier("rule_test_fire_button")
+            } footer: {
+                Text("发送一条样例通知到系统，预览推送视觉。不会真触发车辆动作。")
+                    .font(.caption2)
+            }
+        }
+    }
+
+    private func sampleNotificationText(for r: RuleRecord) -> (String, String)? {
+        let bucketKeys = ["actions_above", "actions", "actions_below"]
+        for key in bucketKeys {
+            guard let arr = r.spec[key]?.arrayValue,
+                  let first = arr.first?.objectValue else { continue }
+            let aType = first.string("type") ?? ""
+            guard aType == "notify" || aType == "notify_and_offer" else { continue }
+            let titleTpl = first.string("title") ?? ""
+            let bodyTpl = first.string("body") ?? ""
+            // Substitute placeholders with sample values, same way
+            // RuleDisplay.previewTemplate does for the builder preview.
+            let title = RuleDisplay.previewTemplate(titleTpl, spec: r.spec)
+            let body = RuleDisplay.previewTemplate(bodyTpl, spec: r.spec)
+            if !title.isEmpty || !body.isEmpty {
+                return (title, body)
+            }
+        }
+        return nil
     }
 
     /// "刚刚 / X 分钟前 / 昨天 / 5 月 8 日" — relative-time vocabulary

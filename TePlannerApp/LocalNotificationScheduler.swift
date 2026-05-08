@@ -76,6 +76,29 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         lastSeenCriticalKinds = criticalNow
     }
 
+    /// Public test fire — surfaces a sample notification to let the
+    /// user preview what a rule's notification will look like in the
+    /// system notification center. Used by the rule detail page's
+    /// "试发通知" button so the user can verify wording / severity
+    /// before relying on the rule.
+    func fireSample(title: String, body: String, identifier: String = "preview") {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "sample.\(identifier).\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                Log.app.error("sample-notif failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     private func schedule(_ alert: VehicleAlert) {
         let content = UNMutableNotificationContent()
         content.title = alert.title
