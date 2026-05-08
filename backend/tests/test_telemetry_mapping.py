@@ -87,12 +87,14 @@ def test_gear_invalid_returns_no_entry():
 
 
 def test_unknown_fields_skipped_silently():
+    """Truly unmapped fields (Vin / CreatedAt / IsResend / something
+    unknown) must not appear in the output. FdWindow + DoorState ARE
+    mapped now (Phase 7) so they belong here."""
     payload = {
         "Vin": "LRWY...",
         "CreatedAt": "2026-05-08T07:37:05Z",
         "IsResend": False,
-        "FdWindow": "WindowStateClosed",  # not yet mapped
-        "DoorState": {"DriverFront": False},  # not yet mapped
+        "TotallyMadeUpField": "x",
         "Locked": True,
     }
     out = _decode(payload)
@@ -128,6 +130,18 @@ def test_real_camp_mode_payload_from_production():
         "vehicle.charging.state": "Disconnected",
         "vehicle.battery_level": 52,
         "vehicle.locked": True,
+        # Phase 7 — DoorState composite + 4 windows now map.
+        "vehicle.door_open": False,
+        "vehicle.frunk_open": False,
+        "vehicle.trunk_open": False,
+        "vehicle.door.df": False,
+        "vehicle.door.dr": False,
+        "vehicle.door.pf": False,
+        "vehicle.door.pr": False,
+        "vehicle.window.fd": False,
+        "vehicle.window.fp": False,
+        "vehicle.window.rd": False,
+        "vehicle.window.rp": False,
     }
 
 
@@ -175,12 +189,12 @@ def test_normalize_protojson_datum_list():
 
 
 def test_protojson_skips_unknown_oneof_variant():
-    # If a datum has a value oneof variant we don't model (e.g. a
-    # composite location_value), normalize_datum_list passes the raw
-    # nested dict through; mapping then can't decode and skips it.
+    # If a datum has a value oneof variant we don't model AND a key
+    # we don't model, normalize_datum_list passes the raw nested dict
+    # through and mapping silently skips it.
     proto_data = [
-        {"key": "Location",
-         "value": {"locationValue": {"latitude": 39.9, "longitude": 116.4}}},
+        {"key": "TotallyUnknownField",
+         "value": {"unknownVariantValue": {"foo": "bar"}}},
         {"key": "BatteryLevel",
          "value": {"floatValue": 52}},
     ]
