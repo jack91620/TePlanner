@@ -40,21 +40,20 @@ async def lifespan(app: FastAPI):
     await init_db()
     print("Database initialized.")
 
-    polling_task = None
-    polling_stop = None
-    if settings.AUTOMATION_POLL_INTERVAL_SECONDS > 0:
-        from app.services.polling import polling_loop
+    cron_task = None
+    cron_stop = None
+    cron_interval = (
+        getattr(settings, "AUTOMATION_CRON_TICK_SECONDS", 0)
+        or settings.AUTOMATION_POLL_INTERVAL_SECONDS
+    )
+    if cron_interval and int(cron_interval) > 0:
+        from app.services.cron_tick import run_loop as cron_loop
 
-        polling_stop = asyncio.Event()
-        polling_task = asyncio.create_task(
-            polling_loop(polling_stop), name="automation_polling"
-        )
-        print(
-            f"Automation polling loop started "
-            f"(interval={settings.AUTOMATION_POLL_INTERVAL_SECONDS}s)."
-        )
+        cron_stop = asyncio.Event()
+        cron_task = asyncio.create_task(cron_loop(cron_stop), name="cron_tick")
+        print(f"Cron tick loop started (interval={cron_interval}s).")
     else:
-        print("Automation polling disabled (AUTOMATION_POLL_INTERVAL_SECONDS=0).")
+        print("Cron tick disabled (AUTOMATION_CRON_TICK_SECONDS=0).")
 
     telemetry_task = None
     telemetry_stop = None
@@ -73,13 +72,13 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print(f"Shutting down {settings.APP_NAME}...")
-    if polling_stop is not None:
-        polling_stop.set()
-    if polling_task is not None:
+    if cron_stop is not None:
+        cron_stop.set()
+    if cron_task is not None:
         try:
-            await asyncio.wait_for(polling_task, timeout=10.0)
+            await asyncio.wait_for(cron_task, timeout=10.0)
         except asyncio.TimeoutError:
-            polling_task.cancel()
+            cron_task.cancel()
     if telemetry_stop is not None:
         telemetry_stop.set()
     if telemetry_task is not None:

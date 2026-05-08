@@ -117,7 +117,7 @@ async def run_automation_tick(
     debugging: hit this, watch server.log, verify a push lands. Doesn't
     take args — runs the full eligible-user loop.
     """
-    from app.services.polling import run_one_tick
+    from app.services.cron_tick import run_one_tick
 
     polled = await run_one_tick()
     return {"polled_users": polled}

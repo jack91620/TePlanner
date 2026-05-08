@@ -29,6 +29,10 @@ struct HubView: View {
     @State private var preheatStatus: PreheatStatus = .idle
     @State private var chargeLimitStatus: ChargeLimitStatus = .idle
     @State private var showingPairingPrompt = false
+    /// Phase 6: nil = haven't fetched yet; false = fetched, no
+    /// `tel:*:since` rows exist (server hasn't seen any telemetry from
+    /// this car). Drives the "等待车辆上线" placeholder.
+    @State private var telemetryReady: Bool? = nil
     @Environment(\.openURL) private var openURL
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
@@ -208,11 +212,17 @@ struct HubView: View {
     /// and seed the engine memory. Errors are swallowed — a failed
     /// fetch just means the rule keeps its locally-observed start time
     /// (current behavior for offline / pre-Phase-5 builds).
+    ///
+    /// Phase 6: also flips `telemetryReady` based on whether the server
+    /// has any `tel:*:since` rows for this vehicle. Until it does, the
+    /// hub surfaces a "等待车辆上线" placeholder explaining the empty
+    /// automation state.
     private func refreshTelemetryState() async {
         switch await apiService.fetchAutomationState() {
         case .success(let resp):
             await MainActor.run {
                 automationEngine.applyServerTelemetryState(resp.entries)
+                telemetryReady = !resp.entries.isEmpty
             }
         case .failure(let err):
             Log.api.debug("fetchAutomationState skipped: \(err.localizedDescription, privacy: .public)")
@@ -582,7 +592,36 @@ struct HubView: View {
                     }
                 }
             }
+        } else if telemetryReady == false {
+            telemetryWaitingPill
         }
+    }
+
+    /// Phase 6: shown when `/api/v1/automations/state` returns zero
+    /// telemetry-since entries — i.e. the car hasn't pushed any state
+    /// changes to our server yet (typical right after VCP pairing or
+    /// after the first install). Once the car comes online, the next
+    /// state change writes a `tel:*:since` row and the pill flips to
+    /// the regular alert pill content.
+    private var telemetryWaitingPill: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("等待车辆上线")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("Telemetry 在车辆下次状态变化时建立连接")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.secondary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityIdentifier("telemetry_waiting_pill")
     }
 
     private var planningEntry: some View {

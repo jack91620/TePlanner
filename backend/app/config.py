@@ -78,6 +78,15 @@ class Settings(BaseSettings):
     # and migrations).
     AUTOMATION_POLL_INTERVAL_SECONDS: int = 300  # 5min default
 
+    # Phase 6 — cron-only tick (replaces polling). Wakes the engine
+    # periodically so cron-trigger rules (WEEKDAY_PREHEAT etc.) fire
+    # on time. State-driven rules now evaluate from inside the
+    # Telemetry consumer the moment a tel:* row gets a transition,
+    # so this loop NO LONGER fetches /vehicle_data — pure in-memory
+    # ticking. 30s default is generous; cron rules need ~1min
+    # resolution at worst.
+    AUTOMATION_CRON_TICK_SECONDS: int = 30
+
     # Phase 4 — Fleet Telemetry ingestion. fleet-telemetry runs as a
     # separate systemd unit on the same VM and publishes vehicle
     # state-change events on a ZMQ PUB socket. The backend consumer

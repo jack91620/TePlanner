@@ -97,7 +97,7 @@ async def test_initial_record_writes_all_known_entities(seeded, db_session, monk
     monkeypatch.setattr(consumer, "async_session", lambda: _SessionCM())
 
     writer = TelemetryStateWriter()
-    await _process_v_record(writer, INITIAL_V)
+    await _process_v_record(writer, INITIAL_V)  # engine omitted: write-only path
 
     # Six known entities populated (DoorState/FdWindow/Gear-invalid are skipped).
     expected = {
@@ -149,6 +149,83 @@ async def test_camp_mode_transition_only_changes_keeper(seeded, db_session, monk
         db_session, seeded.id, telemetry_value_key("vehicle.climate.keeper_mode")
     )
     assert keeper_value == "3"
+
+
+async def test_transition_invokes_engine_run_for_vehicle(seeded, db_session, monkeypatch):
+    """Phase 6: every successful transition write must drive the engine
+    so APNs pushes fire within seconds of state change. Pin this on a
+    Camp Mode flip — the engine should be called once with the new
+    snapshot reconstructed from the just-written tel:* rows.
+    """
+    from app.services.telemetry import consumer
+
+    class _SessionCM:
+        async def __aenter__(self):
+            return db_session
+        async def __aexit__(self, *a):
+            pass
+
+    monkeypatch.setattr(consumer, "async_session", lambda: _SessionCM())
+
+    calls: list[dict] = []
+
+    class _FakeEngine:
+        async def run_for_vehicle(self, db, *, user_id, vehicle_id, state, settings):
+            calls.append({
+                "user_id": user_id, "vehicle_id": vehicle_id,
+                "keeper_mode": state.climate_keeper_mode,
+            })
+            from app.services.automation.engine import TickResult
+            return TickResult(alerts=[], pushed_count=0, cleared_count=0)
+
+    writer = TelemetryStateWriter()
+    debounce: dict = {}
+    await _process_v_record(
+        writer, INITIAL_V, engine=_FakeEngine(), debounce_until=debounce,
+    )
+    await _process_v_record(
+        writer, CAMP_MODE_TRANSITION_V,
+        engine=_FakeEngine(), debounce_until=debounce,
+    )
+
+    # Both V records had transitions → engine called twice.
+    assert len(calls) == 2, calls
+    assert calls[0]["vehicle_id"] == VIN
+    # Second invocation sees keeper_mode=3 from the just-written tel row.
+    assert calls[-1]["keeper_mode"] == 3
+
+
+async def test_no_transition_skips_engine(seeded, db_session, monkeypatch):
+    """A duplicate value-no-change V record must NOT drive the engine.
+    Avoids unnecessary DB churn + push spam on battery-level heartbeats.
+    """
+    from app.services.telemetry import consumer
+
+    class _SessionCM:
+        async def __aenter__(self):
+            return db_session
+        async def __aexit__(self, *a):
+            pass
+
+    monkeypatch.setattr(consumer, "async_session", lambda: _SessionCM())
+
+    calls: list[dict] = []
+
+    class _FakeEngine:
+        async def run_for_vehicle(self, db, *, user_id, vehicle_id, state, settings):
+            calls.append({"user_id": user_id})
+            from app.services.automation.engine import TickResult
+            return TickResult(alerts=[], pushed_count=0, cleared_count=0)
+
+    writer = TelemetryStateWriter()
+    debounce: dict = {}
+    # First record establishes baseline (transitions=7) → engine called.
+    await _process_v_record(writer, INITIAL_V, engine=_FakeEngine(), debounce_until=debounce)
+    assert len(calls) == 1
+    # Replay the SAME payload — values match cache, transitions=0,
+    # engine must NOT be called again.
+    await _process_v_record(writer, INITIAL_V, engine=_FakeEngine(), debounce_until=debounce)
+    assert len(calls) == 1
 
 
 async def test_unmapped_vin_silently_skipped(db_session, monkeypatch):

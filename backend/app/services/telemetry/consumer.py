@@ -25,7 +25,10 @@ from typing import Optional
 
 from app.config import settings
 from app.db.session import async_session
+from app.services.automation.base import AutomationSettings
+from app.services.automation.engine import AutomationEngine
 from app.services.telemetry.mapping import map_v_payload
+from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 from app.services.telemetry.state_writer import TelemetryStateWriter
 
 logger = logging.getLogger(__name__)
@@ -34,6 +37,12 @@ logger = logging.getLogger(__name__)
 # Must match fleet-telemetry's `namespace` config field — fleet-tel
 # prepends it to every record's topic via BuildTopicName.
 TELEMETRY_NAMESPACE = "teplanner_telemetry"
+
+# Coalesce engine evaluations within this many seconds per
+# (user, vehicle). Telemetry can deliver bursts (multiple field deltas
+# in the same V record, or multiple V records back-to-back); we want
+# the rules to see the *settled* state, not run once per field.
+ENGINE_DEBOUNCE_SECONDS = 0.5
 
 
 def _parse_v_timestamp(payload: dict) -> datetime:
@@ -82,6 +91,8 @@ def _vin_for_payload(payload: dict) -> Optional[str]:
 async def _process_v_record(
     writer: TelemetryStateWriter,
     payload: dict,
+    engine: Optional[AutomationEngine] = None,
+    debounce_until: Optional[dict] = None,
 ) -> None:
     vin = _vin_for_payload(payload)
     if not vin:
@@ -115,6 +126,41 @@ async def _process_v_record(
         except Exception:
             logger.exception("telemetry record write failed (vin=%s)", vin)
             await db.rollback()
+            return
+
+        # Phase 6: drive the engine on every transition. We rebuild the
+        # snapshot from telemetry rows (single source of truth post-
+        # polling) and let the engine evaluate rules + fire APNs.
+        if not transitions or engine is None:
+            return
+
+        if debounce_until is not None:
+            now_ts = datetime.now(timezone.utc).timestamp()
+            cooldown = debounce_until.get((user_id, vin), 0.0)
+            if now_ts < cooldown:
+                return
+            debounce_until[(user_id, vin)] = now_ts + ENGINE_DEBOUNCE_SECONDS
+
+        try:
+            async with async_session() as eval_db:
+                snap = await build_snapshot_from_telemetry(
+                    eval_db, user_id=user_id, vehicle_id=vin,
+                )
+                result = await engine.run_for_vehicle(
+                    eval_db,
+                    user_id=user_id,
+                    vehicle_id=vin,
+                    state=snap,
+                    settings=AutomationSettings(),
+                )
+                await eval_db.commit()
+            if result.pushed_count or result.cleared_count:
+                logger.info(
+                    "telemetry-driven tick user=%s vin=%s pushed=%s cleared=%s",
+                    user_id, vin, result.pushed_count, result.cleared_count,
+                )
+        except Exception:
+            logger.exception("telemetry-driven engine tick failed (vin=%s)", vin)
 
 
 async def consume(stop_event: asyncio.Event) -> None:
@@ -148,6 +194,8 @@ async def consume(stop_event: asyncio.Event) -> None:
     )
 
     writer = TelemetryStateWriter()
+    engine = AutomationEngine()
+    debounce_until: dict = {}
 
     try:
         while not stop_event.is_set():
@@ -171,7 +219,10 @@ async def consume(stop_event: asyncio.Event) -> None:
                 continue
             if topic.endswith("_V") or topic == "V":
                 try:
-                    await _process_v_record(writer, payload)
+                    await _process_v_record(
+                        writer, payload,
+                        engine=engine, debounce_until=debounce_until,
+                    )
                 except Exception:
                     # Never let a single bad record kill the loop —
                     # log + continue. Without this, an exception here
