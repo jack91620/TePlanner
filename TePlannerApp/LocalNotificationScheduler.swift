@@ -261,10 +261,14 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         // Preheat reminders are time-critical — show the banner even
-        // in foreground so the user can act on it immediately. Other
-        // (alert pill) notifications stay suppressed since the pill
-        // already covers the foreground case.
-        if notification.request.identifier == Self.preheatNotificationId {
+        // in foreground so the user can act on it immediately. '试发
+        // 通知预览' samples need foreground display too, otherwise the
+        // user just sits in the rule detail page wondering whether
+        // the test fired (since the alert pill only shows real alerts).
+        // Other (alert pill) notifications stay suppressed since the
+        // pill already covers the foreground case.
+        let id = notification.request.identifier
+        if id == Self.preheatNotificationId || id.hasPrefix("sample.") {
             completionHandler([.banner, .sound])
         } else {
             completionHandler([])
