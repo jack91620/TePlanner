@@ -108,14 +108,35 @@ struct ScheduledDepartureSheet: View {
         }
     }
 
-    /// Nudge the default into "next hour, on the hour" so the picker
-    /// opens at a useful starting point instead of the current minute.
+    /// Pick a useful default departure time. People who set "next
+    /// departure" in the morning tend to mean "today's commute" or
+    /// "this evening"; people who set it after work tend to mean
+    /// "tomorrow morning". Anchor on the typical 8am / 6pm slots.
     private static func nearestNextHour() -> Date {
         let cal = Calendar.current
         let now = Date()
-        var comps = cal.dateComponents([.year, .month, .day, .hour], from: now)
-        comps.hour = (comps.hour ?? 0) + 1
+        let hour = cal.component(.hour, from: now)
+        var comps = cal.dateComponents([.year, .month, .day], from: now)
         comps.minute = 0
+        comps.second = 0
+        switch hour {
+        case 0..<6:    // late night → today 8am
+            comps.hour = 8
+        case 6..<12:   // morning → today 6pm (after-work return / evening)
+            comps.hour = 18
+        case 12..<22:  // afternoon / evening → tomorrow 8am
+            if let tomorrow = cal.date(byAdding: .day, value: 1, to: now) {
+                comps = cal.dateComponents([.year, .month, .day], from: tomorrow)
+                comps.minute = 0; comps.second = 0
+                comps.hour = 8
+            }
+        default:       // late night again → tomorrow 8am
+            if let tomorrow = cal.date(byAdding: .day, value: 1, to: now) {
+                comps = cal.dateComponents([.year, .month, .day], from: tomorrow)
+                comps.minute = 0; comps.second = 0
+                comps.hour = 8
+            }
+        }
         return cal.date(from: comps) ?? now.addingTimeInterval(3600)
     }
 }

@@ -594,7 +594,21 @@ struct RuleBuilderView: View {
     }
 
     private func fillFromPreset(_ preset: RuleRecord) {
-        name = preset.name
+        // If the user already has a rule with this name (likely the
+        // auto-seeded preset), suffix to disambiguate. Mirrors how
+        // iOS 提醒事项 / Shortcuts handle duplicates.
+        var nextName = preset.name
+        let existing = Set(rulesStore.rules.map(\.name))
+        if existing.contains(nextName) {
+            var i = 2
+            var candidate = "\(nextName) 副本"
+            while existing.contains(candidate) {
+                i += 1
+                candidate = "\(nextName) 副本 \(i)"
+            }
+            nextName = candidate
+        }
+        name = nextName
         enabled = true
         // Re-use the hydration logic.
         let snapshot = preset
