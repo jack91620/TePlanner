@@ -153,15 +153,34 @@ struct AutomationsHomeView: View {
         }
         switch type {
         case "state_duration":
-            let entity = RuleDisplay.entityName(trigger.string("entity") ?? "")
+            let entityRaw = trigger.string("entity") ?? ""
+            let entity = RuleDisplay.entityName(entityRaw)
             let mins = trigger.int("for_minutes") ?? 0
-            return "\(entity) 持续 \(RuleDisplay.formatDurationMinutes(mins))"
+            let op = trigger.string("op") ?? "=="
+            // Slice B numeric ops (low_battery rule etc.) need the
+            // threshold value to be readable, not just "持续 X 分钟".
+            switch op {
+            case "<":
+                let v = trigger["value"]?.intValue ?? 0
+                return "\(entity)低于 \(v)%"
+            case "<=":
+                let v = trigger["value"]?.intValue ?? 0
+                return "\(entity)不超过 \(v)%"
+            case ">":
+                let v = trigger["value"]?.intValue ?? 0
+                return "\(entity)高于 \(v)%"
+            case ">=":
+                let v = trigger["value"]?.intValue ?? 0
+                return "\(entity)不低于 \(v)%"
+            default:
+                return "\(entity) 持续 \(RuleDisplay.formatDurationMinutes(mins))"
+            }
         case "state_transition":
             let entity = RuleDisplay.entityName(trigger.string("entity") ?? "")
             let target = trigger.string("to") ?? "?"
             return "\(entity) → \(target)"
         case "cron":
-            return "定时: \(trigger.string("expr") ?? "")"
+            return RuleDisplay.cronSentence(trigger.string("expr") ?? "")
         default:
             return type
         }

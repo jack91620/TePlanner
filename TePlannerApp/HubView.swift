@@ -214,10 +214,20 @@ struct HubView: View {
             Text(alertActionError ?? "")
         }
         .alert("配对车辆控制", isPresented: $showingPairingPrompt) {
-            Button("立即配对") { openVCPPairingURL() }
-            Button("稍后再说", role: .cancel) {}
+            Button("立即配对") {
+                openVCPPairingURL()
+                // openVCPPairingURL already sets the flag, but be
+                // belt-and-suspenders here.
+                UserDefaultsSettingsStore.shared.hasPromptedVCPPairing = true
+            }
+            Button("稍后再说", role: .cancel) {
+                // Mark prompted regardless of choice — otherwise the
+                // dialog re-fires on every hub return. Users who
+                // want to pair later have a permanent menu entry.
+                UserDefaultsSettingsStore.shared.hasPromptedVCPPairing = true
+            }
         } message: {
-            Text("为了让 Tautomation 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。")
+            Text("为了让 Tautomation 能直接调用车辆命令（关闭露营 / 启动空调预热 / 调整充电限额等），需要你在 Tesla 官方 App 中授权一次。点击「立即配对」会打开 Tesla App 完成。可在右上角菜单 → 配对车辆控制 重新打开。")
         }
     }
 
