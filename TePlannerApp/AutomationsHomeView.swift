@@ -346,6 +346,11 @@ struct AutomationsHomeView: View {
                 isOn: Binding(
                     get: { record.enabled },
                     set: { newValue in
+                        // Light haptic — matches iOS Mail / 提醒事项
+                        // toggle feel and confirms the tap landed on
+                        // the small switch without waiting for the
+                        // round-trip to the backend.
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         Task {
                             let ok = await rulesStore.update(id: record.id, enabled: newValue)
                             if !ok { workingError = rulesStore.lastError }
