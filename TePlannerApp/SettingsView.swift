@@ -1,14 +1,18 @@
 import SwiftUI
 import TePlannerKit
+import UserNotifications
 
 /// 设置页 — 偏好、关于、调试入口。Reachable from the hub menu.
 /// Intentionally short for v1: the app's automation settings live
 /// per-rule, this is the place for cross-cutting prefs.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var pushStatus: PushStatus = .unknown
     private let appVersion: String
     private let buildNumber: String
     private let apiService: APIServiceProtocol?
+
+    enum PushStatus { case unknown, authorized, provisional, denied, notDetermined, ephemeral }
 
     init(apiService: APIServiceProtocol? = nil) {
         let info = Bundle.main.infoDictionary
@@ -21,6 +25,14 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    HStack {
+                        Label("推送权限", systemImage: pushStatusIcon)
+                            .foregroundStyle(pushStatusColor)
+                        Spacer()
+                        Text(pushStatusLabel)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(pushStatusColor)
+                    }
                     Button {
                         openSystemNotifications()
                     } label: {
@@ -80,6 +92,52 @@ struct SettingsView: View {
                     Button("完成") { dismiss() }
                 }
             }
+            .task {
+                await refreshPushStatus()
+            }
+        }
+    }
+
+    private func refreshPushStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        await MainActor.run {
+            switch settings.authorizationStatus {
+            case .authorized:    pushStatus = .authorized
+            case .provisional:   pushStatus = .provisional
+            case .denied:        pushStatus = .denied
+            case .notDetermined: pushStatus = .notDetermined
+            case .ephemeral:     pushStatus = .ephemeral
+            @unknown default:    pushStatus = .unknown
+            }
+        }
+    }
+
+    private var pushStatusIcon: String {
+        switch pushStatus {
+        case .authorized, .provisional: return "checkmark.circle.fill"
+        case .denied:                   return "xmark.circle.fill"
+        case .notDetermined:            return "questionmark.circle.fill"
+        case .ephemeral, .unknown:      return "circle"
+        }
+    }
+
+    private var pushStatusColor: Color {
+        switch pushStatus {
+        case .authorized, .provisional: return .green
+        case .denied:                   return .red
+        case .notDetermined:            return .orange
+        case .ephemeral, .unknown:      return .secondary
+        }
+    }
+
+    private var pushStatusLabel: String {
+        switch pushStatus {
+        case .authorized:    return "已开启"
+        case .provisional:   return "暂定（不打扰）"
+        case .denied:        return "已禁止"
+        case .notDetermined: return "未询问"
+        case .ephemeral:     return "临时"
+        case .unknown:       return "—"
         }
     }
 
