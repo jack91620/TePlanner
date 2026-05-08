@@ -845,7 +845,7 @@ struct HubView: View {
                 Text("自动化即将激活")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("车辆下次状态变化时建立 Telemetry 连接")
+                Text("当你的车下次开门、移动或充电时，提醒会自动开始工作。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
