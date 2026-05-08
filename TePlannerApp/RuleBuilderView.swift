@@ -144,6 +144,33 @@ struct RuleBuilderView: View {
             }
         }
         enum ValueKind { case keeperMode, bool, string, numeric }
+
+        /// User-facing grouping for the picker — mirrors how
+        /// `RuleDisplay.capabilityCategory` groups action capabilities.
+        enum Category: String, CaseIterable {
+            case climate, security, closures, charging, battery
+
+            var label: String {
+                switch self {
+                case .climate:  return "空调"
+                case .security: return "安全"
+                case .closures: return "门窗"
+                case .charging: return "充电"
+                case .battery:  return "电量"
+                }
+            }
+        }
+
+        var category: Category {
+            switch self {
+            case .climateKeeperMode, .cabinOverheatOn: return .climate
+            case .sentryModeOn, .parkedUnlocked:        return .security
+            case .parkedWithDoorOpen, .parkedWithWindowOpen,
+                 .parkedWithFrunkOpen, .parkedWithTrunkOpen: return .closures
+            case .chargingState:                        return .charging
+            case .batteryLevel:                         return .battery
+            }
+        }
     }
 
     /// Comparator for numeric entities. Backend reads as `op` field.
@@ -304,11 +331,7 @@ struct RuleBuilderView: View {
             triggerTypePicker
             switch triggerType {
             case .stateDuration:
-                Picker("观察项", selection: $entity) {
-                    ForEach(VehicleEntity.allCases) { e in
-                        Text(e.label).tag(e)
-                    }
-                }
+                entityPicker
                 stateDurationValueRow
                 Stepper(value: $forMinutes, in: 1...4320, step: 30) {
                     HStack {
@@ -320,11 +343,7 @@ struct RuleBuilderView: View {
                     }
                 }
             case .stateTransition:
-                Picker("观察项", selection: $entity) {
-                    ForEach(VehicleEntity.allCases) { e in
-                        Text(e.label).tag(e)
-                    }
-                }
+                entityPicker
                 HStack {
                     Text("变为")
                     Spacer()
@@ -336,6 +355,47 @@ struct RuleBuilderView: View {
             case .cron:
                 cronEditor
             }
+        }
+    }
+
+    /// Sectioned entity picker — same play as the capability picker:
+    /// 5 buckets (空调 / 安全 / 门窗 / 充电 / 电量) so users can scan
+    /// to the area they care about instead of reading 10 flat rows.
+    private var entityPicker: some View {
+        let bucketed: [(VehicleEntity.Category, [VehicleEntity])] = {
+            var byCategory: [VehicleEntity.Category: [VehicleEntity]] = [:]
+            for entity in VehicleEntity.allCases {
+                byCategory[entity.category, default: []].append(entity)
+            }
+            return VehicleEntity.Category.allCases.compactMap { cat in
+                guard let arr = byCategory[cat], !arr.isEmpty else { return nil }
+                return (cat, arr)
+            }
+        }()
+        return Menu {
+            ForEach(bucketed, id: \.0) { (category, entities) in
+                Section(category.label) {
+                    ForEach(entities) { e in
+                        Button {
+                            entity = e
+                        } label: {
+                            Text(e.label)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Text("观察项")
+                Spacer()
+                Text(entity.label)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
         }
     }
 
