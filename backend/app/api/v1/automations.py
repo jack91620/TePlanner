@@ -45,6 +45,11 @@ class RuleResponse(BaseModel):
     spec: dict
     version: int
     updated_at: Optional[datetime] = None
+    # Phase 11.x — last time this rule fired a push notification.
+    # Read from the PushedAlert ledger keyed by `kind`. iOS shows
+    # "上次触发: X 时间前" in the rule detail page. None if never
+    # fired (or kind not yet pushed for this user / vehicle).
+    last_fired_at: Optional[datetime] = None
 
 
 class RuleListResponse(BaseModel):
@@ -63,7 +68,10 @@ class RuleUpdateRequest(BaseModel):
     spec: Optional[dict] = None
 
 
-def _row_to_response(row: AutomationRule) -> RuleResponse:
+def _row_to_response(
+    row: AutomationRule,
+    last_fired_at: Optional[datetime] = None,
+) -> RuleResponse:
     return RuleResponse(
         id=row.id,
         preset_id=row.preset_id,
@@ -72,6 +80,7 @@ def _row_to_response(row: AutomationRule) -> RuleResponse:
         spec=json.loads(row.spec_json),
         version=row.version,
         updated_at=row.updated_at,
+        last_fired_at=last_fired_at,
     )
 
 
@@ -113,13 +122,52 @@ async def list_rules(
     """List all of the user's rules. Lazy-seeds the presets on
     first call (when user has zero rules). Order is canonical: each
     preset in its ALL_PRESETS-declared position, user-authored rules
-    after, by creation time."""
+    after, by creation time. Each rule includes ``last_fired_at`` —
+    the most recent PushedAlert.pushed_at for that rule's kind."""
     await ensure_presets_seeded(db, user.id)
     stmt = select(AutomationRule).where(AutomationRule.user_id == user.id)
     rows = (await db.execute(stmt)).scalars().all()
     from app.services.automation.engine import _sort_rules_canonically
     rows = _sort_rules_canonically(rows)
-    return RuleListResponse(rules=[_row_to_response(r) for r in rows])
+    last_fired = await _last_fired_per_kind(db, user.id)
+    return RuleListResponse(rules=[
+        _row_to_response(r, last_fired_at=last_fired.get(_kind_of(r)))
+        for r in rows
+    ])
+
+
+def _kind_of(rule: AutomationRule) -> str:
+    """Pull `kind` out of the rule's spec JSON. Stored at the top
+    level of the spec dict; mirrors how the engine consumes it."""
+    try:
+        spec = json.loads(rule.spec_json)
+    except (json.JSONDecodeError, TypeError):
+        return ""
+    val = spec.get("kind")
+    return val if isinstance(val, str) else ""
+
+
+async def _last_fired_per_kind(
+    db: AsyncSession, user_id: int,
+) -> dict[str, datetime]:
+    """Bulk-load the most recent ``PushedAlert.pushed_at`` per
+    AlertKind for one user. iOS surfaces this as "上次触发: X 时间前"
+    on each rule. Cheaper than a per-rule join — this is one indexed
+    scan with GROUP BY MAX.
+    """
+    from sqlalchemy import func
+    from app.db.models import PushedAlert
+
+    stmt = (
+        select(
+            PushedAlert.kind,
+            func.max(PushedAlert.pushed_at).label("most_recent"),
+        )
+        .where(PushedAlert.user_id == user_id)
+        .group_by(PushedAlert.kind)
+    )
+    result = (await db.execute(stmt)).all()
+    return {row.kind: row.most_recent for row in result if row.most_recent is not None}
 
 
 @router.post("/", response_model=RuleResponse, status_code=status.HTTP_201_CREATED)

@@ -147,10 +147,33 @@ struct RuleDetailView: View {
                             .font(.caption)
                             .foregroundStyle(r.enabled ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
                     }
+                    if let lastFired = r.lastFiredAt {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bell.badge.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.tint)
+                            Text("上次触发：\(Self.relative(lastFired))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if r.enabled {
+                        Text("尚未触发过")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 Spacer()
             }
         }
+    }
+
+    /// "刚刚 / X 分钟前 / 昨天 / 5 月 8 日" — relative-time vocabulary
+    /// matching how iOS 邮件 / 信息 surface timestamps.
+    private static func relative(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     @ViewBuilder

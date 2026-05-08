@@ -21,6 +21,9 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
     public let enabled: Bool
     public let spec: RuleSpec
     public let version: Int
+    /// Last time this rule's kind fired a push notification. Read
+    /// from the server's PushedAlert ledger; nil if never fired.
+    public let lastFiredAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,14 +32,24 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         case enabled
         case spec
         case version
+        case lastFiredAt = "last_fired_at"
     }
 
-    public init(id: String, presetId: String?, name: String, enabled: Bool, spec: RuleSpec, version: Int = 1) {
+    public init(
+        id: String,
+        presetId: String?,
+        name: String,
+        enabled: Bool,
+        spec: RuleSpec,
+        version: Int = 1,
+        lastFiredAt: Date? = nil
+    ) {
         self.id = id
         self.presetId = presetId
         self.name = name
         self.enabled = enabled
         self.spec = spec
         self.version = version
+        self.lastFiredAt = lastFiredAt
     }
 }
