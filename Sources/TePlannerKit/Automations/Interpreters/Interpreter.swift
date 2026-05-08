@@ -333,10 +333,6 @@ public func evaluateRule(
 }
 
 // MARK: - Helpers on JSONValue arrays
-
-private extension JSONValue {
-    var arrayValue: [JSONValue]? {
-        if case .array(let v) = self { return v }
-        return nil
-    }
-}
+// arrayValue is now a public accessor in JSONValue.swift; the
+// previous fileprivate copy was promoted there to support
+// RuleDisplay.actionSentence which lives in another file.

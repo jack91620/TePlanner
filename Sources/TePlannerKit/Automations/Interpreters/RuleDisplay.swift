@@ -152,6 +152,83 @@ public enum RuleDisplay {
         }
     }
 
+    /// SF Symbol name for the rule's trigger type — used in list
+    /// cards so each automation has the kind of glanceable visual
+    /// vocabulary iOS 快捷指令 uses (different category = different
+    /// icon and accent).
+    public static func triggerSymbol(_ spec: RuleSpec) -> String {
+        guard let trigger = spec["trigger"]?.objectValue,
+              let type = trigger.string("type") else {
+            return "bell.badge.fill"
+        }
+        switch type {
+        case "cron":              return "clock.fill"
+        case "geofence":          return "location.fill"
+        case "state_transition":  return "arrow.right.arrow.left.circle.fill"
+        case "state_duration":
+            // Sub-classify by the entity to pick a meaningful glyph,
+            // matching iOS 快捷指令's habit of changing icon by
+            // category (time / location / device / battery / …).
+            let entity = trigger.string("entity") ?? ""
+            switch entity {
+            case "vehicle.battery_level":               return "battery.25"
+            case "vehicle.climate.keeper_mode":         return "moon.zzz.fill"
+            case "vehicle.sentry_mode_on":              return "shield.lefthalf.filled"
+            case "vehicle.cabin_overheat_protection_on": return "thermometer.sun.fill"
+            case "vehicle.parked_unlocked":             return "lock.open.fill"
+            case "vehicle.parked_with_door_open",
+                 "vehicle.parked_with_window_open",
+                 "vehicle.parked_with_frunk_open",
+                 "vehicle.parked_with_trunk_open":      return "door.left.hand.open"
+            case "vehicle.connectivity":                return "antenna.radiowaves.left.and.right"
+            default:                                    return "bell.badge.fill"
+            }
+        default:                  return "bell.badge.fill"
+        }
+    }
+
+    /// 把规则的"动作"翻译成一句简短描述，配合 triggerSentence 形成
+    /// "当 X 持续 Y，那么 Z" 的快捷指令风格描述。
+    public static func actionSentence(_ spec: RuleSpec) -> String {
+        // Pick the action that would actually fire — for state_duration
+        // rules that's actions_above[0] (the threshold-crossed alert);
+        // for everything else it's actions[0]. Empty action list → "".
+        let bucketKey: String
+        if spec["actions"]?.arrayValue != nil {
+            bucketKey = "actions"
+        } else if spec["actions_above"]?.arrayValue != nil {
+            bucketKey = "actions_above"
+        } else if spec["actions_below"]?.arrayValue != nil {
+            bucketKey = "actions_below"
+        } else {
+            return ""
+        }
+        guard let arr = spec[bucketKey]?.arrayValue, let first = arr.first?.objectValue else {
+            return ""
+        }
+        let aType = first.string("type") ?? ""
+        let title = first.string("title") ?? ""
+        switch aType {
+        case "notify":
+            return title.isEmpty ? "推送通知" : "通知「\(title)」"
+        case "notify_and_offer":
+            let label = first.string("primary_action_label") ?? ""
+            if title.isEmpty {
+                return label.isEmpty ? "推送通知" : "通知 + \(label)"
+            }
+            return label.isEmpty ? "通知「\(title)」" : "通知「\(title)」+ \(label)"
+        case "invoke":
+            let cap = first.string("capability") ?? ""
+            return capabilityName(cap)
+        case "wait_for_state":
+            let then = first["then"]?.objectValue
+            let thenTitle = then?.string("title") ?? ""
+            return thenTitle.isEmpty ? "条件满足后通知" : "条件满足后通知「\(thenTitle)」"
+        default:
+            return aType
+        }
+    }
+
     /// 触发条件一句话总结。Detail 视图 / Home 视图都用。
     public static func triggerSentence(_ spec: RuleSpec) -> String {
         guard let trigger = spec["trigger"]?.objectValue,

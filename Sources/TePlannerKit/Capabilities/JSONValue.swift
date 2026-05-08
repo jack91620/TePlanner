@@ -83,6 +83,11 @@ public extension JSONValue {
         if case .object(let v) = self { return v }
         return nil
     }
+
+    var arrayValue: [JSONValue]? {
+        if case .array(let v) = self { return v }
+        return nil
+    }
 }
 
 public extension Dictionary where Key == String, Value == JSONValue {

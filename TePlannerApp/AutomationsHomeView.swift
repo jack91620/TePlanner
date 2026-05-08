@@ -93,19 +93,47 @@ struct AutomationsHomeView: View {
                 capabilitiesStore: capabilitiesStore
             )
         } label: {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: iconName(for: record))
-                    .foregroundStyle(record.enabled ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(record.name)
-                        .foregroundStyle(.primary)
-                    Text(triggerSummary(record.spec))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+            HStack(alignment: .top, spacing: 12) {
+                // iOS 快捷指令-style accent: trigger-typed icon in a
+                // colored rounded square, dimmed when rule is off.
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08))
+                    Image(systemName: RuleDisplay.triggerSymbol(record.spec))
+                        .foregroundStyle(record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary))
+                        .font(.subheadline)
                 }
-                Spacer()
+                .frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(record.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    // "When X happens, do Y" — the iOS Shortcuts pattern.
+                    // Dimmed prefix labels (当 / 那么) help users parse
+                    // long sentences at a glance.
+                    HStack(alignment: .top, spacing: 4) {
+                        Text("当")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Text(triggerSummary(record.spec))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    let action = RuleDisplay.actionSentence(record.spec)
+                    if !action.isEmpty {
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("那么")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(action)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+                Spacer(minLength: 6)
                 Toggle(
                     "",
                     isOn: Binding(
@@ -132,17 +160,33 @@ struct AutomationsHomeView: View {
         rulesStore.rules.filter { $0.presetId == nil }
     }
 
-    private func iconName(for record: RuleRecord) -> String {
-        switch record.spec.string("kind") {
-        case "campMode": return "tent.fill"
-        case "sentryMode": return "shield.fill"
-        case "cabinOverheat": return "thermometer.sun.fill"
-        case "chargeComplete": return "bolt.batteryblock.fill"
-        case "leftUnlocked": return "lock.open.fill"
-        case "closureLeftOpen": return "door.left.hand.open"
-        case "lowBattery": return "battery.25"
-        case "weekdayPreheat": return "alarm.fill"
-        default: return "bell.badge.fill"
+    /// iOS 快捷指令-style category color: each trigger family gets
+    /// its own accent so a glance at the list shows the mix of
+    /// time-based vs location-based vs state-based automations.
+    private func triggerAccent(for record: RuleRecord) -> Color {
+        let triggerType = record.spec["trigger"]?.objectValue?.string("type") ?? ""
+        switch triggerType {
+        case "cron":              return .blue        // time-based
+        case "geofence":          return .green       // location-based
+        case "state_transition":  return .indigo      // state event
+        case "state_duration":
+            // Sub-tint by the action's intent: low_battery (red/orange),
+            // unlocked / closures (orange — security), camp/sentry/cabin
+            // (purple/pink — comfort).
+            let entity = record.spec["trigger"]?.objectValue?.string("entity") ?? ""
+            switch entity {
+            case "vehicle.battery_level":               return .orange
+            case "vehicle.parked_unlocked",
+                 "vehicle.parked_with_door_open",
+                 "vehicle.parked_with_window_open",
+                 "vehicle.parked_with_frunk_open",
+                 "vehicle.parked_with_trunk_open":      return .orange
+            case "vehicle.sentry_mode_on":              return .purple
+            case "vehicle.cabin_overheat_protection_on": return .red
+            case "vehicle.climate.keeper_mode":         return .purple
+            default:                                    return .accentColor
+            }
+        default:                  return .accentColor
         }
     }
 
