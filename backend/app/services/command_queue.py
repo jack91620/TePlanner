@@ -183,25 +183,35 @@ async def drain_for_vehicle(
     if not rows:
         return {"checked": 0, "sent": 0, "dropped": 0}
 
+    sent = 0
+    dropped = 0
+
+    # Step 1 — drop TTL-expired rows upfront, regardless of token state.
+    # A user who logged out should still see stale "preheat at 7am"
+    # rows expire instead of accumulating forever.
+    live_rows: list[CommandQueue] = []
+    for row in rows:
+        elapsed = (now - row.queued_at).total_seconds()
+        if elapsed > row.ttl_seconds:
+            row.dropped_at = now
+            row.error = f"TTL expired after {int(elapsed)}s"
+            dropped += 1
+        else:
+            live_rows.append(row)
+
+    if not live_rows:
+        return {"checked": len(rows), "sent": sent, "dropped": dropped}
+
     access_token = await _get_user_access_token(db, user_id)
     if access_token is None:
-        # Can't dispatch without a token; leave rows pending — next
-        # drain attempt may succeed if user re-OAuths.
-        return {"checked": len(rows), "sent": 0, "dropped": 0}
+        # Can't dispatch without a token; leave live rows pending —
+        # next drain attempt may succeed if user re-OAuths.
+        return {"checked": len(rows), "sent": sent, "dropped": dropped}
 
     numeric_id = await _resolve_numeric_vehicle_id(db, user_id, vin)
 
-    sent = 0
-    dropped = 0
     async with TeslaClient(access_token=access_token) as client:
-        for row in rows:
-            elapsed = (now - row.queued_at).total_seconds()
-            if elapsed > row.ttl_seconds:
-                row.dropped_at = now
-                row.error = f"TTL expired after {int(elapsed)}s"
-                dropped += 1
-                continue
-
+        for row in live_rows:
             cap = get_capability(row.capability)
             if cap is None:
                 row.dropped_at = now
