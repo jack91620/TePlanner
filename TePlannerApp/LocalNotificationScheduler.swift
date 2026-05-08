@@ -166,6 +166,7 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         content.title = title
         content.body = body
         content.sound = .default
+        content.threadIdentifier = "com.teplanner.ios.preview"
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(
             identifier: "sample.\(identifier).\(Date().timeIntervalSince1970)",
@@ -185,6 +186,11 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         content.body = alert.detail
         content.sound = .default
         content.categoryIdentifier = alert.kind.rawValue
+        // iOS groups notifications with the same threadIdentifier into
+        // one stack on the lock screen. Use a single namespace so a
+        // burst of rule fires (e.g. car came online → 3 alerts in 5s)
+        // doesn't bury the user's notification center.
+        content.threadIdentifier = "com.teplanner.ios.automation"
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(
