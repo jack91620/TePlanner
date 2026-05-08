@@ -103,7 +103,7 @@ struct AutomationsHomeView: View {
                     Text(triggerSummary(record.spec))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
                 Spacer()
                 Toggle(
@@ -147,42 +147,8 @@ struct AutomationsHomeView: View {
     }
 
     private func triggerSummary(_ spec: RuleSpec) -> String {
-        guard let trigger = spec["trigger"]?.objectValue,
-              let type = trigger.string("type") else {
-            return ""
-        }
-        switch type {
-        case "state_duration":
-            let entityRaw = trigger.string("entity") ?? ""
-            let entity = RuleDisplay.entityName(entityRaw)
-            let mins = trigger.int("for_minutes") ?? 0
-            let op = trigger.string("op") ?? "=="
-            // Slice B numeric ops (low_battery rule etc.) need the
-            // threshold value to be readable, not just "持续 X 分钟".
-            switch op {
-            case "<":
-                let v = trigger["value"]?.intValue ?? 0
-                return "\(entity)低于 \(v)%"
-            case "<=":
-                let v = trigger["value"]?.intValue ?? 0
-                return "\(entity)不超过 \(v)%"
-            case ">":
-                let v = trigger["value"]?.intValue ?? 0
-                return "\(entity)高于 \(v)%"
-            case ">=":
-                let v = trigger["value"]?.intValue ?? 0
-                return "\(entity)不低于 \(v)%"
-            default:
-                return "\(entity) 持续 \(RuleDisplay.formatDurationMinutes(mins))"
-            }
-        case "state_transition":
-            let entity = RuleDisplay.entityName(trigger.string("entity") ?? "")
-            let target = trigger.string("to") ?? "?"
-            return "\(entity) → \(target)"
-        case "cron":
-            return RuleDisplay.cronSentence(trigger.string("expr") ?? "")
-        default:
-            return type
-        }
+        // Single source of truth — same string the rule detail view
+        // uses, so list + detail can never drift.
+        return RuleDisplay.triggerSentence(spec)
     }
 }

@@ -127,6 +127,31 @@ public enum RuleDisplay {
         return out
     }
 
+    /// Translate `state_transition` target values from their wire form
+    /// (Tesla-side enum strings) to user-facing Chinese.
+    public static func transitionTargetName(entity: String, target: String) -> String {
+        switch entity {
+        case "vehicle.charging.state":
+            switch target {
+            case "Complete":     return "充电完成"
+            case "Charging":     return "充电中"
+            case "Disconnected": return "未连接"
+            case "Stopped":      return "已停止"
+            case "Starting":     return "开始充电"
+            case "NoPower":      return "无电源"
+            default:             return target
+            }
+        case "vehicle.connectivity":
+            switch target {
+            case "CONNECTED":    return "在线"
+            case "DISCONNECTED": return "离线"
+            default:             return target
+            }
+        default:
+            return target
+        }
+    }
+
     /// 触发条件一句话总结。Detail 视图 / Home 视图都用。
     public static func triggerSentence(_ spec: RuleSpec) -> String {
         guard let trigger = spec["trigger"]?.objectValue,
@@ -153,13 +178,21 @@ public enum RuleDisplay {
                 let v = trigger["value"]?.intValue ?? 0
                 return "「\(entity)」不低于 \(v)% 持续 \(formatDurationMinutes(mins))"
             default:
-                let value = trigger["equals"].flatMap { describeValue($0, entity: entityRaw) } ?? "?"
-                return "「\(entity)」处于「\(value)」状态持续 \(formatDurationMinutes(mins))"
+                // For boolean-true 虚拟实体（停车后未锁车 / 哨兵模式 等）
+                // a "处于「开」状态" framing reads awkwardly. Prefer a
+                // shorter form when the entity name itself describes
+                // the active condition.
+                let equals = trigger["equals"]
+                if case .bool(let b) = equals ?? .null, b {
+                    return "「\(entity)」持续 \(formatDurationMinutes(mins))"
+                }
+                let value = equals.flatMap { describeValue($0, entity: entityRaw) } ?? "?"
+                return "「\(entity)」=「\(value)」 持续 \(formatDurationMinutes(mins))"
             }
         case "state_transition":
             let entity = entityName(trigger.string("entity") ?? "")
             let target = trigger.string("to") ?? "?"
-            return "「\(entity)」变为「\(target)」"
+            return "「\(entity)」变为「\(transitionTargetName(entity: trigger.string("entity") ?? "", target: target))」"
         case "cron":
             return cronSentence(trigger.string("expr") ?? "")
         default:

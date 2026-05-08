@@ -186,10 +186,15 @@ struct RuleBuilderView: View {
     // MARK: - Sections
 
     private var metaSection: some View {
-        Section("名称") {
+        Section {
             TextField("起一个好记的名字", text: $name)
                 .accessibilityIdentifier("rule_name_field")
             Toggle("启用", isOn: $enabled)
+        } header: {
+            HStack(spacing: 4) {
+                Text("名称")
+                Text("*").foregroundStyle(.red)
+            }
         }
     }
 
@@ -319,10 +324,20 @@ struct RuleBuilderView: View {
                     Text(a.label).tag(a)
                 }
             }
-            TextField("标题（推送通知）", text: $actionTitle)
-                .accessibilityIdentifier("rule_action_title_field")
-            TextField("正文", text: $actionBody, axis: .vertical)
-                .lineLimit(2...5)
+            HStack(spacing: 0) {
+                TextField("标题（推送通知）", text: $actionTitle)
+                    .accessibilityIdentifier("rule_action_title_field")
+                if actionTitle.isEmpty {
+                    Text("*").foregroundStyle(.red).font(.footnote)
+                }
+            }
+            HStack(alignment: .top, spacing: 0) {
+                TextField("正文", text: $actionBody, axis: .vertical)
+                    .lineLimit(2...5)
+                if actionBody.isEmpty {
+                    Text("*").foregroundStyle(.red).font(.footnote)
+                }
+            }
             if !bodyPreview.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "eye")
@@ -390,6 +405,11 @@ struct RuleBuilderView: View {
             if let err = saveError {
                 Text(err).foregroundStyle(.red).font(.caption)
             }
+            if !isValid && missingFieldsHint != nil {
+                Label(missingFieldsHint ?? "", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Button {
                 Task { await save() }
             } label: {
@@ -400,6 +420,26 @@ struct RuleBuilderView: View {
             .disabled(!isValid || saving)
             .accessibilityIdentifier("rule_save_button")
         }
+    }
+
+    /// Surface specifically WHAT's preventing save so the disabled
+    /// button doesn't feel broken to the user.
+    private var missingFieldsHint: String? {
+        var missing: [String] = []
+        if name.trimmingCharacters(in: .whitespaces).isEmpty { missing.append("名称") }
+        if actionTitle.trimmingCharacters(in: .whitespaces).isEmpty { missing.append("标题") }
+        if actionBody.trimmingCharacters(in: .whitespaces).isEmpty { missing.append("正文") }
+        if actionType == .notifyAndOffer
+           && primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
+            missing.append("按钮文字")
+        }
+        if let cap = capabilitiesStore.get(selectedCapabilityId),
+           cap.safetyClass != .read, cap.safetyClass != .writable,
+           !unsafeAcknowledged {
+            return "该动作涉及车辆安全状态，请勾选「我已知道」后保存"
+        }
+        guard !missing.isEmpty else { return nil }
+        return "请填写：\(missing.joined(separator: " · "))"
     }
 
     // MARK: - Data plumbing
@@ -690,7 +730,9 @@ private struct PresetPickerSheet: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(preset.name).foregroundStyle(.primary)
-                        Text(preset.presetId ?? "").font(.caption).foregroundStyle(.secondary)
+                        Text(Self.presetSubtitle(preset))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -702,5 +744,13 @@ private struct PresetPickerSheet: View {
                 }
             }
         }
+    }
+
+    /// Render a human description of what the preset does instead
+    /// of leaking the internal preset_id (camp_mode_overstay etc.)
+    /// to users.
+    private static func presetSubtitle(_ preset: RuleRecord) -> String {
+        let trigger = RuleDisplay.triggerSentence(preset.spec)
+        return trigger.isEmpty ? "预设规则" : trigger
     }
 }
