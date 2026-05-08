@@ -33,6 +33,9 @@ struct AutomationsHomeView: View {
                     ForEach(presetRules) { record in
                         ruleRow(record)
                     }
+                    .onMove { from, to in
+                        moveRules(in: presetRules, from: from, to: to)
+                    }
                 }
             }
             if !customRules.isEmpty {
@@ -50,6 +53,9 @@ struct AutomationsHomeView: View {
                                 }
                             }
                     }
+                    .onMove { from, to in
+                        moveRules(in: customRules, from: from, to: to)
+                    }
                 }
             }
             if let err = workingError {
@@ -61,6 +67,10 @@ struct AutomationsHomeView: View {
         .navigationTitle("自动化")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                EditButton()
+                    .accessibilityIdentifier("automations_edit_button")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showingBuilder = true
@@ -153,11 +163,48 @@ struct AutomationsHomeView: View {
     }
 
     private var presetRules: [RuleRecord] {
-        rulesStore.rules.filter { $0.presetId != nil }
+        applyUserOrder(rulesStore.rules.filter { $0.presetId != nil })
     }
 
     private var customRules: [RuleRecord] {
-        rulesStore.rules.filter { $0.presetId == nil }
+        applyUserOrder(rulesStore.rules.filter { $0.presetId == nil })
+    }
+
+    /// Apply the user's drag-reordered sequence on top of whatever
+    /// canonical order the server returned. Rules not in the saved
+    /// order array (e.g. newly added presets) fall back to the end
+    /// in server order.
+    private func applyUserOrder(_ rules: [RuleRecord]) -> [RuleRecord] {
+        let savedOrder = UserDefaultsSettingsStore.shared.automationRuleOrder
+        guard !savedOrder.isEmpty else { return rules }
+        let position = Dictionary(uniqueKeysWithValues: savedOrder.enumerated().map { ($1, $0) })
+        let fallback = position.count
+        return rules.enumerated().sorted { lhs, rhs in
+            let lp = position[lhs.element.id] ?? (fallback + lhs.offset)
+            let rp = position[rhs.element.id] ?? (fallback + rhs.offset)
+            return lp < rp
+        }.map(\.element)
+    }
+
+    /// Persist a drag-reorder by writing the new sequence of rule IDs
+    /// to SettingsStore. Mutates the on-screen subset only — preset
+    /// reorder doesn't affect custom rule positions and vice versa.
+    private func moveRules(
+        in section: [RuleRecord],
+        from offsets: IndexSet,
+        to destination: Int,
+    ) {
+        var working = section
+        working.move(fromOffsets: offsets, toOffset: destination)
+        // Rebuild the global order with this section's new sequence
+        // in place; preserve the other section's relative ordering.
+        let isPreset = (section.first?.presetId != nil)
+        let other = isPreset ? customRules : presetRules
+        let newOrder = working.map(\.id) + other.map(\.id)
+        UserDefaultsSettingsStore.shared.automationRuleOrder = newOrder
+        // Force a view refresh by tickling the rules store. Cheapest
+        // way without adding @State for this.
+        Task { await rulesStore.refresh() }
     }
 
     /// iOS 快捷指令-style category color: each trigger family gets

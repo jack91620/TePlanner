@@ -58,6 +58,30 @@ struct RuleBuilderView: View {
             case .cron:            return "定时"
             }
         }
+        var symbol: String {
+            switch self {
+            case .stateDuration:   return "timer"
+            case .stateTransition: return "arrow.right.arrow.left.circle.fill"
+            case .cron:            return "clock.fill"
+            }
+        }
+        var description: String {
+            switch self {
+            case .stateDuration:
+                return "某个状态持续超过设定时长（露营 2 小时、解锁 5 分钟…）"
+            case .stateTransition:
+                return "状态发生变化（充电完成、车辆上线…）"
+            case .cron:
+                return "按时间触发（每个工作日 7:30、每天晚上…）"
+            }
+        }
+        var accent: Color {
+            switch self {
+            case .stateDuration:   return .indigo
+            case .stateTransition: return .purple
+            case .cron:            return .blue
+            }
+        }
     }
 
     enum VehicleEntity: String, CaseIterable, Identifiable {
@@ -198,13 +222,51 @@ struct RuleBuilderView: View {
         }
     }
 
-    private var triggerSection: some View {
-        Section("触发条件 · 当") {
-            Picker("类型", selection: $triggerType) {
-                ForEach(TriggerType.allCases) { t in
-                    Text(t.label).tag(t)
+    /// iOS 快捷指令-style trigger type selector: 3 cards in a row,
+    /// each showing the trigger family's icon, label, and a one-liner
+    /// of what kind of rule it builds. The selected card gets a tinted
+    /// background; tapping a card switches the trigger type.
+    @ViewBuilder
+    private var triggerTypePicker: some View {
+        VStack(spacing: 8) {
+            ForEach(TriggerType.allCases) { t in
+                Button {
+                    triggerType = t
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(t.accent.opacity(triggerType == t ? 0.25 : 0.10))
+                            Image(systemName: t.symbol)
+                                .foregroundStyle(t.accent)
+                        }
+                        .frame(width: 32, height: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.label)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(t.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 4)
+                        if triggerType == t {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(t.accent)
+                        }
+                    }
+                    .padding(.vertical, 6)
                 }
+                .buttonStyle(.plain)
             }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var triggerSection: some View {
+        Section("当") {
+            triggerTypePicker
             switch triggerType {
             case .stateDuration:
                 Picker("观察项", selection: $entity) {
@@ -364,7 +426,7 @@ struct RuleBuilderView: View {
                 }
             }
         } header: {
-            Text("动作 · 那么")
+            Text("那么")
         } footer: {
             Text("可在正文里插入 {duration_human}（持续时长）或 {battery_level}（当前电量）等占位符，推送时会自动替换成真实值。")
                 .font(.caption2)
