@@ -36,12 +36,7 @@ struct HubView: View {
             authSession: authSession
         ))
         _automationEngine = StateObject(wrappedValue: AutomationEngine(
-            registry: [
-                CampModeAutomation(),
-                SentryModeAutomation(),
-                CabinOverheatAutomation(),
-                ChargeCompleteAutomation(),
-            ],
+            registry: PresetSpecs.allPresets,
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
@@ -607,8 +602,12 @@ struct HubView: View {
     /// (or for the toggle-only rule, whose enabled flag is true).
     private var automationsSubtitle: String {
         let store = UserDefaultsSettingsStore.shared
-        let enabled = automationEngine.registeredRules.filter { rule in
-            switch rule.kind {
+        let enabled = automationEngine.registeredRules.filter { record in
+            guard let kindRaw = record.spec.string("kind"),
+                  let kind = VehicleAlert.Kind(rawValue: kindRaw) else {
+                return false
+            }
+            switch kind {
             case .campMode: return store.campModeReminderMinutes > 0
             case .sentryMode: return store.sentryReminderMinutes > 0
             case .cabinOverheat: return store.cabinOverheatReminderMinutes > 0

@@ -13,19 +13,23 @@ import TePlannerKit
 struct AutomationsListView: View {
     @Environment(\.dismiss) private var dismiss
     private let store: SettingsStore
-    private let rules: [any Automation]
+    private let rules: [RuleRecord]
 
     @State private var rows: [Row]
 
-    init(rules: [any Automation], store: SettingsStore = UserDefaultsSettingsStore.shared) {
+    init(rules: [RuleRecord], store: SettingsStore = UserDefaultsSettingsStore.shared) {
         self.store = store
         self.rules = rules
-        let initialRows = rules.map { rule in
-            let mins = Self.minutes(for: rule.kind, store: store)
-            let lowerBound = Self.config(for: rule.kind)?.range.lowerBound ?? 0
+        let initialRows = rules.compactMap { record -> Row? in
+            guard let kindRaw = record.spec.string("kind"),
+                  let kind = VehicleAlert.Kind(rawValue: kindRaw) else {
+                return nil
+            }
+            let mins = Self.minutes(for: kind, store: store)
+            let lowerBound = Self.config(for: kind)?.range.lowerBound ?? 0
             return Row(
-                kind: rule.kind,
-                displayName: rule.displayName,
+                kind: kind,
+                displayName: record.name,
                 enabled: mins > 0,
                 minutes: max(mins, lowerBound)
             )

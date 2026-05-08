@@ -15,9 +15,9 @@ final class AutomationEngineTests: XCTestCase {
         clock = Date(timeIntervalSince1970: 1_000_000)
     }
 
-    private func makeEngine(rules: [any Automation] = [CampModeAutomation()]) -> AutomationEngine {
+    private func makeEngine(records: [RuleRecord] = [makeRecord(spec: PresetSpecs.campMode)]) -> AutomationEngine {
         AutomationEngine(
-            registry: rules,
+            registry: records,
             apiService: api,
             settings: settings,
             memory: memory,
@@ -34,7 +34,7 @@ final class AutomationEngineTests: XCTestCase {
         )
     }
 
-    // MARK: - camp mode behavior (preserves AlertsViewModel coverage)
+    // MARK: - camp mode behavior
 
     func testNoAlertsWhenCampModeOff() {
         let engine = makeEngine()
@@ -53,8 +53,8 @@ final class AutomationEngineTests: XCTestCase {
     }
 
     func testCampOnUpgradesToCriticalAfterThreshold() {
-        settings.campModeReminderMinutes = 60
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 60)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
 
         clock = clock.addingTimeInterval(60 * 60 + 1)
@@ -74,8 +74,8 @@ final class AutomationEngineTests: XCTestCase {
     }
 
     func testReObserveSameOnStateDoesNotResetTimestamp() {
-        settings.campModeReminderMinutes = 60
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 60)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
 
         clock = clock.addingTimeInterval(30 * 60)
@@ -88,18 +88,18 @@ final class AutomationEngineTests: XCTestCase {
     }
 
     func testThresholdZeroDisablesCampReminder() {
-        settings.campModeReminderMinutes = 0
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 0)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
         XCTAssertTrue(engine.alerts.isEmpty,
                       "threshold = 0 should suppress the reminder entirely")
     }
 
-    // MARK: - performPrimaryAction wires through to APIService
+    // MARK: - performPrimaryAction wires through to APIService via capabilities
 
     func testPerformPrimaryActionCallsAPIAndClearsAlert() async {
-        settings.campModeReminderMinutes = 60
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 60)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
         clock = clock.addingTimeInterval(61 * 60)
         engine.recompute()
@@ -119,8 +119,8 @@ final class AutomationEngineTests: XCTestCase {
     }
 
     func testPerformPrimaryActionKeepsAlertOnAPIFailure() async {
-        settings.campModeReminderMinutes = 60
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 60)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
         clock = clock.addingTimeInterval(61 * 60)
         engine.recompute()
@@ -136,17 +136,14 @@ final class AutomationEngineTests: XCTestCase {
     // MARK: - registry / multi-rule wiring
 
     func testEmptyRegistryNeverEmitsAlerts() {
-        let engine = makeEngine(rules: [])
+        let engine = makeEngine(records: [])
         engine.observe(state(camp: true))
         XCTAssertTrue(engine.alerts.isEmpty)
     }
 
     func testSeveritySortPlacesCriticalFirst() {
-        // Two camp rules — same kind, but the test demonstrates the
-        // engine's ordering contract: critical before info. Useful as
-        // a sanity check for when 5.2 lands two real rules.
-        settings.campModeReminderMinutes = 60
-        let engine = makeEngine()
+        let spec = specWithThreshold(PresetSpecs.campMode, minutes: 60)
+        let engine = makeEngine(records: [makeRecord(spec: spec)])
         engine.observe(state(camp: true))
         clock = clock.addingTimeInterval(61 * 60)
         engine.recompute()

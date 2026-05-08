@@ -15,9 +15,10 @@ final class SentryModeAutomationTests: XCTestCase {
         clock = Date(timeIntervalSince1970: 1_000_000)
     }
 
-    private func makeEngine() -> AutomationEngine {
-        AutomationEngine(
-            registry: [SentryModeAutomation()],
+    private func makeEngine(thresholdMinutes: Int = 1440) -> AutomationEngine {
+        let spec = specWithThreshold(PresetSpecs.sentryMode, minutes: thresholdMinutes)
+        return AutomationEngine(
+            registry: [makeRecord(spec: spec)],
             apiService: api,
             settings: settings,
             memory: memory,
@@ -41,8 +42,7 @@ final class SentryModeAutomationTests: XCTestCase {
     }
 
     func testSentryOnEmitsInfoBelowThreshold() {
-        settings.sentryReminderMinutes = 60
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(sentry: true))
         XCTAssertEqual(e.alerts.count, 1)
         XCTAssertEqual(e.alerts.first?.kind, .sentryMode)
@@ -51,8 +51,7 @@ final class SentryModeAutomationTests: XCTestCase {
     }
 
     func testSentryUpgradesToCriticalAfterThreshold() {
-        settings.sentryReminderMinutes = 60
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(sentry: true))
         clock = clock.addingTimeInterval(61 * 60)
         e.recompute()
@@ -69,15 +68,13 @@ final class SentryModeAutomationTests: XCTestCase {
     }
 
     func testThresholdZeroDisablesRule() {
-        settings.sentryReminderMinutes = 0
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 0)
         e.observe(state(sentry: true))
         XCTAssertTrue(e.alerts.isEmpty)
     }
 
     func testPerformPrimaryActionTurnsSentryOff() async {
-        settings.sentryReminderMinutes = 60
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(sentry: true))
         clock = clock.addingTimeInterval(61 * 60)
         e.recompute()

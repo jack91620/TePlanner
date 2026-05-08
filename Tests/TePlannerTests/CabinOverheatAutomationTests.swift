@@ -15,9 +15,10 @@ final class CabinOverheatAutomationTests: XCTestCase {
         clock = Date(timeIntervalSince1970: 1_000_000)
     }
 
-    private func makeEngine() -> AutomationEngine {
-        AutomationEngine(
-            registry: [CabinOverheatAutomation()],
+    private func makeEngine(thresholdMinutes: Int = 60) -> AutomationEngine {
+        let spec = specWithThreshold(PresetSpecs.cabinOverheat, minutes: thresholdMinutes)
+        return AutomationEngine(
+            registry: [makeRecord(spec: spec)],
             apiService: api,
             settings: settings,
             memory: memory,
@@ -41,18 +42,16 @@ final class CabinOverheatAutomationTests: XCTestCase {
     }
 
     func testNoAlertImmediatelyAfterOn() {
-        // The rule waits for `cabinOverheatReminderMinutes` to elapse
-        // before surfacing — the car is already mitigating, so the
-        // first few minutes of "protection on" are noise.
-        settings.cabinOverheatReminderMinutes = 60
-        let e = makeEngine()
+        // The rule waits for `for_minutes` to elapse before surfacing —
+        // the car is already mitigating, so the first few minutes of
+        // "protection on" are noise.
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(overheatOn: true))
         XCTAssertTrue(e.alerts.isEmpty)
     }
 
     func testEmitsInfoAlertAfterThreshold() {
-        settings.cabinOverheatReminderMinutes = 60
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(overheatOn: true))
         clock = clock.addingTimeInterval(61 * 60)
         e.recompute()
@@ -66,8 +65,7 @@ final class CabinOverheatAutomationTests: XCTestCase {
     }
 
     func testOverheatOffClearsAlert() {
-        settings.cabinOverheatReminderMinutes = 60
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 60)
         e.observe(state(overheatOn: true))
         clock = clock.addingTimeInterval(61 * 60)
         e.recompute()
@@ -78,8 +76,7 @@ final class CabinOverheatAutomationTests: XCTestCase {
     }
 
     func testThresholdZeroDisablesRule() {
-        settings.cabinOverheatReminderMinutes = 0
-        let e = makeEngine()
+        let e = makeEngine(thresholdMinutes: 0)
         e.observe(state(overheatOn: true))
         clock = clock.addingTimeInterval(24 * 60 * 60)
         e.recompute()

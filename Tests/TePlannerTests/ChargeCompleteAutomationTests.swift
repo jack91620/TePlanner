@@ -13,14 +13,12 @@ final class ChargeCompleteAutomationTests: XCTestCase {
         settings = InMemorySettingsStore()
         memory = InMemoryAutomationStateMemory()
         clock = Date(timeIntervalSince1970: 1_000_000)
-        // Mirror the production default. Individual tests flip this off
-        // to verify the disable path.
-        settings.chargeCompleteReminderEnabled = true
     }
 
-    private func makeEngine() -> AutomationEngine {
-        AutomationEngine(
-            registry: [ChargeCompleteAutomation()],
+    private func makeEngine(enabled: Bool = true) -> AutomationEngine {
+        let spec = specEnabled(PresetSpecs.chargeComplete, enabled)
+        return AutomationEngine(
+            registry: [makeRecord(spec: spec)],
             apiService: api,
             settings: settings,
             memory: memory,
@@ -105,8 +103,7 @@ final class ChargeCompleteAutomationTests: XCTestCase {
     }
 
     func testToggleOffSuppressesEntirely() {
-        settings.chargeCompleteReminderEnabled = false
-        let e = makeEngine()
+        let e = makeEngine(enabled: false)
         e.observe(state("Complete"))
         XCTAssertTrue(e.alerts.isEmpty)
     }
