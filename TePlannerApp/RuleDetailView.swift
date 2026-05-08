@@ -109,6 +109,7 @@ struct RuleDetailView: View {
                 Button("复制为新规则", systemImage: "plus.square.on.square") {
                     pendingDuplicate = r
                 }
+                snoozeMenu(for: r)
                 if r.presetId == nil {
                     Button("删除", systemImage: "trash", role: .destructive) {
                         showingDeleteConfirm = true
@@ -147,6 +148,15 @@ struct RuleDetailView: View {
                         Text(r.enabled ? "已启用" : "已停用")
                             .font(.caption)
                             .foregroundStyle(r.enabled ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
+                    }
+                    if let until = snoozedUntil(for: r.id) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "moon.zzz.fill")
+                                .font(.caption2)
+                            Text("已静音至 \(Self.snoozeFull(until))")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.orange)
                     }
                     if let lastFired = r.lastFiredAt {
                         HStack(spacing: 4) {
@@ -338,5 +348,69 @@ struct RuleDetailView: View {
         case "info":     return "信息提醒"
         default:          return "通知"
         }
+    }
+
+    // MARK: - Snooze
+
+    private func snoozedUntil(for ruleId: String) -> Date? {
+        guard let ts = UserDefaultsSettingsStore.shared.ruleSnooze[ruleId] else { return nil }
+        return Date(timeIntervalSince1970: ts)
+    }
+
+    private static func snoozeFull(_ date: Date) -> String {
+        let cal = Calendar.current
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        if cal.isDateInToday(date) {
+            f.dateFormat = "今天 HH:mm"
+        } else if cal.isDateInTomorrow(date) {
+            f.dateFormat = "明天 HH:mm"
+        } else {
+            f.dateFormat = "M月d日 HH:mm"
+        }
+        return f.string(from: date)
+    }
+
+    @ViewBuilder
+    private func snoozeMenu(for r: RuleRecord) -> some View {
+        let store = UserDefaultsSettingsStore.shared
+        if snoozedUntil(for: r.id) != nil {
+            Button("取消静音", systemImage: "bell.slash.fill") {
+                var s = store.ruleSnooze
+                s.removeValue(forKey: r.id)
+                store.ruleSnooze = s
+                rulesStore.objectWillChange.send()
+            }
+        } else {
+            Menu("静音", systemImage: "bell.slash") {
+                Button("静音 1 小时") { snooze(r, hours: 1) }
+                Button("静音 4 小时") { snooze(r, hours: 4) }
+                Button("静音至明早 8 点") { snoozeUntilMorning(r) }
+            }
+        }
+    }
+
+    private func snooze(_ r: RuleRecord, hours: Double) {
+        let store = UserDefaultsSettingsStore.shared
+        var s = store.ruleSnooze
+        s[r.id] = Date().addingTimeInterval(hours * 3600).timeIntervalSince1970
+        store.ruleSnooze = s
+        rulesStore.objectWillChange.send()
+    }
+
+    private func snoozeUntilMorning(_ r: RuleRecord) {
+        let cal = Calendar.current
+        var components = cal.dateComponents([.year, .month, .day], from: Date())
+        components.hour = 8
+        components.minute = 0
+        var target = cal.date(from: components) ?? Date().addingTimeInterval(8 * 3600)
+        if target <= Date() {
+            target = cal.date(byAdding: .day, value: 1, to: target) ?? target
+        }
+        let store = UserDefaultsSettingsStore.shared
+        var s = store.ruleSnooze
+        s[r.id] = target.timeIntervalSince1970
+        store.ruleSnooze = s
+        rulesStore.objectWillChange.send()
     }
 }

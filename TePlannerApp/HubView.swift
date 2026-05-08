@@ -896,14 +896,28 @@ struct HubView: View {
     }
 
     private var batterySubtitle: String {
-        var parts: [String] = []
-        if let limit = viewModel.vehicleState?.chargeLimitSoc {
-            parts.append("限额 \(limit)%")
+        let state = viewModel.vehicleState?.chargingState
+        let limit = viewModel.vehicleState?.chargeLimitSoc
+        let level = viewModel.batteryLevel
+        switch state {
+        case "Charging":
+            if let l = limit { return "充电中 · 上限 \(l)%" }
+            return "充电中"
+        case "Complete":
+            if let l = limit { return "已充满 · 上限 \(l)%" }
+            return "已充满"
+        case "Disconnected", "NoPower":
+            if let lvl = level, let l = limit { return "电量 \(lvl)% · 上限 \(l)%" }
+            if let l = limit { return "未连接充电桩 · 上限 \(l)%" }
+            return "未连接充电桩"
+        default:
+            var parts: [String] = []
+            if let l = limit { parts.append("上限 \(l)%") }
+            if statsViewModel.hasAnyData {
+                parts.append("本月 \(statsViewModel.monthlyCount) 次")
+            }
+            return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
         }
-        if statsViewModel.hasAnyData {
-            parts.append("本月 \(statsViewModel.monthlyCount) 次")
-        }
-        return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
     }
 
     /// Subtitle for the automation entry card. Goal: tell the user
