@@ -33,6 +33,15 @@ struct HubView: View {
     /// `tel:*:since` rows exist (server hasn't seen any telemetry from
     /// this car). Drives the "等待车辆上线" placeholder.
     @State private var telemetryReady: Bool? = nil
+    /// Phase 9 + 10 — the most recent pending / queued command we
+    /// surface as a banner. Populated by `refreshCommandStatuses()`
+    /// running on the same cadence as automation-state polling.
+    @State private var activePending: PendingCommand?
+    @State private var activeQueued: QueuedCommand?
+    /// Pending banners auto-dismiss ~3s after they reach a terminal
+    /// status. We track the timestamp so we don't keep them around
+    /// after that window even if the server still returns the row.
+    @State private var pendingResolvedAt: Date?
     @Environment(\.openURL) private var openURL
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
@@ -108,6 +117,7 @@ struct HubView: View {
             await rulesStore.refresh()
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
             await refreshTelemetryState()
+            await refreshCommandStatuses()
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
             statsViewModel.refresh()
             scheduledDeparture = departureStore.current()
@@ -139,7 +149,10 @@ struct HubView: View {
             chargingTracker.observe(newState, locationName: viewModel.locationName)
             statsViewModel.refresh()
             promptVCPPairingIfNeeded()
-            Task { await refreshTelemetryState() }
+            Task {
+                await refreshTelemetryState()
+                await refreshCommandStatuses()
+            }
         }
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
@@ -226,6 +239,76 @@ struct HubView: View {
             }
         case .failure(let err):
             Log.api.debug("fetchAutomationState skipped: \(err.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Phase 9 + 10 — poll command status. Runs alongside
+    /// `refreshTelemetryState` on the same cadence as the rest of the
+    /// hub.  We pick the freshest row of each type to drive the
+    /// banner. Pending banners auto-dismiss ~3 s after reaching a
+    /// terminal state so the hub returns to its idle layout.
+    private func refreshCommandStatuses() async {
+        async let pendingResp = apiService.fetchPendingCommands()
+        async let queuedResp = apiService.fetchQueuedCommands()
+        let (p, q) = await (pendingResp, queuedResp)
+
+        await MainActor.run {
+            // -- Pending: show the most recently dispatched row.
+            if case .success(let resp) = p, let latest = resp.pending.first {
+                let isResolved = latest.status != "pending"
+                let resolvedAt = pendingResolvedAt
+                if isResolved && resolvedAt == nil {
+                    pendingResolvedAt = Date()
+                }
+                if isResolved, let ts = pendingResolvedAt,
+                   Date().timeIntervalSince(ts) > 3 {
+                    activePending = nil
+                    pendingResolvedAt = nil
+                } else {
+                    activePending = latest
+                    if !isResolved { pendingResolvedAt = nil }
+                }
+            } else {
+                activePending = nil
+                pendingResolvedAt = nil
+            }
+
+            // -- Queued: surface the most recent row that's actually
+            // worth showing (sent rows older than 30s vanish — the
+            // confirmation pill takes over from there).
+            if case .success(let resp) = q {
+                let row = resp.queued.first { row in
+                    if row.status == "queued" { return true }
+                    // brief afterglow on resolution so user sees it
+                    let resolvedAt = row.sentAt ?? row.droppedAt
+                    if let resolvedAt {
+                        return Date().timeIntervalSince(resolvedAt) < 5
+                    }
+                    return false
+                }
+                activeQueued = row
+            }
+        }
+    }
+
+    private func cancelQueued(_ id: Int) async {
+        _ = await apiService.cancelQueuedCommand(id: id)
+        await refreshCommandStatuses()
+    }
+
+    /// After dispatching a VCP command we want the banner to flip
+    /// "正在关闭…" → "已关闭" within a second of the car producing
+    /// confirming telemetry. Poll on a 1 s cadence for up to ~12 s
+    /// (roughly one debounce window past the resolver's 60 s timeout
+    /// is overkill; 12 s catches the realistic happy-path latency).
+    private func pollCommandStatusesUntilSettled() async {
+        let deadline = Date().addingTimeInterval(12)
+        await refreshCommandStatuses()
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            await refreshCommandStatuses()
+            // Stop early once we've shown a terminal status.
+            if let p = activePending, p.status != "pending" { break }
         }
     }
 
@@ -590,10 +673,30 @@ struct HubView: View {
                     if case .failure(let err) = result {
                         alertActionError = err.localizedDescription
                     }
+                    // Phase 9 — start a quick-poll burst so the user
+                    // sees "正在关闭…" within a second of the tap.
+                    await pollCommandStatusesUntilSettled()
                 }
             }
         } else if telemetryReady == false {
             telemetryWaitingPill
+        }
+        commandStatusBanner
+    }
+
+    /// Phase 9 + 10 — only shown when there is something to surface;
+    /// stays out of the way otherwise (idle hub looks identical to
+    /// before).
+    @ViewBuilder
+    private var commandStatusBanner: some View {
+        if activePending != nil || activeQueued != nil {
+            CommandStatusBanner(
+                pending: activePending,
+                queued: activeQueued,
+                onCancelQueued: { id in
+                    Task { await cancelQueued(id) }
+                }
+            )
         }
     }
 

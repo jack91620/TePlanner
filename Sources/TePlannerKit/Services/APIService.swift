@@ -22,7 +22,32 @@ public final class APIService: APIServiceProtocol {
         self.baseURL = baseURL
         self.session = session
         self.encoder = JSONEncoder()
-        self.decoder = JSONDecoder()
+        let dec = JSONDecoder()
+        // Pydantic returns datetimes as ISO 8601. Default Date decoding
+        // expects unix seconds — without this, Phase 5/9/10 endpoints
+        // returning `since` / `dispatched_at` / `queued_at` fail to
+        // decode silently. Custom strategy handles both
+        // ``2026-05-08T07:55:40+00:00`` and ``...Z`` shapes.
+        dec.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let s = try container.decode(String.self)
+            let isoFractional = ISO8601DateFormatter()
+            isoFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = isoFractional.date(from: s) { return d }
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime]
+            if let d = iso.date(from: s) { return d }
+            // Pydantic's default with no tz suffix: 2026-05-08T07:55:40
+            let plain = DateFormatter()
+            plain.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            plain.timeZone = TimeZone(secondsFromGMT: 0)
+            if let d = plain.date(from: s) { return d }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unrecognized date format: \(s)"
+            )
+        }
+        self.decoder = dec
         self.tokenProvider = tokenProvider
     }
 
@@ -205,6 +230,20 @@ public final class APIService: APIServiceProtocol {
 
     public func fetchAutomationState() async -> Result<TelemetryStateResponse, APIError> {
         return await get(path: "/automations/state")
+    }
+
+    // MARK: - Phase 9 + 10 — command status / queue (sleep-aware)
+
+    public func fetchPendingCommands() async -> Result<PendingCommandListResponse, APIError> {
+        return await get(path: "/vehicles/commands/pending")
+    }
+
+    public func fetchQueuedCommands() async -> Result<QueuedCommandListResponse, APIError> {
+        return await get(path: "/vehicles/commands/queued")
+    }
+
+    public func cancelQueuedCommand(id: Int) async -> Result<BaseResponse, APIError> {
+        return await delete(path: "/vehicles/commands/queued/\(id)")
     }
 
     // MARK: - Internals

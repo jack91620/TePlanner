@@ -88,4 +88,7 @@ public protocol APIServiceProtocol {
     func deleteAutomation(id: String) async -> Result<BaseResponse, APIError>
     func listCapabilities() async -> Result<[CapabilityInfo], APIError>
     func fetchAutomationState() async -> Result<TelemetryStateResponse, APIError>
+    func fetchPendingCommands() async -> Result<PendingCommandListResponse, APIError>
+    func fetchQueuedCommands() async -> Result<QueuedCommandListResponse, APIError>
+    func cancelQueuedCommand(id: Int) async -> Result<BaseResponse, APIError>
 }

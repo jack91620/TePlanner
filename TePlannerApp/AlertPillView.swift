@@ -60,6 +60,9 @@ struct AlertPillView: View {
         case .closureLeftOpen: return "door.left.hand.open"
         case .lowBattery: return "battery.25"
         case .weekdayPreheat: return "alarm.fill"
+        case .geofenceEnter: return "location.fill"
+        case .geofenceExit: return "location.slash.fill"
+        case .connectivity: return "antenna.radiowaves.left.and.right"
         }
     }
 

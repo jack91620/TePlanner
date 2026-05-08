@@ -237,4 +237,22 @@ final class MockAPIService: APIServiceProtocol {
     func fetchAutomationState() async -> Result<TelemetryStateResponse, APIError> {
         mockFetchAutomationStateResponse
     }
+
+    var mockPendingCommands: Result<PendingCommandListResponse, APIError> =
+        .success(PendingCommandListResponse(pending: []))
+    func fetchPendingCommands() async -> Result<PendingCommandListResponse, APIError> {
+        mockPendingCommands
+    }
+
+    var mockQueuedCommands: Result<QueuedCommandListResponse, APIError> =
+        .success(QueuedCommandListResponse(queued: []))
+    func fetchQueuedCommands() async -> Result<QueuedCommandListResponse, APIError> {
+        mockQueuedCommands
+    }
+
+    var lastCancelQueuedId: Int?
+    func cancelQueuedCommand(id: Int) async -> Result<BaseResponse, APIError> {
+        lastCancelQueuedId = id
+        return .success(BaseResponse(success: true, message: "cancelled"))
+    }
 }

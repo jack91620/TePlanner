@@ -7,6 +7,15 @@ import TePlannerKit
 /// view model, which fetches the auth URL and presents the web view.
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
+    @State private var showingDebugDemo = false
+
+    /// True when the app is launched with `-debug-ui` (or env
+    /// `TEPLANNER_DEBUG_UI=1`). Used to surface the Phase 9/10 banner
+    /// preview screen on the login splash.
+    private static var debugUIEnabled: Bool {
+        CommandLine.arguments.contains("-debug-ui") ||
+        ProcessInfo.processInfo.environment["TEPLANNER_DEBUG_UI"] == "1"
+    }
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
         _viewModel = StateObject(wrappedValue: LoginViewModel(
@@ -32,6 +41,16 @@ struct LoginView: View {
         } message: {
             if case .failed(let message) = viewModel.state {
                 Text(message)
+            }
+        }
+        .sheet(isPresented: $showingDebugDemo) {
+            NavigationStack {
+                CommandBannerDemoView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("关闭") { showingDebugDemo = false }
+                        }
+                    }
             }
         }
     }
@@ -60,10 +79,11 @@ struct LoginView: View {
             }
 
             VStack(alignment: .leading, spacing: 16) {
-                feature(icon: "location.fill", text: "查看车辆位置")
-                feature(icon: "battery.75", text: "实时电量与续航")
-                feature(icon: "bolt.fill", text: "智能充电站规划")
-                feature(icon: "map.fill", text: "一键发送导航到车机")
+                feature(icon: "moon.zzz.fill", text: "露营 / 哨兵 / 充电完成自动提醒")
+                feature(icon: "antenna.radiowaves.left.and.right",
+                        text: "Telemetry 实时车况，秒级响应")
+                feature(icon: "location.fill", text: "进出地理围栏触发自动化")
+                feature(icon: "checkmark.circle.fill", text: "命令已确认/排队透明可见")
             }
             .padding(.horizontal, 32)
 
@@ -84,8 +104,22 @@ struct LoginView: View {
             .controlSize(.large)
             .disabled(viewModel.state == .loadingAuthUrl)
             .padding(.horizontal, 24)
-            .padding(.bottom, 24)
+            .padding(.bottom, 8)
             .accessibilityIdentifier("login_button")
+
+            if Self.debugUIEnabled {
+                // DEBUG-only — only renders when app launched with
+                // `-debug-ui` flag or `TEPLANNER_DEBUG_UI=1` env. Used
+                // to screenshot the Phase 9/10 banner without going
+                // through Tesla OAuth.
+                Button("UI 演示 (DEBUG)") {
+                    showingDebugDemo = true
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 16)
+                .accessibilityIdentifier("debug_ui_demo")
+            }
         }
     }
 
