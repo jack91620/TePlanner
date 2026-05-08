@@ -11,8 +11,52 @@ from app.core.deps import get_current_user, get_db, get_tesla_client
 from app.db.models import User, Vehicle
 from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
+from app.services.capabilities import dispatch as capability_dispatch
+from app.services.capabilities.base import CapabilityCallContext
 
 router = APIRouter()
+
+
+async def _invoke_capability(
+    capability_id: str,
+    vehicle_id: str,
+    params: dict,
+    user: User,
+    tesla_client: TeslaClient,
+    db: AsyncSession,
+    require_vin: bool = True,
+) -> dict:
+    """Shared HTTP-side dispatch helper. Resolves VIN (if required),
+    builds a CapabilityCallContext, calls the registry, translates
+    Tesla SDK exceptions to HTTP status codes consistently across
+    every command endpoint.
+    """
+    vin = await _resolve_vin(vehicle_id, user, db) if require_vin else None
+    ctx = CapabilityCallContext(
+        vehicle_id=vehicle_id,
+        vin=vin,
+        tesla_client=tesla_client,
+        user_id=user.id,
+    )
+    try:
+        async with tesla_client:
+            result = await capability_dispatch(capability_id, ctx, params)
+    except TeslaVehicleOfflineError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vehicle is offline. Please wake up the vehicle first.",
+        )
+    except TeslaAPIError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=f"Tesla API error: {str(e)}",
+        )
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.error or "Capability invocation failed",
+        )
+    return {"success": True, **(result.data or {})}
 
 
 class VehicleResponse(BaseModel):
@@ -355,32 +399,14 @@ async def set_climate_keeper_mode(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """Set the vehicle's climate keeper mode.
-
-    mode: 0=off / 1=keep / 2=dog / 3=camp.
-
-    Used by the iOS AlertsViewModel's "关闭露营模式" reminder action.
-    """
-    if request.mode not in (0, 1, 2, 3):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="mode must be 0 (off), 1 (keep), 2 (dog), or 3 (camp)",
-        )
-    vin = await _resolve_vin(vehicle_id, user, db)
-    try:
-        async with tesla_client:
-            await tesla_client.set_climate_keeper_mode(vin, request.mode)
-            return {"success": True, "mode": request.mode}
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
+    """Set climate keeper mode. 0=off / 1=keep / 2=dog / 3=camp.
+    Dispatches through capability registry."""
+    return await _invoke_capability(
+        "tesla.climate.set_keeper_mode",
+        vehicle_id,
+        {"mode": request.mode},
+        user, tesla_client, db,
+    )
 
 
 @router.post("/{vehicle_id}/sentry-mode")
@@ -391,27 +417,13 @@ async def set_sentry_mode(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """Toggle the vehicle's sentry mode.
-
-    Used by the iOS AutomationEngine's Sentry-overrun reminder
-    to give the user a one-tap "关闭哨兵" action when sentry has
-    been on past their reminder threshold.
-    """
-    vin = await _resolve_vin(vehicle_id, user, db)
-    try:
-        async with tesla_client:
-            await tesla_client.set_sentry_mode(vin, request.on)
-            return {"success": True, "on": request.on}
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
+    """Toggle sentry mode. Dispatches through capability registry."""
+    return await _invoke_capability(
+        "tesla.security.set_sentry",
+        vehicle_id,
+        {"on": request.on},
+        user, tesla_client, db,
+    )
 
 
 @router.post("/{vehicle_id}/charge-limit")
@@ -422,33 +434,14 @@ async def set_charge_limit(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """Set the vehicle's charge limit SOC percent.
-
-    Backed by Tesla's `set_charge_limit` command. Used by the iOS
-    Phase 5.6 智能充电限额建议 card to apply the user's daily / pre-
-    trip preset to the car. Tesla only accepts 50..100; we enforce
-    that here so the iOS layer stays simple.
-    """
-    if not (50 <= request.percent <= 100):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="percent must be between 50 and 100",
-        )
-    vin = await _resolve_vin(vehicle_id, user, db)
-    try:
-        async with tesla_client:
-            await tesla_client.set_charge_limit(vin, request.percent)
-            return {"success": True, "percent": request.percent}
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
+    """Set the vehicle's charge limit SOC percent (50..100).
+    Dispatches through capability registry."""
+    return await _invoke_capability(
+        "tesla.charging.set_limit",
+        vehicle_id,
+        {"percent": request.percent},
+        user, tesla_client, db,
+    )
 
 
 @router.post("/{vehicle_id}/preheat")
@@ -458,31 +451,16 @@ async def preheat_vehicle(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """Start the vehicle's HVAC (a.k.a. auto-conditioning) so the
-    cabin is at temperature when the user arrives.
-
-    Used by the iOS Phase 5.5 出发前预热 feature: a scheduled local
-    notification fires N minutes before departure, the user taps it
-    to open the app, and the app POSTs here. Target temperature is
-    whatever the car already has cached (Tesla doesn't expose a way
-    to override it without dragging in set_temps which we treat as
-    out-of-scope for this slice).
-    """
-    vin = await _resolve_vin(vehicle_id, user, db)
-    try:
-        async with tesla_client:
-            await tesla_client.auto_conditioning_start(vin)
-            return {"success": True, "message": "Preheat started"}
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
+    """Start HVAC (auto_conditioning_start) so the cabin is at
+    temperature on arrival. Used by 出发前预热. Dispatches through
+    capability registry."""
+    result = await _invoke_capability(
+        "tesla.climate.preheat",
+        vehicle_id,
+        {},
+        user, tesla_client, db,
+    )
+    return {**result, "message": "Preheat started"}
 
 
 @router.post("/{vehicle_id}/navigate")
@@ -491,40 +469,24 @@ async def navigate_vehicle(
     request: NavigationRequest,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Send navigation destination to vehicle.
-
-    Sends GPS coordinates to the vehicle's navigation system.
-    Vehicle must be online.
-    """
-    try:
-        async with tesla_client:
-            await tesla_client.navigation_gps_request(
-                vehicle_tag=vehicle_id,
-                lat=request.latitude,
-                lon=request.longitude,
-                order=request.order,
-            )
-
-            return {
-                "success": True,
-                "message": "Navigation destination sent to vehicle",
-                "destination": {
-                    "latitude": request.latitude,
-                    "longitude": request.longitude,
-                },
-            }
-
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
+    """Send GPS coordinates to vehicle nav. Dispatches through
+    capability registry. Uses numeric vehicle_id (not VIN) since
+    navigation_gps_request is one of the few endpoints not on the
+    VCP-signed path."""
+    result = await _invoke_capability(
+        "tesla.navigation.send",
+        vehicle_id,
+        {
+            "latitude": request.latitude,
+            "longitude": request.longitude,
+            "order": request.order,
+        },
+        user, tesla_client, db,
+        require_vin=False,
+    )
+    return {**result, "message": "Navigation destination sent to vehicle"}
 
 
 @router.post("/{vehicle_id}/navigate/address")
