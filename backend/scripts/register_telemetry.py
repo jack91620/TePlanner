@@ -46,21 +46,25 @@ DEFAULT_CA_PATH = "/tmp/le-bundle.pem"
 
 
 # Fields the vehicle should emit + minimum interval (seconds)
-# between consecutive emits per field. Tuned for our automation
-# triggers — anything that drives a preset:
+# between consecutive emits per field. Names must match
+# fleet-telemetry/protos/vehicle_data.proto Field enum exactly.
+# Trunk/frunk are inside the DoorState struct — one subscription
+# covers doors + both trunks. Windows are 4 separate top-level
+# fields (Fd/Fp/Rd/Rp).
 DEFAULT_FIELDS = {
-    "ClimateKeeperMode": {"interval_seconds": 30},
-    "SentryMode": {"interval_seconds": 60},
-    "CabinOverheatProtectionMode": {"interval_seconds": 60},
-    "ChargeState": {"interval_seconds": 60},
-    "BatteryLevel": {"interval_seconds": 300},
-    "Soc": {"interval_seconds": 300},
-    "Locked": {"interval_seconds": 30},
-    "Gear": {"interval_seconds": 10},
-    "DoorState": {"interval_seconds": 10},
-    "FrontTrunkOpen": {"interval_seconds": 30},
-    "RearTrunkOpen": {"interval_seconds": 30},
-    "WindowsOpen": {"interval_seconds": 30},
+    "ClimateKeeperMode":            {"interval_seconds": 30},
+    "SentryMode":                   {"interval_seconds": 60},
+    "CabinOverheatProtectionMode":  {"interval_seconds": 60},
+    "ChargeState":                  {"interval_seconds": 60},
+    "BatteryLevel":                 {"interval_seconds": 300},
+    "Soc":                          {"interval_seconds": 300},
+    "Locked":                       {"interval_seconds": 30},
+    "Gear":                         {"interval_seconds": 10},
+    "DoorState":                    {"interval_seconds": 10},
+    "FdWindow":                     {"interval_seconds": 30},
+    "FpWindow":                     {"interval_seconds": 30},
+    "RdWindow":                     {"interval_seconds": 30},
+    "RpWindow":                     {"interval_seconds": 30},
 }
 
 
