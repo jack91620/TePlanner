@@ -53,6 +53,11 @@ struct RecentFiresView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                Text("提示：进入任一规则详情页，点击「试发通知预览」就能看到推送在系统中的样子。")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
             }
             .padding(.vertical, 32)
             .frame(maxWidth: .infinity)
