@@ -118,6 +118,10 @@ struct RuleDetailView: View {
                     pendingDuplicate = r
                 }
                 snoozeMenu(for: r)
+                Divider()
+                Button("复制 JSON 规格", systemImage: "doc.on.doc") {
+                    copySpecJSON(r)
+                }
                 if r.presetId == nil {
                     Button("删除", systemImage: "trash", role: .destructive) {
                         showingDeleteConfirm = true
@@ -449,6 +453,18 @@ struct RuleDetailView: View {
             return "出发前 10–20 分钟启动 HVAC 可让车舱达到舒适温度，冬天还能为电池预热提升续航。本规则按工作日的固定时间提醒你启动预热。"
         default:
             return nil
+        }
+    }
+
+    /// Encode the rule (id, name, enabled, spec, version) as JSON
+    /// and put it on the pasteboard. Useful when the user wants to
+    /// share a custom rule with someone, or paste into an issue
+    /// report. Pretty-printed for human readability.
+    private func copySpecJSON(_ r: RuleRecord) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        if let data = try? encoder.encode(r), let json = String(data: data, encoding: .utf8) {
+            UIPasteboard.general.string = json
         }
     }
 
