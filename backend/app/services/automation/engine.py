@@ -246,19 +246,28 @@ async def _active_snoozes(
 
 
 def _sort_rules_canonically(rows: list[AutomationRule]) -> list[AutomationRule]:
-    """Stable sort: presets in ALL_PRESETS declaration order, then
-    user-authored rules (preset_id is None) by created_at.
+    """Sort order:
+      1. Rules with non-NULL ``display_order`` first, ascending. The
+         user explicitly placed these via PUT /automations/order.
+      2. Then unranked rows in legacy order: presets in ALL_PRESETS
+         declaration order; user-authored rules (preset_id NULL) by
+         created_at.
+
+    Stable on ties so re-renders don't shuffle.
     """
     preset_order = {p.preset_id: i for i, p in enumerate(ALL_PRESETS)}
-    fallback = len(preset_order)
-    return sorted(rows, key=lambda r: (
-        # Presets sort by their fixed index; user rules sort after.
-        preset_order.get(r.preset_id or "", fallback)
-        if r.preset_id is not None else fallback + 1,
-        # Tiebreaker for user-authored rules.
-        r.created_at or datetime.min,
-        r.id,
-    ))
+    preset_fallback = len(preset_order)
+
+    def key(r: AutomationRule) -> tuple:
+        if r.display_order is not None:
+            return (0, r.display_order, r.id)
+        legacy_bucket = (
+            preset_order.get(r.preset_id or "", preset_fallback)
+            if r.preset_id is not None else preset_fallback + 1
+        )
+        return (1, legacy_bucket, r.created_at or datetime.min, r.id)
+
+    return sorted(rows, key=key)
 
 
 @dataclass

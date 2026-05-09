@@ -104,6 +104,10 @@ class AutomationRule(Base):
     enabled = Column(Boolean, default=True, nullable=False)
     spec_json = Column(Text, nullable=False)
     version = Column(Integer, default=1, nullable=False)
+    # Phase A.2 — user-overrideable display order. NULL means "use the
+    # canonical preset/created-at ordering" (preserves legacy behavior).
+    # Set via PUT /automations/order; engine + listing both honor it.
+    display_order = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

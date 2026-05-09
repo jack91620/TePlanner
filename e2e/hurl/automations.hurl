@@ -112,3 +112,12 @@ GET {{base_url}}/api/v1/automations/snoozes
 HTTP 401
 [Asserts]
 jsonpath "$.detail" exists
+
+
+# 13. Phase A.2 — PUT /automations/order without auth → 401.
+PUT {{base_url}}/api/v1/automations/order
+Content-Type: application/json
+{
+  "rule_ids": []
+}
+HTTP 401
