@@ -223,6 +223,18 @@ struct AutomationsHomeView: View {
         }
     }
 
+    /// True iff this is a geofence rule whose lat/lng are still the
+    /// preset placeholder (0, 0) — fires nothing in practice but
+    /// surfacing the unconfigured state on the row prevents 'why
+    /// isn't it working?'.
+    private func isUnconfiguredGeofence(_ record: RuleRecord) -> Bool {
+        guard let trigger = record.spec["trigger"]?.objectValue,
+              trigger.string("type") == "geofence" else { return false }
+        let lat = trigger.double("lat") ?? 0
+        let lng = trigger.double("lng") ?? 0
+        return abs(lat) < 0.0001 && abs(lng) < 0.0001
+    }
+
     private func unsnooze(_ record: RuleRecord) {
         let store = UserDefaultsSettingsStore.shared
         var s = store.ruleSnooze
@@ -323,6 +335,16 @@ struct AutomationsHomeView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
+                }
+                if isUnconfiguredGeofence(record) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                        Text("请先设置地点")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.top, 2)
                 }
                 if let until = snoozeUntil(for: record.id) {
                     HStack(spacing: 4) {
