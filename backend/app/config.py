@@ -107,6 +107,20 @@ class Settings(BaseSettings):
     # "sandbox" only for dev builds with the development cert.
     APNS_ENVIRONMENT: str = "production"
 
+    # Phase E — JPush (Android via Mi/Huawei legacy/OPPO/vivo OEM
+    # channels in mainland China). Empty disables; dispatcher logs
+    # one notice and skips Android tokens.
+    JPUSH_APP_KEY: str = ""
+    JPUSH_MASTER_SECRET: str = ""
+    JPUSH_API_URL: str = ""              # default: api.jpush.cn
+    JPUSH_PRODUCTION: str = "false"      # "true" for prod APNs cert path
+
+    # Phase E — Huawei Push Kit (HarmonyOS NEXT). Empty disables.
+    HUAWEI_PUSH_APP_ID: str = ""
+    HUAWEI_PUSH_APP_SECRET: str = ""
+    HUAWEI_PUSH_TOKEN_URL: str = ""      # default: oauth-login.cloud.huawei.com
+    HUAWEI_PUSH_API_URL: str = ""        # default: push-api.cloud.huawei.com
+
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
 

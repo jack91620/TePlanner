@@ -33,7 +33,6 @@ from app.db.models import (
     DeviceToken,
     PushedAlert,
 )
-from app.services.apns import apns_client
 from app.services.automation.base import (
     Alert,
     AlertKind,
@@ -455,29 +454,24 @@ class AutomationEngine:
     async def _push_alert(
         self, db: AsyncSession, user_id: int, alert: Alert
     ) -> bool:
-        if not apns_client.configured:
+        # Phase E — route through the multi-platform dispatcher.
+        # Per-platform configuration / outage tolerance lives inside
+        # each per-platform client; the engine just hands off the alert.
+        from app.services.push import push_dispatcher
+
+        summary = await push_dispatcher.send(
+            db=db,
+            user_id=user_id,
+            title=alert.title,
+            body=alert.detail,
+            category=alert.kind.value,
+            thread_id=alert.kind.value,
+            custom_data={"alertKind": alert.kind.value},
+        )
+        if summary.devices == 0:
             logger.info(
-                "skip APNs push for user=%s kind=%s (APNs not configured)",
+                "skip push for user=%s kind=%s (no devices registered)",
                 user_id, alert.kind.value,
             )
             return False
-        stmt = select(DeviceToken).where(DeviceToken.user_id == user_id)
-        tokens = (await db.execute(stmt)).scalars().all()
-        if not tokens:
-            logger.info(
-                "skip APNs push for user=%s kind=%s (no devices registered)",
-                user_id, alert.kind.value,
-            )
-            return False
-        any_ok = False
-        for entry in tokens:
-            ok = await apns_client.send(
-                device_token=entry.token,
-                title=alert.title,
-                body=alert.detail,
-                category=alert.kind.value,
-                thread_id=alert.kind.value,
-                custom_data={"alertKind": alert.kind.value},
-            )
-            any_ok = any_ok or ok
-        return any_ok
+        return summary.sent > 0

@@ -2,8 +2,9 @@
 
 iOS posts its APNs device token after the user grants notification
 permission (and on each subsequent launch in case the token rotates
-— Apple recommends sending it every launch). The polling layer reads
-back tokens by user_id when a rule fires.
+— Apple recommends sending it every launch). Phase E adds Android
+(JPush) and HarmonyOS (Huawei Push Kit) registration through the
+same endpoint; the `platform` field discriminates.
 """
 
 import logging
@@ -17,15 +18,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
 from app.db.models import DeviceToken, User
-from app.services.apns import apns_client
+from app.services.push import push_dispatcher
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+VALID_PLATFORMS = {"apns", "jpush", "harmony"}
+
+
 class RegisterDeviceRequest(BaseModel):
-    token: str = Field(..., min_length=10, max_length=200, description="Hex APNs device token")
+    token: str = Field(..., min_length=10, max_length=200,
+                        description="Provider device token (APNs hex / JPush registration_id / Huawei push token)")
     bundle_id: Optional[str] = None
+    # Phase E — accept "apns" / "jpush" / "harmony"; legacy clients
+    # without this field default to "apns" (= the only channel pre-E).
+    platform: str = Field("apns", max_length=20)
+    # Phase E — provider-specific identifier when distinct from `token`.
+    # JPush has both an installation token and a registration_id;
+    # callers should send the registration_id here when known.
+    provider_token: Optional[str] = Field(None, max_length=255)
 
 
 class RegisterDeviceResponse(BaseModel):
@@ -43,6 +55,16 @@ async def register_device(
     bumps last_seen_at — that lets the polling layer prune stale rows
     later (e.g. tokens not seen for 30 days are likely uninstalled).
     """
+    platform = request.platform.lower()
+    # Backwards compat: legacy "ios" → "apns".
+    if platform == "ios":
+        platform = "apns"
+    if platform not in VALID_PLATFORMS:
+        raise HTTPException(
+            400,
+            f"unknown platform {request.platform!r}; expected one of {sorted(VALID_PLATFORMS)}",
+        )
+
     stmt = select(DeviceToken).where(
         DeviceToken.user_id == user.id,
         DeviceToken.token == request.token,
@@ -53,19 +75,29 @@ async def register_device(
         existing.last_seen_at = datetime.utcnow()
         if request.bundle_id:
             existing.bundle_id = request.bundle_id
+        existing.platform = platform
+        if request.provider_token is not None:
+            existing.provider_token = request.provider_token
         await db.flush()
-        logger.info("device token re-registered: user=%s id=%s", user.id, existing.id)
+        logger.info(
+            "device token re-registered: user=%s id=%s platform=%s",
+            user.id, existing.id, platform,
+        )
         return RegisterDeviceResponse(success=True, device_id=existing.id)
 
     row = DeviceToken(
         user_id=user.id,
         token=request.token,
-        platform="ios",
+        platform=platform,
+        provider_token=request.provider_token,
         bundle_id=request.bundle_id,
     )
     db.add(row)
     await db.flush()
-    logger.info("device token registered: user=%s id=%s token=%s…", user.id, row.id, request.token[:8])
+    logger.info(
+        "device token registered: user=%s id=%s platform=%s token=%s…",
+        user.id, row.id, platform, request.token[:8],
+    )
     return RegisterDeviceResponse(success=True, device_id=row.id)
 
 
@@ -81,32 +113,25 @@ async def test_push(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Send a debug push to all of this user's registered devices.
-    Useful while wiring up — flip APNs creds, hit this endpoint, see
-    if a notification lands on the phone.
+    Phase E — routes through PushDispatcher so APNs / JPush / Huawei
+    Push Kit all receive it according to each token's platform field.
     """
-    if not apns_client.configured:
-        raise HTTPException(503, "APNs is not configured on the server")
-
-    stmt = select(DeviceToken).where(DeviceToken.user_id == user.id)
-    tokens = (await db.execute(stmt)).scalars().all()
-    if not tokens:
+    summary = await push_dispatcher.send(
+        db=db,
+        user_id=user.id,
+        title=request.title,
+        body=request.body,
+        category="DEBUG",
+    )
+    if summary.devices == 0:
         raise HTTPException(404, "No devices registered for this user")
-
-    sent = 0
-    failed = 0
-    for entry in tokens:
-        ok = await apns_client.send(
-            device_token=entry.token,
-            title=request.title,
-            body=request.body,
-            category="DEBUG",
-        )
-        if ok:
-            sent += 1
-        else:
-            failed += 1
-
-    return {"devices": len(tokens), "sent": sent, "failed": failed}
+    return {
+        "devices": summary.devices,
+        "sent": summary.sent,
+        "failed": summary.failed,
+        "skipped": summary.skipped,
+        "by_platform": summary.by_platform,
+    }
 
 
 @router.post("/run-automation-tick")

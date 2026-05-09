@@ -271,7 +271,17 @@ class DeviceToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     token = Column(String(200), nullable=False, index=True)
-    platform = Column(String(20), default="ios")
+    # Phase E — accepted values: "apns" (iOS APNs), "jpush" (Android
+    # via JPush aggregator), "harmony" (HarmonyOS NEXT via Huawei
+    # Push Kit). The legacy default "ios" is back-filled to "apns" by
+    # migration 0007.
+    platform = Column(String(20), default="apns")
+    # Phase E — provider-specific identifier when it differs from the
+    # raw device token. JPush returns a `registration_id` separate
+    # from the OEM push token; Huawei Push Kit returns a token whose
+    # format / length doesn't match APNs hex tokens. Stays NULL for
+    # APNs, where `token` already is the provider-acceptable identifier.
+    provider_token = Column(String(255), nullable=True)
     bundle_id = Column(String(128), nullable=True)
     last_seen_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
