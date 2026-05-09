@@ -1,0 +1,119 @@
+package cloud.teplanner.android.automations
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import cloud.teplanner.android.core.network.AutomationsApi
+import cloud.teplanner.android.core.network.RuleResponse
+import cloud.teplanner.android.core.network.RuleUpdateRequest
+import cloud.teplanner.android.core.network.SnoozeRecord
+import cloud.teplanner.android.core.network.SnoozeRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * Phase F.2 — automation list + per-rule actions. Mirrors iOS
+ * `AutomationRulesStore` + `BackendSnoozeStore`. Backend is the
+ * single source of truth (Phase A.1/A.2/D.6); this ViewModel just
+ * caches + projects state for Compose.
+ */
+@HiltViewModel
+class AutomationsViewModel @Inject constructor(
+    private val api: AutomationsApi,
+) : ViewModel() {
+
+    data class State(
+        val rules: List<RuleResponse> = emptyList(),
+        val snoozes: Map<String, SnoozeRecord> = emptyMap(),
+        val isLoading: Boolean = false,
+        val error: String? = null,
+    )
+
+    private val _state = MutableStateFlow(State(isLoading = true))
+    val state: StateFlow<State> = _state.asStateFlow()
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        _state.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            runCatching {
+                val rules = api.list().rules
+                val snoozes = api.listSnoozes().snoozes.associateBy { it.ruleId }
+                _state.update { State(rules = rules, snoozes = snoozes, isLoading = false) }
+            }.onFailure { err ->
+                _state.update { it.copy(isLoading = false, error = err.message) }
+            }
+        }
+    }
+
+    fun toggleEnabled(ruleId: String, enabled: Boolean) {
+        // Optimistic — flip the cached row first, then API call.
+        _state.update { s ->
+            s.copy(rules = s.rules.map { if (it.id == ruleId) it.copy(enabled = enabled) else it })
+        }
+        viewModelScope.launch {
+            runCatching {
+                api.update(ruleId, RuleUpdateRequest(enabled = enabled))
+            }.onFailure {
+                // Roll back
+                _state.update { s ->
+                    s.copy(
+                        rules = s.rules.map { if (it.id == ruleId) it.copy(enabled = !enabled) else it },
+                        error = "更新失败：${it.message}",
+                    )
+                }
+            }
+        }
+    }
+
+    fun snooze(ruleId: String, hours: Double) {
+        viewModelScope.launch {
+            runCatching {
+                api.snooze(ruleId, SnoozeRequest(hours = hours))
+            }.fold(
+                onSuccess = { rec ->
+                    _state.update { it.copy(snoozes = it.snoozes + (ruleId to rec)) }
+                },
+                onFailure = { err ->
+                    _state.update { it.copy(error = "静音失败：${err.message}") }
+                },
+            )
+        }
+    }
+
+    fun unsnooze(ruleId: String) {
+        viewModelScope.launch {
+            // Optimistic — remove from cache first.
+            _state.update { it.copy(snoozes = it.snoozes - ruleId) }
+            runCatching { api.unsnooze(ruleId) }.onFailure { err ->
+                _state.update { it.copy(error = "取消静音失败：${err.message}") }
+                refresh()
+            }
+        }
+    }
+
+    fun delete(ruleId: String) {
+        // Filter out optimistically; refresh on failure.
+        val previous = _state.value.rules
+        _state.update { s -> s.copy(rules = s.rules.filter { it.id != ruleId }) }
+        viewModelScope.launch {
+            runCatching { api.delete(ruleId) }.onFailure {
+                _state.update { s -> s.copy(rules = previous, error = "删除失败：${it.message}") }
+            }
+        }
+    }
+
+    fun acknowledgeError() {
+        _state.update { it.copy(error = null) }
+    }
+
+    fun rule(id: String): RuleResponse? = _state.value.rules.firstOrNull { it.id == id }
+    fun snoozeFor(id: String): SnoozeRecord? = _state.value.snoozes[id]
+}
