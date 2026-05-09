@@ -125,8 +125,16 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Health check endpoint. Returns app version + status — the
+    `version` field is consumed by `tests/test_health.py` and
+    surfaced in the `ops/server-monitor.sh` snapshot for cross-
+    referencing post-deploy. Source: `app.config.settings.APP_VERSION`
+    if defined, falling back to '0.0.0' for local runs.
+    """
+    return {
+        "status": "healthy",
+        "version": getattr(settings, "APP_VERSION", "0.0.0"),
+    }
 
 
 # WeChat verification file endpoint
