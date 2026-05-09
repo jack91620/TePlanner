@@ -65,6 +65,16 @@ struct RuleBuilderView: View {
         var label: String { self == .enter ? "进入" : "离开" }
     }
 
+    /// (0, 0) is the placeholder lat/lng we ship in geofence presets
+    /// — geographically that's a buoy in the Gulf of Guinea, so a
+    /// vehicle never realistically reports it. Treat as 'unset'
+    /// throughout the builder so the user sees the 'pick location'
+    /// prompt instead of fake coordinates.
+    private var hasRealGeofenceLocation: Bool {
+        guard let lat = geofenceLat, let lng = geofenceLng else { return false }
+        return abs(lat) > 0.0001 || abs(lng) > 0.0001
+    }
+
     @State private var actionType: ActionType = .notify
     @State private var actionTitle: String = ""
     @State private var actionBody: String = ""
@@ -418,9 +428,9 @@ struct RuleBuilderView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(hasRealGeofenceLocation ? Color.green : Color.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
-                    if geofenceLat != nil, geofenceLng != nil {
+                    if hasRealGeofenceLocation {
                         Text(geofenceAddress.isEmpty ? "已选择位置" : geofenceAddress)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
@@ -735,7 +745,7 @@ struct RuleBuilderView: View {
            && primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             missing.append("按钮文字")
         }
-        if triggerType == .geofence && (geofenceLat == nil || geofenceLng == nil) {
+        if triggerType == .geofence && !hasRealGeofenceLocation {
             missing.append("地点")
         }
         if let cap = capabilitiesStore.get(selectedCapabilityId),
@@ -866,7 +876,7 @@ struct RuleBuilderView: View {
         if actionType == .notifyAndOffer && primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             return false
         }
-        if triggerType == .geofence && (geofenceLat == nil || geofenceLng == nil) {
+        if triggerType == .geofence && !hasRealGeofenceLocation {
             return false
         }
         if let cap = capabilitiesStore.get(selectedCapabilityId),
@@ -928,9 +938,20 @@ struct RuleBuilderView: View {
                     }
                 }
             }
-            // Slice D — geofence
-            if let lat = trigger.double("lat") { geofenceLat = lat }
-            if let lng = trigger.double("lng") { geofenceLng = lng }
+            // Slice D — geofence. Preset templates ship lat/lng=(0, 0)
+            // as placeholders; treat them as nil so the editor shows
+            // the '选择中心位置' prompt instead of fake coordinates.
+            let rawLat = trigger.double("lat")
+            let rawLng = trigger.double("lng")
+            let placeholder = (rawLat.map { abs($0) < 0.0001 } ?? true)
+                && (rawLng.map { abs($0) < 0.0001 } ?? true)
+            if !placeholder {
+                geofenceLat = rawLat
+                geofenceLng = rawLng
+            } else {
+                geofenceLat = nil
+                geofenceLng = nil
+            }
             if let r = trigger.int("radius_m") { geofenceRadiusM = r }
             if let evt = trigger.string("event"),
                let parsed = GeofenceEvent(rawValue: evt) {
@@ -1022,9 +1043,20 @@ struct RuleBuilderView: View {
                     }
                 }
             }
-            // Slice D — geofence
-            if let lat = trigger.double("lat") { geofenceLat = lat }
-            if let lng = trigger.double("lng") { geofenceLng = lng }
+            // Slice D — geofence. Preset templates ship lat/lng=(0, 0)
+            // as placeholders; treat them as nil so the editor shows
+            // the '选择中心位置' prompt instead of fake coordinates.
+            let rawLat = trigger.double("lat")
+            let rawLng = trigger.double("lng")
+            let placeholder = (rawLat.map { abs($0) < 0.0001 } ?? true)
+                && (rawLng.map { abs($0) < 0.0001 } ?? true)
+            if !placeholder {
+                geofenceLat = rawLat
+                geofenceLng = rawLng
+            } else {
+                geofenceLat = nil
+                geofenceLng = nil
+            }
             if let r = trigger.int("radius_m") { geofenceRadiusM = r }
             if let evt = trigger.string("event"),
                let parsed = GeofenceEvent(rawValue: evt) {

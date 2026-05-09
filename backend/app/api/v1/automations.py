@@ -106,6 +106,12 @@ def _validate_spec(spec: dict) -> Optional[str]:
     elif t_type == "cron":
         if "expr" not in trigger:
             return "cron trigger missing 'expr'"
+    elif t_type == "geofence":
+        for required in ("lat", "lng", "radius_m", "event", "state_key"):
+            if required not in trigger:
+                return f"geofence trigger missing '{required}'"
+        if trigger.get("event") not in ("enter", "exit"):
+            return "geofence trigger 'event' must be 'enter' or 'exit'"
     else:
         return f"unsupported trigger type: {t_type}"
     return None
