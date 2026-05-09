@@ -9,16 +9,23 @@ home, and Vehicle Command Protocol backend).
 
 ## Layout
 
-```
-Package.swift              # SPM library + tests (no exec target)
-project.yml                # XcodeGen spec — describes TePlannerApp.xcodeproj
-Podfile / Podfile.lock     # CocoaPods → AMap iOS SDK deps
-Config.xcconfig.example    # Template for per-machine config (real values
-                           # in Config.xcconfig, gitignored — bundle id,
-                           # AMap key, backend URL, Team ID, build number)
+Phase B repo restructure (2026-05-09): all iOS code now lives under
+`apps/ios/`. Android lands in `apps/android/` (Phase F), HarmonyOS in
+`apps/harmony/` (Phase G). The shared OpenAPI-generated SDKs live in
+`packages/clients/{swift,kotlin,arkts}/` (Phase C). Backend stays at
+the same path (`backend/`).
 
-Sources/
-  TePlannerKit/            # Cross-platform logic + services. Pure SPM,
+```
+apps/ios/                        # iOS app + Swift Package, Phase B
+  Package.swift                  # SPM library + tests (no exec target)
+  project.yml                    # XcodeGen spec — describes TePlannerApp.xcodeproj
+  Podfile / Podfile.lock         # CocoaPods → AMap iOS SDK deps
+  Config.xcconfig.example        # Template for per-machine config (real
+                                 # values in Config.xcconfig, gitignored —
+                                 # bundle id, AMap key, backend URL, Team
+                                 # ID, build number)
+  Sources/
+    TePlannerKit/          # Cross-platform logic + services. Pure SPM,
                            # builds on macOS for fast tests. No SwiftUI
                            # views live here — they're all in TePlannerApp/
                            # since they touch AMap.
@@ -40,7 +47,7 @@ Sources/
                            #   SearchViewModel, NearbyChargersViewModel,
                            #   RecentTripsViewModel, ChargingStatsViewModel
 
-TePlannerApp/              # iOS app target (driven by project.yml).
+  TePlannerApp/            # iOS app target (driven by project.yml).
                            # Imports TePlannerKit + AMap SDK. Builds and
                            # runs on iPhone 17 simulator on Apple Silicon
                            # thanks to the AMap retag (see Known gotchas).
@@ -82,9 +89,9 @@ TePlannerApp/              # iOS app target (driven by project.yml).
   Info.plist               # CFBundleIdentifier + AMapAPIKey + BackendURL
                            # from xcconfig; ITSAppUsesNonExemptEncryption=NO.
 
-Tests/
-  TePlannerTests/          # XCTest, depends on TePlannerKit only.
-                           # ~130 tests; covers VMs, services, automation
+  Tests/
+    TePlannerTests/        # XCTest, depends on TePlannerKit only.
+                           # 156 tests; covers VMs, services, automation
                            # engine rules, charging session tracker,
                            # charge-limit suggester, model decoding.
 
@@ -110,9 +117,10 @@ e2e/
                            # dismiss too) + enter_planning.
 ```
 
-Generated and gitignored: `TePlannerApp.xcodeproj`,
-`TePlannerApp.xcworkspace`, `Pods/`, `Config.xcconfig`,
-`deploy/ExportOptions.plist`, `build/`. Run `make project` after a
+Generated and gitignored (all under `apps/ios/`):
+`TePlannerApp.xcodeproj`, `TePlannerApp.xcworkspace`, `Pods/`,
+`Config.xcconfig`, `.build/`, `.derivedData/`. Plus root
+`deploy/ExportOptions.plist` + `build/`. Run `make project` after a
 fresh clone or any `project.yml` / `Podfile` change.
 
 ## Build & test
@@ -227,7 +235,7 @@ There is no fallback path. If any step fails, the user sees an error.
 
 **Automation engine** (Phase 5, see `4e7d784`):
 
-`Automation` protocol in `Sources/TePlannerKit/Automations/`. Each
+`Automation` protocol in `apps/ios/Sources/TePlannerKit/Automations/`. Each
 rule (CampMode / SentryMode / CabinOverheat / ChargeComplete) is a
 small struct with `evaluate(context) -> VehicleAlert?` and an
 optional `primaryAction`. `AutomationEngine` runs the registry on
@@ -242,7 +250,7 @@ reminder.
 
 ## AMap SDK notes
 
-- The iOS API key lives in `Config.xcconfig` (gitignored). The xcconfig
+- The iOS API key lives in `apps/ios/Config.xcconfig` (gitignored). The xcconfig
   injects it into `Info.plist` as `AMapAPIKey`. The app reads it back
   in `TePlannerApp.bootstrapAMapSDK()` and hands it to `AMapServices`.
 - The backend uses the **AMap Web Service** (separate key,
@@ -310,7 +318,7 @@ different vehicle). The friendly message is in
   (copies the `.orig` backup back) before xcodebuild, then re-runs
   the sim retag afterward so simulator dev keeps working. No
   manual swap needed.
-- **`DEVELOPMENT_TEAM` lives only in `Config.xcconfig`.** Don't put
+- **`DEVELOPMENT_TEAM` lives only in `apps/ios/Config.xcconfig`.** Don't put
   an empty string in `project.yml`'s `settings.base` — it'll override
   the xcconfig and break signed builds.
 - **Backend on Tencent Cloud needs Clash for GitHub access.** The VM
@@ -395,7 +403,7 @@ See `reference_backend_deploy.md` (memory) for ssh creds workflow.
 For App Store Connect / TestFlight uploads (paid Apple Developer
 Program required, China region settings live on the ASC side):
 
-1. Set `DEVELOPMENT_TEAM` in `Config.xcconfig` (10-char Team ID).
+1. Set `DEVELOPMENT_TEAM` in `apps/ios/Config.xcconfig` (10-char Team ID).
 2. `cp deploy/ExportOptions.example.plist deploy/ExportOptions.plist`
    and replace `REPLACE_WITH_YOUR_TEAM_ID`.
 3. Create an **App Store Connect API Key** (Users and Access → Keys
@@ -486,7 +494,7 @@ When adding new backend endpoints: write the Hurl contract test the
 same commit. When adding iOS UI surface: write the Maestro flow the
 same commit. Don't let the test debt accumulate.
 
-The AMap-using code in `TePlannerApp/` (Hub, MapHomeView, AlongRoute
+The AMap-using code in `apps/ios/TePlannerApp/` (Hub, MapHomeView, AlongRoute
 service, sheets) has unit-test coverage gaps; Maestro is the safety
 net there. Adding pure-logic tests when extracting helpers is
 appreciated.

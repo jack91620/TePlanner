@@ -2,19 +2,22 @@
 # Local Xcode work AND CLI/Claude sessions go through these targets so
 # behavior is identical everywhere.
 #
-# Project structure:
-#   - Sources/TePlannerKit + Tests are pure SPM (fast macOS tests).
-#   - TePlannerApp/ is the iOS app target — driven by xcodegen + cocoapods,
-#     pulls in AMap iOS SDK + the TePlannerKit SPM library.
+# Project structure (Phase B repo restructure, 2026-05-09):
+#   - apps/ios/Sources/TePlannerKit + apps/ios/Tests are pure SPM.
+#   - apps/ios/TePlannerApp/ is the iOS app target — driven by
+#     xcodegen + cocoapods from apps/ios/project.yml + apps/ios/Podfile.
+#   - apps/android/, apps/harmony/ land in Phases F + G.
 #
 # Generated artifacts (TePlannerApp.xcodeproj, TePlannerApp.xcworkspace,
-# Pods/) are gitignored. Run `make project` after a fresh clone.
+# Pods/, .build/, .derivedData/) live INSIDE apps/ios/ and are
+# gitignored. Run `make project` after a fresh clone.
 
 SIMULATOR ?= iPhone 17
 PACKAGE_SCHEME := TePlanner-Package
 APP_SCHEME := TePlannerApp
 KIT_SCHEME := TePlannerKit
 DESTINATION := platform=iOS Simulator,name=$(SIMULATOR)
+IOS_DIR := apps/ios
 WORKSPACE := TePlannerApp.xcworkspace
 APP_BUNDLE_ID := com.teplanner.ios
 DERIVED_DATA := .derivedData
@@ -33,31 +36,31 @@ help:
 project: ## Regenerate xcodeproj + install pods (run after fresh clone or project.yml/Podfile change)
 	@command -v xcodegen >/dev/null 2>&1 || { echo "Install xcodegen: brew install xcodegen"; exit 1; }
 	@command -v pod >/dev/null 2>&1       || { echo "Install cocoapods: brew install cocoapods"; exit 1; }
-	@test -f Config.xcconfig || { echo "Missing Config.xcconfig — copy from Config.xcconfig.example and fill in your AMap key"; exit 1; }
-	xcodegen generate
-	pod install
+	@test -f $(IOS_DIR)/Config.xcconfig || { echo "Missing $(IOS_DIR)/Config.xcconfig — copy from Config.xcconfig.example and fill in your AMap key"; exit 1; }
+	cd $(IOS_DIR) && xcodegen generate
+	cd $(IOS_DIR) && pod install
 
 # --- Build ---------------------------------------------------------------
 
 build: ## Build TePlannerKit for host (macOS) — fastest sanity check, no simulator
-	swift build
+	cd $(IOS_DIR) && swift build
 
 build-ios: ## Build TePlannerKit for iOS simulator ($(SIMULATOR))
-	xcodebuild -scheme $(KIT_SCHEME) \
+	cd $(IOS_DIR) && xcodebuild -scheme $(KIT_SCHEME) \
 	  -destination '$(DESTINATION)' \
 	  -derivedDataPath $(DERIVED_DATA) \
 	  build
 
 build-app: ## Build the iOS app (TePlannerApp) for the simulator
-	@test -d $(WORKSPACE) || $(MAKE) project
-	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	@test -d $(IOS_DIR)/$(WORKSPACE) || $(MAKE) project
+	cd $(IOS_DIR) && xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
 	  -destination '$(DESTINATION)' \
 	  -derivedDataPath $(DERIVED_DATA) \
 	  -configuration Debug \
 	  build
 
 run-app: build-app sim-boot ## Build, install, and launch the app on the simulator
-	@app=$$(find $(DERIVED_DATA) -name "TePlannerApp.app" -type d | head -1); \
+	@app=$$(find $(IOS_DIR)/$(DERIVED_DATA) -name "TePlannerApp.app" -type d | head -1); \
 	  test -n "$$app" || { echo "TePlannerApp.app not found"; exit 1; }; \
 	  xcrun simctl install booted "$$app" && \
 	  xcrun simctl launch booted $(APP_BUNDLE_ID)
@@ -68,10 +71,10 @@ list-devices: ## List paired iOS devices visible to xcrun devicectl
 	@xcrun devicectl list devices 2>&1 | tail -n +2 || echo "No devices paired. Connect via USB once + trust this Mac in Settings."
 
 build-device: ## Build the iOS app for a real device (signed)
-	@test -d $(WORKSPACE) || $(MAKE) project
-	@grep -q "^DEVELOPMENT_TEAM = ..*" Config.xcconfig 2>/dev/null \
-	  || { echo "DEVELOPMENT_TEAM not set in Config.xcconfig (Xcode → Settings → Accounts → Team ID)"; exit 1; }
-	xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	@test -d $(IOS_DIR)/$(WORKSPACE) || $(MAKE) project
+	@grep -q "^DEVELOPMENT_TEAM = ..*" $(IOS_DIR)/Config.xcconfig 2>/dev/null \
+	  || { echo "DEVELOPMENT_TEAM not set in $(IOS_DIR)/Config.xcconfig (Xcode → Settings → Accounts → Team ID)"; exit 1; }
+	cd $(IOS_DIR) && xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
 	  -destination 'generic/platform=iOS' \
 	  -derivedDataPath $(DERIVED_DATA) \
 	  -configuration Debug \
@@ -79,7 +82,7 @@ build-device: ## Build the iOS app for a real device (signed)
 	  build
 
 run-device: build-device ## Build, install, and launch on a paired iPhone (set DEVICE='Name' or pass UDID)
-	@app=$$(find $(DERIVED_DATA) -path "*Debug-iphoneos/TePlannerApp.app" -type d | head -1); \
+	@app=$$(find $(IOS_DIR)/$(DERIVED_DATA) -path "*Debug-iphoneos/TePlannerApp.app" -type d | head -1); \
 	  test -n "$$app" || { echo "TePlannerApp.app (device build) not found"; exit 1; }; \
 	  device_args=""; \
 	  if [ -n "$(DEVICE)" ]; then \
@@ -96,10 +99,10 @@ run-device: build-device ## Build, install, and launch on a paired iPhone (set D
 # --- Test ----------------------------------------------------------------
 
 test: ## Run unit tests on macOS (fast, no simulator boot)
-	swift test
+	cd $(IOS_DIR) && swift test
 
 test-ios: ## Run unit tests on iOS simulator ($(SIMULATOR))
-	xcodebuild -scheme $(PACKAGE_SCHEME) \
+	cd $(IOS_DIR) && xcodebuild -scheme $(PACKAGE_SCHEME) \
 	  -destination '$(DESTINATION)' \
 	  -derivedDataPath $(DERIVED_DATA) \
 	  test
@@ -146,35 +149,37 @@ e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
 ARCHIVE_PATH := build/TePlannerApp.xcarchive
 EXPORT_DIR := build/export
 
-next-build: ## Bump CURRENT_PROJECT_VERSION in Config.xcconfig (call before each TestFlight upload)
-	@test -f Config.xcconfig || { echo "Missing Config.xcconfig"; exit 1; }
-	@current=$$(grep -E "^CURRENT_PROJECT_VERSION" Config.xcconfig | tail -1 | awk -F= '{gsub(/ /, "", $$2); print $$2}'); \
+next-build: ## Bump CURRENT_PROJECT_VERSION in apps/ios/Config.xcconfig (call before each TestFlight upload)
+	@test -f $(IOS_DIR)/Config.xcconfig || { echo "Missing $(IOS_DIR)/Config.xcconfig"; exit 1; }
+	@current=$$(grep -E "^CURRENT_PROJECT_VERSION" $(IOS_DIR)/Config.xcconfig | tail -1 | awk -F= '{gsub(/ /, "", $$2); print $$2}'); \
 	  current=$${current:-0}; \
 	  next=$$((current + 1)); \
-	  if grep -qE "^CURRENT_PROJECT_VERSION" Config.xcconfig; then \
-	    sed -i '' -E "s|^CURRENT_PROJECT_VERSION = .*|CURRENT_PROJECT_VERSION = $$next|" Config.xcconfig; \
+	  if grep -qE "^CURRENT_PROJECT_VERSION" $(IOS_DIR)/Config.xcconfig; then \
+	    sed -i '' -E "s|^CURRENT_PROJECT_VERSION = .*|CURRENT_PROJECT_VERSION = $$next|" $(IOS_DIR)/Config.xcconfig; \
 	  else \
-	    echo "CURRENT_PROJECT_VERSION = $$next" >> Config.xcconfig; \
+	    echo "CURRENT_PROJECT_VERSION = $$next" >> $(IOS_DIR)/Config.xcconfig; \
 	  fi; \
 	  echo "Bumped CURRENT_PROJECT_VERSION → $$next"
 
 archive: ## Build a signed Release .xcarchive ready for App Store Connect
-	@test -f Config.xcconfig || { echo "Missing Config.xcconfig"; exit 1; }
-	@grep -q "^DEVELOPMENT_TEAM = ..*" Config.xcconfig || { echo "DEVELOPMENT_TEAM not set in Config.xcconfig"; exit 1; }
-	@test -d $(WORKSPACE) || $(MAKE) project
+	@test -f $(IOS_DIR)/Config.xcconfig || { echo "Missing $(IOS_DIR)/Config.xcconfig"; exit 1; }
+	@grep -q "^DEVELOPMENT_TEAM = ..*" $(IOS_DIR)/Config.xcconfig || { echo "DEVELOPMENT_TEAM not set in $(IOS_DIR)/Config.xcconfig"; exit 1; }
+	@test -d $(IOS_DIR)/$(WORKSPACE) || $(MAKE) project
 	@# AMap pods get sim-retagged by Podfile post_install for Apple
 	@# Silicon simulator builds. Restore device-tagged slices before
 	@# archive so the device linker accepts them, then re-retag for
 	@# sim afterward so ongoing simulator dev keeps working.
-	bash scripts/restore-amap-device.sh
-	-xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
+	@# scripts/ stays at repo root; pass apps/ios/ as the project
+	@# root so scripts find Pods/ correctly.
+	bash scripts/restore-amap-device.sh "$(PWD)/$(IOS_DIR)"
+	-cd $(IOS_DIR) && xcodebuild -workspace $(WORKSPACE) -scheme $(APP_SCHEME) \
 	  -configuration Release \
 	  -destination 'generic/platform=iOS' \
-	  -archivePath $(ARCHIVE_PATH) \
+	  -archivePath ../../$(ARCHIVE_PATH) \
 	  -allowProvisioningUpdates \
 	  archive
 	@status=$$?; \
-	bash scripts/retag-amap-for-sim.sh; \
+	bash scripts/retag-amap-for-sim.sh "$(PWD)/$(IOS_DIR)"; \
 	exit $$status
 
 export-ipa: archive ## Export an IPA from the latest archive (requires deploy/ExportOptions.plist)
@@ -243,18 +248,18 @@ lint: ## Run SwiftLint if available; otherwise no-op with a note
 
 format: ## Run swift-format (Apple) if available; else swiftformat; else note
 	@if command -v swift-format >/dev/null 2>&1; then \
-	  swift-format -i -r Sources Tests TePlannerApp; \
+	  swift-format -i -r $(IOS_DIR)/Sources $(IOS_DIR)/Tests $(IOS_DIR)/TePlannerApp; \
 	elif command -v swiftformat >/dev/null 2>&1; then \
-	  swiftformat Sources Tests TePlannerApp; \
+	  swiftformat $(IOS_DIR)/Sources $(IOS_DIR)/Tests $(IOS_DIR)/TePlannerApp; \
 	else \
 	  echo "no swift-format/swiftformat installed — skipping"; \
 	fi
 
 clean: ## Remove SPM and Xcode build artifacts (keeps Pods/, xcodeproj — use `clean-project` to nuke those too)
-	rm -rf .build $(DERIVED_DATA)
+	rm -rf $(IOS_DIR)/.build $(IOS_DIR)/$(DERIVED_DATA)
 
 clean-project: clean ## Also remove generated xcodeproj/xcworkspace/Pods (forces full `make project`)
-	rm -rf TePlannerApp.xcodeproj $(WORKSPACE) Pods
+	rm -rf $(IOS_DIR)/TePlannerApp.xcodeproj $(IOS_DIR)/$(WORKSPACE) $(IOS_DIR)/Pods
 
 doctor: ## Print toolchain + simulator info
 	@echo "=== xcode ===";        xcodebuild -version
