@@ -50,13 +50,19 @@ UVICORN_PID="$(pgrep -f 'uvicorn app.main' | head -1 || true)"
 UVICORN_ALIVE="false"
 [ -n "$UVICORN_PID" ] && UVICORN_ALIVE="true"
 
-# --- 3. polling tick recency --------------------------------------------------
+# --- 3. polling / cron tick recency ------------------------------------------
+# Phase 6 renamed `polling.py` → `cron_tick.py`. The post-rename code
+# emits "cron tick complete users=N polled=N failed=N" once per tick.
+# Match BOTH strings so the watchdog works during a forward-rolled
+# deploy (new code) AND if anyone ever rolls back (old code). Without
+# this dual match, the loop reported `pollingAgeS=99999` indefinitely
+# and triggered an empty restart every hour — see ops/reports/2026-05-09.md.
 POLLING_FRESH="unknown"
 if [ -f "$SERVER_LOG" ]; then
     # -a forces text mode — server.log occasionally contains stray
     # bytes from upstream Tesla SDK that grep otherwise refuses,
     # turning matches into the literal string "Binary file matches".
-    LAST_TICK_LINE="$(grep -a 'polling tick complete' "$SERVER_LOG" | tail -1 || true)"
+    LAST_TICK_LINE="$(grep -aE 'polling tick complete|cron tick complete' "$SERVER_LOG" | tail -1 || true)"
     if [ -n "$LAST_TICK_LINE" ]; then
         # Two log formats coexist depending on whether structlog is
         # wired this boot:

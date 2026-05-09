@@ -93,22 +93,38 @@ async def _tick_one_user(
 async def run_one_tick(engine: Optional[AutomationEngine] = None) -> int:
     """One pass over all eligible users. Returns the count polled.
     Exposed for the /run-automation-tick admin endpoint.
+
+    Each user is processed in its own ``async_session`` so that an
+    autoflush / flush failure on one user (e.g. an integrity error
+    during preset hydration) doesn't poison the transaction for every
+    subsequent user. Fix for the production incident on 2026-05-09
+    where 40 ERROR/5min cascaded across ~30 users with the message
+    "This Session's transaction has been rolled back".
     """
     engine = engine or AutomationEngine()
     polled = 0
+    failed = 0
+    # Use a short-lived session to discover eligible users; the
+    # subsequent per-user work owns its own session.
     async with async_session() as db:
-        try:
-            user_ids = await _eligible_user_ids(db)
-            for uid in user_ids:
-                try:
-                    await _tick_one_user(db, uid, engine)
-                    polled += 1
-                except Exception as exc:
-                    logger.exception("cron tick failed user=%s: %s", uid, exc)
-            await db.commit()
-        except Exception:
-            await db.rollback()
-            raise
+        user_ids = await _eligible_user_ids(db)
+    for uid in user_ids:
+        async with async_session() as db:
+            try:
+                await _tick_one_user(db, uid, engine)
+                await db.commit()
+                polled += 1
+            except Exception as exc:
+                await db.rollback()
+                failed += 1
+                logger.exception("cron tick failed user=%s: %s", uid, exc)
+    # Watchdog (~/ops/server-monitor.sh) greps for this exact line to
+    # confirm the loop is alive — emit it on every tick, success or
+    # failure, so a 100%-failure tick still counts as "alive".
+    logger.info(
+        "cron tick complete users=%s polled=%s failed=%s",
+        len(user_ids), polled, failed,
+    )
     return polled
 
 
