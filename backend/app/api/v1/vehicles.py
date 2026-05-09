@@ -17,6 +17,7 @@ from app.services.vehicle_commands import (
     invoke_capability as _invoke_capability,
     resolve_vin as _resolve_vin,
 )
+from app.services.vehicle_sync_service import sync_vehicles as _sync_vehicles
 
 router = APIRouter()
 
@@ -117,67 +118,19 @@ async def list_vehicles(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """List user's Tesla vehicles.
-
-    Fetches vehicles from Tesla API and syncs with local database.
-    """
+    """List user's Tesla vehicles, syncing the local Vehicle table.
+    Logic in services/vehicle_sync_service.sync_vehicles."""
     try:
-        async with tesla_client:
-            response = await tesla_client.list_vehicles()
-            vehicles_data = response.get("response", [])
-
-            vehicles = []
-            for v in vehicles_data:
-                vehicle_id = str(v.get("id"))
-
-                # Check if vehicle exists in DB
-                result = await db.execute(
-                    select(Vehicle).where(
-                        Vehicle.user_id == user.id,
-                        Vehicle.vehicle_id == vehicle_id,
-                    )
-                )
-                db_vehicle = result.scalar_one_or_none()
-
-                is_primary = db_vehicle.is_primary if db_vehicle else False
-
-                # Create or update in DB
-                if not db_vehicle:
-                    db_vehicle = Vehicle(
-                        user_id=user.id,
-                        vehicle_id=vehicle_id,
-                        vin=v.get("vin"),
-                        display_name=v.get("display_name", "Tesla"),
-                        model=_parse_model(v.get("vin")),
-                    )
-                    db.add(db_vehicle)
-                else:
-                    db_vehicle.display_name = v.get("display_name", db_vehicle.display_name)
-                    db_vehicle.vin = v.get("vin", db_vehicle.vin)
-
-                vehicles.append(
-                    VehicleResponse(
-                        id=vehicle_id,
-                        vin=v.get("vin"),
-                        display_name=v.get("display_name", "Tesla"),
-                        model=_parse_model(v.get("vin")),
-                        state=v.get("state", "unknown"),
-                        is_primary=is_primary,
-                    )
-                )
-
-            await db.commit()
-
-            return VehicleListResponse(
-                count=len(vehicles),
-                vehicles=vehicles,
-            )
-
+        rows = await _sync_vehicles(user=user, tesla_client=tesla_client, db=db)
     except TeslaAPIError as e:
         raise HTTPException(
             status_code=e.status_code or 500,
             detail=f"Tesla API error: {str(e)}",
         )
+    return VehicleListResponse(
+        count=len(rows),
+        vehicles=[VehicleResponse(**r) for r in rows],
+    )
 
 
 @router.get("/{vehicle_id}", response_model=VehicleResponse)

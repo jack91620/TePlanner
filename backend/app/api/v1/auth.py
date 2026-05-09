@@ -21,6 +21,13 @@ from app.core.security import (
 from app.db.models import TeslaToken, User
 from app.db.session import get_db
 from app.integrations.tesla import TeslaAuth
+from app.services.auth_service import (
+    AccountDisabledError,
+    EmailAlreadyExistsError,
+    InvalidCredentialsError,
+    login_email_user as _login_email_user,
+    register_email_user as _register_email_user,
+)
 from app.services.tesla_auth_service import (
     TeslaAuthError,
     exchange_and_store as _tesla_exchange_and_store,
@@ -261,55 +268,28 @@ async def email_register(
     request: EmailRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new user with email and password.
-
-    For Android and other non-WeChat clients.
-
-    Args:
-        request: Email, password, and optional nickname
-        db: Database session
-
-    Returns:
-        JWT access token and user info
+    """Register a new user with email and password (Android / non-
+    WeChat clients). Logic in services/auth_service.register_email_user.
     """
-    # Check if email already exists
-    result = await db.execute(
-        select(User).where(User.email == request.email)
-    )
-    existing_user = result.scalar_one_or_none()
-
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+    try:
+        bundle = await _register_email_user(
+            email=request.email,
+            password=request.password,
+            nickname=request.nickname,
+            db=db,
         )
-
-    # Create new user
-    password_hash = get_password_hash(request.password)
-    user = User(
-        email=request.email,
-        password_hash=password_hash,
-        nickname=request.nickname or request.email.split("@")[0],
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    # Create JWT token
-    expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-    access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email},
-        expires_delta=timedelta(minutes=expires_minutes),
-    )
-
+    except EmailAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc),
+        )
     return EmailAuthResponse(
-        access_token=access_token,
+        access_token=bundle.access_token,
         token_type="Bearer",
-        expires_in=expires_minutes * 60,
-        user_id=user.id,
-        email=user.email,
-        nickname=user.nickname,
-        has_tesla_linked=False,
+        expires_in=bundle.expires_in,
+        user_id=bundle.user_id,
+        email=bundle.email,
+        nickname=bundle.nickname,
+        has_tesla_linked=bundle.has_tesla_linked,
     )
 
 
@@ -318,64 +298,29 @@ async def email_login(
     request: EmailLoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Login with email and password.
-
-    For Android and other non-WeChat clients.
-
-    Args:
-        request: Email and password
-        db: Database session
-
-    Returns:
-        JWT access token and user info
+    """Login with email and password. Logic in
+    services/auth_service.login_email_user.
     """
-    # Find user by email
-    result = await db.execute(
-        select(User).where(User.email == request.email)
-    )
-    user = result.scalar_one_or_none()
-
-    if not user or not user.password_hash:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+    try:
+        bundle = await _login_email_user(
+            email=request.email, password=request.password, db=db,
         )
-
-    # Verify password
-    if not verify_password(request.password, user.password_hash):
+    except InvalidCredentialsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc),
         )
-
-    # Check if user is active
-    if not user.is_active:
+    except AccountDisabledError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is disabled",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc),
         )
-
-    # Check if Tesla is linked
-    result = await db.execute(
-        select(TeslaToken).where(TeslaToken.user_id == user.id)
-    )
-    has_tesla = result.scalar_one_or_none() is not None
-
-    # Create JWT token
-    expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-    access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email},
-        expires_delta=timedelta(minutes=expires_minutes),
-    )
-
     return EmailAuthResponse(
-        access_token=access_token,
+        access_token=bundle.access_token,
         token_type="Bearer",
-        expires_in=expires_minutes * 60,
-        user_id=user.id,
-        email=user.email,
-        nickname=user.nickname,
-        has_tesla_linked=has_tesla,
+        expires_in=bundle.expires_in,
+        user_id=bundle.user_id,
+        email=bundle.email,
+        nickname=bundle.nickname,
+        has_tesla_linked=bundle.has_tesla_linked,
     )
 
 
