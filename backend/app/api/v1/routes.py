@@ -14,6 +14,11 @@ from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
 from app.integrations.amap.web_client import AmapWebClient as TencentMapClient
 from app.services.route_planner import RoutePlanner
+from app.services.route_dispatch_service import (
+    NoVehicleError,
+    RouteNotFoundError,
+    send_saved_route_to_vehicle as _send_saved_route_to_vehicle,
+)
 
 router = APIRouter()
 
@@ -291,100 +296,25 @@ async def navigate_saved_route(
     tesla_client: TeslaClient = Depends(get_tesla_client),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send a saved route to vehicle.
-
-    Retrieves the route from database and sends charging stops as waypoints.
+    """Send a saved route's charging stops + destination to the user's
+    primary Tesla vehicle. Logic lives in
+    `services/route_dispatch_service.send_saved_route_to_vehicle`.
     """
-    # Get the route
-    result = await db.execute(
-        select(RoutePlan).where(
-            RoutePlan.id == route_id,
-            RoutePlan.user_id == user.id,
+    try:
+        return await _send_saved_route_to_vehicle(
+            route_id=route_id, user=user,
+            tesla_client=tesla_client, db=db,
         )
-    )
-    route = result.scalar_one_or_none()
-
-    if not route:
+    except RouteNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Route not found",
+            detail=str(exc),
         )
-
-    # Get user's primary vehicle if not specified
-    result = await db.execute(
-        select(Vehicle).where(
-            Vehicle.user_id == user.id,
-            Vehicle.is_primary == True,
-        )
-    )
-    vehicle = result.scalar_one_or_none()
-
-    if not vehicle:
-        # Get first vehicle
-        result = await db.execute(
-            select(Vehicle).where(Vehicle.user_id == user.id).limit(1)
-        )
-        vehicle = result.scalar_one_or_none()
-
-    if not vehicle:
+    except NoVehicleError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No vehicle found. Please link a Tesla vehicle first.",
+            detail=str(exc),
         )
-
-    # Parse charging stops
-    charging_stops = []
-    if route.charging_stops_json:
-        try:
-            charging_stops = json.loads(route.charging_stops_json)
-        except json.JSONDecodeError:
-            pass
-
-    # Build waypoints: charging stops + final destination
-    waypoints = []
-    for stop in charging_stops:
-        waypoints.append({
-            "latitude": stop["latitude"],
-            "longitude": stop["longitude"],
-            "name": stop.get("name", "Charging Stop"),
-        })
-
-    # Add final destination
-    waypoints.append({
-        "latitude": route.dest_lat,
-        "longitude": route.dest_lng,
-        "name": route.dest_address or "Destination",
-    })
-
-    try:
-        async with tesla_client:
-            results = []
-            for i, wp in enumerate(waypoints):
-                await tesla_client.navigation_gps_request(
-                    vehicle_tag=vehicle.vehicle_id,
-                    latitude=wp["latitude"],
-                    longitude=wp["longitude"],
-                    order=i + 1,
-                )
-                results.append({
-                    "order": i + 1,
-                    "latitude": wp["latitude"],
-                    "longitude": wp["longitude"],
-                    "name": wp.get("name"),
-                    "status": "sent",
-                })
-
-            # Update route status
-            route.status = "sent_to_car"
-            await db.commit()
-
-            return {
-                "success": True,
-                "message": f"Sent route to vehicle {vehicle.display_name}",
-                "vehicle_id": vehicle.vehicle_id,
-                "waypoints": results,
-            }
-
     except TeslaVehicleOfflineError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
