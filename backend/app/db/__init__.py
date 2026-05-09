@@ -14,10 +14,23 @@ async def init_db():
 
     On a fresh DB this runs the baseline migration (which creates every
     table). On an already-bootstrapped DB (`alembic stamp head` has been
-    run once), it's a no-op. The previous implementation called
-    Base.metadata.create_all which silently skipped any column /
-    constraint changes — that footgun is now gone.
+    run once), it's a no-op.
+
+    BUG FIX (2026-05-10): the original implementation wrapped
+    ``command.upgrade`` inside ``async with engine.begin()`` which held
+    SQLite's write lock while alembic's env.py opened a *second*
+    connection — that second connection then deadlocked waiting on
+    the lock the outer transaction was holding. End-to-end symptom:
+    every POST that wrote to the DB returned 500 because the lifespan
+    startup never completed.
+
+    Fix: alembic creates + manages its own engine via env.py
+    ``run_migrations_online``. Just call ``command.upgrade`` directly
+    in a worker thread (asyncio.to_thread) — no async transaction
+    wrapper needed.
     """
+    import asyncio
+
     from alembic import command
     from alembic.config import Config
 
@@ -26,12 +39,8 @@ async def init_db():
     cfg = Config(str(cfg_path))
     cfg.set_main_option("script_location", str(backend_root / "app" / "alembic"))
 
-    def _run(_):
-        command.upgrade(cfg, "head")
-
     log.info("alembic upgrade head: starting")
-    async with engine.begin() as conn:
-        await conn.run_sync(_run)
+    await asyncio.to_thread(command.upgrade, cfg, "head")
     log.info("alembic upgrade head: done")
 
 
