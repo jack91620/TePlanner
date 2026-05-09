@@ -210,7 +210,7 @@ async def test_suggest_uses_trip_when_departure_within_window(client, db_session
     user = await _make_user(db_session, "sug-trip@t.com")
     db_session.add(ScheduledDeparture(
         user_id=user.id,
-        departure_at_utc=datetime.utcnow() + timedelta(hours=4),
+        departure_at_utc=datetime.utcnow() + timedelta(hours=4, minutes=30),
         lead_minutes=15,
         enabled=True,
         created_at=datetime.utcnow(),
@@ -230,6 +230,7 @@ async def test_suggest_uses_trip_when_departure_within_window(client, db_session
     body = r.json()
     assert body["recommended_percent"] == 100
     assert body["reason"] == "upcoming_departure"
+    # floor((4h30m - small handler latency) / 1h) = 4
     assert body["hours_away"] == 4
 
 
