@@ -144,6 +144,81 @@ e2e-ios-flow: ## Run a single Maestro flow: make e2e-ios-flow FLOW=01_login
 
 e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
 
+# --- Android (Phase F) -------------------------------------------------------
+#
+# Mirrors the iOS targets. Android Studio is the daily driver IDE, but
+# the CLI here is what Claude / CI / scripts use to build / install /
+# run / log so the workflow matches xcodebuild + simctl exactly.
+
+ANDROID_DIR := apps/android
+ANDROID_SDK := $(HOME)/Library/Android/sdk
+ADB         := $(ANDROID_SDK)/platform-tools/adb
+EMULATOR    := $(ANDROID_SDK)/emulator/emulator
+ANDROID_PKG := com.teplanner.android.debug
+ANDROID_ACT := cloud.teplanner.android.MainActivity
+# Android Studio bundles its own JDK 21 — use it so the build doesn't
+# pick up a stale system JDK (the one /usr/bin/java prompts to install).
+ANDROID_JDK := /Applications/Android Studio.app/Contents/jbr/Contents/Home
+GRADLEW     := JAVA_HOME='$(ANDROID_JDK)' $(ANDROID_DIR)/gradlew
+
+.PHONY: android-doctor android-list-avds android-boot android-build android-install \
+        android-run android-test android-log android-screenshot android-stop android-clean
+
+android-doctor: ## Diagnose Android toolchain (SDK / JDK / adb / emulator)
+	@echo "=== Android Studio ==="; ls /Applications/Android\ Studio.app >/dev/null 2>&1 && echo OK || echo "MISSING — install from developer.android.com"
+	@echo "=== SDK ==="; test -d $(ANDROID_SDK) && echo "$(ANDROID_SDK)" || echo "MISSING — open Android Studio + complete First Run Wizard"
+	@echo "=== adb ==="; test -x $(ADB) && $(ADB) version | head -1 || echo "MISSING"
+	@echo "=== emulator ==="; test -x $(EMULATOR) && $(EMULATOR) -version | head -1 || echo "MISSING"
+	@echo "=== JDK ==="; test -x '$(ANDROID_JDK)/bin/java' && '$(ANDROID_JDK)/bin/java' -version 2>&1 | head -1 || echo "MISSING"
+	@echo "=== Gradle wrapper ==="; test -x $(ANDROID_DIR)/gradlew && echo "$(ANDROID_DIR)/gradlew" || echo "MISSING — open project in Android Studio once to generate"
+	@echo "=== AVDs ==="; test -x $(EMULATOR) && $(EMULATOR) -list-avds || echo "no emulator binary"
+	@echo "=== devices ==="; test -x $(ADB) && $(ADB) devices | sed -n '2,$$p' | grep . || echo "no connected devices"
+
+android-list-avds: ## List installed Android Virtual Devices
+	@$(EMULATOR) -list-avds
+
+ANDROID_AVD ?=
+android-boot: ## Boot the first AVD (or pass ANDROID_AVD=Pixel_8 to pick one)
+	@avd="$(ANDROID_AVD)"; \
+	if [ -z "$$avd" ]; then avd=$$($(EMULATOR) -list-avds | head -1); fi; \
+	if [ -z "$$avd" ]; then echo "no AVD found — Android Studio → Tools → Device Manager → Create"; exit 1; fi; \
+	if $(ADB) devices | grep -q emulator; then echo "emulator already running"; exit 0; fi; \
+	echo "booting $$avd…"; \
+	nohup $(EMULATOR) -avd "$$avd" -no-snapshot -no-audio > /tmp/teplanner-emulator.log 2>&1 & \
+	echo "waiting for boot…"; \
+	$(ADB) wait-for-device; \
+	until [ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done; \
+	echo "emulator ready"
+
+android-build: ## Gradle assembleDebug — produces app-debug.apk
+	@$(GRADLEW) -p $(ANDROID_DIR) :app:assembleDebug
+
+android-install: android-build ## Build + install APK to first device
+	@apk=$(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk; \
+	test -f $$apk || { echo "APK not found at $$apk"; exit 1; }; \
+	$(ADB) install -r $$apk
+
+android-run: android-install ## Build + install + launch the app
+	@$(ADB) shell am start -n $(ANDROID_PKG)/$(ANDROID_ACT)
+	@echo "launched $(ANDROID_PKG) — tail logs with 'make android-log'"
+
+android-stop: ## Force-stop the app (without uninstalling)
+	@$(ADB) shell am force-stop $(ANDROID_PKG)
+
+android-test: ## Run unit tests (JVM, no device)
+	@$(GRADLEW) -p $(ANDROID_DIR) :app:testDebugUnitTest
+
+android-log: ## Tail logcat for our app (Tautomation tag + warnings)
+	@$(ADB) logcat -v time Tautomation:V "*:W"
+
+android-screenshot: ## Capture device screen → tmp/screenshots/
+	@mkdir -p $(SCREENSHOT_DIR)
+	@out=$(SCREENSHOT_DIR)/android-$$(date +%Y%m%d-%H%M%S).png; \
+	  $(ADB) exec-out screencap -p > $$out && echo "Saved: $$out"
+
+android-clean: ## Clean Gradle build artifacts
+	@$(GRADLEW) -p $(ANDROID_DIR) clean
+
 # --- OpenAPI codegen (Phase C) -------------------------------------------
 #
 # Backend is the source of truth for the API contract. We snapshot
