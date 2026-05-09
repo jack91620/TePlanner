@@ -144,27 +144,53 @@ class SqlStateMemory:
 
 
 async def ensure_presets_seeded(db: AsyncSession, user_id: int) -> int:
-    """If `user_id` has zero automation_rules rows, seed all 4 presets.
-    Returns the number of preset rows inserted (0 if user already had
-    any rules — including disabled ones).
+    """Idempotent preset seeding + backfill.
+
+    Behaviour:
+    - First call (user has 0 rules): inserts all ALL_PRESETS rows.
+    - Subsequent calls: inserts ONLY presets whose preset_id isn't
+      already in the user's rules. So adding a new preset_id to the
+      ALL_PRESETS list reaches existing users on their next list
+      fetch — no schema migration needed.
+
+    Newly-backfilled presets default to ``enabled=False`` so we don't
+    surprise existing users with rules they never opted into. The
+    one-shot first-seeding path keeps ``enabled=True`` (matches the
+    historical behaviour for fresh accounts).
+
+    Returns the number of preset rows inserted on this call.
     """
-    stmt = select(AutomationRule).where(AutomationRule.user_id == user_id).limit(1)
-    existing = (await db.execute(stmt)).scalar_one_or_none()
-    if existing is not None:
-        return 0
+    stmt = select(AutomationRule.preset_id).where(
+        AutomationRule.user_id == user_id,
+        AutomationRule.preset_id.is_not(None),
+    )
+    existing_preset_ids = {row[0] for row in (await db.execute(stmt)).all()}
+    is_first_seed = not existing_preset_ids
+
+    inserted = 0
     for preset in ALL_PRESETS:
+        if preset.preset_id in existing_preset_ids:
+            continue
         db.add(AutomationRule(
             id=str(uuid.uuid4()),
             user_id=user_id,
             preset_id=preset.preset_id,
             name=preset.name,
-            enabled=True,
+            # First-seed: enable by default (the user just signed up).
+            # Backfill: leave disabled — existing users see the new
+            # row but choose whether to turn it on themselves.
+            enabled=is_first_seed,
             spec_json=json.dumps(preset.spec, ensure_ascii=False),
             version=1,
         ))
-    await db.flush()
-    logger.info("seeded %s presets for user %s", len(ALL_PRESETS), user_id)
-    return len(ALL_PRESETS)
+        inserted += 1
+    if inserted:
+        await db.flush()
+        if is_first_seed:
+            logger.info("seeded %s presets for user %s (first time)", inserted, user_id)
+        else:
+            logger.info("backfilled %s new presets for user %s", inserted, user_id)
+    return inserted
 
 
 async def load_user_rules(db: AsyncSession, user_id: int) -> list[dict]:
