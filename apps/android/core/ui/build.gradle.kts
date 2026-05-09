@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "cloud.teplanner.android.core.ui"
     compileSdk = 36
+    buildToolsVersion = "36.1.0"
     defaultConfig {
         minSdk = 26
         consumerProguardFiles("consumer-rules.pro")

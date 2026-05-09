@@ -23,9 +23,24 @@ dependencyResolutionManagement {
         mavenCentral()
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
-        // JPush 极光 Maven
-        maven { url = uri("https://repo.huaweicloud.com/repository/maven/") }
-        maven { url = uri("https://maven.jiguang.cn/") }
+
+        // 高德 Maven — content filter so other deps don't bounce here.
+        maven {
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+            content {
+                includeGroupByRegex("com\\.amap\\..*")
+            }
+        }
+
+        // JPush 极光 Maven — content filter so AMap doesn't probe here
+        // (which fails the build before falling through to other repos).
+        maven {
+            url = uri("https://maven.jiguang.cn/")
+            content {
+                includeGroupByRegex("cn\\.jiguang\\..*")
+                includeGroupByRegex("cn\\.jpush\\..*")
+            }
+        }
     }
 }
 

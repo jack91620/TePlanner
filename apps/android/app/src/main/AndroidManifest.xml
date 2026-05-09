@@ -43,18 +43,10 @@
             </intent-filter>
         </activity>
 
-        <!-- 高德 SDK 全局 key — 通过 manifest meta-data 读取 -->
-        <meta-data
-            android:name="com.amap.api.v2.apikey"
-            android:value="${AMAP_API_KEY}" />
-
-        <!-- JPush AppKey + 渠道 — JPush SDK 启动时通过 manifest meta-data 读 -->
-        <meta-data
-            android:name="JPUSH_CHANNEL"
-            android:value="${JPUSH_CHANNEL}" />
-        <meta-data
-            android:name="JPUSH_APPKEY"
-            android:value="${JPUSH_APP_KEY}" />
+        <!-- F.3 reintroduces AMap meta-data once SDK is wired; same
+             for JPush meta-data in F.4. The placeholders in
+             defaultConfig.manifestPlaceholders stay so the values are
+             ready as soon as the SDK lib is added back. -->
 
     </application>
 

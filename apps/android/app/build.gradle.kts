@@ -29,6 +29,10 @@ val backendBaseUrl: String = localProps.getProperty("BACKEND_BASE_URL", "https:/
 android {
     namespace = "cloud.teplanner.android"
     compileSdk = 36
+    // F.0 — pin to a build-tools version actually on disk + non-empty.
+    // (36.0.0 + 34.0.0 dirs are present but empty stubs from a partial
+    // install; 36.1.0 + 37.0.0 are fully populated.)
+    buildToolsVersion = "36.1.0"
 
     defaultConfig {
         applicationId = "com.teplanner.android"
@@ -123,14 +127,15 @@ dependencies {
     // 加密 SharedPreferences (auth token storage)
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha07")
 
-    // 高德地图 + 定位 + 搜索 — Phase F.3 真正用，先依赖好。
-    implementation("com.amap.api:3dmap:9.8.2")
-    implementation("com.amap.api:location:6.4.7")
-    implementation("com.amap.api:search:9.7.4")
+    // 高德地图 — Phase F.3 引入实际 SDK。F.0 不需要,
+    // 跳过避免 Maven 解析失败阻塞工具链验证。
+    // implementation("com.amap.api:3dmap:9.8.2")
+    // implementation("com.amap.api:location:6.4.7")
+    // implementation("com.amap.api:search:9.7.4")
 
-    // JPush — Phase F.4 推送注册时用
-    implementation("cn.jiguang.sdk:jpush:5.6.1")
-    implementation("cn.jiguang.sdk:jcore:4.8.5")
+    // JPush — Phase F.4 推送注册时引入。同上,F.0 跳过。
+    // implementation("cn.jiguang.sdk:jpush:5.6.1")
+    // implementation("cn.jiguang.sdk:jcore:4.8.5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

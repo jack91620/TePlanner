@@ -3,8 +3,14 @@
 // needs. Kotlin / AGP versions are pinned for reproducibility.
 
 plugins {
-    id("com.android.application") version "8.7.3" apply false
-    id("com.android.library") version "8.7.3" apply false
+    // F.0 — bumped from 8.7.3: AGP 8.7 only understands SDK XML
+    // schema v3, but SDK Platform 16 (android-36.1) ships with schema
+    // v4, causing "Failed to find target with hash string 'android-36'"
+    // even when the platform is on disk. AGP 8.8.x adds schema v4
+    // support and is the highest version still compatible with our
+    // Gradle 8.10.2 wrapper (8.9+ would force a Gradle 8.11.1 bump).
+    id("com.android.application") version "8.8.2" apply false
+    id("com.android.library") version "8.8.2" apply false
     id("org.jetbrains.kotlin.android") version "2.0.21" apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
