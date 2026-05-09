@@ -540,7 +540,6 @@ struct HubView: View {
     private var chargeLimitSuggestionCard: some View {
         HubChargeLimitCard(
             currentLimit: viewModel.vehicleState?.chargeLimitSoc,
-            scheduledDeparture: scheduledDeparture,
             vehicleId: viewModel.vehicle?.id,
             apiService: apiService,
             onApplied: { Task { await viewModel.refresh() } },

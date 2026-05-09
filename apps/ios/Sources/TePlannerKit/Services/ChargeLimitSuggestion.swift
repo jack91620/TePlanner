@@ -1,61 +1,65 @@
 import Foundation
 
-/// Pure value type that decides what to recommend the user set their
-/// charge-limit SOC to, given their preferences and any upcoming
-/// scheduled departure.
-///
-/// Algorithm:
-/// - If a `ScheduledDeparture` exists and is within `tripWindowHours`,
-///   recommend `settings.tripChargeLimitSoc`.
-/// - Otherwise recommend `settings.dailyChargeLimitSoc`.
-/// - Hide the suggestion entirely when the current limit already
-///   matches the recommended value (no UI noise).
-public struct ChargeLimitSuggestion: Equatable, Sendable {
-    public enum Reason: Equatable, Sendable {
-        case daily
-        case upcomingDeparture(hoursAway: Int)
+/// Phase D.5 — wire shapes for `POST /vehicles/{vid}/suggest-charge-limit`.
+/// The decision logic moved to `app/services/charge_analysis/suggester.py`
+/// (Phase A.4 backend port). The iOS-side `ChargeLimitSuggester` static
+/// helpers + the `ChargeLimitSuggestion` value type were removed; the
+/// hub card now awaits the backend reply directly.
+
+public struct SuggestChargeLimitRequest: Codable, Equatable, Sendable {
+    public let currentLimit: Int?
+    public let dailyLimitSoc: Int
+    public let tripLimitSoc: Int
+    public let tripWindowHours: Int
+
+    public init(
+        currentLimit: Int?,
+        dailyLimitSoc: Int = 80,
+        tripLimitSoc: Int = 100,
+        tripWindowHours: Int = 12
+    ) {
+        self.currentLimit = currentLimit
+        self.dailyLimitSoc = dailyLimitSoc
+        self.tripLimitSoc = tripLimitSoc
+        self.tripWindowHours = tripWindowHours
     }
 
-    public let recommendedPercent: Int
-    public let currentPercent: Int?
-    public let reason: Reason
-
-    /// `true` when the recommendation matches the current limit; the
-    /// host hides the card in that case.
-    public var alreadyMatches: Bool {
-        guard let currentPercent else { return false }
-        return currentPercent == recommendedPercent
+    enum CodingKeys: String, CodingKey {
+        case currentLimit = "current_limit"
+        case dailyLimitSoc = "daily_limit_soc"
+        case tripLimitSoc = "trip_limit_soc"
+        case tripWindowHours = "trip_window_hours"
     }
 }
 
-public enum ChargeLimitSuggester {
-    /// Default trip window — bumping the recommendation 12 hours
-    /// ahead of departure leaves enough time for the next overnight
-    /// charge to top up to trip-grade SOC. Tunable per call for tests.
-    public static let defaultTripWindowHours = 12
+public struct SuggestChargeLimitResponse: Codable, Equatable, Sendable {
+    public let recommendedPercent: Int
+    public let currentPercent: Int?
+    /// "daily" or "upcoming_departure" — matches backend
+    /// `SuggestionReason` enum.
+    public let reason: String
+    public let hoursAway: Int?
+    public let alreadyMatches: Bool
 
-    public static func suggest(
-        currentLimit: Int?,
-        settings: SettingsStore,
-        upcomingDeparture: ScheduledDeparture?,
-        now: Date,
-        tripWindowHours: Int = defaultTripWindowHours
-    ) -> ChargeLimitSuggestion {
-        let secondsInWindow = TimeInterval(tripWindowHours) * 3600
-        if let upcoming = upcomingDeparture,
-           upcoming.isInFuture(now: now),
-           upcoming.departureAt.timeIntervalSince(now) <= secondsInWindow {
-            let hoursAway = max(0, Int(upcoming.departureAt.timeIntervalSince(now) / 3600))
-            return ChargeLimitSuggestion(
-                recommendedPercent: settings.tripChargeLimitSoc,
-                currentPercent: currentLimit,
-                reason: .upcomingDeparture(hoursAway: hoursAway)
-            )
-        }
-        return ChargeLimitSuggestion(
-            recommendedPercent: settings.dailyChargeLimitSoc,
-            currentPercent: currentLimit,
-            reason: .daily
-        )
+    public init(
+        recommendedPercent: Int,
+        currentPercent: Int?,
+        reason: String,
+        hoursAway: Int? = nil,
+        alreadyMatches: Bool
+    ) {
+        self.recommendedPercent = recommendedPercent
+        self.currentPercent = currentPercent
+        self.reason = reason
+        self.hoursAway = hoursAway
+        self.alreadyMatches = alreadyMatches
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case recommendedPercent = "recommended_percent"
+        case currentPercent = "current_percent"
+        case reason
+        case hoursAway = "hours_away"
+        case alreadyMatches = "already_matches"
     }
 }

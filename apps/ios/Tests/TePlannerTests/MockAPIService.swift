@@ -391,4 +391,21 @@ final class MockAPIService: APIServiceProtocol {
         listChargingSessionsCalls.append((vehicleId, limit))
         return mockListChargingSessionsResponse
     }
+
+    // Phase D.5 — charge-limit suggestion
+    var mockSuggestChargeLimitResponse: Result<SuggestChargeLimitResponse, APIError>?
+    private(set) var suggestChargeLimitCalls: [(vehicleId: String, request: SuggestChargeLimitRequest)] = []
+    func suggestChargeLimit(
+        vehicleId: String, request: SuggestChargeLimitRequest
+    ) async -> Result<SuggestChargeLimitResponse, APIError> {
+        suggestChargeLimitCalls.append((vehicleId, request))
+        if let preset = mockSuggestChargeLimitResponse { return preset }
+        return .success(SuggestChargeLimitResponse(
+            recommendedPercent: request.dailyLimitSoc,
+            currentPercent: request.currentLimit,
+            reason: "daily",
+            hoursAway: nil,
+            alreadyMatches: request.currentLimit == request.dailyLimitSoc,
+        ))
+    }
 }

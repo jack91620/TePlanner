@@ -129,4 +129,11 @@ public protocol APIServiceProtocol {
     func listChargingSessions(
         vehicleId: String, limit: Int
     ) async -> Result<ChargingSessionListResponse, APIError>
+
+    // Phase D.5 — server-canonical charge-limit suggestion. Backend
+    // reads the user's ScheduledDeparture (A.3 store) so iOS only has
+    // to pass current limit + daily / trip preferences.
+    func suggestChargeLimit(
+        vehicleId: String, request: SuggestChargeLimitRequest
+    ) async -> Result<SuggestChargeLimitResponse, APIError>
 }

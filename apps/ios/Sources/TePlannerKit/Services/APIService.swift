@@ -346,6 +346,17 @@ public final class APIService: APIServiceProtocol {
         return await get(path: "/vehicles/\(vehicleId)/sessions?limit=\(limit)")
     }
 
+    // MARK: - Phase D.5 — charge-limit suggestion
+
+    public func suggestChargeLimit(
+        vehicleId: String, request: SuggestChargeLimitRequest
+    ) async -> Result<SuggestChargeLimitResponse, APIError> {
+        return await postJSON(
+            path: "/vehicles/\(vehicleId)/suggest-charge-limit",
+            body: request,
+        )
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {

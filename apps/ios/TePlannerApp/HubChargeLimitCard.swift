@@ -3,19 +3,15 @@ import TePlannerKit
 
 /// Hub-level "调高/调低充电限额到 N%" suggestion card.
 ///
-/// Visible only when `ChargeLimitSuggester` decides the current
-/// limit doesn't match the user's daily / pre-trip preference.
-/// Tapping 应用 fires `tesla.charging.set_limit` via APIService and
-/// reflects sending / sent / failed states inline so the user sees
-/// the round-trip without leaving the hub.
-///
-/// Extracted from HubView's god-view body — all the related state
-/// (status enum, copy helpers, dispatch + retry-after delay) ships
-/// in this one file. HubView just hands it the inputs and does
-/// nothing else.
+/// Phase D.5 — backend is the suggestion authority. The card calls
+/// `POST /vehicles/{vid}/suggest-charge-limit` with the user's daily /
+/// trip preferences (still in iOS settings until D.6) and the current
+/// limit; the server reads the user's ScheduledDeparture (Phase A.3
+/// store) to decide whether to recommend the trip target. iOS just
+/// renders whatever shape the server returns and dispatches `应用` via
+/// the existing `setChargeLimit` capability.
 struct HubChargeLimitCard: View {
     let currentLimit: Int?
-    let scheduledDeparture: ScheduledDeparture?
     let vehicleId: String?
     let apiService: APIServiceProtocol
     /// Called once after a successful `setChargeLimit` so HubView can
@@ -25,6 +21,7 @@ struct HubChargeLimitCard: View {
     /// alert plumbing.
     let onError: (String) -> Void
 
+    @State private var suggestion: SuggestChargeLimitResponse?
     @State private var status: Status = .idle
 
     enum Status: Equatable {
@@ -32,37 +29,64 @@ struct HubChargeLimitCard: View {
     }
 
     var body: some View {
-        let suggestion = ChargeLimitSuggester.suggest(
-            currentLimit: currentLimit,
-            settings: UserDefaultsSettingsStore.shared,
-            upcomingDeparture: scheduledDeparture,
-            now: Date(),
-        )
-        if !suggestion.alreadyMatches, let current = suggestion.currentPercent {
-            HStack(spacing: 14) {
-                Image(systemName: "battery.100.bolt")
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title(for: suggestion))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(subtitle(for: suggestion, current: current))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        Group {
+            if let suggestion, !suggestion.alreadyMatches,
+               let current = suggestion.currentPercent {
+                HStack(spacing: 14) {
+                    Image(systemName: "battery.100.bolt")
+                        .font(.title2)
+                        .foregroundStyle(.tint)
+                        .frame(width: 32)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title(for: suggestion))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text(subtitle(for: suggestion, current: current))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    applyButton(target: suggestion.recommendedPercent)
                 }
-                Spacer()
-                applyButton(target: suggestion.recommendedPercent)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 16)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                )
+                .accessibilityIdentifier("hub_charge_limit_card")
             }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 16)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
-            )
-            .accessibilityIdentifier("hub_charge_limit_card")
+        }
+        .task(id: cardKey) { await refreshSuggestion() }
+    }
+
+    /// Re-runs the .task when any input that affects the suggestion
+    /// changes (current limit or vehicle binding). The user's daily/
+    /// trip prefs and any saved departure live server-side, so refresh
+    /// also fires whenever HubView calls .task on app foreground.
+    private var cardKey: String {
+        "\(currentLimit ?? -1)|\(vehicleId ?? "nil")"
+    }
+
+    private func refreshSuggestion() async {
+        guard let vehicleId, !vehicleId.isEmpty else { return }
+        let settings = UserDefaultsSettingsStore.shared
+        let request = SuggestChargeLimitRequest(
+            currentLimit: currentLimit,
+            dailyLimitSoc: settings.dailyChargeLimitSoc,
+            tripLimitSoc: settings.tripChargeLimitSoc,
+        )
+        let result = await apiService.suggestChargeLimit(
+            vehicleId: vehicleId, request: request,
+        )
+        switch result {
+        case .success(let response):
+            suggestion = response
+        case .failure(let err):
+            Log.api.error("charge-limit suggestion failed: \(err.localizedDescription, privacy: .public)")
+            // Keep the prior suggestion (if any) on error — beats
+            // hiding the card on every flaky network blip.
         }
     }
 
@@ -91,22 +115,28 @@ struct HubChargeLimitCard: View {
         }
     }
 
-    private func title(for suggestion: ChargeLimitSuggestion) -> String {
+    private func title(for suggestion: SuggestChargeLimitResponse) -> String {
         switch suggestion.reason {
-        case .daily:
+        case "daily":
             return "调低充电限额到 \(suggestion.recommendedPercent)%"
-        case .upcomingDeparture:
+        case "upcoming_departure":
             return "调高充电限额到 \(suggestion.recommendedPercent)%"
+        default:
+            return "建议充电限额 \(suggestion.recommendedPercent)%"
         }
     }
 
-    private func subtitle(for suggestion: ChargeLimitSuggestion, current: Int) -> String {
+    private func subtitle(for suggestion: SuggestChargeLimitResponse, current: Int) -> String {
         switch suggestion.reason {
-        case .daily:
+        case "daily":
             return "当前 \(current)% · 长期日常使用更友好"
-        case .upcomingDeparture(let hours):
-            if hours == 0 { return "当前 \(current)% · 即将出行" }
-            return "当前 \(current)% · 还有 \(hours) 小时出发"
+        case "upcoming_departure":
+            if let h = suggestion.hoursAway, h > 0 {
+                return "当前 \(current)% · 还有 \(h) 小时出发"
+            }
+            return "当前 \(current)% · 即将出行"
+        default:
+            return "当前 \(current)%"
         }
     }
 
