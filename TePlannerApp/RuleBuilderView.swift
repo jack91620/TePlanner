@@ -296,9 +296,14 @@ struct RuleBuilderView: View {
             }
         }
         .sheet(isPresented: $showingGeofencePicker) {
+            // Drop placeholder (0, 0) before passing to the picker so
+            // the map defaults to a sensible city center / vehicle
+            // position instead of opening on the Gulf of Guinea.
+            let initialLat = hasRealGeofenceLocation ? geofenceLat : nil
+            let initialLng = hasRealGeofenceLocation ? geofenceLng : nil
             GeofenceMapPickerSheet(
-                initialLat: geofenceLat,
-                initialLng: geofenceLng,
+                initialLat: initialLat,
+                initialLng: initialLng,
                 initialRadiusM: geofenceRadiusM,
                 vehicleLat: nil,
                 vehicleLng: nil,
