@@ -825,11 +825,13 @@ struct RuleBuilderView: View {
             if let lng = geofenceLng { trigger["lng"] = .double(lng) }
             trigger["radius_m"] = .int(geofenceRadiusM)
             trigger["event"] = .string(geofenceEvent.rawValue)
-            // state_key namespaces the engine memory keys for this rule
-            // — derive from the existing kind so re-edits don't orphan
-            // the inside/last_fired entries we already wrote.
+            // state_key namespaces the engine memory keys for this
+            // rule. Preserve the original when editing so engine
+            // memory rows (inside / last_fired) keep matching, and
+            // so the dirty-check round-trip sees the same value.
+            let originalStateKey = initial?.spec["trigger"]?.objectValue?.string("state_key")
             let suffix = (initial?.spec.string("kind") ?? "geofence_user").replacingOccurrences(of: ".", with: "_")
-            trigger["state_key"] = .string("geo:\(suffix)")
+            trigger["state_key"] = .string(originalStateKey ?? "geo:\(suffix)")
         }
         return trigger
     }
@@ -938,20 +940,13 @@ struct RuleBuilderView: View {
                     }
                 }
             }
-            // Slice D — geofence. Preset templates ship lat/lng=(0, 0)
-            // as placeholders; treat them as nil so the editor shows
-            // the '选择中心位置' prompt instead of fake coordinates.
-            let rawLat = trigger.double("lat")
-            let rawLng = trigger.double("lng")
-            let placeholder = (rawLat.map { abs($0) < 0.0001 } ?? true)
-                && (rawLng.map { abs($0) < 0.0001 } ?? true)
-            if !placeholder {
-                geofenceLat = rawLat
-                geofenceLng = rawLng
-            } else {
-                geofenceLat = nil
-                geofenceLng = nil
-            }
+            // Slice D — geofence. Hydrate raw lat/lng from spec
+            // (including (0, 0) placeholders) so the dirty-check
+            // sees the same shape on round-trip. The
+            // hasRealGeofenceLocation helper treats (0, 0) as
+            // 'unset' for UI display.
+            if let lat = trigger.double("lat") { geofenceLat = lat }
+            if let lng = trigger.double("lng") { geofenceLng = lng }
             if let r = trigger.int("radius_m") { geofenceRadiusM = r }
             if let evt = trigger.string("event"),
                let parsed = GeofenceEvent(rawValue: evt) {
@@ -1043,20 +1038,13 @@ struct RuleBuilderView: View {
                     }
                 }
             }
-            // Slice D — geofence. Preset templates ship lat/lng=(0, 0)
-            // as placeholders; treat them as nil so the editor shows
-            // the '选择中心位置' prompt instead of fake coordinates.
-            let rawLat = trigger.double("lat")
-            let rawLng = trigger.double("lng")
-            let placeholder = (rawLat.map { abs($0) < 0.0001 } ?? true)
-                && (rawLng.map { abs($0) < 0.0001 } ?? true)
-            if !placeholder {
-                geofenceLat = rawLat
-                geofenceLng = rawLng
-            } else {
-                geofenceLat = nil
-                geofenceLng = nil
-            }
+            // Slice D — geofence. Hydrate raw lat/lng from spec
+            // (including (0, 0) placeholders) so the dirty-check
+            // sees the same shape on round-trip. The
+            // hasRealGeofenceLocation helper treats (0, 0) as
+            // 'unset' for UI display.
+            if let lat = trigger.double("lat") { geofenceLat = lat }
+            if let lng = trigger.double("lng") { geofenceLng = lng }
             if let r = trigger.int("radius_m") { geofenceRadiusM = r }
             if let evt = trigger.string("event"),
                let parsed = GeofenceEvent(rawValue: evt) {
