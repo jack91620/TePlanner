@@ -29,7 +29,7 @@ final class RuleOrderTests: XCTestCase {
             presetId: nil,
             name: name,
             enabled: true,
-            spec: PresetSpecs.campMode,
+            spec: TestSpecFixtures.campMode,
             version: 1,
             displayOrder: displayOrder,
         )

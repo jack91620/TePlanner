@@ -58,13 +58,12 @@ struct HubView: View {
         ))
         let snoozeStore = BackendSnoozeStore(apiService: apiService)
         _snoozeStore = StateObject(wrappedValue: snoozeStore)
-        // Bootstrap with hardcoded PresetSpecs so the engine is ready
-        // before the first `/api/v1/automations` fetch lands. As soon
-        // as the rulesStore returns, we replace the registry via
-        // updateRegistry. If the user is offline / backend is down,
-        // the bootstrapped specs keep the engine functional.
+        // Phase D.6 — engine no longer evaluates rules locally; backend
+        // is the single evaluator. Empty registry at boot; rulesStore
+        // populates via /automations/. Alerts are fed by APNs +
+        // (future) GET /automations/active-alerts via applyServerAlerts.
         _automationEngine = StateObject(wrappedValue: AutomationEngine(
-            registry: PresetSpecs.allPresets,
+            registry: [],
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared,
             snoozes: snoozeStore

@@ -290,7 +290,9 @@ struct RuleBuilderView: View {
             Button("继续编辑", role: .cancel) {}
         }
         .sheet(isPresented: $startFromPresetSheet) {
-            PresetPickerSheet { selected in
+            PresetPickerSheet(
+                presets: rulesStore.rules.filter { $0.presetId != nil },
+            ) { selected in
                 fillFromPreset(selected)
                 startFromPresetSheet = false
             }
@@ -1304,16 +1306,18 @@ struct RuleBuilderView: View {
     }
 }
 
-/// Sheet that lets the user pick one of the 4 hardcoded presets to
-/// pre-fill the builder with. Replaces the "templates first" UI from
-/// the plan — same effect, lives inside the builder.
+/// Phase D.6 — preset picker now sources from the user's existing
+/// preset rules (backend seeded them on first /automations GET) rather
+/// than the deleted hardcoded `PresetSpecs.allPresets`. Same UX:
+/// pick a preset → pre-fill the builder with its trigger + actions.
 private struct PresetPickerSheet: View {
+    let presets: [RuleRecord]
     let onSelect: (RuleRecord) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List(PresetSpecs.allPresets) { preset in
+            List(presets) { preset in
                 Button {
                     onSelect(preset)
                 } label: {
@@ -1335,9 +1339,6 @@ private struct PresetPickerSheet: View {
         }
     }
 
-    /// Render a human description of what the preset does instead
-    /// of leaking the internal preset_id (camp_mode_overstay etc.)
-    /// to users.
     private static func presetSubtitle(_ preset: RuleRecord) -> String {
         let trigger = RuleDisplay.triggerSentence(preset.spec)
         return trigger.isEmpty ? "预设规则" : trigger

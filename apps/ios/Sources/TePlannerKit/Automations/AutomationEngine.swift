@@ -78,24 +78,27 @@ public final class AutomationEngine: ObservableObject {
         recompute(vehicleId: vehicleId ?? state?.vehicleId)
     }
 
-    /// Re-evaluate all rules against the most recent observed state.
+    /// Phase D.6 — iOS no longer evaluates rules locally. Backend is
+    /// the single evaluator (`backend/app/services/automation/`),
+    /// applies its own snooze gate (Phase A.1) before pushing, and
+    /// fans alerts via APNs (Phase E PushDispatcher) + the future
+    /// `applyServerAlerts(...)` feed for the in-app pill. `recompute`
+    /// is now just a sort pass over the last-fed server set; the
+    /// snooze filter lives server-side so all 3 platforms get one
+    /// truth.
     public func recompute(vehicleId: String? = nil) {
-        let ctx = AutomationContext(
-            vehicleState: lastState,
-            vehicleId: vehicleId ?? lastState?.vehicleId,
-            now: now(),
-            settings: settings,
-            memory: memory
-        )
-        var emitted: [VehicleAlert] = []
-        let active = snoozes.activeUntil
-        for record in registry where record.enabled {
-            if active[record.id] != nil { continue }
-            if let alert = evaluateRule(record.spec, context: ctx) {
-                emitted.append(alert)
-            }
-        }
-        alerts = emitted.sorted { $0.severity.priority > $1.severity.priority }
+        alerts = lastServerAlerts.sorted { $0.severity.priority > $1.severity.priority }
+    }
+
+    private var lastServerAlerts: [VehicleAlert] = []
+
+    /// Phase D.6 — feed server-computed alerts into the engine. HubView
+    /// fetches them on each polling tick + on app foreground via the
+    /// to-be-added `GET /api/v1/automations/active-alerts` endpoint
+    /// (Phase D.7) or via APNs payload `extras.alerts` (Phase E).
+    public func applyServerAlerts(_ alerts: [VehicleAlert]) {
+        lastServerAlerts = alerts
+        recompute()
     }
 
     public var registeredRules: [RuleRecord] { registry }
