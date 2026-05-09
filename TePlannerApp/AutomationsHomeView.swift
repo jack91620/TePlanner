@@ -67,13 +67,10 @@ struct AutomationsHomeView: View {
                         ruleRow(record)
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                     }
-                    .onMove { from, to in
-                        moveRules(in: presetRules, from: from, to: to)
-                    }
                 } header: {
                     Text("预设 · \(presetRules.count)")
                 } footer: {
-                    Text("左滑静音、长按更多操作；右上角钟形图标可查看历史触发。")
+                    Text("左滑静音、长按弹出更多操作（含上移 / 下移 / 复制）；右上角钟形图标可查看历史触发。")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -91,16 +88,6 @@ struct AutomationsHomeView: View {
                                 }
                             }
                     }
-                    .onMove { from, to in
-                        moveRules(in: customRules, from: from, to: to)
-                    }
-                    // EditButton 进入编辑模式时也支持点 - 圆圈删除，
-                    // 而不只是拖拽。匹配 iOS 标准 List 行为。
-                    .onDelete { offsets in
-                        if let idx = offsets.first {
-                            pendingDelete = customRules[idx]
-                        }
-                    }
                 }
             }
             if let err = workingError {
@@ -116,10 +103,6 @@ struct AutomationsHomeView: View {
             await rulesStore.refresh()
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                EditButton()
-                    .accessibilityIdentifier("automations_edit_button")
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
                     NavigationLink {
@@ -278,6 +261,20 @@ struct AutomationsHomeView: View {
                     Label("启用", systemImage: "play.circle")
                 }
             }
+            Divider()
+            Button {
+                moveRule(record, by: -1)
+            } label: {
+                Label("上移", systemImage: "arrow.up")
+            }
+            .disabled(!canMove(record, by: -1))
+            Button {
+                moveRule(record, by: 1)
+            } label: {
+                Label("下移", systemImage: "arrow.down")
+            }
+            .disabled(!canMove(record, by: 1))
+            Divider()
             Button {
                 pendingDuplicate = record
             } label: {
@@ -293,6 +290,43 @@ struct AutomationsHomeView: View {
                 }
             }
         }
+    }
+
+    /// True iff the rule has a sibling in the same section it could
+    /// swap with — preset rule with another preset / custom with
+    /// another custom. Cross-section moves aren't allowed because
+    /// the section split (preset vs custom) is structural.
+    private func canMove(_ record: RuleRecord, by delta: Int) -> Bool {
+        let bucket = record.presetId == nil ? customRules : presetRules
+        guard let idx = bucket.firstIndex(where: { $0.id == record.id }) else {
+            return false
+        }
+        let target = idx + delta
+        return target >= 0 && target < bucket.count
+    }
+
+    /// Move a rule one position in its section. delta = -1 = up,
+    /// +1 = down. Persists via `automationRuleOrder` UserDefaults
+    /// (same machinery the previous .onMove drag used).
+    private func moveRule(_ record: RuleRecord, by delta: Int) {
+        let bucket = record.presetId == nil ? customRules : presetRules
+        guard let idx = bucket.firstIndex(where: { $0.id == record.id }) else {
+            return
+        }
+        let target = idx + delta
+        guard target >= 0, target < bucket.count else { return }
+        var newOrder = bucket.map(\.id)
+        newOrder.remove(at: idx)
+        newOrder.insert(record.id, at: target)
+        // Merge with the existing saved order so the OTHER section
+        // (preset vs custom) keeps its drag preferences.
+        let store = UserDefaultsSettingsStore.shared
+        let existing = store.automationRuleOrder
+        let bucketIds = Set(bucket.map(\.id))
+        let other = existing.filter { !bucketIds.contains($0) }
+        store.automationRuleOrder = other + newOrder
+        rulesStore.objectWillChange.send()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     @ViewBuilder
@@ -424,27 +458,6 @@ struct AutomationsHomeView: View {
             let rp = position[rhs.element.id] ?? (fallback + rhs.offset)
             return lp < rp
         }.map(\.element)
-    }
-
-    /// Persist a drag-reorder by writing the new sequence of rule IDs
-    /// to SettingsStore. Mutates the on-screen subset only — preset
-    /// reorder doesn't affect custom rule positions and vice versa.
-    private func moveRules(
-        in section: [RuleRecord],
-        from offsets: IndexSet,
-        to destination: Int,
-    ) {
-        var working = section
-        working.move(fromOffsets: offsets, toOffset: destination)
-        // Rebuild the global order with this section's new sequence
-        // in place; preserve the other section's relative ordering.
-        let isPreset = (section.first?.presetId != nil)
-        let other = isPreset ? customRules : presetRules
-        let newOrder = working.map(\.id) + other.map(\.id)
-        UserDefaultsSettingsStore.shared.automationRuleOrder = newOrder
-        // Force a view refresh by tickling the rules store. Cheapest
-        // way without adding @State for this.
-        Task { await rulesStore.refresh() }
     }
 
     /// iOS 快捷指令-style category color: each trigger family gets

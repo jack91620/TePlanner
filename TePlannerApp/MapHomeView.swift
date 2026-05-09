@@ -18,6 +18,12 @@ struct MapHomeView: View {
     @State private var routeState: RouteState = .empty
     @State private var recenterToken: Int = 0
     @State private var showingPlanningSettings = false
+    /// Drives the bottom drawer .sheet — must flip false on
+    /// .onDisappear so popping back to Hub doesn't leave the
+    /// 附近 / 最近 sheet stuck on top of the parent. Was previously
+    /// `.constant(true)` which kept iOS' presentation tree pinned
+    /// past the navigation pop and surfaced the drawer over Hub.
+    @State private var drawerVisible = false
     private let alongRoutePOIService = AlongRoutePOIService()
 
     enum RouteState {
@@ -95,7 +101,9 @@ struct MapHomeView: View {
         .sheet(isPresented: $showingPlanningSettings) {
             RoutePlanningSettingsSheet()
         }
-        .sheet(isPresented: .constant(true)) {
+        .onAppear { drawerVisible = true }
+        .onDisappear { drawerVisible = false }
+        .sheet(isPresented: $drawerVisible) {
             HomeBottomSheet(
                 mode: drawerMode,
                 apiService: apiService,

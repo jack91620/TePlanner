@@ -938,6 +938,19 @@ struct HubView: View {
         }
     }
 
+    /// Look up the rule name that produced this alert (alert.kind →
+    /// rule.spec.kind match). Falls back to the alert title if no
+    /// matching rule is found, so the auto card can always show
+    /// _something_ informative.
+    private func firingRuleName(for alert: VehicleAlert) -> String {
+        if let rule = rulesStore.rules.first(where: {
+            $0.spec.string("kind") == alert.kind.rawValue
+        }) {
+            return rule.name
+        }
+        return alert.title
+    }
+
     /// Subtitle for the automation entry card. Goal: tell the user
     /// what the rules actually do, not a counter that requires
     /// drilling in to make sense of. Show 2 representative rule names
@@ -950,9 +963,16 @@ struct HubView: View {
         if enabled.isEmpty { return "全部已禁用，点击启用" }
         // If any rule is actively firing right now, lead with that —
         // it's the highest-signal info ("there's something to look at").
-        let firing = automationEngine.alerts.count
-        if firing > 0 {
-            return "⚠️ \(firing) 条触发中 · 共 \(enabled.count) 条启用"
+        // Name the rule(s) so users don't have to guess which one. The
+        // top alert is also surfaced as the alert pill above; this row
+        // doubles as a shortcut to the matching rule.
+        let alerts = automationEngine.alerts
+        if !alerts.isEmpty {
+            let names = alerts.prefix(2).map { firingRuleName(for: $0) }.joined(separator: " · ")
+            if alerts.count > 2 {
+                return "⚠️ \(names) · 共 \(alerts.count) 条触发中"
+            }
+            return "⚠️ 触发中：\(names)"
         }
         // Snoozed count shown when no fires — gives the user a passive
         // reminder that some rules are temporarily muted.
