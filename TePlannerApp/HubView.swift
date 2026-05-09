@@ -763,10 +763,10 @@ struct HubView: View {
                 Label("Telemetry 实时车况", systemImage: "antenna.radiowaves.left.and.right")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Label("一键执行", systemImage: "hand.tap.fill")
+                Label("地理围栏", systemImage: "location.fill")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Label("通知静音", systemImage: "moon.zzz.fill")
+                Label("一键执行", systemImage: "hand.tap.fill")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
