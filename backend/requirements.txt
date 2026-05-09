@@ -21,6 +21,12 @@ aiohttp==3.9.1
 # Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# bcrypt 5.0.0 added strict 72-byte password validation that passlib
+# 1.7.4's set_backend self-test trips during initialization →
+# `ValueError: password cannot be longer than 72 bytes` on every
+# /auth/register call. Pinned to 4.x until passlib ships a 1.7.5+
+# that handles bcrypt 5's stricter contract.
+bcrypt<5
 cryptography==41.0.7
 
 # Cache
