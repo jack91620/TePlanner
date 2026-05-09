@@ -1,0 +1,17 @@
+# Tautomation Android — per-machine secrets.
+# Copy this file to `local.properties` (gitignored) and fill in the
+# real values. Android Studio also writes `sdk.dir` here automatically
+# on first project open; leave that line as-is.
+#
+# Phase F secrets:
+
+# 高德 Android key (Console → 我的应用 → Android → fc9c10d4...).
+AMAP_API_KEY=fc9c10d4f4a5d552c0c6a45c0642d336
+
+# JPush AppKey (Console → 应用 → AppKey → 0295a70a...).
+# Master Secret stays server-side; iOS/Android only need AppKey.
+JPUSH_APP_KEY=0295a70ad50ae123c67553ac
+
+# Backend base URL — defaults to production. Override for staging /
+# local-dev (note Android emulator localhost is 10.0.2.2).
+BACKEND_BASE_URL=https://api.teplanner.cloud

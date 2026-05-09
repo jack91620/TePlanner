@@ -136,6 +136,20 @@ deploy/ExportOptions.plist
 ops/state/
 ops/reports/
 
+# Phase F — Android per-machine secrets + build artifacts. The SDK
+# location (sdk.dir) Android Studio writes into local.properties is
+# host-specific too, so the whole file is gitignored — track the
+# example template only.
+apps/android/local.properties
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/core/*/build/
+apps/android/.idea/
+apps/android/*.iml
+apps/android/app/*.iml
+apps/android/core/*/*.iml
+
 # Generated SDK build artifacts (Phase C codegen) — the SDK source IS
 # committed under packages/clients/{swift,kotlin,arkts}/ but build
 # outputs (Package.resolved, .build, gradle .lock, node_modules) are
