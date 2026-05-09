@@ -112,6 +112,29 @@ class AutomationRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class UserSetting(Base):
+    """Phase A.5 — opaque cross-device key/value preference store.
+
+    iOS / Android / Harmony clients all sync UI prefs (charge-limit
+    targets, departure window length, hub card visibility, etc.)
+    through this table so a setting tweaked on one device shows up on
+    the next. Values are JSON-encoded text — we don't enforce schema
+    server-side because settings churn fast and per-key columns would
+    couple migrations to client UI changes.
+
+    UNIQUE(user_id, key) is what makes upsert work cleanly.
+    """
+
+    __tablename__ = "user_setting"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    key = Column(String(80), nullable=False)
+    value_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ChargingSession(Base):
     """Phase A.4 — one charging session.
 

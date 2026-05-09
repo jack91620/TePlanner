@@ -16,17 +16,18 @@ clean.
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.db.models import ScheduledDeparture, User
+from app.db.models import ScheduledDeparture, User, UserSetting
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -165,3 +166,107 @@ async def clear_scheduled_departure(
         await db.flush()
         logger.info("user %s cleared scheduled-departure", user.id)
     return {"success": True}
+
+
+# ---------------------------------------------------------------------------
+# Phase A.5 — user settings sync.
+#
+# Opaque key/value JSON store for cross-device UI preference sync.
+# Schema is intentionally NOT enforced server-side: clients send
+# whatever JSON they want and read it back. Phase D wires iOS
+# UserDefaultsSettingsStore to read+write these endpoints; Android /
+# Harmony will adopt directly.
+
+class UserSettingsResponse(BaseModel):
+    settings: dict[str, Any]
+    updated_at: Optional[datetime] = None
+
+
+class UserSettingsRequest(BaseModel):
+    settings: dict[str, Any] = Field(
+        ...,
+        description=(
+            "Full settings document. PUT replaces the keys present "
+            "in this dict but leaves untouched keys alone — pass "
+            "`replace_all=true` to wipe and re-seed."
+        ),
+    )
+    replace_all: bool = False
+
+
+def _decode_value(raw: str) -> Any:
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return raw
+
+
+@router.get("/settings", response_model=UserSettingsResponse)
+async def get_user_settings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserSettingsResponse:
+    """Return the user's full settings dict. Empty dict when never set.
+    `updated_at` is the most recent row update — clients use it to
+    short-circuit re-fetches."""
+    rows = (await db.execute(
+        select(UserSetting).where(UserSetting.user_id == user.id)
+    )).scalars().all()
+    settings = {row.key: _decode_value(row.value_json) for row in rows}
+    most_recent = max((r.updated_at for r in rows if r.updated_at), default=None)
+    return UserSettingsResponse(settings=settings, updated_at=most_recent)
+
+
+@router.put("/settings", response_model=UserSettingsResponse)
+async def upsert_user_settings(
+    body: UserSettingsRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserSettingsResponse:
+    """Merge ``body.settings`` into the user's settings dict (or
+    replace entirely if ``replace_all=true``). Each value is
+    JSON-encoded for storage. Keys longer than 80 chars or empty are
+    rejected (matches column constraint).
+    """
+    bad_keys = [
+        k for k in body.settings.keys()
+        if not isinstance(k, str) or not (1 <= len(k) <= 80)
+    ]
+    if bad_keys:
+        raise HTTPException(400, f"invalid setting keys: {bad_keys}")
+
+    existing_rows = (await db.execute(
+        select(UserSetting).where(UserSetting.user_id == user.id)
+    )).scalars().all()
+    by_key = {row.key: row for row in existing_rows}
+
+    if body.replace_all:
+        for row in existing_rows:
+            if row.key not in body.settings:
+                await db.delete(row)
+
+    for key, value in body.settings.items():
+        encoded = json.dumps(value, ensure_ascii=False)
+        existing = by_key.get(key)
+        if existing is not None:
+            existing.value_json = encoded
+        else:
+            db.add(UserSetting(
+                user_id=user.id,
+                key=key,
+                value_json=encoded,
+                created_at=datetime.utcnow(),
+            ))
+
+    await db.flush()
+    logger.info(
+        "user %s updated %d settings (replace_all=%s)",
+        user.id, len(body.settings), body.replace_all,
+    )
+
+    rows = (await db.execute(
+        select(UserSetting).where(UserSetting.user_id == user.id)
+    )).scalars().all()
+    settings = {row.key: _decode_value(row.value_json) for row in rows}
+    most_recent = max((r.updated_at for r in rows if r.updated_at), default=None)
+    return UserSettingsResponse(settings=settings, updated_at=most_recent)

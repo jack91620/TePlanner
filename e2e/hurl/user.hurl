@@ -21,3 +21,17 @@ HTTP 401
 # 3. DELETE /user/scheduled-departure without auth → 401
 DELETE {{base_url}}/api/v1/user/scheduled-departure
 HTTP 401
+
+
+# 4. Phase A.5 — GET /user/settings without auth → 401
+GET {{base_url}}/api/v1/user/settings
+HTTP 401
+
+
+# 5. PUT /user/settings without auth → 401
+PUT {{base_url}}/api/v1/user/settings
+Content-Type: application/json
+{
+  "settings": {"any_key": 1}
+}
+HTTP 401
