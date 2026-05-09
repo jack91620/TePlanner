@@ -213,6 +213,88 @@ async def create_rule(
     return _row_to_response(row)
 
 
+# ---------------------------------------------------------------------------
+# Phase A.2 — explicit rule ordering.
+#
+# Sets ``automation_rules.display_order`` for the rule_ids supplied in
+# the request. Rules not mentioned keep their current display_order
+# (NULL or otherwise) and fall back to the canonical preset/created-at
+# order. PUT replaces — pass an empty list with `clear=true` to reset
+# all overrides.
+#
+# ATTENTION ROUTE ORDER: this MUST be registered before PUT /{rule_id}
+# below — FastAPI matches by registration order and the parameterized
+# route would otherwise swallow `/order` as `rule_id="order"` → 404.
+
+class RuleOrderRequest(BaseModel):
+    rule_ids: list[str] = Field(
+        ...,
+        description=(
+            "Ordered list of rule ids. Position in the list becomes "
+            "display_order (0 = first). Rules NOT in the list keep "
+            "their existing display_order; pass an empty list combined "
+            "with `clear=true` to reset all overrides."
+        ),
+    )
+    clear: bool = False
+
+
+@router.put("/order", response_model=RuleListResponse)
+async def reorder_rules(
+    body: RuleOrderRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> RuleListResponse:
+    """Persist a user-defined display order. Returns the full rule list
+    in the new canonical order so iOS can replace its in-memory cache
+    in one round-trip.
+
+    All rule_ids must belong to the requesting user; we 404 on the
+    first mismatch (defensive — silent skipping would leak existence).
+    Duplicates within rule_ids are rejected (400) so position is
+    well-defined.
+    """
+    if len(body.rule_ids) != len(set(body.rule_ids)):
+        raise HTTPException(400, "rule_ids contains duplicates")
+
+    if body.rule_ids:
+        stmt = select(AutomationRule).where(
+            AutomationRule.id.in_(body.rule_ids),
+            AutomationRule.user_id == user.id,
+        )
+        owned = {r.id: r for r in (await db.execute(stmt)).scalars().all()}
+        missing = [rid for rid in body.rule_ids if rid not in owned]
+        if missing:
+            raise HTTPException(404, f"unknown rule(s): {missing}")
+        for position, rid in enumerate(body.rule_ids):
+            owned[rid].display_order = position
+
+    if body.clear:
+        clear_stmt = select(AutomationRule).where(
+            AutomationRule.user_id == user.id,
+            AutomationRule.id.notin_(body.rule_ids) if body.rule_ids
+            else AutomationRule.user_id == user.id,
+        )
+        for r in (await db.execute(clear_stmt)).scalars().all():
+            r.display_order = None
+
+    await db.flush()
+    logger.info(
+        "user %s reordered %d rule(s) (clear=%s)",
+        user.id, len(body.rule_ids), body.clear,
+    )
+
+    list_stmt = select(AutomationRule).where(AutomationRule.user_id == user.id)
+    rows = (await db.execute(list_stmt)).scalars().all()
+    from app.services.automation.engine import _sort_rules_canonically
+    rows = _sort_rules_canonically(rows)
+    last_fired = await _last_fired_per_kind(db, user.id)
+    return RuleListResponse(rules=[
+        _row_to_response(r, last_fired_at=last_fired.get(_kind_of(r)))
+        for r in rows
+    ])
+
+
 @router.put("/{rule_id}", response_model=RuleResponse)
 async def update_rule(
     rule_id: str,
@@ -531,78 +613,3 @@ async def list_snoozes(
     return SnoozeListResponse(snoozes=[_snooze_to_response(r) for r in rows])
 
 
-# ---------------------------------------------------------------------------
-# Phase A.2 — explicit rule ordering.
-#
-# Sets ``automation_rules.display_order`` for the rule_ids supplied in
-# the request. Rules not mentioned keep their current display_order
-# (NULL or otherwise) and fall back to the canonical preset/created-at
-# order. PUT replaces — pass an empty list to clear all overrides.
-
-class RuleOrderRequest(BaseModel):
-    rule_ids: list[str] = Field(
-        ...,
-        description=(
-            "Ordered list of rule ids. Position in the list becomes "
-            "display_order (0 = first). Rules NOT in the list keep "
-            "their existing display_order; pass an empty list combined "
-            "with `clear=true` to reset all overrides."
-        ),
-    )
-    clear: bool = False
-
-
-@router.put("/order", response_model=RuleListResponse)
-async def reorder_rules(
-    body: RuleOrderRequest,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> RuleListResponse:
-    """Persist a user-defined display order. Returns the full rule list
-    in the new canonical order so iOS can replace its in-memory cache
-    in one round-trip.
-
-    All rule_ids must belong to the requesting user; we 404 on the
-    first mismatch (defensive — silent skipping would leak existence).
-    Duplicates within rule_ids are rejected (400) so position is
-    well-defined.
-    """
-    if len(body.rule_ids) != len(set(body.rule_ids)):
-        raise HTTPException(400, "rule_ids contains duplicates")
-
-    if body.rule_ids:
-        stmt = select(AutomationRule).where(
-            AutomationRule.id.in_(body.rule_ids),
-            AutomationRule.user_id == user.id,
-        )
-        owned = {r.id: r for r in (await db.execute(stmt)).scalars().all()}
-        missing = [rid for rid in body.rule_ids if rid not in owned]
-        if missing:
-            raise HTTPException(404, f"unknown rule(s): {missing}")
-        for position, rid in enumerate(body.rule_ids):
-            owned[rid].display_order = position
-
-    if body.clear:
-        clear_stmt = select(AutomationRule).where(
-            AutomationRule.user_id == user.id,
-            AutomationRule.id.notin_(body.rule_ids) if body.rule_ids
-            else AutomationRule.user_id == user.id,
-        )
-        for r in (await db.execute(clear_stmt)).scalars().all():
-            r.display_order = None
-
-    await db.flush()
-    logger.info(
-        "user %s reordered %d rule(s) (clear=%s)",
-        user.id, len(body.rule_ids), body.clear,
-    )
-
-    list_stmt = select(AutomationRule).where(AutomationRule.user_id == user.id)
-    rows = (await db.execute(list_stmt)).scalars().all()
-    from app.services.automation.engine import _sort_rules_canonically
-    rows = _sort_rules_canonically(rows)
-    last_fired = await _last_fired_per_kind(db, user.id)
-    return RuleListResponse(rules=[
-        _row_to_response(r, last_fired_at=last_fired.get(_kind_of(r)))
-        for r in rows
-    ])
