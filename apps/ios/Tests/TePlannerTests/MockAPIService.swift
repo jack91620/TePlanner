@@ -349,4 +349,46 @@ final class MockAPIService: APIServiceProtocol {
         clearScheduledDepartureCallCount += 1
         return mockClearScheduledDepartureResponse
     }
+
+    // Phase D.4 — charging sessions
+    var mockUpsertChargingSessionResponse: Result<ChargingSessionResponse, APIError>?
+    var mockListChargingSessionsResponse: Result<ChargingSessionListResponse, APIError> =
+        .success(ChargingSessionListResponse(sessions: []))
+    private(set) var upsertChargingSessionCalls: [(vehicleId: String, request: ChargingSessionRequest)] = []
+    private(set) var listChargingSessionsCalls: [(vehicleId: String, limit: Int)] = []
+
+    func upsertChargingSession(
+        vehicleId: String, request: ChargingSessionRequest
+    ) async -> Result<ChargingSessionResponse, APIError> {
+        upsertChargingSessionCalls.append((vehicleId, request))
+        if let preset = mockUpsertChargingSessionResponse { return preset }
+        let resp = ChargingSessionResponse(
+            id: 1,
+            vehicleId: vehicleId,
+            clientSessionId: request.clientSessionId,
+            startedAt: request.startedAt,
+            endedAt: request.endedAt,
+            startSoc: request.startSoc,
+            endSoc: request.endSoc,
+            startRangeKm: request.startRangeKm,
+            endRangeKm: request.endRangeKm,
+            energyAddedKwh: request.energyAddedKwh,
+            locationName: request.locationName,
+            lat: request.lat,
+            lng: request.lng,
+            endedAsComplete: request.endedAsComplete,
+            source: "ios",
+            durationMinutes: nil,
+            rangeAddedKm: nil,
+            socDelta: nil,
+        )
+        return .success(resp)
+    }
+
+    func listChargingSessions(
+        vehicleId: String, limit: Int
+    ) async -> Result<ChargingSessionListResponse, APIError> {
+        listChargingSessionsCalls.append((vehicleId, limit))
+        return mockListChargingSessionsResponse
+    }
 }

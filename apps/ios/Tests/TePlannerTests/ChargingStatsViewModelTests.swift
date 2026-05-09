@@ -51,7 +51,7 @@ final class ChargingStatsViewModelTests: XCTestCase {
 
     func testEmptyState() {
         let vm = makeVM()
-        vm.refresh()
+        vm.reload()
         XCTAssertFalse(vm.hasAnyData)
         XCTAssertEqual(vm.monthlyCount, 0)
         XCTAssertEqual(vm.monthlyDurationMinutes, 0)
@@ -66,7 +66,7 @@ final class ChargingStatsViewModelTests: XCTestCase {
         store.upsert(session(startOffsetDays: -20))  // late April
 
         let vm = makeVM()
-        vm.refresh()
+        vm.reload()
         XCTAssertEqual(vm.monthlyCount, 3,
                        "session from previous month must not count toward this-month bucket")
     }
@@ -76,7 +76,7 @@ final class ChargingStatsViewModelTests: XCTestCase {
         store.upsert(session(startOffsetDays: -2, durationMinutes: 45, startRange: 80, endRange: 280))
 
         let vm = makeVM()
-        vm.refresh()
+        vm.reload()
         XCTAssertEqual(vm.monthlyDurationMinutes, 75)
         XCTAssertEqual(vm.monthlyRangeAddedKm, 350)
     }
@@ -92,7 +92,7 @@ final class ChargingStatsViewModelTests: XCTestCase {
         store.upsert(ongoing)
 
         let vm = makeVM()
-        vm.refresh()
+        vm.reload()
         XCTAssertTrue(vm.hasAnyData,
                       "ongoing session shows in history list")
         XCTAssertEqual(vm.monthlyCount, 0,
@@ -105,7 +105,7 @@ final class ChargingStatsViewModelTests: XCTestCase {
         store.upsert(session(startOffsetDays: -3))
 
         let vm = makeVM()
-        vm.refresh()
+        vm.reload()
         XCTAssertEqual(vm.sessions.count, 3)
         XCTAssertGreaterThan(vm.sessions[0].startAt, vm.sessions[1].startAt)
         XCTAssertGreaterThan(vm.sessions[1].startAt, vm.sessions[2].startAt)

@@ -18,6 +18,7 @@ struct HubView: View {
     @StateObject private var statsViewModel: ChargingStatsViewModel
     @StateObject private var snoozeStore: BackendSnoozeStore
     @StateObject private var departureStore: BackendScheduledDepartureStore
+    @StateObject private var chargingSessionStore: BackendChargingSessionStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -72,9 +73,11 @@ struct HubView: View {
             apiService: apiService,
             settings: UserDefaultsSettingsStore.shared
         ))
-        _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel())
+        let chargingSessionStore = BackendChargingSessionStore(apiService: apiService)
+        _chargingSessionStore = StateObject(wrappedValue: chargingSessionStore)
+        _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel(store: chargingSessionStore))
         _departureStore = StateObject(wrappedValue: BackendScheduledDepartureStore(apiService: apiService))
-        self.chargingTracker = ChargingSessionTracker()
+        self.chargingTracker = ChargingSessionTracker(store: chargingSessionStore)
         self.apiService = apiService
         self.authSession = authSession
     }
@@ -134,7 +137,7 @@ struct HubView: View {
             await refreshTelemetryState()
             await refreshCommandStatuses()
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
-            statsViewModel.refresh()
+            await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id)
             await departureStore.refresh()
             scheduledDeparture = departureStore.current()
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
@@ -174,14 +177,15 @@ struct HubView: View {
             switch newPhase {
             case .active:
                 viewModel.startPolling()
-                statsViewModel.refresh()
+                Task { await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id) }
             default: viewModel.stopPolling()
             }
         }
         .onChange(of: viewModel.vehicleState) { _, newState in
             automationEngine.observe(newState, vehicleId: viewModel.vehicle?.id)
             chargingTracker.observe(newState, locationName: viewModel.locationName)
-            statsViewModel.refresh()
+            // Phase D.4 — store auto-refreshes on its own changes;
+            // statsViewModel reload is driven by changesPublisher.
             promptVCPPairingIfNeeded()
             Task {
                 await refreshTelemetryState()
@@ -701,6 +705,7 @@ struct HubView: View {
     private var batteryEntry: some View {
         NavigationLink {
             BatteryView(
+                sessionStore: chargingSessionStore,
                 apiService: apiService,
                 vehicleId: viewModel.vehicle?.id,
                 currentChargeLimitSoc: viewModel.vehicleState?.chargeLimitSoc,

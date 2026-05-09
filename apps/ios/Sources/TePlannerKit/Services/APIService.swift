@@ -329,6 +329,23 @@ public final class APIService: APIServiceProtocol {
         return await delete(path: "/user/scheduled-departure")
     }
 
+    // MARK: - Phase D.4 — charging sessions
+
+    public func upsertChargingSession(
+        vehicleId: String, request: ChargingSessionRequest
+    ) async -> Result<ChargingSessionResponse, APIError> {
+        return await postJSON(
+            path: "/vehicles/\(vehicleId)/sessions",
+            body: request,
+        )
+    }
+
+    public func listChargingSessions(
+        vehicleId: String, limit: Int = 50
+    ) async -> Result<ChargingSessionListResponse, APIError> {
+        return await get(path: "/vehicles/\(vehicleId)/sessions?limit=\(limit)")
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {

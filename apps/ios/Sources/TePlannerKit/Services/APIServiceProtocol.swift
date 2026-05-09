@@ -120,4 +120,13 @@ public protocol APIServiceProtocol {
         _ departure: ScheduledDeparture
     ) async -> Result<ScheduledDepartureResponse, APIError>
     func clearScheduledDeparture() async -> Result<BaseResponse, APIError>
+
+    // Phase D.4 — server-canonical charging sessions. Replaces
+    // UserDefaultsChargingSessionStore.
+    func upsertChargingSession(
+        vehicleId: String, request: ChargingSessionRequest
+    ) async -> Result<ChargingSessionResponse, APIError>
+    func listChargingSessions(
+        vehicleId: String, limit: Int
+    ) async -> Result<ChargingSessionListResponse, APIError>
 }

@@ -1,10 +1,10 @@
 import Foundation
 import Combine
 
-/// Drives `ChargingStatsView`. Pulls sessions from the store on
-/// `refresh()` (called from `.task`) and exposes month-bucketed
-/// aggregates as computed properties so SwiftUI redraws cleanly when
-/// `sessions` updates.
+/// Drives `ChargingStatsView`. Phase D.4 — sessions come from a
+/// shared `ChargingSessionStore` (typically `BackendChargingSessionStore`)
+/// rather than a private UserDefaults blob; the store maintains the
+/// canonical cache and the view-model just projects it.
 @MainActor
 public final class ChargingStatsViewModel: ObservableObject {
     @Published public private(set) var sessions: [ChargingSession] = []
@@ -12,18 +12,33 @@ public final class ChargingStatsViewModel: ObservableObject {
     private let store: ChargingSessionStore
     private let now: () -> Date
     private let calendar: Calendar
+    private var cancellables = Set<AnyCancellable>()
 
     public init(
-        store: ChargingSessionStore = UserDefaultsChargingSessionStore.shared,
+        store: ChargingSessionStore,
         now: @escaping () -> Date = Date.init,
         calendar: Calendar = .current
     ) {
         self.store = store
         self.now = now
         self.calendar = calendar
+        store.changesPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.reload() }
+            .store(in: &cancellables)
+        reload()
     }
 
-    public func refresh() {
+    public func refresh(vehicleId: String? = nil) async {
+        await store.refresh(vehicleId: vehicleId)
+        reload()
+    }
+
+    /// Sync re-pull from the cache. Tests use this to assert
+    /// deterministically after seeding the store; production code goes
+    /// through `refresh(vehicleId:)` (async, hits backend) or relies
+    /// on the `changesPublisher` subscription to keep UI in sync.
+    public func reload() {
         sessions = store.recent(limit: 100)
     }
 

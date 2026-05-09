@@ -22,7 +22,7 @@ public final class ChargingSessionTracker {
     private var lastSeenChargingState: String?
 
     public init(
-        store: ChargingSessionStore = UserDefaultsChargingSessionStore.shared,
+        store: ChargingSessionStore,
         now: @escaping () -> Date = Date.init
     ) {
         self.store = store

@@ -25,7 +25,7 @@ struct BatteryView: View {
     private let onLimitApplied: (() -> Void)?
 
     init(
-        sessionStore: ChargingSessionStore = UserDefaultsChargingSessionStore.shared,
+        sessionStore: ChargingSessionStore,
         store: SettingsStore = UserDefaultsSettingsStore.shared,
         apiService: APIServiceProtocol? = nil,
         vehicleId: String? = nil,
@@ -65,7 +65,7 @@ struct BatteryView: View {
         }
         .navigationTitle("电池管理")
         .navigationBarTitleDisplayMode(.inline)
-        .task { statsVM.refresh() }
+        .task { await statsVM.refresh(vehicleId: vehicleId) }
         .accessibilityIdentifier("battery_view")
     }
 
