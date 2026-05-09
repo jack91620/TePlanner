@@ -18,22 +18,17 @@
 
 ## 组件详情
 
-### 前端 (微信小程序)
+### 前端 (iOS — Tautomation)
+
+> 历史说明：早期原型为微信小程序 (`miniprogram/`) → Android
+> 原生 (`android/`)，两份源码已于 2026-05-09 删除。当前唯一前端是
+> iOS app (`Sources/TePlannerKit/` + `TePlannerApp/`)。详见根
+> 目录 `CLAUDE.md` 与 `docs/ios-port-plan.md`。
 
 ```text
-miniprogram/
-├── pages/
-│   ├── index/          # 路线规划表单
-│   ├── route-result/   # 规划结果展示
-│   ├── station-detail/ # 充电站详情
-│   ├── vehicle-binding/# Tesla OAuth 绑定流程
-│   ├── profile/        # 用户设置
-│   └── settings/       # 应用设置
-├── utils/
-│   ├── api.js          # HTTP 客户端
-│   └── util.js         # 工具函数
-└── config/
-    └── index.js        # 环境配置
+Sources/TePlannerKit/         # 跨平台 Swift Package：模型 / VM / 服务
+TePlannerApp/                 # iOS app target：SwiftUI Views + AMap SDK
+backend/                      # 共享后端 (FastAPI)
 ```
 
 ### 后端 (FastAPI)

@@ -48,10 +48,6 @@ TePlanner/
 │   │       ├── tesla/     # Tesla API (MVP核心)
 │   │       └── tencent_map/  # 腾讯地图
 │   └── tests/
-├── miniprogram/      # 微信小程序
-│   ├── pages/        # 页面
-│   ├── components/   # 组件
-│   └── utils/        # 工具函数
 ├── docs/             # 项目文档
 ├── PRD.md            # 产品需求文档
 └── README.md         # 本文件

@@ -1,10 +1,11 @@
 # TePlanner — guide for Claude Code
 
-A Tesla-integrated trip-planner iOS app for the China market. Started
-as a port of the Android app under `android/` (see
-`docs/ios-port-plan.md`); now significantly past parity with its own
-automation engine, hub-style home, and Vehicle Command Protocol
-backend.
+A Tesla-integrated automation companion iOS app for the China
+market. Started as a port of an earlier Android prototype (see
+`docs/android-migration-guide.md` for the historical mapping; the
+`android/` source tree was deleted on 2026-05-09 since the iOS app
+is well past parity with its own automation engine, hub-style
+home, and Vehicle Command Protocol backend).
 
 ## Layout
 
