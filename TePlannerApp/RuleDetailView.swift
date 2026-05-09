@@ -33,6 +33,7 @@ struct RuleDetailView: View {
                     headerSection(r)
                     triggerSection(r.spec)
                     thresholdSection(r)
+                    geofencePromptSection(r)
                     actionSections(r.spec)
                     presetExplanationSection(r)
                     testFireSection(r)
@@ -409,6 +410,48 @@ struct RuleDetailView: View {
                     .font(.caption2)
             }
         }
+    }
+
+    /// For unconfigured geofence rules, surface a prominent
+    /// 选择地点 CTA on the detail page so users don't have to dig
+    /// through the … menu → 编辑 → builder to set the center. Tapping
+    /// opens the same builder sheet, scrolled to the location row.
+    @ViewBuilder
+    private func geofencePromptSection(_ r: RuleRecord) -> some View {
+        if isUnconfiguredGeofence(r.spec) {
+            Section {
+                Button {
+                    showingEditor = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("选择中心地点")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("规则需要中心位置才会生效")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+            .listRowBackground(Color.orange.opacity(0.1))
+        }
+    }
+
+    private func isUnconfiguredGeofence(_ spec: RuleSpec) -> Bool {
+        guard let trigger = spec["trigger"]?.objectValue,
+              trigger.string("type") == "geofence" else { return false }
+        let lat = trigger.double("lat") ?? 0
+        let lng = trigger.double("lng") ?? 0
+        return abs(lat) < 0.0001 && abs(lng) < 0.0001
     }
 
     /// Inline 'why this rule matters' callout for presets — explains
