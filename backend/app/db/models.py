@@ -108,6 +108,26 @@ class AutomationRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AutomationSnooze(Base):
+    """Phase A.1 — per-rule snooze ledger.
+
+    Pause a rule from firing for a window. The engine consults this
+    table on every tick: a row whose ``snoozed_until_utc`` is in the
+    future suppresses evaluation entirely (no alert emitted, no
+    side-effects). DELETE clears immediately. UNIQUE on ``rule_id`` —
+    re-snoozing the same rule REPLACEs the prior row.
+    """
+
+    __tablename__ = "automation_snooze"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    rule_id = Column(String(36), nullable=False, unique=True, index=True)
+    snoozed_until_utc = Column(DateTime, nullable=False)
+    reason = Column(String(128), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AutomationState(Base):
     """Per-rule scratchpad keyed by (user_id, vehicle_id, key). Used by
     automation rules to remember "first time I observed X on" timestamps

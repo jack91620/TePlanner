@@ -26,7 +26,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.db.models import AutomationRule, AutomationState, User, Vehicle
+from app.db.models import (
+    AutomationRule,
+    AutomationSnooze,
+    AutomationState,
+    User,
+    Vehicle,
+)
 from app.services.automation.engine import ensure_presets_seeded
 from app.services.capabilities import all_capabilities
 
@@ -381,3 +387,140 @@ async def get_telemetry_state(
     return TelemetryStateResponse(
         vehicle_id=vehicle.vin, entries=entries,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase A.1 — snooze API.
+#
+# A snooze pauses one rule from firing for a window. Engine consults
+# automation_snooze on every tick and skips evaluation while the row's
+# snoozed_until_utc is in the future. Re-snoozing replaces (UNIQUE on
+# rule_id). DELETE clears immediately.
+
+class SnoozeRequest(BaseModel):
+    until: Optional[datetime] = None
+    hours: Optional[float] = Field(None, gt=0, le=720)
+    reason: Optional[str] = Field(None, max_length=128)
+
+
+class SnoozeResponse(BaseModel):
+    rule_id: str
+    snoozed_until_utc: datetime
+    reason: Optional[str] = None
+    created_at: datetime
+
+
+class SnoozeListResponse(BaseModel):
+    snoozes: list[SnoozeResponse]
+
+
+def _snooze_to_response(row: AutomationSnooze) -> SnoozeResponse:
+    return SnoozeResponse(
+        rule_id=row.rule_id,
+        snoozed_until_utc=row.snoozed_until_utc,
+        reason=row.reason,
+        created_at=row.created_at,
+    )
+
+
+@router.post("/{rule_id}/snooze", response_model=SnoozeResponse)
+async def snooze_rule(
+    rule_id: str,
+    body: SnoozeRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SnoozeResponse:
+    """Snooze ``rule_id`` until ``until`` (absolute UTC) or for ``hours``
+    from now. Exactly one of the two must be provided. Replaces any
+    existing snooze on that rule (UNIQUE on rule_id).
+    """
+    if (body.until is None) == (body.hours is None):
+        raise HTTPException(400, "provide exactly one of 'until' or 'hours'")
+
+    rule_stmt = select(AutomationRule).where(
+        AutomationRule.id == rule_id,
+        AutomationRule.user_id == user.id,
+    )
+    if (await db.execute(rule_stmt)).scalar_one_or_none() is None:
+        raise HTTPException(404, "rule not found")
+
+    if body.until is not None:
+        until_utc = body.until.replace(tzinfo=None)
+    else:
+        from datetime import timedelta
+        until_utc = datetime.utcnow() + timedelta(hours=float(body.hours))
+
+    if until_utc <= datetime.utcnow():
+        raise HTTPException(400, "snooze window must end in the future")
+
+    existing = (await db.execute(
+        select(AutomationSnooze).where(AutomationSnooze.rule_id == rule_id)
+    )).scalar_one_or_none()
+
+    if existing is not None:
+        existing.snoozed_until_utc = until_utc
+        existing.reason = body.reason
+        existing.user_id = user.id
+        row = existing
+    else:
+        row = AutomationSnooze(
+            user_id=user.id,
+            rule_id=rule_id,
+            snoozed_until_utc=until_utc,
+            reason=body.reason,
+            created_at=datetime.utcnow(),
+        )
+        db.add(row)
+    await db.flush()
+    logger.info(
+        "user %s snoozed rule %s until %s (reason=%s)",
+        user.id, rule_id, until_utc.isoformat(), body.reason,
+    )
+    return _snooze_to_response(row)
+
+
+@router.delete("/{rule_id}/snooze")
+async def unsnooze_rule(
+    rule_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Clear any active snooze on ``rule_id``. 404 if the rule itself
+    doesn't exist; idempotent on a rule with no active snooze."""
+    rule_stmt = select(AutomationRule).where(
+        AutomationRule.id == rule_id,
+        AutomationRule.user_id == user.id,
+    )
+    if (await db.execute(rule_stmt)).scalar_one_or_none() is None:
+        raise HTTPException(404, "rule not found")
+
+    row = (await db.execute(
+        select(AutomationSnooze).where(AutomationSnooze.rule_id == rule_id)
+    )).scalar_one_or_none()
+    if row is not None:
+        await db.delete(row)
+        await db.flush()
+        logger.info("user %s unsnoozed rule %s", user.id, rule_id)
+    return {"success": True, "rule_id": rule_id}
+
+
+@router.get("/snoozes", response_model=SnoozeListResponse)
+async def list_snoozes(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SnoozeListResponse:
+    """List all active (snoozed_until_utc > now) snoozes for the user.
+    Stale rows (past their window) are filtered server-side; the client
+    never sees them, so iOS doesn't need to time-check.
+    """
+    now = datetime.utcnow()
+    stmt = (
+        select(AutomationSnooze)
+        .where(
+            AutomationSnooze.user_id == user.id,
+            AutomationSnooze.snoozed_until_utc > now,
+        )
+        .order_by(AutomationSnooze.snoozed_until_utc.asc())
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return SnoozeListResponse(snoozes=[_snooze_to_response(r) for r in rows])

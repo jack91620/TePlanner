@@ -26,7 +26,13 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AutomationRule, AutomationState, DeviceToken, PushedAlert
+from app.db.models import (
+    AutomationRule,
+    AutomationSnooze,
+    AutomationState,
+    DeviceToken,
+    PushedAlert,
+)
 from app.services.apns import apns_client
 from app.services.automation.base import (
     Alert,
@@ -224,6 +230,21 @@ async def load_user_rules(db: AsyncSession, user_id: int) -> list[dict]:
     return parsed
 
 
+async def _active_snoozes(
+    db: AsyncSession, user_id: int, now: datetime,
+) -> set[str]:
+    """Return rule_ids whose snoozed_until_utc is still in the future.
+    Engine consults this once per tick and skips evaluation for any
+    rule in the set — no alert, no side-effect, no transition writes.
+    """
+    naive_now = now.replace(tzinfo=None) if now.tzinfo is not None else now
+    stmt = select(AutomationSnooze.rule_id).where(
+        AutomationSnooze.user_id == user_id,
+        AutomationSnooze.snoozed_until_utc > naive_now,
+    )
+    return {r for (r,) in (await db.execute(stmt)).all()}
+
+
 def _sort_rules_canonically(rows: list[AutomationRule]) -> list[AutomationRule]:
     """Stable sort: presets in ALL_PRESETS declaration order, then
     user-authored rules (preset_id is None) by created_at.
@@ -278,11 +299,16 @@ class AutomationEngine:
         pushed_count = 0
         cleared_count = 0
 
+        snoozed_rule_ids = await _active_snoozes(db, user_id, ctx.now)
+
         for spec in rules:
             try:
                 kind = AlertKind(spec["kind"])
             except (KeyError, ValueError):
                 logger.warning("rule %s has invalid kind — skipping", spec.get("_rule_id"))
+                continue
+            rule_id = spec.get("_rule_id")
+            if rule_id and rule_id in snoozed_rule_ids:
                 continue
             alert = evaluate_rule(spec, ctx)
             if alert is not None:

@@ -91,3 +91,24 @@ jsonpath "$.detail" exists
 # 9. DELETE /vehicles/commands/queued/{id} without auth → 401.
 DELETE {{base_url}}/api/v1/vehicles/commands/queued/1
 HTTP 401
+
+
+# 10. Phase A.1 — POST /automations/{id}/snooze without auth → 401.
+POST {{base_url}}/api/v1/automations/some-id/snooze
+Content-Type: application/json
+{
+  "hours": 6
+}
+HTTP 401
+
+
+# 11. DELETE /automations/{id}/snooze without auth → 401.
+DELETE {{base_url}}/api/v1/automations/some-id/snooze
+HTTP 401
+
+
+# 12. GET /automations/snoozes without auth → 401.
+GET {{base_url}}/api/v1/automations/snoozes
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists
