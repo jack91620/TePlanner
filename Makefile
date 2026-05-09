@@ -13,7 +13,7 @@
 # gitignored. Run `make project` after a fresh clone.
 
 SIMULATOR ?= iPhone 17
-PACKAGE_SCHEME := TePlanner-Package
+PACKAGE_SCHEME := TePlannerTests
 APP_SCHEME := TePlannerApp
 KIT_SCHEME := TePlannerKit
 DESTINATION := platform=iOS Simulator,name=$(SIMULATOR)
