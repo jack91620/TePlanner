@@ -139,6 +139,58 @@ async def test_run_one_tick_invokes_engine_once_per_user(eligible_user):
     assert seen[0]["locked"] is True
 
 
+async def test_one_user_failure_does_not_poison_other_users(patched_async_session):
+    """Regression for the 2026-05-09 production incident — a single
+    user's exception inside _tick_one_user used to leave the shared
+    session in 'rollback required' state, cascading 40 ERRORs across
+    every subsequent user. With the per-user-session fix in 914b497,
+    failures isolate to that one user.
+    """
+    db_session = patched_async_session
+    user_a = User(email="a@a.com", password_hash="x", is_active=True)
+    user_b = User(email="b@b.com", password_hash="x", is_active=True)
+    db_session.add_all([user_a, user_b])
+    await db_session.flush()
+    for u in (user_a, user_b):
+        db_session.add_all([
+            Vehicle(user_id=u.id, vehicle_id=str(u.id), vin=VIN + str(u.id), display_name="T"),
+            TeslaToken(
+                user_id=u.id, access_token="x", refresh_token="x",
+                expires_at=datetime(2099, 1, 1),
+            ),
+            DeviceToken(user_id=u.id, token=f"dev-{u.id}", bundle_id="com.teplanner.ios"),
+            AutomationState(
+                user_id=u.id, vehicle_id=VIN + str(u.id),
+                key="tel:vehicle.locked:value", value=json.dumps(True),
+            ),
+            AutomationState(
+                user_id=u.id, vehicle_id=VIN + str(u.id),
+                key="tel:vehicle.locked:since",
+                value=datetime(2026, 5, 8, 8, 16, 23, tzinfo=timezone.utc).isoformat(),
+            ),
+        ])
+    await db_session.commit()
+
+    from app.services import cron_tick
+    from app.services.automation.engine import TickResult
+
+    seen_users: list[int] = []
+
+    class _PoisonOnFirstUser:
+        async def run_for_vehicle(self, db, *, user_id, vehicle_id, state, settings):
+            seen_users.append(user_id)
+            if user_id == user_a.id:
+                raise RuntimeError("simulated autoflush failure on user_a")
+            return TickResult(alerts=[], pushed_count=0, cleared_count=0)
+
+    polled = await cron_tick.run_one_tick(_PoisonOnFirstUser())
+
+    # Both users were attempted (no early-exit on first failure).
+    assert set(seen_users) == {user_a.id, user_b.id}
+    # Exactly one polled (user_b — user_a raised).
+    assert polled == 1
+
+
 async def test_user_without_vehicle_is_skipped(patched_async_session):
     db_session = patched_async_session
     # Has both tokens but no Vehicle row → cron tick must early-return.
