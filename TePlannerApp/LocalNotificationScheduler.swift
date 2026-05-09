@@ -134,6 +134,37 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
                 ],
                 intentIdentifiers: [], options: [],
             ),
+            // Geofence categories — capability is rule-defined (could
+            // be set_sentry on enter, door_lock on exit, etc.) so the
+            // category title is generic '执行操作'. The actual title
+            // shown on the lock screen is rule-spec's
+            // primary_action_label IF the notification is delivered as
+            // a remote APNs push (server can override per-message); for
+            // local-fired previews the user sees this generic label.
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.geofenceEnter.rawValue,
+                actions: [
+                    UNNotificationAction(
+                        identifier: "primary",
+                        title: "执行操作",
+                        options: [.authenticationRequired]
+                    ),
+                    dismissAction,
+                ],
+                intentIdentifiers: [], options: [],
+            ),
+            UNNotificationCategory(
+                identifier: VehicleAlert.Kind.geofenceExit.rawValue,
+                actions: [
+                    UNNotificationAction(
+                        identifier: "primary",
+                        title: "执行操作",
+                        options: [.authenticationRequired]
+                    ),
+                    dismissAction,
+                ],
+                intentIdentifiers: [], options: [],
+            ),
         ]
         UNUserNotificationCenter.current().setNotificationCategories(Set(categories))
     }
