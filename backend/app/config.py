@@ -107,6 +107,12 @@ class Settings(BaseSettings):
     # "sandbox" only for dev builds with the development cert.
     APNS_ENVIRONMENT: str = "production"
 
+    # F.1 — opt-in alembic auto-migrate on lifespan startup. Off in
+    # production because alembic upgrade head can race with cron_tick
+    # workers under uvicorn --reload, hanging the lifespan event and
+    # 500'ing every write endpoint. Set "true" on dev or fresh boxes.
+    DB_AUTO_MIGRATE: str = "false"
+
     # Phase E — JPush (Android via Mi/Huawei legacy/OPPO/vivo OEM
     # channels in mainland China). Empty disables; dispatcher logs
     # one notice and skips Android tokens.

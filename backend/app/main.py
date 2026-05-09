@@ -35,10 +35,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     print(f"Starting {settings.APP_NAME}...")
-    # Initialize database tables
-    from app.db import init_db
-    await init_db()
-    print("Database initialized.")
+    # Initialize database tables.
+    # 2026-05-10: gate behind DB_AUTO_MIGRATE because asyncio.to_thread
+    # → alembic upgrade head is racing with sqlite WAL on prod under
+    # uvicorn --reload (worker spawns concurrently with cron_tick worker
+    # and they fight over the schema-modify lock). Production DB is
+    # already at head; treat schema migrations as a deploy-time op:
+    #     ssh prod && alembic upgrade head
+    # Set DB_AUTO_MIGRATE=true on dev / fresh boxes to opt back in.
+    if str(getattr(settings, "DB_AUTO_MIGRATE", "false")).lower() == "true":
+        from app.db import init_db
+        await init_db()
+        print("Database initialized.")
+    else:
+        print("Database init skipped (DB_AUTO_MIGRATE=false).")
 
     cron_task = None
     cron_stop = None
