@@ -16,6 +16,7 @@ struct HubView: View {
     @StateObject private var automationEngine: AutomationEngine
     @StateObject private var rulesStore: AutomationRulesStore
     @StateObject private var statsViewModel: ChargingStatsViewModel
+    @StateObject private var snoozeStore: BackendSnoozeStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -54,6 +55,8 @@ struct HubView: View {
             apiService: apiService,
             authSession: authSession
         ))
+        let snoozeStore = BackendSnoozeStore(apiService: apiService)
+        _snoozeStore = StateObject(wrappedValue: snoozeStore)
         // Bootstrap with hardcoded PresetSpecs so the engine is ready
         // before the first `/api/v1/automations` fetch lands. As soon
         // as the rulesStore returns, we replace the registry via
@@ -62,7 +65,8 @@ struct HubView: View {
         _automationEngine = StateObject(wrappedValue: AutomationEngine(
             registry: PresetSpecs.allPresets,
             apiService: apiService,
-            settings: UserDefaultsSettingsStore.shared
+            settings: UserDefaultsSettingsStore.shared,
+            snoozes: snoozeStore
         ))
         _rulesStore = StateObject(wrappedValue: AutomationRulesStore(
             apiService: apiService,
@@ -125,6 +129,7 @@ struct HubView: View {
         .task {
             await viewModel.load()
             await rulesStore.refresh()
+            await snoozeStore.refresh()
             automationEngine.observe(viewModel.vehicleState, vehicleId: viewModel.vehicle?.id)
             await refreshTelemetryState()
             await refreshCommandStatuses()
@@ -662,7 +667,7 @@ struct HubView: View {
 
     private var automationsEntry: some View {
         NavigationLink {
-            AutomationsHomeView(rulesStore: rulesStore, apiService: apiService)
+            AutomationsHomeView(rulesStore: rulesStore, apiService: apiService, snoozeStore: snoozeStore)
         } label: {
             HubEntryCard(
                 icon: "bell.badge.fill",
@@ -756,7 +761,7 @@ struct HubView: View {
         }
         // Snoozed count shown when no fires — gives the user a passive
         // reminder that some rules are temporarily muted.
-        let snoozed = UserDefaultsSettingsStore.shared.ruleSnooze.count
+        let snoozed = snoozeStore.activeUntil.count
         if snoozed > 0 {
             return "🔕 \(snoozed) 条静音中 · 共 \(enabled.count) 条启用"
         }

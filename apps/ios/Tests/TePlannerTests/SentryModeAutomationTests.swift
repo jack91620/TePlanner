@@ -21,6 +21,7 @@ final class SentryModeAutomationTests: XCTestCase {
             registry: [makeRecord(spec: spec)],
             apiService: api,
             settings: settings,
+            snoozes: InMemorySnoozeStore(),
             memory: memory,
             now: { [weak self] in self?.clock ?? Date() }
         )

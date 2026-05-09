@@ -261,4 +261,42 @@ final class MockAPIService: APIServiceProtocol {
     func fetchRecentFires(limit: Int) async -> Result<RecentFiresResponse, APIError> {
         mockRecentFires
     }
+
+    // Phase D.1 — snoozes. Defaults to "always succeeds, return what
+    // the caller asked for". Tests override via the per-call
+    // `mockSnoozeResponse` to inject failures or fixed deadlines.
+    var mockSnoozeResponse: Result<SnoozeRecord, APIError>?
+    var mockUnsnoozeResponse: Result<BaseResponse, APIError> =
+        .success(BaseResponse(success: true, message: "ok"))
+    var mockSnoozeListResponse: Result<SnoozeListResponse, APIError> =
+        .success(SnoozeListResponse(snoozes: []))
+
+    private(set) var snoozeCalls: [(ruleId: String, hours: Double?, until: Date?, reason: String?)] = []
+    private(set) var unsnoozeCalls: [String] = []
+    private(set) var fetchSnoozesCallCount: Int = 0
+
+    func snoozeRule(
+        ruleId: String, hours: Double?, until: Date?, reason: String?
+    ) async -> Result<SnoozeRecord, APIError> {
+        snoozeCalls.append((ruleId, hours, until, reason))
+        if let preset = mockSnoozeResponse { return preset }
+        let computedUntil = until ?? Date().addingTimeInterval((hours ?? 1) * 3600)
+        let record = SnoozeRecord(
+            ruleId: ruleId,
+            snoozedUntilUtc: computedUntil,
+            reason: reason,
+            createdAt: Date(),
+        )
+        return .success(record)
+    }
+
+    func unsnoozeRule(ruleId: String) async -> Result<BaseResponse, APIError> {
+        unsnoozeCalls.append(ruleId)
+        return mockUnsnoozeResponse
+    }
+
+    func fetchSnoozes() async -> Result<SnoozeListResponse, APIError> {
+        fetchSnoozesCallCount += 1
+        return mockSnoozeListResponse
+    }
 }

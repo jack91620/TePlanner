@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// Runs a registry of declarative rule specs (`RuleRecord`) against a
@@ -20,22 +21,32 @@ public final class AutomationEngine: ObservableObject {
     private var registry: [RuleRecord]
     private let apiService: APIServiceProtocol
     private let settings: SettingsStore
+    private let snoozes: SnoozeStore
     private let memory: AutomationStateMemory
     private let now: () -> Date
     private var lastState: VehicleState?
+    private var snoozeSubscription: AnyCancellable?
 
     public init(
         registry: [RuleRecord],
         apiService: APIServiceProtocol,
         settings: SettingsStore,
+        snoozes: SnoozeStore,
         memory: AutomationStateMemory = InMemoryAutomationStateMemory(),
         now: @escaping () -> Date = Date.init
     ) {
         self.registry = registry
         self.apiService = apiService
         self.settings = settings
+        self.snoozes = snoozes
         self.memory = memory
         self.now = now
+        snoozeSubscription = snoozes.changesPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                self.recompute()
+            }
     }
 
     /// Replace the rule registry — used after a /api/v1/automations
@@ -77,10 +88,9 @@ public final class AutomationEngine: ObservableObject {
             memory: memory
         )
         var emitted: [VehicleAlert] = []
-        let snoozes = settings.ruleSnooze
-        let nowTs = now().timeIntervalSince1970
+        let active = snoozes.activeUntil
         for record in registry where record.enabled {
-            if let until = snoozes[record.id], until > nowTs { continue }
+            if active[record.id] != nil { continue }
             if let alert = evaluateRule(record.spec, context: ctx) {
                 emitted.append(alert)
             }

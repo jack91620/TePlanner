@@ -12,6 +12,7 @@ import TePlannerKit
 struct AutomationsHomeView: View {
     @ObservedObject var rulesStore: AutomationRulesStore
     @StateObject private var capabilitiesStore: CapabilitiesStore
+    @ObservedObject private var snoozeStore: BackendSnoozeStore
     @State private var showingBuilder = false
     @State private var workingError: String?
     @State private var pendingDelete: RuleRecord?
@@ -21,9 +22,10 @@ struct AutomationsHomeView: View {
 
     private let apiService: APIServiceProtocol
 
-    init(rulesStore: AutomationRulesStore, apiService: APIServiceProtocol) {
+    init(rulesStore: AutomationRulesStore, apiService: APIServiceProtocol, snoozeStore: BackendSnoozeStore) {
         self.rulesStore = rulesStore
         self.apiService = apiService
+        self.snoozeStore = snoozeStore
         _capabilitiesStore = StateObject(wrappedValue: CapabilitiesStore(apiService: apiService))
     }
 
@@ -219,20 +221,20 @@ struct AutomationsHomeView: View {
     }
 
     private func unsnooze(_ record: RuleRecord) {
-        let store = UserDefaultsSettingsStore.shared
-        var s = store.ruleSnooze
-        s.removeValue(forKey: record.id)
-        store.ruleSnooze = s
-        rulesStore.objectWillChange.send()
+        Task { await snoozeStore.unsnooze(ruleId: record.id) }
     }
 
     private func unsnoozeAll() {
-        UserDefaultsSettingsStore.shared.ruleSnooze = [:]
-        rulesStore.objectWillChange.send()
+        let active = snoozeStore.activeUntil
+        Task {
+            for ruleId in active.keys {
+                await snoozeStore.unsnooze(ruleId: ruleId)
+            }
+        }
     }
 
     private var snoozedCount: Int {
-        UserDefaultsSettingsStore.shared.ruleSnooze.count
+        snoozeStore.activeUntil.count
     }
 
     @ViewBuilder
@@ -241,7 +243,8 @@ struct AutomationsHomeView: View {
             RuleDetailView(
                 ruleId: record.id,
                 rulesStore: rulesStore,
-                capabilitiesStore: capabilitiesStore
+                capabilitiesStore: capabilitiesStore,
+                snoozeStore: snoozeStore
             )
         } label: {
             ruleRowLabel(record)
@@ -600,20 +603,14 @@ struct AutomationsHomeView: View {
     }
 
     private func snoozeUntil(for ruleId: String) -> Date? {
-        let store = UserDefaultsSettingsStore.shared
-        guard let ts = store.ruleSnooze[ruleId] else { return nil }
-        return Date(timeIntervalSince1970: ts)
+        snoozeStore.activeUntil[ruleId]
     }
 
     @ViewBuilder
     private func snoozeMenu(for record: RuleRecord) -> some View {
-        let store = UserDefaultsSettingsStore.shared
         if snoozeUntil(for: record.id) != nil {
             Button {
-                var s = store.ruleSnooze
-                s.removeValue(forKey: record.id)
-                store.ruleSnooze = s
-                rulesStore.objectWillChange.send()
+                Task { await snoozeStore.unsnooze(ruleId: record.id) }
             } label: {
                 Label("取消静音", systemImage: "bell.slash.fill")
             }
@@ -629,11 +626,7 @@ struct AutomationsHomeView: View {
     }
 
     private func snooze(_ record: RuleRecord, hours: Double) {
-        let store = UserDefaultsSettingsStore.shared
-        var s = store.ruleSnooze
-        s[record.id] = Date().addingTimeInterval(hours * 3600).timeIntervalSince1970
-        store.ruleSnooze = s
-        rulesStore.objectWillChange.send()
+        Task { await snoozeStore.snooze(ruleId: record.id, hours: hours, reason: nil) }
     }
 
     private func snoozeUntilMorning(_ record: RuleRecord) {
@@ -645,10 +638,6 @@ struct AutomationsHomeView: View {
         if target <= Date() {
             target = cal.date(byAdding: .day, value: 1, to: target) ?? target
         }
-        let store = UserDefaultsSettingsStore.shared
-        var s = store.ruleSnooze
-        s[record.id] = target.timeIntervalSince1970
-        store.ruleSnooze = s
-        rulesStore.objectWillChange.send()
+        Task { await snoozeStore.snooze(ruleId: record.id, until: target, reason: nil) }
     }
 }

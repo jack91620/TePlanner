@@ -24,6 +24,7 @@ final class TelemetrySinceFallbackTests: XCTestCase {
             registry: records,
             apiService: api,
             settings: settings,
+            snoozes: InMemorySnoozeStore(),
             memory: memory,
             now: { [weak self] in self?.clock ?? Date() }
         )

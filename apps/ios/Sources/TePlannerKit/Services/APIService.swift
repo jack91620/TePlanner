@@ -21,7 +21,13 @@ public final class APIService: APIServiceProtocol {
     ) {
         self.baseURL = baseURL
         self.session = session
-        self.encoder = JSONEncoder()
+        let enc = JSONEncoder()
+        // Phase D.1 — ISO 8601 so `Date` fields (e.g. snooze `until`)
+        // serialize to FastAPI's expected datetime string. No prior
+        // POST body included a Date field, so this change is additive
+        // and safe for existing endpoints.
+        enc.dateEncodingStrategy = .iso8601
+        self.encoder = enc
         let dec = JSONDecoder()
         // Pydantic returns datetimes as ISO 8601. Default Date decoding
         // expects unix seconds — without this, Phase 5/9/10 endpoints
@@ -248,6 +254,30 @@ public final class APIService: APIServiceProtocol {
 
     public func fetchRecentFires(limit: Int = 50) async -> Result<RecentFiresResponse, APIError> {
         return await get(path: "/automations/recent-fires?limit=\(limit)")
+    }
+
+    // MARK: - Phase D.1 — snoozes
+
+    public func snoozeRule(
+        ruleId: String, hours: Double?, until: Date?, reason: String?
+    ) async -> Result<SnoozeRecord, APIError> {
+        struct Body: Encodable {
+            let hours: Double?
+            let until: Date?
+            let reason: String?
+        }
+        return await postJSON(
+            path: "/automations/\(ruleId)/snooze",
+            body: Body(hours: hours, until: until, reason: reason),
+        )
+    }
+
+    public func unsnoozeRule(ruleId: String) async -> Result<BaseResponse, APIError> {
+        return await delete(path: "/automations/\(ruleId)/snooze")
+    }
+
+    public func fetchSnoozes() async -> Result<SnoozeListResponse, APIError> {
+        return await get(path: "/automations/snoozes")
     }
 
     // MARK: - Internals

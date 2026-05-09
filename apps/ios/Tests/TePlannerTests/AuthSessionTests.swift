@@ -122,7 +122,6 @@ final class InMemorySettingsStore: SettingsStore {
     var hasPromptedVCPPairing: Bool = false
     var automationRuleOrder: [String] = []
     var hasSeenHubWelcome: Bool = false
-    var ruleSnooze: [String: Double] = [:]
 
     func reset() {
         teslaLinked = false
@@ -139,6 +138,5 @@ final class InMemorySettingsStore: SettingsStore {
         hasPromptedVCPPairing = false
         automationRuleOrder = []
         hasSeenHubWelcome = false
-        ruleSnooze = [:]
     }
 }

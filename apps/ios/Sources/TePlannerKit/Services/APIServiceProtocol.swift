@@ -92,4 +92,15 @@ public protocol APIServiceProtocol {
     func fetchQueuedCommands() async -> Result<QueuedCommandListResponse, APIError>
     func cancelQueuedCommand(id: Int) async -> Result<BaseResponse, APIError>
     func fetchRecentFires(limit: Int) async -> Result<RecentFiresResponse, APIError>
+
+    // Phase D.1 — server-canonical snoozes. Replaces the iOS-side
+    // UserDefaults `rule_snooze_until` map.
+    /// Snooze ``ruleId``. Provide exactly one of ``hours`` (relative
+    /// from now) or ``until`` (absolute UTC). Server enforces the XOR
+    /// and returns 400 if both/neither are supplied.
+    func snoozeRule(
+        ruleId: String, hours: Double?, until: Date?, reason: String?
+    ) async -> Result<SnoozeRecord, APIError>
+    func unsnoozeRule(ruleId: String) async -> Result<BaseResponse, APIError>
+    func fetchSnoozes() async -> Result<SnoozeListResponse, APIError>
 }

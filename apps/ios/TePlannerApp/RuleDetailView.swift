@@ -10,6 +10,7 @@ struct RuleDetailView: View {
     let ruleId: String
     @ObservedObject var rulesStore: AutomationRulesStore
     @ObservedObject var capabilitiesStore: CapabilitiesStore
+    @ObservedObject var snoozeStore: BackendSnoozeStore
 
     @State private var showingEditor = false
     @State private var showingDeleteConfirm = false
@@ -651,8 +652,7 @@ struct RuleDetailView: View {
     // MARK: - Snooze
 
     private func snoozedUntil(for ruleId: String) -> Date? {
-        guard let ts = UserDefaultsSettingsStore.shared.ruleSnooze[ruleId] else { return nil }
-        return Date(timeIntervalSince1970: ts)
+        snoozeStore.activeUntil[ruleId]
     }
 
     private static func snoozeFull(_ date: Date) -> String {
@@ -671,13 +671,9 @@ struct RuleDetailView: View {
 
     @ViewBuilder
     private func snoozeMenu(for r: RuleRecord) -> some View {
-        let store = UserDefaultsSettingsStore.shared
         if snoozedUntil(for: r.id) != nil {
             Button("取消静音", systemImage: "bell.slash.fill") {
-                var s = store.ruleSnooze
-                s.removeValue(forKey: r.id)
-                store.ruleSnooze = s
-                rulesStore.objectWillChange.send()
+                Task { await snoozeStore.unsnooze(ruleId: r.id) }
             }
         } else {
             Menu("静音", systemImage: "bell.slash") {
@@ -689,11 +685,7 @@ struct RuleDetailView: View {
     }
 
     private func snooze(_ r: RuleRecord, hours: Double) {
-        let store = UserDefaultsSettingsStore.shared
-        var s = store.ruleSnooze
-        s[r.id] = Date().addingTimeInterval(hours * 3600).timeIntervalSince1970
-        store.ruleSnooze = s
-        rulesStore.objectWillChange.send()
+        Task { await snoozeStore.snooze(ruleId: r.id, hours: hours, reason: nil) }
     }
 
     private func snoozeUntilMorning(_ r: RuleRecord) {
@@ -705,10 +697,6 @@ struct RuleDetailView: View {
         if target <= Date() {
             target = cal.date(byAdding: .day, value: 1, to: target) ?? target
         }
-        let store = UserDefaultsSettingsStore.shared
-        var s = store.ruleSnooze
-        s[r.id] = target.timeIntervalSince1970
-        store.ruleSnooze = s
-        rulesStore.objectWillChange.send()
+        Task { await snoozeStore.snooze(ruleId: r.id, until: target, reason: nil) }
     }
 }
