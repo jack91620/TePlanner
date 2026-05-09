@@ -161,3 +161,4 @@ packages/clients/kotlin/.gradle/
 packages/clients/kotlin/build/
 packages/clients/arkts/node_modules/
 packages/clients/arkts/dist/
+apps/android/.kotlin/
