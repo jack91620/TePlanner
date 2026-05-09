@@ -144,6 +144,31 @@ e2e-ios-flow: ## Run a single Maestro flow: make e2e-ios-flow FLOW=01_login
 
 e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
 
+# --- OpenAPI codegen (Phase C) -------------------------------------------
+#
+# Backend is the source of truth for the API contract. We snapshot
+# /openapi.json into packages/clients/openapi.json (committed), then
+# regenerate per-platform SDKs from that snapshot. CI gate
+# `codegen-verify` regenerates and `git diff --exit-code`s — fails
+# the build if either the snapshot or any SDK has drifted.
+
+OPENAPI_SNAPSHOT := packages/clients/openapi.json
+OPENAPI_SOURCE_URL ?= https://api.teplanner.cloud/openapi.json
+
+openapi-snapshot: ## Refresh packages/clients/openapi.json from $OPENAPI_SOURCE_URL
+	@curl -fsSL $(OPENAPI_SOURCE_URL) | \
+	  python3 -c 'import json,sys; d=json.load(sys.stdin); \
+	    open("$(OPENAPI_SNAPSHOT)","w").write(json.dumps(d, indent=2, sort_keys=True, ensure_ascii=False)+chr(10))'
+	@echo "Snapshot refreshed: $(OPENAPI_SNAPSHOT)"
+	@python3 -c 'import json; d=json.load(open("$(OPENAPI_SNAPSHOT)")); \
+	  print(f"  paths={len(d.get(\"paths\",{}))} schemas={len(d.get(\"components\",{}).get(\"schemas\",{}))}")'
+
+codegen: ## Regenerate every client SDK from $(OPENAPI_SNAPSHOT)
+	@bash scripts/codegen.sh
+
+codegen-verify: ## CI gate — regenerate SDKs + fail if anything changed
+	@bash scripts/verify-openapi-frozen.sh
+
 # --- Distribution / TestFlight -------------------------------------------
 
 ARCHIVE_PATH := build/TePlannerApp.xcarchive

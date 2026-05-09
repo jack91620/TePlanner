@@ -135,3 +135,15 @@ deploy/ExportOptions.plist
 # Ops snapshots / reports — generated, host-specific
 ops/state/
 ops/reports/
+
+# Generated SDK build artifacts (Phase C codegen) — the SDK source IS
+# committed under packages/clients/{swift,kotlin,arkts}/ but build
+# outputs (Package.resolved, .build, gradle .lock, node_modules) are
+# per-machine and would fail the codegen-verify gate.
+packages/clients/swift/Package.resolved
+packages/clients/swift/.build/
+packages/clients/swift/.swiftpm/
+packages/clients/kotlin/.gradle/
+packages/clients/kotlin/build/
+packages/clients/arkts/node_modules/
+packages/clients/arkts/dist/

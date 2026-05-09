@@ -1,0 +1,5308 @@
+{
+  "components": {
+    "schemas": {
+      "ChargeLimitRequest": {
+        "description": "Set the charge limit SOC percent (50..100).",
+        "properties": {
+          "percent": {
+            "title": "Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "percent"
+        ],
+        "title": "ChargeLimitRequest",
+        "type": "object"
+      },
+      "ChargingPlanRequest": {
+        "description": "Phase 8.2: greedy charging-stop selection over client-provided\nPOIs. The iOS client gathers POIs via AMap SDK along-route search\n(proper road corridor) and posts them here.",
+        "properties": {
+          "candidate_pois": {
+            "items": {
+              "$ref": "#/components/schemas/POIInput"
+            },
+            "title": "Candidate Pois",
+            "type": "array"
+          },
+          "car_type": {
+            "default": "model_y_long_range",
+            "title": "Car Type",
+            "type": "string"
+          },
+          "initial_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Initial Soc",
+            "type": "integer"
+          },
+          "min_arrival_soc": {
+            "default": 20,
+            "maximum": 50.0,
+            "minimum": 5.0,
+            "title": "Min Arrival Soc",
+            "type": "integer"
+          },
+          "polyline": {
+            "description": "[[lat, lng], …]",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Polyline",
+            "type": "array"
+          },
+          "total_distance_km": {
+            "title": "Total Distance Km",
+            "type": "number"
+          },
+          "vehicle_range_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Range Km"
+          }
+        },
+        "required": [
+          "polyline",
+          "total_distance_km",
+          "candidate_pois",
+          "initial_soc"
+        ],
+        "title": "ChargingPlanRequest",
+        "type": "object"
+      },
+      "ChargingPlanResponse": {
+        "description": "Output: just the charging-related fields. The iOS client merges\nthis with the previously-fetched route data to produce its\nRoutePlanResponse-shape view model.",
+        "properties": {
+          "arrival_soc": {
+            "title": "Arrival Soc",
+            "type": "integer"
+          },
+          "charging_duration_minutes": {
+            "title": "Charging Duration Minutes",
+            "type": "integer"
+          },
+          "charging_stops": {
+            "items": {
+              "$ref": "#/components/schemas/ChargingStopResponse"
+            },
+            "title": "Charging Stops",
+            "type": "array"
+          },
+          "num_charging_stops": {
+            "title": "Num Charging Stops",
+            "type": "integer"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "charging_stops",
+          "num_charging_stops",
+          "charging_duration_minutes",
+          "arrival_soc"
+        ],
+        "title": "ChargingPlanResponse",
+        "type": "object"
+      },
+      "ChargingSessionListResponse": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/ChargingSessionResponse"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "title": "ChargingSessionListResponse",
+        "type": "object"
+      },
+      "ChargingSessionRequest": {
+        "properties": {
+          "client_session_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Session Id"
+          },
+          "end_range_km": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Range Km"
+          },
+          "end_soc": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Soc"
+          },
+          "ended_as_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended As Complete"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "energy_added_kwh": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Added Kwh"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "location_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Name"
+          },
+          "start_range_km": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Range Km"
+          },
+          "start_soc": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Soc"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "started_at"
+        ],
+        "title": "ChargingSessionRequest",
+        "type": "object"
+      },
+      "ChargingSessionResponse": {
+        "properties": {
+          "client_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Session Id"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "end_range_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Range Km"
+          },
+          "end_soc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Soc"
+          },
+          "ended_as_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended As Complete"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "energy_added_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Added Kwh"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "location_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Name"
+          },
+          "range_added_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Added Km"
+          },
+          "soc_delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soc Delta"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "start_range_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Range Km"
+          },
+          "start_soc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Soc"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle_id",
+          "client_session_id",
+          "started_at",
+          "ended_at",
+          "start_soc",
+          "end_soc",
+          "start_range_km",
+          "end_range_km",
+          "energy_added_kwh",
+          "location_name",
+          "lat",
+          "lng",
+          "ended_as_complete",
+          "source",
+          "duration_minutes",
+          "range_added_km",
+          "soc_delta"
+        ],
+        "title": "ChargingSessionResponse",
+        "type": "object"
+      },
+      "ChargingStation": {
+        "description": "Charging station model.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "available_ports": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Ports"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "open_hours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Hours"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator"
+          },
+          "power_kw": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Kw"
+          },
+          "price_per_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per Kwh"
+          },
+          "tel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tel"
+          },
+          "total_ports": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Ports"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "latitude",
+          "longitude"
+        ],
+        "title": "ChargingStation",
+        "type": "object"
+      },
+      "ChargingStopResponse": {
+        "description": "Charging stop in route.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "arrival_soc": {
+            "title": "Arrival Soc",
+            "type": "integer"
+          },
+          "charging_duration_minutes": {
+            "title": "Charging Duration Minutes",
+            "type": "integer"
+          },
+          "departure_soc": {
+            "title": "Departure Soc",
+            "type": "integer"
+          },
+          "distance_from_start_km": {
+            "title": "Distance From Start Km",
+            "type": "number"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "latitude",
+          "longitude",
+          "distance_from_start_km",
+          "arrival_soc",
+          "departure_soc",
+          "charging_duration_minutes"
+        ],
+        "title": "ChargingStopResponse",
+        "type": "object"
+      },
+      "ClimateKeeperModeRequest": {
+        "description": "Set climate keeper mode (0=off, 1=keep, 2=dog, 3=camp).",
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ClimateKeeperModeRequest",
+        "type": "object"
+      },
+      "EmailAuthResponse": {
+        "description": "Email auth response.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "has_tesla_linked": {
+            "default": false,
+            "title": "Has Tesla Linked",
+            "type": "boolean"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "user_id",
+          "email"
+        ],
+        "title": "EmailAuthResponse",
+        "type": "object"
+      },
+      "EmailLoginRequest": {
+        "description": "Email login request.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "EmailLoginRequest",
+        "type": "object"
+      },
+      "EmailRegisterRequest": {
+        "description": "Email registration request.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "EmailRegisterRequest",
+        "type": "object"
+      },
+      "GeocodeRequest": {
+        "description": "Geocode request.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "title": "GeocodeRequest",
+        "type": "object"
+      },
+      "GeocodeResponse": {
+        "description": "Geocode response.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "formatted_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formatted Address"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "address"
+        ],
+        "title": "GeocodeResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LocationInput": {
+        "description": "Location input model.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Address (optional)",
+            "title": "Address"
+          },
+          "latitude": {
+            "description": "Latitude",
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "description": "Longitude",
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "LocationInput",
+        "type": "object"
+      },
+      "NavigateRouteRequest": {
+        "description": "Request to send route to vehicle.",
+        "properties": {
+          "vehicle_id": {
+            "title": "Vehicle Id",
+            "type": "string"
+          },
+          "waypoints": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LocationInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waypoints"
+          }
+        },
+        "required": [
+          "vehicle_id"
+        ],
+        "title": "NavigateRouteRequest",
+        "type": "object"
+      },
+      "NavigationAddressRequest": {
+        "description": "Navigation by address request model.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "locale": {
+            "default": "zh-CN",
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "title": "NavigationAddressRequest",
+        "type": "object"
+      },
+      "NavigationRequest": {
+        "description": "Navigation request model.",
+        "properties": {
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "order": {
+            "default": 1,
+            "title": "Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "NavigationRequest",
+        "type": "object"
+      },
+      "POIInput": {
+        "description": "Candidate POI for the charging-plan endpoint. Shape mirrors\nAMapRoutePOI (iOS SDK) — only id / name / lat / lng required.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "latitude",
+          "longitude"
+        ],
+        "title": "POIInput",
+        "type": "object"
+      },
+      "PendingCommandListResponse": {
+        "properties": {
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/PendingCommandResponse"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pending"
+        ],
+        "title": "PendingCommandListResponse",
+        "type": "object"
+      },
+      "PendingCommandResponse": {
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "dispatched_at": {
+            "format": "date-time",
+            "title": "Dispatched At",
+            "type": "string"
+          },
+          "expected_state": {
+            "title": "Expected State",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "timed_out_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timed Out At"
+          }
+        },
+        "required": [
+          "id",
+          "capability",
+          "expected_state",
+          "dispatched_at",
+          "status"
+        ],
+        "title": "PendingCommandResponse",
+        "type": "object"
+      },
+      "QueuedCommandListResponse": {
+        "properties": {
+          "queued": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedCommandResponse"
+            },
+            "title": "Queued",
+            "type": "array"
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "title": "QueuedCommandListResponse",
+        "type": "object"
+      },
+      "QueuedCommandResponse": {
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "dispatch_policy": {
+            "title": "Dispatch Policy",
+            "type": "string"
+          },
+          "dropped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "params": {
+            "title": "Params",
+            "type": "object"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "title": "Queued At",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "title": "Ttl Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "capability",
+          "params",
+          "dispatch_policy",
+          "queued_at",
+          "ttl_seconds",
+          "status"
+        ],
+        "title": "QueuedCommandResponse",
+        "type": "object"
+      },
+      "RecentFireEntry": {
+        "properties": {
+          "cleared_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared At"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "pushed_at": {
+            "format": "date-time",
+            "title": "Pushed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "pushed_at"
+        ],
+        "title": "RecentFireEntry",
+        "type": "object"
+      },
+      "RecentFiresResponse": {
+        "properties": {
+          "fires": {
+            "items": {
+              "$ref": "#/components/schemas/RecentFireEntry"
+            },
+            "title": "Fires",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fires"
+        ],
+        "title": "RecentFiresResponse",
+        "type": "object"
+      },
+      "RegisterDeviceRequest": {
+        "properties": {
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "token": {
+            "description": "Hex APNs device token",
+            "maxLength": 200,
+            "minLength": 10,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "RegisterDeviceRequest",
+        "type": "object"
+      },
+      "RegisterDeviceResponse": {
+        "properties": {
+          "device_id": {
+            "title": "Device Id",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "device_id"
+        ],
+        "title": "RegisterDeviceResponse",
+        "type": "object"
+      },
+      "RouteOnlyRequest": {
+        "description": "Phase 8.2: route metadata only (no charging plan).\n\nUsed by the iOS client to get the polyline first, then run AMap\nSDK along-route POI search locally, then post the candidate\nPOIs back via /charging-plan to compute the greedy charging stops.",
+        "properties": {
+          "destination": {
+            "$ref": "#/components/schemas/LocationInput"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LocationInput"
+          }
+        },
+        "required": [
+          "origin",
+          "destination"
+        ],
+        "title": "RouteOnlyRequest",
+        "type": "object"
+      },
+      "RouteOnlyResponse": {
+        "description": "Lightweight response — polyline + raw distance/duration only.",
+        "properties": {
+          "destination": {
+            "title": "Destination",
+            "type": "object"
+          },
+          "driving_duration_minutes": {
+            "title": "Driving Duration Minutes",
+            "type": "integer"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "object"
+          },
+          "polyline": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Polyline",
+            "type": "array"
+          },
+          "total_distance_km": {
+            "title": "Total Distance Km",
+            "type": "number"
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "total_distance_km",
+          "driving_duration_minutes",
+          "polyline"
+        ],
+        "title": "RouteOnlyResponse",
+        "type": "object"
+      },
+      "RoutePlanResponse": {
+        "description": "Route planning response.",
+        "properties": {
+          "arrival_soc": {
+            "title": "Arrival Soc",
+            "type": "integer"
+          },
+          "charging_duration_minutes": {
+            "title": "Charging Duration Minutes",
+            "type": "integer"
+          },
+          "charging_stops": {
+            "items": {
+              "$ref": "#/components/schemas/ChargingStopResponse"
+            },
+            "title": "Charging Stops",
+            "type": "array"
+          },
+          "destination": {
+            "title": "Destination",
+            "type": "object"
+          },
+          "driving_duration_minutes": {
+            "title": "Driving Duration Minutes",
+            "type": "integer"
+          },
+          "initial_soc": {
+            "title": "Initial Soc",
+            "type": "integer"
+          },
+          "num_charging_stops": {
+            "title": "Num Charging Stops",
+            "type": "integer"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "object"
+          },
+          "polyline": {
+            "default": [],
+            "items": {
+              "type": "object"
+            },
+            "title": "Polyline",
+            "type": "array"
+          },
+          "route_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Id"
+          },
+          "total_distance_km": {
+            "title": "Total Distance Km",
+            "type": "number"
+          },
+          "total_duration_minutes": {
+            "title": "Total Duration Minutes",
+            "type": "integer"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "total_distance_km",
+          "total_duration_minutes",
+          "driving_duration_minutes",
+          "charging_duration_minutes",
+          "charging_stops",
+          "num_charging_stops",
+          "initial_soc",
+          "arrival_soc"
+        ],
+        "title": "RoutePlanResponse",
+        "type": "object"
+      },
+      "RuleCreateRequest": {
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 128,
+            "title": "Name",
+            "type": "string"
+          },
+          "spec": {
+            "title": "Spec",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "spec"
+        ],
+        "title": "RuleCreateRequest",
+        "type": "object"
+      },
+      "RuleListResponse": {
+        "properties": {
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResponse"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rules"
+        ],
+        "title": "RuleListResponse",
+        "type": "object"
+      },
+      "RuleOrderRequest": {
+        "properties": {
+          "clear": {
+            "default": false,
+            "title": "Clear",
+            "type": "boolean"
+          },
+          "rule_ids": {
+            "description": "Ordered list of rule ids. Position in the list becomes display_order (0 = first). Rules NOT in the list keep their existing display_order; pass an empty list combined with `clear=true` to reset all overrides.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Rule Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_ids"
+        ],
+        "title": "RuleOrderRequest",
+        "type": "object"
+      },
+      "RuleResponse": {
+        "properties": {
+          "display_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Order"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_fired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Fired At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "spec": {
+            "title": "Spec",
+            "type": "object"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "preset_id",
+          "name",
+          "enabled",
+          "spec",
+          "version"
+        ],
+        "title": "RuleResponse",
+        "type": "object"
+      },
+      "RuleUpdateRequest": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec"
+          }
+        },
+        "title": "RuleUpdateRequest",
+        "type": "object"
+      },
+      "ScheduledDepartureRequest": {
+        "properties": {
+          "departure_at_utc": {
+            "description": "When the user intends to drive off (UTC).",
+            "format": "date-time",
+            "title": "Departure At Utc",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "lead_minutes": {
+            "default": 15,
+            "maximum": 240.0,
+            "minimum": 1.0,
+            "title": "Lead Minutes",
+            "type": "integer"
+          },
+          "target_charge_soc": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 20.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Charge Soc"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "departure_at_utc"
+        ],
+        "title": "ScheduledDepartureRequest",
+        "type": "object"
+      },
+      "ScheduledDepartureResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "departure_at_utc": {
+            "format": "date-time",
+            "title": "Departure At Utc",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "fire_at_utc": {
+            "format": "date-time",
+            "title": "Fire At Utc",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "lead_minutes": {
+            "title": "Lead Minutes",
+            "type": "integer"
+          },
+          "target_charge_soc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Charge Soc"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "id",
+          "departure_at_utc",
+          "lead_minutes",
+          "enabled",
+          "fire_at_utc"
+        ],
+        "title": "ScheduledDepartureResponse",
+        "type": "object"
+      },
+      "SentryModeRequest": {
+        "description": "Toggle sentry mode.",
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "SentryModeRequest",
+        "type": "object"
+      },
+      "SnoozeListResponse": {
+        "properties": {
+          "snoozes": {
+            "items": {
+              "$ref": "#/components/schemas/SnoozeResponse"
+            },
+            "title": "Snoozes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "snoozes"
+        ],
+        "title": "SnoozeListResponse",
+        "type": "object"
+      },
+      "SnoozeRequest": {
+        "properties": {
+          "hours": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 720.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "title": "SnoozeRequest",
+        "type": "object"
+      },
+      "SnoozeResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "snoozed_until_utc": {
+            "format": "date-time",
+            "title": "Snoozed Until Utc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "snoozed_until_utc",
+          "created_at"
+        ],
+        "title": "SnoozeResponse",
+        "type": "object"
+      },
+      "StationSearchResponse": {
+        "description": "Station search response.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/ChargingStation"
+            },
+            "title": "Stations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "stations"
+        ],
+        "title": "StationSearchResponse",
+        "type": "object"
+      },
+      "SuggestChargeLimitRequest": {
+        "properties": {
+          "current_limit": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 20.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Limit"
+          },
+          "daily_limit_soc": {
+            "default": 80,
+            "maximum": 100.0,
+            "minimum": 20.0,
+            "title": "Daily Limit Soc",
+            "type": "integer"
+          },
+          "trip_limit_soc": {
+            "default": 100,
+            "maximum": 100.0,
+            "minimum": 20.0,
+            "title": "Trip Limit Soc",
+            "type": "integer"
+          },
+          "trip_window_hours": {
+            "default": 12,
+            "maximum": 72.0,
+            "minimum": 1.0,
+            "title": "Trip Window Hours",
+            "type": "integer"
+          }
+        },
+        "title": "SuggestChargeLimitRequest",
+        "type": "object"
+      },
+      "SuggestChargeLimitResponse": {
+        "properties": {
+          "already_matches": {
+            "title": "Already Matches",
+            "type": "boolean"
+          },
+          "current_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Percent"
+          },
+          "hours_away": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours Away"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "recommended_percent": {
+            "title": "Recommended Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recommended_percent",
+          "current_percent",
+          "reason",
+          "hours_away",
+          "already_matches"
+        ],
+        "title": "SuggestChargeLimitResponse",
+        "type": "object"
+      },
+      "TelemetryStateEntry": {
+        "description": "One ``tel:<entity>:since`` + value pair from automation_state.",
+        "properties": {
+          "entity": {
+            "title": "Entity",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "entity",
+          "value",
+          "since"
+        ],
+        "title": "TelemetryStateEntry",
+        "type": "object"
+      },
+      "TelemetryStateResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetryStateEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "entries"
+        ],
+        "title": "TelemetryStateResponse",
+        "type": "object"
+      },
+      "TeslaCallbackRequest": {
+        "description": "Tesla OAuth callback request.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "state"
+        ],
+        "title": "TeslaCallbackRequest",
+        "type": "object"
+      },
+      "TestPushRequest": {
+        "properties": {
+          "body": {
+            "default": "如果你看到这条通知，APNs 已打通。",
+            "title": "Body",
+            "type": "string"
+          },
+          "title": {
+            "default": "TePlanner 测试推送",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "TestPushRequest",
+        "type": "object"
+      },
+      "UserSettingsRequest": {
+        "properties": {
+          "replace_all": {
+            "default": false,
+            "title": "Replace All",
+            "type": "boolean"
+          },
+          "settings": {
+            "description": "Full settings document. PUT replaces the keys present in this dict but leaves untouched keys alone — pass `replace_all=true` to wipe and re-seed.",
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "UserSettingsRequest",
+        "type": "object"
+      },
+      "UserSettingsResponse": {
+        "properties": {
+          "settings": {
+            "title": "Settings",
+            "type": "object"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "UserSettingsResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VehicleListResponse": {
+        "description": "Vehicle list response.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "vehicles": {
+            "items": {
+              "$ref": "#/components/schemas/VehicleResponse"
+            },
+            "title": "Vehicles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "vehicles"
+        ],
+        "title": "VehicleListResponse",
+        "type": "object"
+      },
+      "VehicleResponse": {
+        "description": "Vehicle response model.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_primary": {
+            "default": false,
+            "title": "Is Primary",
+            "type": "boolean"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "vin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vin"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "state"
+        ],
+        "title": "VehicleResponse",
+        "type": "object"
+      },
+      "VehicleStateResponse": {
+        "description": "Vehicle state response.",
+        "properties": {
+          "battery_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Battery Level"
+          },
+          "battery_range_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Battery Range Km"
+          },
+          "cabin_overheat_protection_on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cabin Overheat Protection On"
+          },
+          "charge_limit_soc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charge Limit Soc"
+          },
+          "charging_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charging State"
+          },
+          "climate_keeper_mode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Climate Keeper Mode"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "inside_temp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inside Temp"
+          },
+          "is_climate_on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Climate On"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "odometer_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odometer Km"
+          },
+          "outside_temp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outside Temp"
+          },
+          "sentry_mode_on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentry Mode On"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "usable_battery_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usable Battery Level"
+          },
+          "vehicle_id": {
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "display_name",
+          "state"
+        ],
+        "title": "VehicleStateResponse",
+        "type": "object"
+      },
+      "WakeResponse": {
+        "description": "Wake response model.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "state",
+          "message"
+        ],
+        "title": "WakeResponse",
+        "type": "object"
+      },
+      "WeChatLoginRequest": {
+        "description": "WeChat login request.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "WeChatLoginRequest",
+        "type": "object"
+      },
+      "WeChatLoginResponse": {
+        "description": "WeChat login response.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "has_tesla_linked": {
+            "default": false,
+            "title": "Has Tesla Linked",
+            "type": "boolean"
+          },
+          "openid": {
+            "title": "Openid",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "user_id",
+          "openid"
+        ],
+        "title": "WeChatLoginResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Tesla intelligent charging route planner for highway service areas",
+    "title": "Tautomation",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Root endpoint.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root"
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Login with email and password. Logic in\nservices/auth_service.login_email_user.",
+        "operationId": "email_login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailAuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "Register a new user with email and password (Android / non-\nWeChat clients). Logic in services/auth_service.register_email_user.",
+        "operationId": "email_register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailAuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tesla/authorize": {
+      "get": {
+        "description": "Get Tesla OAuth authorization URL.\n\nIf user_id is not provided, creates an anonymous user (for testing).\n\nReturns:\n    Authorization URL, state for CSRF protection, and user_id",
+        "operationId": "tesla_authorize_api_v1_auth_tesla_authorize_get",
+        "parameters": [
+          {
+            "description": "User ID to link Tesla to",
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "User ID to link Tesla to",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tesla Authorize",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tesla/callback": {
+      "get": {
+        "description": "Handle Tesla OAuth callback (GET).\n\nRenders an HTML success/error page for the WebView. The exchange\n+ persist + JWT-mint logic now lives in\n`services/tesla_auth_service.exchange_and_store`.",
+        "operationId": "tesla_callback_api_v1_auth_tesla_callback_get",
+        "parameters": [
+          {
+            "description": "Authorization code from Tesla",
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "Authorization code from Tesla",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "State parameter for CSRF protection",
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "description": "State parameter for CSRF protection",
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tesla Callback",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "description": "Handle Tesla OAuth callback (POST).\n\nUsed when an iOS native client OR the legacy Mini Program sends\nthe OAuth code as JSON. Same exchange + persist logic as the\nGET handler, but JSON response.",
+        "operationId": "tesla_callback_post_api_v1_auth_tesla_callback_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeslaCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Tesla Callback Post Api V1 Auth Tesla Callback Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tesla Callback Post",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tesla/refresh": {
+      "post": {
+        "description": "Refresh a Tesla access token. If user_id is given, the stored\nrow is also updated.",
+        "operationId": "tesla_refresh_token_api_v1_auth_tesla_refresh_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh_token",
+            "required": true,
+            "schema": {
+              "title": "Refresh Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tesla Refresh Token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tesla/status": {
+      "get": {
+        "description": "Check if user has linked Tesla account.\n\nArgs:\n    user_id: User ID to check\n\nReturns:\n    Link status and expiration info",
+        "operationId": "tesla_link_status_api_v1_auth_tesla_status_get",
+        "parameters": [
+          {
+            "description": "User ID to check",
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "description": "User ID to check",
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tesla Link Status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tesla/test": {
+      "get": {
+        "description": "Test Tesla OAuth configuration.\n\nReturns current configuration info (no sensitive data).",
+        "operationId": "tesla_test_api_v1_auth_tesla_test_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Tesla Test",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/validate": {
+      "get": {
+        "description": "Validate JWT token and return user info.\n\nUsed by Mini Program on startup to check if stored token is still valid.\n\nReturns:\n    User info and Tesla link status",
+        "operationId": "validate_token_api_v1_auth_validate_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Validate Token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/wechat/login": {
+      "post": {
+        "description": "WeChat Mini Program login.\n\nExchange wx.login() code for user session and JWT token.\n\nArgs:\n    request: Contains the code from wx.login()\n    db: Database session\n\nReturns:\n    JWT access token and user info",
+        "operationId": "wechat_login_api_v1_auth_wechat_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeChatLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeChatLoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/automations/": {
+      "get": {
+        "description": "List all of the user's rules. Lazy-seeds the presets on\nfirst call (when user has zero rules). Order is canonical: each\npreset in its ALL_PRESETS-declared position, user-authored rules\nafter, by creation time. Each rule includes ``last_fired_at`` —\nthe most recent PushedAlert.pushed_at for that rule's kind.",
+        "operationId": "list_rules_api_v1_automations__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Rules",
+        "tags": [
+          "automations"
+        ]
+      },
+      "post": {
+        "operationId": "create_rule_api_v1_automations__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Rule",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/capabilities": {
+      "get": {
+        "description": "Registry introspection. iOS visual builder calls this once at\nboot to populate the action-block picker.",
+        "operationId": "list_capabilities_api_v1_automations_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response List Capabilities Api V1 Automations Capabilities Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Capabilities",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/order": {
+      "put": {
+        "description": "Persist a user-defined display order. Returns the full rule list\nin the new canonical order so iOS can replace its in-memory cache\nin one round-trip.\n\nAll rule_ids must belong to the requesting user; we 404 on the\nfirst mismatch (defensive — silent skipping would leak existence).\nDuplicates within rule_ids are rejected (400) so position is\nwell-defined.",
+        "operationId": "reorder_rules_api_v1_automations_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reorder Rules",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/recent-fires": {
+      "get": {
+        "description": "Recent rule-fire timeline for the user. Drives the iOS '活动'\npage — answers 'did my露营 rule fire today?' without the user\nhaving to scrub through notification center.",
+        "operationId": "list_recent_fires_api_v1_automations_recent_fires_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentFiresResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Recent Fires",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/snoozes": {
+      "get": {
+        "description": "List all active (snoozed_until_utc > now) snoozes for the user.\nStale rows (past their window) are filtered server-side; the client\nnever sees them, so iOS doesn't need to time-check.",
+        "operationId": "list_snoozes_api_v1_automations_snoozes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnoozeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Snoozes",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/state": {
+      "get": {
+        "description": "Return the user's telemetry-recorded entity state — the ``tel:*``\nrows the Fleet Telemetry consumer writes into automation_state.\n\niOS calls this on each polling tick, before evaluating rules, and\nseeds the local engine memory with the server's ``since`` timestamps.\nThe interpreter then prefers the earlier of (locally observed,\nserver telemetry) when computing duration. That's what closes the\n\"已开启 0 分钟\" gap: the iOS HubView pill now reports the same\nelapsed time the server reports in push notifications.",
+        "operationId": "get_telemetry_state_api_v1_automations_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Telemetry State",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/{rule_id}": {
+      "delete": {
+        "operationId": "delete_rule_api_v1_automations__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Delete Rule Api V1 Automations  Rule Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Rule",
+        "tags": [
+          "automations"
+        ]
+      },
+      "put": {
+        "operationId": "update_rule_api_v1_automations__rule_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Rule",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/{rule_id}/snooze": {
+      "delete": {
+        "description": "Clear any active snooze on ``rule_id``. 404 if the rule itself\ndoesn't exist; idempotent on a rule with no active snooze.",
+        "operationId": "unsnooze_rule_api_v1_automations__rule_id__snooze_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Unsnooze Rule Api V1 Automations  Rule Id  Snooze Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unsnooze Rule",
+        "tags": [
+          "automations"
+        ]
+      },
+      "post": {
+        "description": "Snooze ``rule_id`` until ``until`` (absolute UTC) or for ``hours``\nfrom now. Exactly one of the two must be provided. Replaces any\nexisting snooze on that rule (UNIQUE on rule_id).",
+        "operationId": "snooze_rule_api_v1_automations__rule_id__snooze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnoozeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Snooze Rule",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/charging/nearby": {
+      "get": {
+        "description": "搜索附近充电站 (前端兼容接口).\n\nArgs:\n    latitude: 中心点纬度\n    longitude: 中心点经度\n    type: 充电站类型\n    radius: 搜索半径，默认50公里",
+        "operationId": "search_nearby_stations_api_v1_charging_nearby_get",
+        "parameters": [
+          {
+            "description": "中心点纬度",
+            "in": "query",
+            "name": "latitude",
+            "required": true,
+            "schema": {
+              "description": "中心点纬度",
+              "title": "Latitude",
+              "type": "number"
+            }
+          },
+          {
+            "description": "中心点经度",
+            "in": "query",
+            "name": "longitude",
+            "required": true,
+            "schema": {
+              "description": "中心点经度",
+              "title": "Longitude",
+              "type": "number"
+            }
+          },
+          {
+            "description": "类型: supercharger/destination/service/all",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "description": "类型: supercharger/destination/service/all",
+              "title": "Type"
+            }
+          },
+          {
+            "description": "搜索半径(公里)",
+            "in": "query",
+            "name": "radius",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "搜索半径(公里)",
+              "title": "Radius",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Nearby Stations",
+        "tags": [
+          "charging"
+        ]
+      }
+    },
+    "/api/v1/charging/stations": {
+      "get": {
+        "description": "搜索附近充电站.\n\nArgs:\n    lat: 中心点纬度\n    lng: 中心点经度\n    radius_km: 搜索半径，默认10公里\n    min_power_kw: 最小充电功率筛选\n    operator: 运营商筛选",
+        "operationId": "search_stations_api_v1_charging_stations_get",
+        "parameters": [
+          {
+            "description": "中心点纬度",
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "description": "中心点纬度",
+              "title": "Lat",
+              "type": "number"
+            }
+          },
+          {
+            "description": "中心点经度",
+            "in": "query",
+            "name": "lng",
+            "required": true,
+            "schema": {
+              "description": "中心点经度",
+              "title": "Lng",
+              "type": "number"
+            }
+          },
+          {
+            "description": "搜索半径(公里)",
+            "in": "query",
+            "name": "radius_km",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "搜索半径(公里)",
+              "title": "Radius Km",
+              "type": "number"
+            }
+          },
+          {
+            "description": "最小充电功率(kW)",
+            "in": "query",
+            "name": "min_power_kw",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最小充电功率(kW)",
+              "title": "Min Power Kw"
+            }
+          },
+          {
+            "description": "运营商筛选",
+            "in": "query",
+            "name": "operator",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "运营商筛选",
+              "title": "Operator"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Stations",
+        "tags": [
+          "charging"
+        ]
+      }
+    },
+    "/api/v1/charging/stations/{station_id}": {
+      "get": {
+        "description": "获取充电站详情.\n\nArgs:\n    station_id: 充电站ID",
+        "operationId": "get_station_api_v1_charging_stations__station_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargingStation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Station",
+        "tags": [
+          "charging"
+        ]
+      }
+    },
+    "/api/v1/devices/register": {
+      "post": {
+        "description": "Upsert (user_id, token). Re-registering an existing token just\nbumps last_seen_at — that lets the polling layer prune stale rows\nlater (e.g. tokens not seen for 30 days are likely uninstalled).",
+        "operationId": "register_device_api_v1_devices_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterDeviceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register Device",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/run-automation-tick": {
+      "post": {
+        "description": "Trigger a single polling tick on demand. Used for end-to-end\ndebugging: hit this, watch server.log, verify a push lands. Doesn't\ntake args — runs the full eligible-user loop.",
+        "operationId": "run_automation_tick_api_v1_devices_run_automation_tick_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Run Automation Tick Api V1 Devices Run Automation Tick Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Automation Tick",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/test-push": {
+      "post": {
+        "description": "Send a debug push to all of this user's registered devices.\nUseful while wiring up — flip APNs creds, hit this endpoint, see\nif a notification lands on the phone.",
+        "operationId": "test_push_api_v1_devices_test_push_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestPushRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Test Push Api V1 Devices Test Push Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Test Push",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/routes/": {
+      "get": {
+        "description": "List user's saved routes.",
+        "operationId": "list_routes_api_v1_routes__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Routes",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/charging-plan": {
+      "post": {
+        "description": "Phase 8.2: greedy charging-stop selection over client-provided\ncandidate POIs. Pure computation — no map API call.",
+        "operationId": "charging_plan_api_v1_routes_charging_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChargingPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargingPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Charging Plan",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/geocode": {
+      "post": {
+        "description": "Convert address to coordinates.\n\nUseful for getting coordinates from user-entered addresses.",
+        "operationId": "geocode_address_api_v1_routes_geocode_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeocodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeocodeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Geocode Address",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/navigate": {
+      "post": {
+        "description": "Send planned route to vehicle.\n\nSends navigation waypoints to the vehicle's navigation system.\nBy default, sends the charging stops as waypoints.",
+        "operationId": "navigate_route_api_v1_routes_navigate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigateRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Navigate Route",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/navigate/{route_id}": {
+      "post": {
+        "description": "Send a saved route's charging stops + destination to the user's\nprimary Tesla vehicle. Logic lives in\n`services/route_dispatch_service.send_saved_route_to_vehicle`.",
+        "operationId": "navigate_saved_route_api_v1_routes_navigate__route_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "title": "Route Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Navigate Saved Route",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/reverse-geocode": {
+      "post": {
+        "description": "Convert coordinates to address.\n\nUseful for displaying readable location names.",
+        "operationId": "reverse_geocode_api_v1_routes_reverse_geocode_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "latitude",
+            "required": true,
+            "schema": {
+              "title": "Latitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "longitude",
+            "required": true,
+            "schema": {
+              "title": "Longitude",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reverse Geocode",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/route": {
+      "post": {
+        "description": "Phase 8.2: AMap routing only — polyline + distance + duration.\n\nNo POI search, no charging plan. iOS calls this first, then runs\nAMap SDK along-route POI search locally, then POSTs candidate\nPOIs back to /routes/charging-plan to compute the greedy stops.",
+        "operationId": "route_only_api_v1_routes_route_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteOnlyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteOnlyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Only",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/saved/{route_id}": {
+      "get": {
+        "description": "Get a saved route plan.",
+        "operationId": "get_route_api_v1_routes_saved__route_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "title": "Route Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Route",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/routes/search": {
+      "get": {
+        "description": "Search for places by keyword.\n\nArgs:\n    keyword: Search keyword (e.g., city name, POI name)\n    location: Optional center location \"lat,lng\" for distance calculation\n\nReturns:\n    List of matching places with name, address, location and distance",
+        "operationId": "search_places_api_v1_routes_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": true,
+            "schema": {
+              "title": "Keyword",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Places",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/user/scheduled-departure": {
+      "delete": {
+        "description": "Idempotent — clearing a non-existent row is a 200, not 404.",
+        "operationId": "clear_scheduled_departure_api_v1_user_scheduled_departure_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Clear Scheduled Departure Api V1 User Scheduled Departure Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Clear Scheduled Departure",
+        "tags": [
+          "user"
+        ]
+      },
+      "get": {
+        "description": "Fetch the user's active scheduled departure. Returns ``null``\nwhen none is set — iOS treats null as \"not scheduled\" and shows\nthe empty card.",
+        "operationId": "get_scheduled_departure_api_v1_user_scheduled_departure_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ScheduledDepartureResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Scheduled Departure Api V1 User Scheduled Departure Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Scheduled Departure",
+        "tags": [
+          "user"
+        ]
+      },
+      "put": {
+        "description": "Replace the user's scheduled departure with the supplied row.\nUNIQUE(user_id) enforces single-row semantics; we update in place\nwhen a row already exists rather than relying on the DB unique\nerror to bubble up.\n\nPast departures are accepted — the iOS UI prevents them, but a\nserver reject would race with clock skew and break preheat\ncancellation flows.",
+        "operationId": "upsert_scheduled_departure_api_v1_user_scheduled_departure_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledDepartureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledDepartureResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upsert Scheduled Departure",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/api/v1/user/settings": {
+      "get": {
+        "description": "Return the user's full settings dict. Empty dict when never set.\n`updated_at` is the most recent row update — clients use it to\nshort-circuit re-fetches.",
+        "operationId": "get_user_settings_api_v1_user_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get User Settings",
+        "tags": [
+          "user"
+        ]
+      },
+      "put": {
+        "description": "Merge ``body.settings`` into the user's settings dict (or\nreplace entirely if ``replace_all=true``). Each value is\nJSON-encoded for storage. Keys longer than 80 chars or empty are\nrejected (matches column constraint).",
+        "operationId": "upsert_user_settings_api_v1_user_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upsert User Settings",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/api/v1/vehicles/": {
+      "get": {
+        "description": "List user's Tesla vehicles, syncing the local Vehicle table.\nLogic in services/vehicle_sync_service.sync_vehicles.",
+        "operationId": "list_vehicles_api_v1_vehicles__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Vehicles",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/commands/pending": {
+      "get": {
+        "description": "Phase 9 — what VCP commands sent in the last few minutes are\nstill awaiting telemetry confirmation, plus the most recently\nresolved ones for the iOS UI to flip to \"已关闭\" / \"超时\".\n\nThe resolver runs server-side on every Telemetry frame, so a\nwell-timed poll right after dispatch will see the row transition\npending → confirmed within ~1-2 s of the actual state change.",
+        "operationId": "list_pending_commands_api_v1_vehicles_commands_pending_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingCommandListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pending Commands",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/commands/queued": {
+      "get": {
+        "description": "Return commands waiting on the car's next CONNECTED telemetry\nevent, plus recently-resolved ones for the iOS UI to flip badges.",
+        "operationId": "list_queued_commands_api_v1_vehicles_commands_queued_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuedCommandListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Queued Commands",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/commands/queued/{queued_id}": {
+      "delete": {
+        "description": "Cancel a still-queued command before it drains. 404 if the\nuser doesn't own it; 409 if it's already been sent/dropped.",
+        "operationId": "cancel_queued_command_api_v1_vehicles_commands_queued__queued_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "queued_id",
+            "required": true,
+            "schema": {
+              "title": "Queued Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Cancel Queued Command Api V1 Vehicles Commands Queued  Queued Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Queued Command",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}": {
+      "get": {
+        "description": "Get specific vehicle details.",
+        "operationId": "get_vehicle_api_v1_vehicles__vehicle_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Vehicle",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/charge-limit": {
+      "post": {
+        "description": "Set the vehicle's charge limit SOC percent (50..100).\nDispatches through capability registry.",
+        "operationId": "set_charge_limit_api_v1_vehicles__vehicle_id__charge_limit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChargeLimitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Charge Limit",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/climate-keeper-mode": {
+      "post": {
+        "description": "Set climate keeper mode. 0=off / 1=keep / 2=dog / 3=camp.\nDispatches through capability registry.",
+        "operationId": "set_climate_keeper_mode_api_v1_vehicles__vehicle_id__climate_keeper_mode_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClimateKeeperModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Climate Keeper Mode",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/navigate": {
+      "post": {
+        "description": "Send GPS coordinates to vehicle nav. Dispatches through\ncapability registry. Uses numeric vehicle_id (not VIN) since\nnavigation_gps_request is one of the few endpoints not on the\nVCP-signed path.",
+        "operationId": "navigate_vehicle_api_v1_vehicles__vehicle_id__navigate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Navigate Vehicle",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/navigate/address": {
+      "post": {
+        "description": "Send navigation destination by address to vehicle.\n\nSends address string to the vehicle's navigation system.\nVehicle must be online.",
+        "operationId": "navigate_vehicle_address_api_v1_vehicles__vehicle_id__navigate_address_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigationAddressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Navigate Vehicle Address",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/preheat": {
+      "post": {
+        "description": "Start HVAC (auto_conditioning_start) so the cabin is at\ntemperature on arrival. Used by 出发前预热. Dispatches through\ncapability registry.",
+        "operationId": "preheat_vehicle_api_v1_vehicles__vehicle_id__preheat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preheat Vehicle",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/sentry-mode": {
+      "post": {
+        "description": "Toggle sentry mode. Dispatches through capability registry.",
+        "operationId": "set_sentry_mode_api_v1_vehicles__vehicle_id__sentry_mode_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentryModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Sentry Mode",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/sessions": {
+      "get": {
+        "description": "Most-recent-first session list. Default limit 50 covers ~6 weeks\nof typical daily-charging owners; clients pass `?limit=N` to dig\nfurther. Strict per-user filter so a vehicle_id collision (Tesla\nsometimes recycles ids across accounts) can't leak rows.",
+        "operationId": "list_charging_sessions_api_v1_vehicles__vehicle_id__sessions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargingSessionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Charging Sessions",
+        "tags": [
+          "vehicles"
+        ]
+      },
+      "post": {
+        "description": "Create or update a charging session.\n\niOS POSTs once on plug-in (ended_at NULL) and again on plug-out\n(ended_at set). Server upserts on ``client_session_id`` so retries\nare safe; if absent (legacy iOS builds), every POST creates a new\nrow — acceptable trade-off but fix client-side first.",
+        "operationId": "upsert_charging_session_api_v1_vehicles__vehicle_id__sessions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChargingSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargingSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upsert Charging Session",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/set-primary": {
+      "post": {
+        "description": "Set vehicle as primary for the user.\n\nOnly one vehicle can be primary at a time.",
+        "operationId": "set_primary_vehicle_api_v1_vehicles__vehicle_id__set_primary_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Primary Vehicle",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/state": {
+      "get": {
+        "description": "Get vehicle state (battery, location, etc.).\n\nReturns real-time vehicle data including:\n- Battery level and range\n- Current location (GPS)\n- Charging state\n- Climate status",
+        "operationId": "get_vehicle_state_api_v1_vehicles__vehicle_id__state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Vehicle State",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/suggest-charge-limit": {
+      "post": {
+        "description": "Server-side mirror of iOS ChargeLimitSuggester. Reads the\nuser's currently-stored ScheduledDeparture (A.3) to find any\nupcoming trip; daily/trip preferences come from the request body\n(Phase D will read them from /user/settings instead).",
+        "operationId": "suggest_charge_limit_endpoint_api_v1_vehicles__vehicle_id__suggest_charge_limit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestChargeLimitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestChargeLimitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Suggest Charge Limit Endpoint",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/wake": {
+      "post": {
+        "description": "Wake up the vehicle.\n\nSends wake-up command and waits for vehicle to come online.\nMay take 10-30 seconds.",
+        "operationId": "wake_vehicle_api_v1_vehicles__vehicle_id__wake_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WakeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Wake Vehicle",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Health check endpoint. Returns app version + status — the\n`version` field is consumed by `tests/test_health.py` and\nsurfaced in the `ops/server-monitor.sh` snapshot for cross-\nreferencing post-deploy. Source: `app.config.settings.APP_VERSION`\nif defined, falling back to '0.0.0' for local runs.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check"
+      }
+    },
+    "/{filename}": {
+      "get": {
+        "description": "Serve WeChat domain verification files from static directory.",
+        "operationId": "serve_wechat_verification__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Serve Wechat Verification"
+      }
+    }
+  }
+}

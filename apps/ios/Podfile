@@ -38,8 +38,11 @@ post_install do |installer|
     ))
   end
 
-  retag = File.join(installer.config.installation_root,
-                    'scripts', 'retag-amap-for-sim.sh')
+  # Phase B repo restructure: scripts/ stayed at the repo root while
+  # the Podfile (and so installer.config.installation_root) moved to
+  # apps/ios/. Walk up one level to find the script.
+  repo_root = File.expand_path('../..', installer.config.installation_root)
+  retag = File.join(repo_root, 'scripts', 'retag-amap-for-sim.sh')
   if File.executable?(retag)
     unless system(retag, installer.config.installation_root.to_s)
       raise "retag-amap-for-sim.sh failed (exit $?)"
