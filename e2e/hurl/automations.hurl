@@ -121,3 +121,27 @@ Content-Type: application/json
   "rule_ids": []
 }
 HTTP 401
+
+
+# 14. Phase A.4 — POST /vehicles/{vid}/sessions without auth → 401.
+POST {{base_url}}/api/v1/vehicles/anyvin/sessions
+Content-Type: application/json
+{
+  "started_at": "2026-05-09T10:00:00"
+}
+HTTP 401
+
+
+# 15. GET /vehicles/{vid}/sessions without auth → 401.
+GET {{base_url}}/api/v1/vehicles/anyvin/sessions
+HTTP 401
+
+
+# 16. POST /vehicles/{vid}/suggest-charge-limit without auth → 401.
+POST {{base_url}}/api/v1/vehicles/anyvin/suggest-charge-limit
+Content-Type: application/json
+{
+  "daily_limit_soc": 80,
+  "trip_limit_soc": 100
+}
+HTTP 401

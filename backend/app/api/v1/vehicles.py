@@ -1,23 +1,35 @@
 """Vehicle management endpoints."""
 
 import json
+import logging
 from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, Field
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db, get_tesla_client
-from app.db.models import User, Vehicle
+from app.db.models import (
+    ChargingSession,
+    ScheduledDeparture,
+    User,
+    Vehicle,
+)
 from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
+from app.services.charge_analysis.suggester import (
+    UpcomingDeparture,
+    suggest as suggest_charge_limit,
+)
 from app.services.vehicle_commands import (
     invoke_capability as _invoke_capability,
     resolve_vin as _resolve_vin,
 )
 from app.services.vehicle_sync_service import sync_vehicles as _sync_vehicles
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -674,3 +686,237 @@ def _normalize_climate_keeper_mode(raw) -> Optional[int]:
     if isinstance(raw, str):
         return _CLIMATE_KEEPER_STR_TO_INT.get(raw.strip().lower())
     return None
+
+
+# ---------------------------------------------------------------------------
+# Phase A.4 — charging sessions + charge-limit suggester.
+#
+# These don't need a separate /sessions router prefix; iOS already
+# scopes by /vehicles/{vehicle_id}/. Tracking lives client-side until
+# Phase D, which wires iOS ChargingSessionTracker → these endpoints.
+
+class ChargingSessionRequest(BaseModel):
+    client_session_id: Optional[str] = Field(None, max_length=64)
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    start_soc: Optional[int] = Field(None, ge=0, le=100)
+    end_soc: Optional[int] = Field(None, ge=0, le=100)
+    start_range_km: Optional[float] = Field(None, ge=0)
+    end_range_km: Optional[float] = Field(None, ge=0)
+    energy_added_kwh: Optional[float] = Field(None, ge=0)
+    location_name: Optional[str] = Field(None, max_length=128)
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    ended_as_complete: Optional[bool] = None
+
+
+class ChargingSessionResponse(BaseModel):
+    id: int
+    vehicle_id: Optional[str]
+    client_session_id: Optional[str]
+    started_at: datetime
+    ended_at: Optional[datetime]
+    start_soc: Optional[int]
+    end_soc: Optional[int]
+    start_range_km: Optional[float]
+    end_range_km: Optional[float]
+    energy_added_kwh: Optional[float]
+    location_name: Optional[str]
+    lat: Optional[float]
+    lng: Optional[float]
+    ended_as_complete: Optional[bool]
+    source: str
+    duration_minutes: Optional[int]
+    range_added_km: Optional[float]
+    soc_delta: Optional[int]
+
+
+class ChargingSessionListResponse(BaseModel):
+    sessions: List[ChargingSessionResponse]
+
+
+def _session_to_response(row: ChargingSession) -> ChargingSessionResponse:
+    duration: Optional[int] = None
+    if row.ended_at is not None:
+        duration = max(0, int((row.ended_at - row.started_at).total_seconds() // 60))
+    range_added: Optional[float] = None
+    if row.start_range_km is not None and row.end_range_km is not None:
+        range_added = max(0.0, round(row.end_range_km - row.start_range_km, 1))
+    soc_delta: Optional[int] = None
+    if row.start_soc is not None and row.end_soc is not None:
+        soc_delta = max(0, row.end_soc - row.start_soc)
+    return ChargingSessionResponse(
+        id=row.id,
+        vehicle_id=row.vehicle_id,
+        client_session_id=row.client_session_id,
+        started_at=row.started_at,
+        ended_at=row.ended_at,
+        start_soc=row.start_soc,
+        end_soc=row.end_soc,
+        start_range_km=row.start_range_km,
+        end_range_km=row.end_range_km,
+        energy_added_kwh=row.energy_added_kwh,
+        location_name=row.location_name,
+        lat=row.lat,
+        lng=row.lng,
+        ended_as_complete=row.ended_as_complete,
+        source=row.source,
+        duration_minutes=duration,
+        range_added_km=range_added,
+        soc_delta=soc_delta,
+    )
+
+
+@router.post("/{vehicle_id}/sessions", response_model=ChargingSessionResponse)
+async def upsert_charging_session(
+    vehicle_id: str,
+    body: ChargingSessionRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ChargingSessionResponse:
+    """Create or update a charging session.
+
+    iOS POSTs once on plug-in (ended_at NULL) and again on plug-out
+    (ended_at set). Server upserts on ``client_session_id`` so retries
+    are safe; if absent (legacy iOS builds), every POST creates a new
+    row — acceptable trade-off but fix client-side first.
+    """
+    existing: Optional[ChargingSession] = None
+    if body.client_session_id:
+        existing = (await db.execute(
+            select(ChargingSession).where(
+                ChargingSession.user_id == user.id,
+                ChargingSession.client_session_id == body.client_session_id,
+            )
+        )).scalar_one_or_none()
+
+    started_naive = body.started_at.replace(tzinfo=None)
+    ended_naive = body.ended_at.replace(tzinfo=None) if body.ended_at else None
+
+    if existing is None:
+        row = ChargingSession(
+            user_id=user.id,
+            vehicle_id=vehicle_id,
+            client_session_id=body.client_session_id,
+            started_at=started_naive,
+            ended_at=ended_naive,
+            start_soc=body.start_soc,
+            end_soc=body.end_soc,
+            start_range_km=body.start_range_km,
+            end_range_km=body.end_range_km,
+            energy_added_kwh=body.energy_added_kwh,
+            location_name=body.location_name,
+            lat=body.lat,
+            lng=body.lng,
+            ended_as_complete=body.ended_as_complete,
+            source="ios",
+            created_at=datetime.utcnow(),
+        )
+        db.add(row)
+    else:
+        if ended_naive is not None:
+            existing.ended_at = ended_naive
+        if body.end_soc is not None:
+            existing.end_soc = body.end_soc
+        if body.end_range_km is not None:
+            existing.end_range_km = body.end_range_km
+        if body.energy_added_kwh is not None:
+            existing.energy_added_kwh = body.energy_added_kwh
+        if body.ended_as_complete is not None:
+            existing.ended_as_complete = body.ended_as_complete
+        if body.location_name is not None:
+            existing.location_name = body.location_name
+        if body.lat is not None:
+            existing.lat = body.lat
+        if body.lng is not None:
+            existing.lng = body.lng
+        row = existing
+    await db.flush()
+    logger.info(
+        "user %s upserted session for vehicle %s (client_id=%s, ended=%s)",
+        user.id, vehicle_id, body.client_session_id,
+        ended_naive is not None,
+    )
+    return _session_to_response(row)
+
+
+@router.get(
+    "/{vehicle_id}/sessions",
+    response_model=ChargingSessionListResponse,
+)
+async def list_charging_sessions(
+    vehicle_id: str,
+    limit: int = 50,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ChargingSessionListResponse:
+    """Most-recent-first session list. Default limit 50 covers ~6 weeks
+    of typical daily-charging owners; clients pass `?limit=N` to dig
+    further. Strict per-user filter so a vehicle_id collision (Tesla
+    sometimes recycles ids across accounts) can't leak rows."""
+    stmt = (
+        select(ChargingSession)
+        .where(
+            ChargingSession.user_id == user.id,
+            ChargingSession.vehicle_id == vehicle_id,
+        )
+        .order_by(desc(ChargingSession.started_at))
+        .limit(max(1, min(500, limit)))
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return ChargingSessionListResponse(sessions=[_session_to_response(r) for r in rows])
+
+
+class SuggestChargeLimitRequest(BaseModel):
+    current_limit: Optional[int] = Field(None, ge=20, le=100)
+    daily_limit_soc: int = Field(80, ge=20, le=100)
+    trip_limit_soc: int = Field(100, ge=20, le=100)
+    trip_window_hours: int = Field(12, ge=1, le=72)
+
+
+class SuggestChargeLimitResponse(BaseModel):
+    recommended_percent: int
+    current_percent: Optional[int]
+    reason: str
+    hours_away: Optional[int]
+    already_matches: bool
+
+
+@router.post(
+    "/{vehicle_id}/suggest-charge-limit",
+    response_model=SuggestChargeLimitResponse,
+)
+async def suggest_charge_limit_endpoint(
+    vehicle_id: str,
+    body: SuggestChargeLimitRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuggestChargeLimitResponse:
+    """Server-side mirror of iOS ChargeLimitSuggester. Reads the
+    user's currently-stored ScheduledDeparture (A.3) to find any
+    upcoming trip; daily/trip preferences come from the request body
+    (Phase D will read them from /user/settings instead).
+    """
+    departure_row = (await db.execute(
+        select(ScheduledDeparture).where(ScheduledDeparture.user_id == user.id)
+    )).scalar_one_or_none()
+    upcoming = (
+        UpcomingDeparture(departure_at_utc=departure_row.departure_at_utc)
+        if departure_row is not None and departure_row.enabled
+        else None
+    )
+    suggestion = suggest_charge_limit(
+        current_limit=body.current_limit,
+        daily_limit_soc=body.daily_limit_soc,
+        trip_limit_soc=body.trip_limit_soc,
+        upcoming_departure=upcoming,
+        now=datetime.utcnow(),
+        trip_window_hours=body.trip_window_hours,
+    )
+    return SuggestChargeLimitResponse(
+        recommended_percent=suggestion.recommended_percent,
+        current_percent=suggestion.current_percent,
+        reason=suggestion.reason.value,
+        hours_away=suggestion.hours_away,
+        already_matches=suggestion.already_matches,
+    )

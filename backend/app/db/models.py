@@ -112,6 +112,42 @@ class AutomationRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ChargingSession(Base):
+    """Phase A.4 — one charging session.
+
+    Mirrors iOS Sources/TePlannerKit/Models/ChargingSession.swift
+    field-for-field. The iOS ChargingSessionTracker writes one row
+    on plug-in (end_at NULL = ongoing) and finalises on the next
+    state transition. iOS Phase D will swap the local tracker for
+    POST /sessions calls, then for a server-side telemetry consumer.
+
+    ``client_session_id`` lets the same session round-trip cleanly
+    from local-only state (UUID generated on iOS) into the backend
+    without dup'ing on retries.
+    """
+
+    __tablename__ = "charging_session"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=True, index=True)
+    client_session_id = Column(String(64), nullable=True, unique=True, index=True)
+    started_at = Column(DateTime, nullable=False)
+    ended_at = Column(DateTime, nullable=True)
+    start_soc = Column(Integer, nullable=True)
+    end_soc = Column(Integer, nullable=True)
+    start_range_km = Column(Float, nullable=True)
+    end_range_km = Column(Float, nullable=True)
+    energy_added_kwh = Column(Float, nullable=True)
+    location_name = Column(String(128), nullable=True)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    ended_as_complete = Column(Boolean, nullable=True)
+    source = Column(String(20), nullable=False, default="ios")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ScheduledDeparture(Base):
     """Phase A.3 — user's planned next departure.
 
