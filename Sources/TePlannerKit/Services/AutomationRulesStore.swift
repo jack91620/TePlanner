@@ -19,6 +19,7 @@ public final class AutomationRulesStore: ObservableObject {
     private let settings: SettingsStore
     private let migrationFlagKey = "automations_settings_migration_done_v1"
     private let leftUnlockedMigrationFlagKey = "automations_left_unlocked_lock_migration_v1"
+    private let geofenceWorkLockMigrationFlagKey = "automations_geofence_work_lock_critical_migration_v1"
 
     public init(apiService: APIServiceProtocol, settings: SettingsStore) {
         self.apiService = apiService
@@ -93,6 +94,7 @@ public final class AutomationRulesStore: ObservableObject {
     private func applyAndMaybeMigrate(_ fetched: [RuleRecord]) async {
         rules = fetched
         await maybeUpgradeLeftUnlockedLockCapability(fetched)
+        await maybeUpgradeGeofenceWorkLockSeverity(fetched)
         let alreadyMigrated = UserDefaults.standard.bool(forKey: migrationFlagKey)
         guard !alreadyMigrated else { return }
 
@@ -180,6 +182,62 @@ public final class AutomationRulesStore: ObservableObject {
             Log.app.error("automations: leftUnlocked upgrade failed: \(self.lastError ?? "?", privacy: .public)")
         }
         UserDefaults.standard.set(true, forKey: leftUnlockedMigrationFlagKey)
+    }
+
+    /// One-shot migration: bump the geofence_arrive_work_lock preset's
+    /// notify_and_offer severity from 'info' (the original ship value)
+    /// to 'critical' so iOS surfaces it as a 重要提醒 orange pill —
+    /// 锁车 is a security-class action that warrants the user's
+    /// immediate attention.
+    ///
+    /// Same safety contract as the leftUnlocked migration: only fires
+    /// when the spec exactly matches the canonical legacy form. A
+    /// user who customised the body / label / capability is left
+    /// alone.
+    private func maybeUpgradeGeofenceWorkLockSeverity(_ fetched: [RuleRecord]) async {
+        guard !UserDefaults.standard.bool(forKey: geofenceWorkLockMigrationFlagKey) else {
+            return
+        }
+        guard let record = fetched.first(where: {
+            $0.presetId == "geofence_arrive_work_lock"
+        }) else {
+            UserDefaults.standard.set(true, forKey: geofenceWorkLockMigrationFlagKey)
+            return
+        }
+        guard isLegacyGeofenceWorkLockSpec(record.spec) else {
+            Log.app.notice("automations: geofence_arrive_work_lock customised — skipping severity migration")
+            UserDefaults.standard.set(true, forKey: geofenceWorkLockMigrationFlagKey)
+            return
+        }
+
+        var spec = record.spec
+        guard case .array(var actions) = spec["actions"] ?? .null,
+              !actions.isEmpty,
+              case .object(var actionDict) = actions[0] else {
+            UserDefaults.standard.set(true, forKey: geofenceWorkLockMigrationFlagKey)
+            return
+        }
+        actionDict["severity"] = .string("critical")
+        actionDict["body"] = .string("车辆已停妥，是否立即锁车？")
+        actions[0] = .object(actionDict)
+        spec["actions"] = .array(actions)
+
+        let ok = await update(id: record.id, spec: spec)
+        if ok {
+            Log.app.notice("automations: geofence_arrive_work_lock upgraded → severity:critical")
+        } else {
+            Log.app.error("automations: geofence_arrive_work_lock upgrade failed: \(self.lastError ?? "?", privacy: .public)")
+        }
+        UserDefaults.standard.set(true, forKey: geofenceWorkLockMigrationFlagKey)
+    }
+
+    private func isLegacyGeofenceWorkLockSpec(_ spec: RuleSpec) -> Bool {
+        guard case .array(let actions) = spec["actions"] ?? .null,
+              actions.count == 1,
+              case .object(let action) = actions[0] else { return false }
+        return action.string("severity") == "info"
+            && action.string("body") == "是否锁车？"
+            && action.string("capability") == "tesla.security.door_lock"
     }
 
     private func isLegacyLeftUnlockedSpec(_ spec: RuleSpec) -> Bool {

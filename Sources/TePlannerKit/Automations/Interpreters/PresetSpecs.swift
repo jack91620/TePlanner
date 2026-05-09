@@ -261,8 +261,8 @@ public enum PresetSpecs {
             .object([
                 "type": .string("notify_and_offer"),
                 "title": .string("到达「公司」"),
-                "body": .string("是否锁车？"),
-                "severity": .string("info"),
+                "body": .string("车辆已停妥，是否立即锁车？"),
+                "severity": .string("critical"),
                 "primary_action_label": .string("锁车"),
                 "capability": .string("tesla.security.door_lock"),
             ]),

@@ -332,8 +332,8 @@ GEOFENCE_ARRIVE_WORK_LOCK = PresetDefinition(
             {
                 "type": "notify_and_offer",
                 "title": "到达「公司」",
-                "body": "是否锁车？",
-                "severity": "info",
+                "body": "车辆已停妥，是否立即锁车？",
+                "severity": "critical",
                 "primary_action_label": "锁车",
                 "capability": "tesla.security.door_lock",
             }
