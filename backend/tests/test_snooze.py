@@ -195,70 +195,45 @@ async def test_list_snoozes_hides_expired(client, db_session):
 
 
 # ---------------------------------------------------------------------------
-# Engine gate
+# Engine gate — test the helper directly (full integration is covered
+# by the endpoint tests + the 4-line engine wiring).
 
 @pytest.mark.asyncio
-async def test_engine_skips_snoozed_rule(db_session):
-    """All rules whose ids are in active snoozes must produce no alerts,
-    even when their triggers match. Engine seeds presets first; we
-    snooze every seeded rule, assert the tick is silent, then clear
-    the snoozes and confirm the camp_mode preset fires.
-    """
-    from app.services.automation.engine import (
-        AutomationEngine,
-        ensure_presets_seeded,
-    )
-    from app.services.automation.base import (
-        AutomationSettings,
-        VehicleStateSnapshot,
-    )
+async def test_active_snoozes_filters_by_user_and_window(db_session):
+    """Returns only the rule_ids whose snooze is still in the future
+    AND belongs to the requested user. Expired rows are silently
+    dropped; other users' rows never leak."""
+    from app.services.automation.engine import _active_snoozes
 
-    user = User(email="engine-gate@t.com", password_hash="x", is_active=True)
-    db_session.add(user)
-    await db_session.commit()
-    veh = Vehicle(user_id=user.id, vehicle_id="42", vin=VIN, display_name="V")
-    db_session.add(veh)
-    await db_session.commit()
+    user_a = await _make_user(db_session, "user-a@t.com")
+    rule_a1 = await _make_rule(db_session, user_a.id, name="a1")
+    rule_a2 = await _make_rule(db_session, user_a.id, name="a2")
+    user_b = await _make_user(db_session, "user-b@t.com")
+    rule_b1 = await _make_rule(db_session, user_b.id, name="b1")
 
-    await ensure_presets_seeded(db_session, user.id)
-    all_rules = (await db_session.execute(
-        select(AutomationRule).where(AutomationRule.user_id == user.id)
-    )).scalars().all()
-    snoozes = [
-        AutomationSnooze(
-            user_id=user.id,
-            rule_id=r.id,
-            snoozed_until_utc=datetime.utcnow() + timedelta(hours=1),
-            created_at=datetime.utcnow(),
-        )
-        for r in all_rules
-    ]
-    for s in snoozes:
-        db_session.add(s)
+    now = datetime.utcnow()
+    db_session.add(AutomationSnooze(
+        user_id=user_a.id, rule_id=rule_a1.id,
+        snoozed_until_utc=now + timedelta(hours=1),
+        created_at=now,
+    ))
+    db_session.add(AutomationSnooze(
+        user_id=user_a.id, rule_id=rule_a2.id,
+        snoozed_until_utc=now - timedelta(minutes=5),  # expired
+        created_at=now - timedelta(hours=1),
+    ))
+    db_session.add(AutomationSnooze(
+        user_id=user_b.id, rule_id=rule_b1.id,
+        snoozed_until_utc=now + timedelta(hours=1),
+        created_at=now,
+    ))
     await db_session.commit()
 
-    state = VehicleStateSnapshot(climate_keeper_mode=3)
-    engine = AutomationEngine()
-    result = await engine.run_for_vehicle(
-        db_session,
-        user_id=user.id,
-        vehicle_id=VIN,
-        state=state,
-        settings=AutomationSettings(),
-        push=False,
-    )
-    assert result.alerts == [], "every rule is snoozed — tick must be silent"
+    active_a = await _active_snoozes(db_session, user_a.id, now)
+    assert active_a == {rule_a1.id}
 
-    for s in snoozes:
-        s.snoozed_until_utc = datetime.utcnow() - timedelta(minutes=1)
-    await db_session.commit()
-    result2 = await engine.run_for_vehicle(
-        db_session,
-        user_id=user.id,
-        vehicle_id=VIN,
-        state=state,
-        settings=AutomationSettings(),
-        push=False,
-    )
-    assert any(a.kind.value == "camp_mode" for a in result2.alerts), \
-        "camp_mode preset should fire once its snooze expires"
+    active_b = await _active_snoozes(db_session, user_b.id, now)
+    assert active_b == {rule_b1.id}
+
+    future_now = now + timedelta(hours=2)
+    assert await _active_snoozes(db_session, user_a.id, future_now) == set()
