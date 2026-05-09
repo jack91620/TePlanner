@@ -790,6 +790,11 @@ struct RuleBuilderView: View {
         // (just shows the confirm dialog).
         var spec: RuleSpec = [:]
         if let kind = initial?.spec["kind"] { spec["kind"] = kind }
+        // Preserve any pass-through spec-level fields the builder
+        // doesn't touch (e.g. `enabled` flag inside spec, which the
+        // geofence presets ship as `false`). Without this the dirty
+        // check reports spurious diffs on edit-no-op.
+        if let enabledFlag = initial?.spec["enabled"] { spec["enabled"] = enabledFlag }
         spec["trigger"] = .object(buildTriggerDict())
         let action = buildActionDict()
         if triggerType == .stateDuration {
@@ -821,15 +826,44 @@ struct RuleBuilderView: View {
         case .cron:
             trigger["expr"] = .string(buildCronExpr())
         case .geofence:
-            if let lat = geofenceLat { trigger["lat"] = .double(lat) }
-            if let lng = geofenceLng { trigger["lng"] = .double(lng) }
-            trigger["radius_m"] = .int(geofenceRadiusM)
+            // Preserve original JSON types (int 0 vs double 0.0) when
+            // the value is unchanged — backend serialises lat: 0.0 which
+            // iOS sometimes decodes as int(0). Forcing .double on
+            // rebuild caused the dirty check to misfire on edit-no-op.
+            let originalTrigger = initial?.spec["trigger"]?.objectValue
+            let originalLat = originalTrigger?["lat"]
+            let originalLng = originalTrigger?["lng"]
+            let originalRadius = originalTrigger?["radius_m"]
+            if let lat = geofenceLat {
+                if let orig = originalLat,
+                   let origVal = orig.doubleValue,
+                   abs(origVal - lat) < 0.00001 {
+                    trigger["lat"] = orig
+                } else {
+                    trigger["lat"] = .double(lat)
+                }
+            }
+            if let lng = geofenceLng {
+                if let orig = originalLng,
+                   let origVal = orig.doubleValue,
+                   abs(origVal - lng) < 0.00001 {
+                    trigger["lng"] = orig
+                } else {
+                    trigger["lng"] = .double(lng)
+                }
+            }
+            if let orig = originalRadius,
+               orig.intValue == geofenceRadiusM {
+                trigger["radius_m"] = orig
+            } else {
+                trigger["radius_m"] = .int(geofenceRadiusM)
+            }
             trigger["event"] = .string(geofenceEvent.rawValue)
             // state_key namespaces the engine memory keys for this
             // rule. Preserve the original when editing so engine
             // memory rows (inside / last_fired) keep matching, and
             // so the dirty-check round-trip sees the same value.
-            let originalStateKey = initial?.spec["trigger"]?.objectValue?.string("state_key")
+            let originalStateKey = originalTrigger?.string("state_key")
             let suffix = (initial?.spec.string("kind") ?? "geofence_user").replacingOccurrences(of: ".", with: "_")
             trigger["state_key"] = .string(originalStateKey ?? "geo:\(suffix)")
         }
