@@ -152,13 +152,19 @@ async def get_tesla_client(
                 detail=f"Tesla token expired and refresh failed: {str(e)}",
             )
     else:
-        # Decrypt and use existing token
+        # Decrypt and use existing token. Audit on 2026-05-09 confirmed
+        # 133/133 tokens are Fernet-encrypted; the historical 'plain
+        # token legacy' fallback is gone — decrypt failure now raises
+        # 401 so the issue surfaces instead of letting a corrupted /
+        # plain-text row reach the Tesla SDK.
         encryption = TokenEncryption()
         try:
             access_token = encryption.decrypt(tesla_token.access_token)
-        except Exception:
-            # Token might not be encrypted (legacy)
-            access_token = tesla_token.access_token
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Tesla token decrypt failed (re-link required): {exc}",
+            )
 
     return TeslaClient(access_token=access_token)
 

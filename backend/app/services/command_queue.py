@@ -117,8 +117,15 @@ async def _get_user_access_token(
     if token.expires_at is None or token.expires_at < datetime.utcnow():
         try:
             refresh_plain = encryption.decrypt(token.refresh_token)
-        except Exception:
-            refresh_plain = token.refresh_token
+        except Exception as exc:
+            # Audit on 2026-05-09: 133/133 tokens encrypted. A decrypt
+            # failure now means corruption, not a legacy plain row —
+            # bail rather than feed garbage into Tesla's refresh path.
+            logger.warning(
+                "tesla refresh_token decrypt failed user=%s: %s",
+                user_id, exc,
+            )
+            return None
         try:
             new_tokens = await TeslaAuth().refresh_token(refresh_plain)
             token.access_token = encryption.encrypt(new_tokens["access_token"])
@@ -136,8 +143,12 @@ async def _get_user_access_token(
             return None
     try:
         return encryption.decrypt(token.access_token)
-    except Exception:
-        return token.access_token
+    except Exception as exc:
+        logger.warning(
+            "tesla access_token decrypt failed user=%s: %s",
+            user_id, exc,
+        )
+        return None
 
 
 async def _resolve_numeric_vehicle_id(

@@ -488,13 +488,12 @@ async def tesla_callback(
 
                 expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
-                try:
-                    encrypted_access = encryption.encrypt(access_token)
-                    encrypted_refresh = encryption.encrypt(refresh_token)
-                except Exception:
-                    # Encryption not configured, store plain (not recommended)
-                    encrypted_access = access_token
-                    encrypted_refresh = refresh_token
+                # Fail-fast: if Fernet isn't configured, surface a 500
+                # instead of silently storing plain tokens. Production
+                # always has TESLA_TOKEN_ENCRYPTION_KEY set; this only
+                # fires on misconfigured deployments.
+                encrypted_access = encryption.encrypt(access_token)
+                encrypted_refresh = encryption.encrypt(refresh_token)
 
                 if existing_token:
                     existing_token.access_token = encrypted_access
@@ -573,12 +572,9 @@ async def tesla_callback_post(
             encryption = TokenEncryption()
             expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
-            try:
-                encrypted_access = encryption.encrypt(access_token)
-                encrypted_refresh = encryption.encrypt(refresh_token)
-            except Exception:
-                encrypted_access = access_token
-                encrypted_refresh = refresh_token
+            # Fail-fast on encrypt failure (see /tesla/callback note).
+            encrypted_access = encryption.encrypt(access_token)
+            encrypted_refresh = encryption.encrypt(refresh_token)
 
             # Check existing token
             result = await db.execute(
@@ -648,13 +644,9 @@ async def tesla_refresh_token(
                 encryption = TokenEncryption()
                 expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
-                try:
-                    existing_token.access_token = encryption.encrypt(new_access_token)
-                    existing_token.refresh_token = encryption.encrypt(new_refresh_token)
-                except Exception:
-                    existing_token.access_token = new_access_token
-                    existing_token.refresh_token = new_refresh_token
-
+                # Fail-fast on encrypt failure.
+                existing_token.access_token = encryption.encrypt(new_access_token)
+                existing_token.refresh_token = encryption.encrypt(new_refresh_token)
                 existing_token.expires_at = expires_at
                 await db.commit()
 

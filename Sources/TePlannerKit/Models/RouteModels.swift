@@ -36,7 +36,10 @@ public struct RoutePlanResponse: Codable, Identifiable {
 public struct LocationDetail: Codable {
     public let lat: Double?
     public let lng: Double?
-    public let name: String
+    /// Optional now (was required-non-empty). Backend emits null when
+    /// the reverse-geocode for this lat/lng failed; UI should fall
+    /// back to "未知地点" or just show the coordinate string.
+    public let name: String?
 }
 
 public struct ChargingStop: Codable, Identifiable {

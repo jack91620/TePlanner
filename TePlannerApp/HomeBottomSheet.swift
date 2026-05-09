@@ -183,14 +183,14 @@ private struct RouteSummaryDrawerContent: View {
                     .foregroundStyle(.green)
                     .font(.caption2)
                     .padding(.top, 6)
-                Text(plan.origin.name).lineLimit(1)
+                Text(plan.origin.name ?? "未知地点").lineLimit(1)
             }
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "mappin.circle.fill")
                     .foregroundStyle(.red)
                     .font(.caption2)
                     .padding(.top, 6)
-                Text(plan.destination.name).lineLimit(1)
+                Text(plan.destination.name ?? "未知地点").lineLimit(1)
             }
             Divider().padding(.vertical, 4)
             HStack(spacing: 18) {

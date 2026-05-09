@@ -1,10 +1,13 @@
 """Route planning service with charging optimization."""
 
+import logging
 import math
 from typing import List, Optional, Tuple
 
 from app.integrations.amap.web_client import AmapWebClient as TencentMapClient
 from app.services.energy_model import EnergyModel
+
+logger = logging.getLogger(__name__)
 
 
 class ChargingStop:
@@ -56,8 +59,8 @@ class RoutePlanResult:
         self,
         origin: Tuple[float, float],
         destination: Tuple[float, float],
-        origin_name: str = "",
-        destination_name: str = "",
+        origin_name: Optional[str] = None,
+        destination_name: Optional[str] = None,
         total_distance_km: float = 0,
         driving_duration_minutes: int = 0,
         charging_duration_minutes: int = 0,
@@ -145,18 +148,23 @@ class RoutePlanner:
         driving_minutes = int(route_data["duration"])
         polyline = route_data.get("polyline", [])
 
-        origin_name = ""
-        destination_name = ""
+        # Reverse-geocode is best-effort: if AMap returns no address
+        # (network blip / quota / bad coords) we leave the field as
+        # None so the iOS UI shows '未知地点' instead of an empty
+        # string. Exceptions are NOT swallowed silently — logged so
+        # the Tencent VM monitor catches a sustained outage.
+        origin_name: Optional[str] = None
+        destination_name: Optional[str] = None
         try:
             origin_geo = await map_client.reverse_geocode(origin[0], origin[1])
-            origin_name = origin_geo.get("address", "")
-        except Exception:
-            pass
+            origin_name = origin_geo.get("address") or None
+        except Exception as exc:
+            logger.warning("origin reverse_geocode failed: %s", exc)
         try:
             dest_geo = await map_client.reverse_geocode(destination[0], destination[1])
-            destination_name = dest_geo.get("address", "")
-        except Exception:
-            pass
+            destination_name = dest_geo.get("address") or None
+        except Exception as exc:
+            logger.warning("destination reverse_geocode failed: %s", exc)
 
         return RoutePlanResult(
             origin=origin,

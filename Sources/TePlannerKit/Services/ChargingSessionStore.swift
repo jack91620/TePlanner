@@ -22,6 +22,11 @@ public final class UserDefaultsChargingSessionStore: ChargingSessionStore {
 
     private let defaults: UserDefaults
     private let key = "charging_sessions_v1"
+    /// Where corrupt blobs are quarantined when decode fails — the
+    /// raw Data plus the first decode error get logged to UserDefaults
+    /// so the user can be prompted to file a report instead of just
+    /// silently losing their charging history.
+    private let backupKey = "charging_sessions_v1.broken"
     private let queue = DispatchQueue(label: "com.teplanner.charging-store", qos: .utility)
 
     public init(defaults: UserDefaults = .standard) {
@@ -68,9 +73,39 @@ public final class UserDefaultsChargingSessionStore: ChargingSessionStore {
         do {
             return try JSONDecoder().decode([ChargingSession].self, from: data)
         } catch {
-            Log.app.error("charging-session decode failed: \(error.localizedDescription, privacy: .public) — discarding store")
+            // Don't drop the data on the floor: copy the raw blob to a
+            // backup key so a future migration / debugging session can
+            // recover. Then return [] so the rest of the app keeps
+            // working. `hasCorruptBackup` lets the UI surface a
+            // 'history may be incomplete' banner if needed.
+            if defaults.data(forKey: backupKey) == nil {
+                defaults.set(data, forKey: backupKey)
+                Log.app.error("charging-session decode failed: \(error.localizedDescription, privacy: .public) — \(data.count, privacy: .public)B blob backed up to \(self.backupKey, privacy: .public)")
+            } else {
+                Log.app.error("charging-session decode failed: \(error.localizedDescription, privacy: .public) — backup slot already taken, dropping current blob")
+            }
             return []
         }
+    }
+
+    /// True iff a previous decode failure quarantined a blob into
+    /// `backupKey`. Tests + UI can prompt the user to inspect /
+    /// export the broken data instead of silently losing it.
+    public var hasCorruptBackup: Bool {
+        queue.sync { defaults.data(forKey: backupKey) != nil }
+    }
+
+    /// Returns the raw quarantined blob (if any). Caller decides what
+    /// to do — share via UIActivityViewController, write to a file,
+    /// or just inspect in the debugger.
+    public func corruptBackup() -> Data? {
+        queue.sync { defaults.data(forKey: backupKey) }
+    }
+
+    /// Drop the quarantined blob — call after the user has saved it
+    /// elsewhere or confirmed they don't need it.
+    public func clearCorruptBackup() {
+        queue.sync { defaults.removeObject(forKey: backupKey) }
     }
 
     private func writeAllUnsynced(_ sessions: [ChargingSession]) {
