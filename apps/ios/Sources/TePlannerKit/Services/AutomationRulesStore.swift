@@ -86,6 +86,23 @@ public final class AutomationRulesStore: ObservableObject {
         }
     }
 
+    /// Phase D.2 — push a user-defined order to the backend
+    /// (PUT /automations/order). Returns the freshly sorted full rule
+    /// list straight from the server response and replaces the local
+    /// cache, so the UI updates without a follow-up refresh().
+    public func reorder(ruleIds: [String], clear: Bool = false) async -> Bool {
+        let result = await apiService.reorderAutomations(ruleIds: ruleIds, clear: clear)
+        switch result {
+        case .success(let fresh):
+            rules = fresh
+            return true
+        case .failure(let error):
+            Log.api.error("automation reorder failed: \(error.localizedDescription, privacy: .public)")
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
     // MARK: - Internals
 
     /// Match a preset by id and return a new spec with `for_minutes`

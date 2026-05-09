@@ -24,6 +24,12 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
     /// Last time this rule's kind fired a push notification. Read
     /// from the server's PushedAlert ledger; nil if never fired.
     public let lastFiredAt: Date?
+    /// Phase A.2 — user-overridden display position (server-authoritative
+    /// after Phase D.2). NULL means "use canonical preset/created-at
+    /// order"; the server has already sorted the list before sending,
+    /// so iOS preserves order as-received and only writes back via
+    /// `PUT /automations/order` on user drag/move.
+    public let displayOrder: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -33,6 +39,7 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         case spec
         case version
         case lastFiredAt = "last_fired_at"
+        case displayOrder = "display_order"
     }
 
     public init(
@@ -42,7 +49,8 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         enabled: Bool,
         spec: RuleSpec,
         version: Int = 1,
-        lastFiredAt: Date? = nil
+        lastFiredAt: Date? = nil,
+        displayOrder: Int? = nil
     ) {
         self.id = id
         self.presetId = presetId
@@ -51,5 +59,6 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         self.spec = spec
         self.version = version
         self.lastFiredAt = lastFiredAt
+        self.displayOrder = displayOrder
     }
 }

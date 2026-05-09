@@ -299,4 +299,14 @@ final class MockAPIService: APIServiceProtocol {
         fetchSnoozesCallCount += 1
         return mockSnoozeListResponse
     }
+
+    // Phase D.2 — rule order
+    var mockReorderResponse: Result<[RuleRecord], APIError>?
+    private(set) var reorderCalls: [(ruleIds: [String], clear: Bool)] = []
+    func reorderAutomations(
+        ruleIds: [String], clear: Bool
+    ) async -> Result<[RuleRecord], APIError> {
+        reorderCalls.append((ruleIds, clear))
+        return mockReorderResponse ?? .success([])
+    }
 }

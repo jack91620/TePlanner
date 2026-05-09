@@ -103,4 +103,12 @@ public protocol APIServiceProtocol {
     ) async -> Result<SnoozeRecord, APIError>
     func unsnoozeRule(ruleId: String) async -> Result<BaseResponse, APIError>
     func fetchSnoozes() async -> Result<SnoozeListResponse, APIError>
+
+    // Phase D.2 — server-canonical rule order. Replaces the iOS-side
+    // UserDefaults `automation_rule_order` array. Returns the full
+    // sorted rule list so callers can replace their cache in one
+    // round-trip (avoids an extra GET).
+    func reorderAutomations(
+        ruleIds: [String], clear: Bool
+    ) async -> Result<[RuleRecord], APIError>
 }

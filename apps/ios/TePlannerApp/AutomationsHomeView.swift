@@ -309,8 +309,14 @@ struct AutomationsHomeView: View {
     }
 
     /// Move a rule one position in its section. delta = -1 = up,
-    /// +1 = down. Persists via `automationRuleOrder` UserDefaults
-    /// (same machinery the previous .onMove drag used).
+    /// +1 = down. Phase D.2 persists via PUT /automations/order on the
+    /// backend (display_order column); the response is the freshly
+    /// sorted full list which AutomationRulesStore swaps into its
+    /// cache so the UI re-renders.
+    ///
+    /// We send the full ordered list (preset + custom rows merged in
+    /// the order they currently appear) so positions stay stable
+    /// across mixed buckets.
     private func moveRule(_ record: RuleRecord, by delta: Int) {
         let bucket = record.presetId == nil ? customRules : presetRules
         guard let idx = bucket.firstIndex(where: { $0.id == record.id }) else {
@@ -318,18 +324,24 @@ struct AutomationsHomeView: View {
         }
         let target = idx + delta
         guard target >= 0, target < bucket.count else { return }
-        var newOrder = bucket.map(\.id)
-        newOrder.remove(at: idx)
-        newOrder.insert(record.id, at: target)
-        // Merge with the existing saved order so the OTHER section
-        // (preset vs custom) keeps its drag preferences.
-        let store = UserDefaultsSettingsStore.shared
-        let existing = store.automationRuleOrder
+        var reorderedBucket = bucket
+        let moved = reorderedBucket.remove(at: idx)
+        reorderedBucket.insert(moved, at: target)
         let bucketIds = Set(bucket.map(\.id))
-        let other = existing.filter { !bucketIds.contains($0) }
-        store.automationRuleOrder = other + newOrder
-        rulesStore.objectWillChange.send()
+        // Preserve the relative order of the OTHER section so we send
+        // a coherent full-list to the server.
+        let other = rulesStore.rules.filter { !bucketIds.contains($0.id) }
+        let merged = (record.presetId == nil
+            ? presetRules + reorderedBucket
+            : reorderedBucket + customRules)
+        // Defensive: if the merge somehow drops rows that exist on
+        // the server, fall back to appending them so order PUT is
+        // still well-formed.
+        let mergedIds = Set(merged.map(\.id))
+        let stragglers = other.filter { !mergedIds.contains($0.id) }
+        let payload = (merged + stragglers).map(\.id)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task { await rulesStore.reorder(ruleIds: payload) }
     }
 
     @ViewBuilder
@@ -423,11 +435,14 @@ struct AutomationsHomeView: View {
     }
 
     private var presetRules: [RuleRecord] {
-        applyUserOrder(applySearch(rulesStore.rules.filter { $0.presetId != nil }))
+        // Phase D.2 — server already sorted by display_order then
+        // canonical preset/created-at order; we just preserve the
+        // received order and split into buckets.
+        applySearch(rulesStore.rules.filter { $0.presetId != nil })
     }
 
     private var customRules: [RuleRecord] {
-        applyUserOrder(applySearch(rulesStore.rules.filter { $0.presetId == nil }))
+        applySearch(rulesStore.rules.filter { $0.presetId == nil })
     }
 
     /// Filter by search text. Matches both the rule name and the
@@ -445,22 +460,6 @@ struct AutomationsHomeView: View {
             if action.contains(lower) { return true }
             return false
         }
-    }
-
-    /// Apply the user's drag-reordered sequence on top of whatever
-    /// canonical order the server returned. Rules not in the saved
-    /// order array (e.g. newly added presets) fall back to the end
-    /// in server order.
-    private func applyUserOrder(_ rules: [RuleRecord]) -> [RuleRecord] {
-        let savedOrder = UserDefaultsSettingsStore.shared.automationRuleOrder
-        guard !savedOrder.isEmpty else { return rules }
-        let position = Dictionary(uniqueKeysWithValues: savedOrder.enumerated().map { ($1, $0) })
-        let fallback = position.count
-        return rules.enumerated().sorted { lhs, rhs in
-            let lp = position[lhs.element.id] ?? (fallback + lhs.offset)
-            let rp = position[rhs.element.id] ?? (fallback + rhs.offset)
-            return lp < rp
-        }.map(\.element)
     }
 
     /// iOS 快捷指令-style category color: each trigger family gets

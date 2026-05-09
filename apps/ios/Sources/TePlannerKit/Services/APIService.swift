@@ -280,6 +280,23 @@ public final class APIService: APIServiceProtocol {
         return await get(path: "/automations/snoozes")
     }
 
+    // MARK: - Phase D.2 — rule order
+
+    public func reorderAutomations(
+        ruleIds: [String], clear: Bool
+    ) async -> Result<[RuleRecord], APIError> {
+        struct Body: Encodable {
+            let rule_ids: [String]
+            let clear: Bool
+        }
+        // Server returns RuleListResponse { rules: [...] } — unwrap.
+        let result: Result<RuleListResponseDTO, APIError> = await putJSON(
+            path: "/automations/order",
+            body: Body(rule_ids: ruleIds, clear: clear),
+        )
+        return result.map { $0.rules }
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(path: String, query: [URLQueryItem] = []) async -> Result<T, APIError> {

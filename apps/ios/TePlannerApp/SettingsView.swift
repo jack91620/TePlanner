@@ -69,10 +69,12 @@ struct SettingsView: View {
                             Label("活动 (触发记录)", systemImage: "clock.arrow.circlepath")
                         }
                     }
-                    NavigationLink {
-                        AutomationOrderResetView()
-                    } label: {
-                        Label("重置自定义排序", systemImage: "arrow.up.arrow.down")
+                    if let api = apiService {
+                        NavigationLink {
+                            AutomationOrderResetView(apiService: api)
+                        } label: {
+                            Label("重置自定义排序", systemImage: "arrow.up.arrow.down")
+                        }
                     }
                 } header: {
                     Text("自动化")
@@ -169,25 +171,50 @@ struct SettingsView: View {
 
 private struct AutomationOrderResetView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var done = false
+    @State private var status: Status = .idle
+
+    let apiService: APIServiceProtocol
+
+    enum Status: Equatable {
+        case idle, sending, done, failed(String)
+    }
 
     var body: some View {
         Form {
             Section {
                 Button("立即重置排序", role: .destructive) {
-                    UserDefaultsSettingsStore.shared.automationRuleOrder = []
-                    done = true
+                    Task { await reset() }
                 }
+                .disabled(status == .sending)
             } footer: {
-                if done {
+                switch status {
+                case .idle:
+                    Text("规则将按预设默认顺序展示，自定义拖动顺序会丢失。")
+                case .sending:
+                    Text("正在重置…")
+                case .done:
                     Text("已重置。返回自动化列表查看默认顺序。")
                         .foregroundStyle(.green)
-                } else {
-                    Text("规则将按预设默认顺序展示，自定义拖动顺序会丢失。")
+                case .failed(let msg):
+                    Text("重置失败：\(msg)")
+                        .foregroundStyle(.red)
                 }
             }
         }
         .navigationTitle("重置自定义排序")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func reset() async {
+        status = .sending
+        // Phase D.2 — empty rule_ids + clear=true wipes display_order
+        // on every rule for the current user.
+        let result = await apiService.reorderAutomations(ruleIds: [], clear: true)
+        switch result {
+        case .success:
+            status = .done
+        case .failure(let err):
+            status = .failed(err.localizedDescription)
+        }
     }
 }

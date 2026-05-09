@@ -22,10 +22,6 @@ public protocol SettingsStore: AnyObject {
     /// Phase 7 (VCP): 用户是否已经被提示过配对车辆控制密钥。第一次
     /// Tesla OAuth 完成后弹一次引导，之后不再 nag。
     var hasPromptedVCPPairing: Bool { get set }
-    /// User-customized rule order. Local override of the server's
-    /// canonical order; rules not in the array fall back to server
-    /// order at the end. Persisted as a JSON-encoded array of rule IDs.
-    var automationRuleOrder: [String] { get set }
     /// Whether the user has dismissed the first-launch welcome banner
     /// on the hub. Set true on first dismiss; banner never re-shows.
     var hasSeenHubWelcome: Bool { get set }
@@ -50,7 +46,6 @@ public enum SettingsKey {
     public static let dailyChargeLimitSoc = "daily_charge_limit_soc"
     public static let tripChargeLimitSoc = "trip_charge_limit_soc"
     public static let hasPromptedVCPPairing = "has_prompted_vcp_pairing"
-    public static let automationRuleOrder = "automation_rule_order"
     public static let hasSeenHubWelcome = "has_seen_hub_welcome"
 }
 
@@ -135,20 +130,6 @@ public final class UserDefaultsSettingsStore: SettingsStore {
         set { defaults.set(newValue, forKey: SettingsKey.hasPromptedVCPPairing) }
     }
 
-    public var automationRuleOrder: [String] {
-        get {
-            guard let data = defaults.data(forKey: SettingsKey.automationRuleOrder),
-                  let arr = try? JSONDecoder().decode([String].self, from: data) else {
-                return []
-            }
-            return arr
-        }
-        set {
-            let data = (try? JSONEncoder().encode(newValue)) ?? Data()
-            defaults.set(data, forKey: SettingsKey.automationRuleOrder)
-        }
-    }
-
     public var hasSeenHubWelcome: Bool {
         get { defaults.bool(forKey: SettingsKey.hasSeenHubWelcome) }
         set { defaults.set(newValue, forKey: SettingsKey.hasSeenHubWelcome) }
@@ -168,7 +149,6 @@ public final class UserDefaultsSettingsStore: SettingsStore {
             SettingsKey.dailyChargeLimitSoc,
             SettingsKey.tripChargeLimitSoc,
             SettingsKey.hasPromptedVCPPairing,
-            SettingsKey.automationRuleOrder,
             SettingsKey.hasSeenHubWelcome,
         ] {
             defaults.removeObject(forKey: key)
