@@ -21,6 +21,11 @@ from app.core.security import (
 from app.db.models import TeslaToken, User
 from app.db.session import get_db
 from app.integrations.tesla import TeslaAuth
+from app.services.tesla_auth_service import (
+    TeslaAuthError,
+    exchange_and_store as _tesla_exchange_and_store,
+    refresh_and_store as _tesla_refresh_and_store,
+)
 from app.services.wechat import WeChatClient, WeChatAPIError
 
 router = APIRouter()
@@ -434,12 +439,12 @@ async def tesla_callback(
 ):
     """Handle Tesla OAuth callback (GET).
 
-    Exchanges authorization code for tokens and stores them in database.
+    Renders an HTML success/error page for the WebView. The exchange
+    + persist + JWT-mint logic now lives in
+    `services/tesla_auth_service.exchange_and_store`.
     """
-    # Get stored state data
     state_data = _oauth_states.pop(state, None)
     if not state_data:
-        # Return error page for WebView
         return HTMLResponse(
             content=_render_callback_page(
                 success=False,
@@ -452,91 +457,33 @@ async def tesla_callback(
     user_id = state_data.get("user_id")
 
     try:
-        auth = TeslaAuth()
-        tokens = await auth.exchange_code(code, code_verifier)
-
-        access_token = tokens.get("access_token")
-        refresh_token = tokens.get("refresh_token")
-        expires_in = tokens.get("expires_in", 3600)
-
-        if not access_token or not refresh_token:
-            return HTMLResponse(
-                content=_render_callback_page(
-                    success=False,
-                    message="Failed to get tokens from Tesla.",
-                ),
-                status_code=400,
-            )
-
-        # Encrypt tokens for storage
-        encryption = TokenEncryption()
-
-        # If user_id provided, store tokens in database
-        if user_id:
-            # Check if user exists
-            result = await db.execute(
-                select(User).where(User.id == user_id)
-            )
-            user = result.scalar_one_or_none()
-
-            if user:
-                # Check if token already exists
-                result = await db.execute(
-                    select(TeslaToken).where(TeslaToken.user_id == user_id)
-                )
-                existing_token = result.scalar_one_or_none()
-
-                expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-
-                # Fail-fast: if Fernet isn't configured, surface a 500
-                # instead of silently storing plain tokens. Production
-                # always has TESLA_TOKEN_ENCRYPTION_KEY set; this only
-                # fires on misconfigured deployments.
-                encrypted_access = encryption.encrypt(access_token)
-                encrypted_refresh = encryption.encrypt(refresh_token)
-
-                if existing_token:
-                    existing_token.access_token = encrypted_access
-                    existing_token.refresh_token = encrypted_refresh
-                    existing_token.expires_at = expires_at
-                else:
-                    new_token = TeslaToken(
-                        user_id=user_id,
-                        access_token=encrypted_access,
-                        refresh_token=encrypted_refresh,
-                        expires_at=expires_at,
-                    )
-                    db.add(new_token)
-
-                await db.commit()
-
-        # Generate JWT token for the user
-        jwt_token = None
-        if user_id:
-            expires_minutes = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-            jwt_token = create_access_token(
-                data={"sub": str(user_id)},
-                expires_delta=timedelta(minutes=expires_minutes),
-            )
-
-        # Return success page for WebView
-        return HTMLResponse(
-            content=_render_callback_page(
-                success=True,
-                message="Tesla account linked successfully!",
-                user_id=user_id,
-                jwt_token=jwt_token,
-            ),
+        await _tesla_exchange_and_store(
+            code=code, code_verifier=code_verifier,
+            user_id=user_id, db=db,
         )
-
-    except Exception as e:
+    except TeslaAuthError as exc:
         return HTMLResponse(
             content=_render_callback_page(
-                success=False,
-                message=f"Authorization failed: {str(e)}",
+                success=False, message=str(exc),
             ),
             status_code=400,
         )
+
+    jwt_token = None
+    if user_id:
+        jwt_token = create_access_token(
+            data={"sub": str(user_id)},
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+
+    return HTMLResponse(
+        content=_render_callback_page(
+            success=True,
+            message="Tesla account linked successfully!",
+            user_id=user_id,
+            jwt_token=jwt_token,
+        ),
+    )
 
 
 @router.post("/tesla/callback", response_model=dict)
@@ -547,7 +494,9 @@ async def tesla_callback_post(
 ):
     """Handle Tesla OAuth callback (POST).
 
-    Used when Mini Program sends the callback data.
+    Used when an iOS native client OR the legacy Mini Program sends
+    the OAuth code as JSON. Same exchange + persist logic as the
+    GET handler, but JSON response.
     """
     state_data = _oauth_states.pop(request.state, None)
     if not state_data:
@@ -556,58 +505,25 @@ async def tesla_callback_post(
             detail="Invalid or expired state parameter",
         )
 
-    code_verifier = state_data["code_verifier"]
     target_user_id = user_id or state_data.get("user_id")
 
     try:
-        auth = TeslaAuth()
-        tokens = await auth.exchange_code(request.code, code_verifier)
-
-        access_token = tokens.get("access_token")
-        refresh_token = tokens.get("refresh_token")
-        expires_in = tokens.get("expires_in", 3600)
-
-        # Store in database if user_id provided
-        if target_user_id:
-            encryption = TokenEncryption()
-            expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-
-            # Fail-fast on encrypt failure (see /tesla/callback note).
-            encrypted_access = encryption.encrypt(access_token)
-            encrypted_refresh = encryption.encrypt(refresh_token)
-
-            # Check existing token
-            result = await db.execute(
-                select(TeslaToken).where(TeslaToken.user_id == target_user_id)
-            )
-            existing_token = result.scalar_one_or_none()
-
-            if existing_token:
-                existing_token.access_token = encrypted_access
-                existing_token.refresh_token = encrypted_refresh
-                existing_token.expires_at = expires_at
-            else:
-                new_token = TeslaToken(
-                    user_id=target_user_id,
-                    access_token=encrypted_access,
-                    refresh_token=encrypted_refresh,
-                    expires_at=expires_at,
-                )
-                db.add(new_token)
-
-            await db.commit()
-
-        return {
-            "success": True,
-            "message": "Tesla account linked successfully",
-            "expires_in": expires_in,
-        }
-
-    except Exception as e:
+        bundle = await _tesla_exchange_and_store(
+            code=request.code,
+            code_verifier=state_data["code_verifier"],
+            user_id=target_user_id,
+            db=db,
+        )
+    except TeslaAuthError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Token exchange failed: {str(e)}",
+            detail=str(exc),
         )
+    return {
+        "success": True,
+        "message": "Tesla account linked successfully",
+        "expires_in": bundle.expires_in,
+    }
 
 
 @router.post("/tesla/refresh")
@@ -616,52 +532,24 @@ async def tesla_refresh_token(
     user_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Refresh Tesla access token.
-
-    Args:
-        refresh_token: Refresh token
-        user_id: If provided, updates the stored token
-
-    Returns:
-        New token information
+    """Refresh a Tesla access token. If user_id is given, the stored
+    row is also updated.
     """
     try:
-        auth = TeslaAuth()
-        tokens = await auth.refresh_token(refresh_token)
-
-        new_access_token = tokens.get("access_token")
-        new_refresh_token = tokens.get("refresh_token")
-        expires_in = tokens.get("expires_in", 3600)
-
-        # Update in database if user_id provided
-        if user_id:
-            result = await db.execute(
-                select(TeslaToken).where(TeslaToken.user_id == user_id)
-            )
-            existing_token = result.scalar_one_or_none()
-
-            if existing_token:
-                encryption = TokenEncryption()
-                expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-
-                # Fail-fast on encrypt failure.
-                existing_token.access_token = encryption.encrypt(new_access_token)
-                existing_token.refresh_token = encryption.encrypt(new_refresh_token)
-                existing_token.expires_at = expires_at
-                await db.commit()
-
-        return {
-            "success": True,
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "expires_in": expires_in,
-        }
-
-    except Exception as e:
+        bundle = await _tesla_refresh_and_store(
+            refresh_token_in=refresh_token, user_id=user_id, db=db,
+        )
+    except TeslaAuthError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Token refresh failed: {str(e)}",
+            detail=str(exc),
         )
+    return {
+        "success": True,
+        "access_token": bundle.access_token,
+        "refresh_token": bundle.refresh_token,
+        "expires_in": bundle.expires_in,
+    }
 
 
 @router.get("/tesla/status")
