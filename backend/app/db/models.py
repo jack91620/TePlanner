@@ -112,6 +112,37 @@ class AutomationRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ScheduledDeparture(Base):
+    """Phase A.3 — user's planned next departure.
+
+    Mirrors iOS Sources/TePlannerKit/Models/ScheduledDeparture.swift —
+    one active row per user, latest write replaces (UNIQUE user_id).
+    iOS targets a specific vehicle via ``vehicle_id``; the cron tick
+    consumer reads this row to dispatch the preheat reminder
+    ``lead_minutes`` ahead of ``departure_at_utc``.
+
+    Recurring departures (work commute, etc.) aren't modelled here — a
+    future ``repeats_dow_bitmask INT`` column would extend it without
+    touching the API.
+    """
+
+    __tablename__ = "scheduled_departure"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False,
+        unique=True, index=True,
+    )
+    vehicle_id = Column(String(64), nullable=True)
+    label = Column(String(64), nullable=True)
+    departure_at_utc = Column(DateTime, nullable=False)
+    lead_minutes = Column(Integer, nullable=False, default=15)
+    target_charge_soc = Column(Integer, nullable=True)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AutomationSnooze(Base):
     """Phase A.1 — per-rule snooze ledger.
 

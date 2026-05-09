@@ -1,0 +1,23 @@
+# Phase A.3 + (future A.5) — /api/v1/user/* contract.
+# All endpoints require auth; we test the unauth-401 shape only.
+
+# 1. GET /user/scheduled-departure without auth → 401
+GET {{base_url}}/api/v1/user/scheduled-departure
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists
+
+
+# 2. PUT /user/scheduled-departure without auth → 401
+PUT {{base_url}}/api/v1/user/scheduled-departure
+Content-Type: application/json
+{
+  "departure_at_utc": "2030-01-01T08:00:00",
+  "lead_minutes": 15
+}
+HTTP 401
+
+
+# 3. DELETE /user/scheduled-departure without auth → 401
+DELETE {{base_url}}/api/v1/user/scheduled-departure
+HTTP 401
