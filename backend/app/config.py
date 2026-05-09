@@ -113,6 +113,12 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        # Pydantic v2 default rejects unknown env vars. Production
+        # `.env` carries infra-only keys (OPENCLAW_HOOK_URL /
+        # OPENCLAW_HOOK_TOKEN for the alert webhook) that the
+        # backend code doesn't reference — silently ignore them so
+        # an env-only addition doesn't crash startup.
+        extra = "ignore"
 
 
 settings = Settings()
