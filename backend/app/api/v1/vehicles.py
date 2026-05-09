@@ -13,112 +13,12 @@ from app.core.deps import get_current_user, get_db, get_tesla_client
 from app.db.models import User, Vehicle
 from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
-from app.services.capabilities import dispatch as capability_dispatch
-from app.services.capabilities.base import CapabilityCallContext
+from app.services.vehicle_commands import (
+    invoke_capability as _invoke_capability,
+    resolve_vin as _resolve_vin,
+)
 
 router = APIRouter()
-
-
-async def _invoke_capability(
-    capability_id: str,
-    vehicle_id: str,
-    params: dict,
-    user: User,
-    tesla_client: TeslaClient,
-    db: AsyncSession,
-    require_vin: bool = True,
-) -> dict:
-    """Shared HTTP-side dispatch helper. Resolves VIN (if required),
-    builds a CapabilityCallContext, calls the registry, translates
-    Tesla SDK exceptions to HTTP status codes consistently across
-    every command endpoint.
-    """
-    vin = await _resolve_vin(vehicle_id, user, db) if require_vin else None
-    ctx = CapabilityCallContext(
-        vehicle_id=vehicle_id,
-        vin=vin,
-        tesla_client=tesla_client,
-        user_id=user.id,
-    )
-
-    # Phase 10 — if the car is offline (per cached telemetry
-    # connectivity), respect the capability's dispatch_policy:
-    #   queue           → write CommandQueue row, return 202
-    #   drop_if_offline → 503 immediately (preheat / navigation)
-    #   force / unknown → fall through to normal dispatch
-    if vin:
-        from app.services.capabilities import get as get_capability
-        from app.services.command_queue import connectivity_state, enqueue
-        cap = get_capability(capability_id)
-        conn = await connectivity_state(db, user.id, vin)
-        if cap is not None and conn == "DISCONNECTED":
-            policy = cap.dispatch_policy
-            if policy == "drop_if_offline":
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Vehicle offline; this command can't be queued.",
-                )
-            if policy == "queue":
-                row = await enqueue(
-                    db,
-                    user_id=user.id, vin=vin,
-                    capability_id=capability_id,
-                    params=params,
-                    dispatch_policy=policy,
-                )
-                await db.commit()
-                return {
-                    "success": True,
-                    "queued": True,
-                    "queued_command_id": row.id,
-                    "message": "Vehicle offline. Command will run on next connect.",
-                }
-
-    try:
-        async with tesla_client:
-            result = await capability_dispatch(capability_id, ctx, params)
-    except TeslaVehicleOfflineError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Vehicle is offline. Please wake up the vehicle first.",
-        )
-    except TeslaAPIError as e:
-        raise HTTPException(
-            status_code=e.status_code or 500,
-            detail=f"Tesla API error: {str(e)}",
-        )
-    if not result.success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result.error or "Capability invocation failed",
-        )
-
-    # Phase 9 — write a CommandPending row so the resolver can confirm
-    # via the next telemetry frame. Capabilities without observable
-    # telemetry (preheat, navigation, set_charge_limit) declare an
-    # empty expected_state and write_pending no-ops.
-    pending_id: Optional[int] = None
-    if vin:
-        from app.services.capabilities import get as get_capability
-        from app.services.automation.pending_resolver import write_pending
-        cap = get_capability(capability_id)
-        if cap is not None:
-            expected = cap.expected_state(params)
-            row = await write_pending(
-                db,
-                user_id=user.id,
-                vehicle_id=vin,
-                capability_id=capability_id,
-                expected=expected,
-            )
-            if row is not None:
-                await db.commit()
-                pending_id = row.id
-
-    out = {"success": True, **(result.data or {})}
-    if pending_id is not None:
-        out["pending_command_id"] = pending_id
-    return out
 
 
 class VehicleResponse(BaseModel):
@@ -423,34 +323,7 @@ async def wake_vehicle(
         )
 
 
-async def _resolve_vin(
-    vehicle_id: str,
-    user: User,
-    db: AsyncSession,
-) -> str:
-    """Look up the VIN for a Tesla vehicle ID.
-
-    Tesla's Vehicle Command Protocol (VCP) requires VIN — the
-    deprecated REST endpoints accepted either id or VIN, but
-    tesla-http-proxy / signed commands route on VIN. We keep the
-    iOS contract on numeric vehicle_id (matches what list_vehicles
-    returns) and resolve to VIN here.
-
-    Raises 404 when the vehicle isn't tied to the requesting user.
-    """
-    result = await db.execute(
-        select(Vehicle).where(
-            Vehicle.user_id == user.id,
-            Vehicle.vehicle_id == vehicle_id,
-        )
-    )
-    veh = result.scalar_one_or_none()
-    if not veh or not veh.vin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vehicle {vehicle_id} not found or has no VIN",
-        )
-    return veh.vin
+# _resolve_vin moved to app/services/vehicle_commands.resolve_vin (re-exported above as _resolve_vin for back-compat).
 
 
 @router.post("/{vehicle_id}/climate-keeper-mode")
