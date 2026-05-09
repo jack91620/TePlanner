@@ -1,0 +1,16 @@
+Alembic migrations for TePlanner backend.
+
+Run from `backend/` (the dir alembic.ini lives in):
+
+  alembic upgrade head             # apply all pending migrations
+  alembic current                  # show current revision
+  alembic history                  # show revision graph
+  alembic revision -m "msg"        # new empty revision
+  alembic revision --autogenerate -m "msg"   # diff Base.metadata vs DB
+
+Bootstrap on an existing DB (one-time):
+  alembic stamp head               # mark current schema as up-to-date
+
+Baseline (0001_baseline) reflects the schema produced by
+`Base.metadata.create_all` at the moment Alembic was introduced. Every
+subsequent schema change must ship as a new versioned migration.
