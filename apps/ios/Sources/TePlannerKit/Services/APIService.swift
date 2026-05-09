@@ -29,32 +29,42 @@ public final class APIService: APIServiceProtocol {
         enc.dateEncodingStrategy = .iso8601
         self.encoder = enc
         let dec = JSONDecoder()
-        // Pydantic returns datetimes as ISO 8601. Default Date decoding
-        // expects unix seconds — without this, Phase 5/9/10 endpoints
-        // returning `since` / `dispatched_at` / `queued_at` fail to
-        // decode silently. Custom strategy handles both
-        // ``2026-05-08T07:55:40+00:00`` and ``...Z`` shapes.
-        dec.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let s = try container.decode(String.self)
-            let isoFractional = ISO8601DateFormatter()
-            isoFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let d = isoFractional.date(from: s) { return d }
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime]
-            if let d = iso.date(from: s) { return d }
-            // Pydantic's default with no tz suffix: 2026-05-08T07:55:40
-            let plain = DateFormatter()
-            plain.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-            plain.timeZone = TimeZone(secondsFromGMT: 0)
-            if let d = plain.date(from: s) { return d }
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unrecognized date format: \(s)"
-            )
-        }
+        dec.dateDecodingStrategy = .custom(APIService.decodePydanticDate)
         self.decoder = dec
         self.tokenProvider = tokenProvider
+    }
+
+    /// Pydantic v2 emits dates in five ish flavors and Apple's
+    /// strict ISO8601 doesn't cover all of them. Try in order:
+    ///   1. ISO 8601 with fractional + tz: ``2026-05-08T07:55:40.123Z``
+    ///   2. ISO 8601 with tz, no fractional: ``2026-05-08T07:55:40+00:00``
+    ///   3. Plain ``yyyy-MM-dd'T'HH:mm:ss`` (no tz, no fractional)
+    ///   4. Plain w/ fractional stripped: ``2026-05-09T09:26:35.704923``
+    ///      → re-try (3) on the prefix before the dot. Microsecond
+    ///      precision isn't load-bearing for snooze/audit fields.
+    /// Exposed `internal` so tests can validate every shape without
+    /// going through APIService.init's URLSession plumbing.
+    static func decodePydanticDate(decoder: Decoder) throws -> Date {
+        let container = try decoder.singleValueContainer()
+        let s = try container.decode(String.self)
+        let isoFractional = ISO8601DateFormatter()
+        isoFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = isoFractional.date(from: s) { return d }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: s) { return d }
+        let plain = DateFormatter()
+        plain.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        plain.timeZone = TimeZone(secondsFromGMT: 0)
+        if let d = plain.date(from: s) { return d }
+        if let dot = s.firstIndex(of: ".") {
+            let truncated = String(s[..<dot])
+            if let d = plain.date(from: truncated) { return d }
+        }
+        throw DecodingError.dataCorruptedError(
+            in: container,
+            debugDescription: "Unrecognized date format: \(s)"
+        )
     }
 
     private static var bundleBackendURL: String? {
@@ -295,6 +305,28 @@ public final class APIService: APIServiceProtocol {
             body: Body(rule_ids: ruleIds, clear: clear),
         )
         return result.map { $0.rules }
+    }
+
+    // MARK: - Phase D.3 — scheduled departure
+
+    public func fetchScheduledDeparture() async -> Result<ScheduledDepartureResponse?, APIError> {
+        // Server returns either a body or top-level `null` when the
+        // user has no row. JSONDecoder handles optional unwrap natively
+        // for `Optional<Decodable>` so a single get<...?> works.
+        return await get(path: "/user/scheduled-departure")
+    }
+
+    public func upsertScheduledDeparture(
+        _ departure: ScheduledDeparture
+    ) async -> Result<ScheduledDepartureResponse, APIError> {
+        return await putJSON(
+            path: "/user/scheduled-departure",
+            body: ScheduledDepartureRequest(departure),
+        )
+    }
+
+    public func clearScheduledDeparture() async -> Result<BaseResponse, APIError> {
+        return await delete(path: "/user/scheduled-departure")
     }
 
     // MARK: - Internals

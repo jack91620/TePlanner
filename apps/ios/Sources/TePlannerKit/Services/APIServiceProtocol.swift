@@ -111,4 +111,13 @@ public protocol APIServiceProtocol {
     func reorderAutomations(
         ruleIds: [String], clear: Bool
     ) async -> Result<[RuleRecord], APIError>
+
+    // Phase D.3 — server-canonical scheduled departure. Replaces
+    // UserDefaultsScheduledDepartureStore.
+    /// Returns nil when the user has no row.
+    func fetchScheduledDeparture() async -> Result<ScheduledDepartureResponse?, APIError>
+    func upsertScheduledDeparture(
+        _ departure: ScheduledDeparture
+    ) async -> Result<ScheduledDepartureResponse, APIError>
+    func clearScheduledDeparture() async -> Result<BaseResponse, APIError>
 }

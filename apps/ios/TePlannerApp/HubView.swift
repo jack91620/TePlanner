@@ -17,11 +17,11 @@ struct HubView: View {
     @StateObject private var rulesStore: AutomationRulesStore
     @StateObject private var statsViewModel: ChargingStatsViewModel
     @StateObject private var snoozeStore: BackendSnoozeStore
+    @StateObject private var departureStore: BackendScheduledDepartureStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
     private let chargingTracker: ChargingSessionTracker
-    private let departureStore: ScheduledDepartureStore
     @State private var showingUnbindConfirm = false
     @State private var showingDepartureSheet = false
     @State private var scheduledDeparture: ScheduledDeparture?
@@ -73,8 +73,8 @@ struct HubView: View {
             settings: UserDefaultsSettingsStore.shared
         ))
         _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel())
+        _departureStore = StateObject(wrappedValue: BackendScheduledDepartureStore(apiService: apiService))
         self.chargingTracker = ChargingSessionTracker()
-        self.departureStore = UserDefaultsScheduledDepartureStore.shared
         self.apiService = apiService
         self.authSession = authSession
     }
@@ -135,6 +135,7 @@ struct HubView: View {
             await refreshCommandStatuses()
             chargingTracker.observe(viewModel.vehicleState, locationName: viewModel.locationName)
             statsViewModel.refresh()
+            await departureStore.refresh()
             scheduledDeparture = departureStore.current()
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
@@ -190,21 +191,39 @@ struct HubView: View {
         .onChange(of: automationEngine.alerts) { _, alerts in
             LocalNotificationScheduler.shared.applyAlerts(alerts)
         }
+        .onReceive(departureStore.changesPublisher) { _ in
+            // Backend refresh / save / clear flowed back — re-derive
+            // the UI's @State copy. The local notification scheduler
+            // is driven from the same source of truth.
+            scheduledDeparture = departureStore.current()
+        }
         .sheet(isPresented: $showingDepartureSheet) {
             ScheduledDepartureSheet(
                 existing: scheduledDeparture,
                 vehicleId: viewModel.vehicle?.id,
                 onSave: { entry in
-                    departureStore.save(entry)
-                    scheduledDeparture = entry
-                    LocalNotificationScheduler.shared.schedulePreheat(for: entry)
-                    Log.app.notice("departure saved at \(entry.departureAt, privacy: .public)")
+                    Task {
+                        let ok = await departureStore.save(entry)
+                        if ok {
+                            scheduledDeparture = departureStore.current()
+                            LocalNotificationScheduler.shared.schedulePreheat(for: entry)
+                            Log.app.notice("departure saved at \(entry.departureAt, privacy: .public)")
+                        } else {
+                            alertActionError = "出行计划保存失败，请稍后重试"
+                        }
+                    }
                 },
                 onClear: scheduledDeparture == nil ? nil : {
-                    departureStore.clear()
-                    scheduledDeparture = nil
-                    LocalNotificationScheduler.shared.cancelPreheat()
-                    Log.app.notice("departure cleared")
+                    Task {
+                        let ok = await departureStore.clear()
+                        if ok {
+                            scheduledDeparture = nil
+                            LocalNotificationScheduler.shared.cancelPreheat()
+                            Log.app.notice("departure cleared")
+                        } else {
+                            alertActionError = "出行计划清除失败，请稍后重试"
+                        }
+                    }
                 }
             )
         }

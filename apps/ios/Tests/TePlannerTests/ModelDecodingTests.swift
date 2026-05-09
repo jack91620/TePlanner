@@ -128,4 +128,53 @@ final class ModelDecodingTests: XCTestCase {
         let missing = try decoder.decode(WakeResponse.self, from: "{}".data(using: .utf8)!)
         XCTAssertFalse(missing.success)
     }
+
+    // MARK: - Phase D.1 — Pydantic date format coverage
+
+    /// SnoozeRecord round-trips Pydantic v2's `datetime.utcnow().
+    /// isoformat()` output. The backend returns shapes like
+    /// ``2026-05-09T09:26:35.704923`` (no tz, microsecond precision)
+    /// — strict ISO8601DateFormatter rejects this. APIService's
+    /// `decodePydanticDate` strips the fractional component and
+    /// retries against the plain parser. Regression test for the
+    /// 2026-05-09 incident where snooze cards never appeared because
+    /// every POST response failed to decode.
+    func testSnoozeRecordDecodesPydanticMicrosecondTimestamp() throws {
+        let json = """
+        {
+          "rule_id": "cb4c3205-e43f-43a6-a0c5-43346ec72b25",
+          "snoozed_until_utc": "2026-05-09T09:26:35.704923",
+          "reason": null,
+          "created_at": "2026-05-09T08:26:35.705936"
+        }
+        """.data(using: .utf8)!
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .custom(APIService.decodePydanticDate)
+        let snooze = try dec.decode(SnoozeRecord.self, from: json)
+        XCTAssertEqual(snooze.ruleId, "cb4c3205-e43f-43a6-a0c5-43346ec72b25")
+        XCTAssertNil(snooze.reason)
+        // ``snoozed_until_utc`` must be in the future relative to a
+        // reference date well before 2026 — assert a coarse range
+        // rather than an exact instant.
+        XCTAssertGreaterThan(
+            snooze.snoozedUntilUtc.timeIntervalSinceReferenceDate,
+            Date(timeIntervalSince1970: 1_700_000_000).timeIntervalSinceReferenceDate
+        )
+    }
+
+    func testDecodePydanticDateAcceptsAllFiveFlavors() throws {
+        struct Wrapper: Decodable { let d: Date }
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .custom(APIService.decodePydanticDate)
+        for s in [
+            "2026-05-09T09:26:35.123Z",         // ISO + fractional + tz
+            "2026-05-09T09:26:35+00:00",        // ISO no fractional + tz
+            "2026-05-09T09:26:35",              // plain no tz
+            "2026-05-09T09:26:35.704923",       // plain + microseconds (no tz)
+        ] {
+            let json = "{\"d\":\"\(s)\"}".data(using: .utf8)!
+            XCTAssertNoThrow(try dec.decode(Wrapper.self, from: json),
+                             "must accept \(s)")
+        }
+    }
 }

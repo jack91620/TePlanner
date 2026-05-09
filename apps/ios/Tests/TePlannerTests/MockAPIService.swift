@@ -309,4 +309,44 @@ final class MockAPIService: APIServiceProtocol {
         reorderCalls.append((ruleIds, clear))
         return mockReorderResponse ?? .success([])
     }
+
+    // Phase D.3 — scheduled departure
+    var mockScheduledDepartureResponse: Result<ScheduledDepartureResponse?, APIError> =
+        .success(nil)
+    var mockUpsertScheduledDepartureResponse: Result<ScheduledDepartureResponse, APIError>?
+    var mockClearScheduledDepartureResponse: Result<BaseResponse, APIError> =
+        .success(BaseResponse(success: true, message: "ok"))
+    private(set) var upsertScheduledDepartureCalls: [ScheduledDeparture] = []
+    private(set) var clearScheduledDepartureCallCount: Int = 0
+    private(set) var fetchScheduledDepartureCallCount: Int = 0
+
+    func fetchScheduledDeparture() async -> Result<ScheduledDepartureResponse?, APIError> {
+        fetchScheduledDepartureCallCount += 1
+        return mockScheduledDepartureResponse
+    }
+
+    func upsertScheduledDeparture(
+        _ departure: ScheduledDeparture
+    ) async -> Result<ScheduledDepartureResponse, APIError> {
+        upsertScheduledDepartureCalls.append(departure)
+        if let preset = mockUpsertScheduledDepartureResponse { return preset }
+        let resp = ScheduledDepartureResponse(
+            id: 1,
+            departureAtUtc: departure.departureAt,
+            leadMinutes: departure.leadTimeMinutes,
+            label: departure.label,
+            vehicleId: departure.vehicleId,
+            targetChargeSoc: nil,
+            enabled: true,
+            fireAtUtc: departure.fireAt,
+            createdAt: Date(),
+            updatedAt: Date(),
+        )
+        return .success(resp)
+    }
+
+    func clearScheduledDeparture() async -> Result<BaseResponse, APIError> {
+        clearScheduledDepartureCallCount += 1
+        return mockClearScheduledDepartureResponse
+    }
 }

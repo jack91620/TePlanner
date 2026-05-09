@@ -1,5 +1,75 @@
 import Foundation
 
+/// Phase D.3 — wire shape returned by GET/PUT /user/scheduled-departure.
+/// iOS converts to/from the in-app `ScheduledDeparture` value type.
+public struct ScheduledDepartureResponse: Codable, Equatable, Sendable {
+    public let id: Int
+    public let departureAtUtc: Date
+    public let leadMinutes: Int
+    public let label: String?
+    public let vehicleId: String?
+    public let targetChargeSoc: Int?
+    public let enabled: Bool
+    public let fireAtUtc: Date
+    public let createdAt: Date?
+    public let updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case departureAtUtc = "departure_at_utc"
+        case leadMinutes = "lead_minutes"
+        case label
+        case vehicleId = "vehicle_id"
+        case targetChargeSoc = "target_charge_soc"
+        case enabled
+        case fireAtUtc = "fire_at_utc"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
+    public func toDomain() -> ScheduledDeparture? {
+        guard enabled else { return nil }
+        return ScheduledDeparture(
+            label: label,
+            departureAt: departureAtUtc,
+            leadTimeMinutes: leadMinutes,
+            vehicleId: vehicleId,
+        )
+    }
+}
+
+public struct ScheduledDepartureRequest: Codable, Equatable, Sendable {
+    public let departureAtUtc: Date
+    public let leadMinutes: Int
+    public let label: String?
+    public let vehicleId: String?
+    public let targetChargeSoc: Int?
+    public let enabled: Bool
+
+    public init(
+        _ departure: ScheduledDeparture,
+        enabled: Bool = true,
+        targetChargeSoc: Int? = nil
+    ) {
+        self.departureAtUtc = departure.departureAt
+        self.leadMinutes = departure.leadTimeMinutes
+        self.label = departure.label
+        self.vehicleId = departure.vehicleId
+        self.targetChargeSoc = targetChargeSoc
+        self.enabled = enabled
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case departureAtUtc = "departure_at_utc"
+        case leadMinutes = "lead_minutes"
+        case label
+        case vehicleId = "vehicle_id"
+        case targetChargeSoc = "target_charge_soc"
+        case enabled
+    }
+}
+
+
 /// A user-set "I plan to leave at <time>, remind me to start preheat
 /// N minutes before" entry. There's only ever one active at a time —
 /// new schedules overwrite old ones to keep the model simple. If we
