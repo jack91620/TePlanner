@@ -220,14 +220,24 @@ class TelemetryStateWriter:
             AutomationState.user_id == user_id,
             AutomationState.vehicle_id == vehicle_id,
             AutomationState.key == key,
-        )
-        row = (await db.execute(stmt)).scalar_one_or_none()
-        if row is None:
+        ).order_by(AutomationState.id.desc())
+        # 2026-05-10 — was scalar_one_or_none() but historical writes
+        # produced duplicate (user, vehicle, key) rows when concurrent
+        # telemetry messages raced (no UNIQUE constraint on the table).
+        # The MultipleResultsFound from scalar_one_or_none then halted
+        # the consumer for hours, leaving stale values that triggered
+        # ghost alerts. Take the latest row by id, and self-heal any
+        # extras as we encounter them.
+        rows = (await db.execute(stmt)).scalars().all()
+        if not rows:
             db.add(AutomationState(
                 user_id=user_id,
                 vehicle_id=vehicle_id,
                 key=key,
                 value=value,
             ))
-        else:
-            row.value = value
+            return
+        rows[0].value = value
+        if len(rows) > 1:
+            for stale in rows[1:]:
+                await db.delete(stale)
