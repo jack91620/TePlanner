@@ -31,12 +31,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import TokenEncryption
-from app.db.models import TeslaToken, User
+from app.db.models import TeslaToken, User, Vehicle
 from app.integrations.tesla.auth import TeslaAuth
+from app.integrations.tesla.client import TeslaClient
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,12 @@ async def exchange_and_store(
 
     Raises TeslaAuthError if the upstream call fails or the response
     is missing tokens.
+
+    Note: caller should follow up with `dedup_anon_by_vin()` to merge
+    anonymous test-user accounts that already share a VIN with an
+    existing user. That step is intentionally separate so callers
+    that already know they're a real user (e.g. POST /auth/login
+    flow) can skip the extra Tesla API call.
     """
     try:
         tokens = await TeslaAuth().exchange_code(code, code_verifier)
@@ -99,6 +106,94 @@ async def exchange_and_store(
         refresh_token=refresh,
         expires_in=expires_in,
     )
+
+
+async def dedup_anon_by_vin(
+    db: AsyncSession,
+    user_id: int,
+    access_token: str,
+) -> int:
+    """If the just-OAuth'd `user_id` is anonymous AND another user
+    already owns the same Tesla VIN, merge: re-point the new
+    TeslaToken to the canonical user, delete the anon user, return
+    canonical id. Otherwise return `user_id` unchanged.
+
+    Why: iOS first-launch hits `/auth/tesla/authorize` without a
+    `user_id` → backend creates anon `android_<uuid>@test.local` →
+    OAuth completes → real Tesla VIN is now bound to a fresh anon.
+    Without dedup, every install / keychain wipe / sim reset spawns
+    a new orphan account on the same VIN. Audit on 2026-05-10
+    found 139 such users on a single VIN. This call closes the leak.
+
+    Only triggers for anon users (`@test.local` email) so that an
+    explicit "link my real account to my Tesla" flow from a real user
+    is left alone. Soft-fails on Tesla API errors — never breaks the
+    OAuth flow.
+    """
+    # 1. Is the requesting user anonymous? Real users are left alone.
+    requesting = (
+        await db.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
+    if requesting is None:
+        return user_id
+    if not (requesting.email or "").endswith("@test.local"):
+        return user_id
+
+    # 2. Ask Tesla for the bound vehicle list. Soft-fail on any error.
+    try:
+        client = TeslaClient(access_token=access_token)
+        async with client:
+            response = await client.list_vehicles()
+    except Exception as exc:
+        logger.warning("dedup_anon_by_vin: list_vehicles failed: %s", exc)
+        return user_id
+
+    vehicles = (response or {}).get("response", []) or []
+    vins = [(v.get("vin") or "").strip() for v in vehicles if v.get("vin")]
+    if not vins:
+        return user_id
+
+    # 3. For each VIN, find any other user already bound. Pick the
+    #    OLDEST other user_id (smallest id) as canonical.
+    canonical: Optional[int] = None
+    for vin in vins:
+        other = (await db.execute(
+            select(Vehicle.user_id)
+            .where(Vehicle.vin == vin)
+            .where(Vehicle.user_id != user_id)
+            .order_by(Vehicle.user_id.asc())
+            .limit(1)
+        )).scalar_one_or_none()
+        if other is not None:
+            canonical = other
+            break
+
+    if canonical is None:
+        # First time this VIN is seen — keep the new anon as canonical.
+        return user_id
+
+    logger.info(
+        "dedup_anon_by_vin: merging anon user %s (email=%s) → canonical user %s "
+        "(VIN already bound)",
+        user_id, requesting.email, canonical,
+    )
+
+    # 4. Re-point the freshly-created TeslaToken to canonical.
+    #    Drop canonical's old TeslaToken first (the new tokens are
+    #    fresher; refresh would happen on next API call anyway).
+    await db.execute(delete(TeslaToken).where(TeslaToken.user_id == canonical))
+    await db.execute(
+        update(TeslaToken).where(TeslaToken.user_id == user_id).values(user_id=canonical)
+    )
+
+    # 5. Delete the anon user. It was just created during this OAuth
+    #    flow so it owns nothing else (no rules, no sessions, no
+    #    device tokens). If the assumption ever breaks (sleep + retry
+    #    races a parallel session), fall back to a noisy log + abort
+    #    — better to leave a few orphan rows than corrupt canonical.
+    await db.execute(delete(User).where(User.id == user_id))
+    await db.commit()
+    return canonical
 
 
 async def refresh_and_store(

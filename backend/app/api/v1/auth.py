@@ -416,7 +416,7 @@ async def tesla_callback(
     user_id = state_data.get("user_id")
 
     try:
-        await _tesla_exchange_and_store(
+        bundle = await _tesla_exchange_and_store(
             code=code, code_verifier=code_verifier,
             user_id=user_id, db=db,
         )
@@ -426,6 +426,15 @@ async def tesla_callback(
                 success=False, message=str(exc),
             ),
             status_code=400,
+        )
+
+    # 2026-05-10 — dedup anonymous users that share a VIN with an
+    # existing account. Returns the canonical user_id (may differ
+    # from `user_id` if merge happened).
+    if user_id is not None:
+        from app.services.tesla_auth_service import dedup_anon_by_vin
+        user_id = await dedup_anon_by_vin(
+            db=db, user_id=user_id, access_token=bundle.access_token,
         )
 
     jwt_token = None
@@ -478,10 +487,19 @@ async def tesla_callback_post(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         )
+
+    # 2026-05-10 — dedup anonymous users by VIN; see GET handler comment.
+    if target_user_id is not None:
+        from app.services.tesla_auth_service import dedup_anon_by_vin
+        target_user_id = await dedup_anon_by_vin(
+            db=db, user_id=target_user_id, access_token=bundle.access_token,
+        )
+
     return {
         "success": True,
         "message": "Tesla account linked successfully",
         "expires_in": bundle.expires_in,
+        "user_id": target_user_id,
     }
 
 
