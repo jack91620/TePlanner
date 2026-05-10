@@ -438,6 +438,41 @@ class AutomationEngine:
         is_critical = alert is not None and alert.severity == AlertSeverity.CRITICAL
 
         if is_critical and active is None:
+            # P0 hot fix (2026-05-10): the engine flaps is_on true/false
+            # when polling vehicle_state has transient gaps, which
+            # historically created a NEW PushedAlert + push on every
+            # flap (50 pushes / 9 min observed for user 241). Even
+            # though the active row was cleared, recreating it within
+            # a short window is almost always the same condition
+            # re-firing. Suppress new rows when a recent (cleared or
+            # not) row exists for this kind.
+            from datetime import timedelta
+            REPUSH_GUARD = timedelta(minutes=15)
+            recent_stmt = (
+                select(PushedAlert)
+                .where(
+                    PushedAlert.user_id == user_id,
+                    PushedAlert.vehicle_id == vehicle_id,
+                    PushedAlert.kind == kind.value,
+                )
+                .order_by(PushedAlert.pushed_at.desc())
+                .limit(1)
+            )
+            most_recent = (await db.execute(recent_stmt)).scalar_one_or_none()
+            if most_recent is not None and (
+                utc_now().replace(tzinfo=None) - most_recent.pushed_at
+            ) < REPUSH_GUARD:
+                # Re-open the existing row instead of creating + pushing.
+                # The condition is still considered active; we just
+                # don't spam APNs/JPush for the same kind within the
+                # guard window.
+                most_recent.cleared_at = None
+                logger.info(
+                    "PushedAlert re-push suppressed (within %s window): "
+                    "user=%s vehicle=%s kind=%s",
+                    REPUSH_GUARD, user_id, vehicle_id, kind.value,
+                )
+                return "noop"
             db.add(PushedAlert(
                 user_id=user_id,
                 vehicle_id=vehicle_id,
