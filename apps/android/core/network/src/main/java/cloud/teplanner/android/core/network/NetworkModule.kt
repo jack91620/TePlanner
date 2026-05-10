@@ -94,4 +94,19 @@ object NetworkModule {
     @Singleton
     fun provideRoutesApi(retrofit: Retrofit): RoutesApi =
         retrofit.create(RoutesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDevicesApi(retrofit: Retrofit): DevicesApi =
+        retrofit.create(DevicesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi =
+        retrofit.create(UserApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSessionsApi(retrofit: Retrofit): SessionsApi =
+        retrofit.create(SessionsApi::class.java)
 }

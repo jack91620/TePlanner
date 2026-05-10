@@ -1,11 +1,13 @@
 package cloud.teplanner.android.auth
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.teplanner.android.core.network.AuthApi
 import cloud.teplanner.android.core.network.EmailLoginRequest
 import cloud.teplanner.android.core.network.EmailRegisterRequest
 import cloud.teplanner.android.core.network.TokenStore
+import cloud.teplanner.android.push.PushRegistrar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,9 +28,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class AuthSession @Inject constructor(
+    app: Application,
     private val authApi: AuthApi,
     private val tokenStore: TokenStore,
-) : ViewModel() {
+) : AndroidViewModel(app) {
 
     sealed interface LoginUiState {
         data object Idle : LoginUiState
@@ -44,6 +47,14 @@ class AuthSession @Inject constructor(
 
     private val _account = MutableStateFlow(currentAccount())
     val account: StateFlow<Account?> = _account.asStateFlow()
+
+    init {
+        // App cold-start with cached token: replay device registration in
+        // case JPush already has a registration_id (from a prior session).
+        if (isAuthenticated) {
+            PushRegistrar.registerIfPossible(getApplication())
+        }
+    }
 
     val isAuthenticated: Boolean
         get() = tokenStore.accessToken != null
@@ -63,6 +74,7 @@ class AuthSession @Inject constructor(
                     tokenStore.save(resp.accessToken, resp.userId, resp.email)
                     _account.value = Account(resp.userId, resp.email, resp.nickname)
                     _state.value = LoginUiState.Success
+                    PushRegistrar.registerIfPossible(getApplication())
                 },
                 onFailure = { err ->
                     _state.value = LoginUiState.Error(
@@ -89,6 +101,7 @@ class AuthSession @Inject constructor(
                     tokenStore.save(resp.accessToken, resp.userId, resp.email)
                     _account.value = Account(resp.userId, resp.email, resp.nickname)
                     _state.value = LoginUiState.Success
+                    PushRegistrar.registerIfPossible(getApplication())
                 },
                 onFailure = { err ->
                     _state.value = LoginUiState.Error(

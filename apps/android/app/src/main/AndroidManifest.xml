@@ -49,7 +49,25 @@
             android:value="${AMAP_API_KEY}" />
         <service android:name="com.amap.api.location.APSService" />
 
-        <!-- JPush meta-data lands in F.4. -->
+        <!-- JPush — F.4。AppKey + channel 由 manifestPlaceholders 注入。 -->
+        <service
+            android:name="cloud.teplanner.android.push.AppCommonService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":pushcore">
+            <intent-filter>
+                <action android:name="cn.jiguang.user.service.action" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name="cloud.teplanner.android.push.JPushReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="cn.jpush.android.intent.RECEIVE_MESSAGE" />
+                <category android:name="${applicationId}" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

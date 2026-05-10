@@ -51,7 +51,9 @@ android {
         // keeps the manifest declarative + lets per-flavor overrides
         // change keys without manifest edits.
         manifestPlaceholders["AMAP_API_KEY"] = amapKey
-        manifestPlaceholders["JPUSH_APP_KEY"] = jpushAppKey
+        // JPush SDK manifest uses ${JPUSH_APPKEY} (no underscore between
+        // APP and KEY) and ${JPUSH_CHANNEL}. Both are required.
+        manifestPlaceholders["JPUSH_APPKEY"] = jpushAppKey
         manifestPlaceholders["JPUSH_CHANNEL"] = "developer-default"
     }
 
@@ -148,9 +150,10 @@ dependencies {
         exclude(group = "com.amap.api", module = "location")
     }
 
-    // JPush — Phase F.4 推送注册时引入。同上,F.0 跳过。
-    // implementation("cn.jiguang.sdk:jpush:5.6.1")
-    // implementation("cn.jiguang.sdk:jcore:4.8.5")
+    // JPush — Phase F.4. AppKey reads from BuildConfig.JPUSH_APP_KEY
+    // which is sourced from local.properties.
+    implementation("cn.jiguang.sdk:jpush:5.6.1")
+    implementation("cn.jiguang.sdk:jcore:4.8.5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
