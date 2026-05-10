@@ -69,10 +69,11 @@ struct AutomationsHomeView: View {
                         ruleRow(record)
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                     }
+                    .onMove { from, to in moveBucket(.preset, from: from, to: to) }
                 } header: {
                     Text("预设 · \(presetRules.count)")
                 } footer: {
-                    Text("左滑静音、长按弹出更多操作（含上移 / 下移 / 复制）；右上角钟形图标可查看历史触发。")
+                    Text("右滑静音、长按拖动调整顺序；预设规则不可删除。")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -90,6 +91,7 @@ struct AutomationsHomeView: View {
                                 }
                             }
                     }
+                    .onMove { from, to in moveBucket(.custom, from: from, to: to) }
                 }
             }
             if let err = workingError {
@@ -249,50 +251,13 @@ struct AutomationsHomeView: View {
         } label: {
             ruleRowLabel(record)
         }
-        .contextMenu {
-            Button {
-                Task {
-                    let ok = await rulesStore.update(
-                        id: record.id, enabled: !record.enabled,
-                    )
-                    if !ok { workingError = rulesStore.lastError }
-                }
-            } label: {
-                if record.enabled {
-                    Label("停用", systemImage: "pause.circle")
-                } else {
-                    Label("启用", systemImage: "play.circle")
-                }
-            }
-            Divider()
-            Button {
-                moveRule(record, by: -1)
-            } label: {
-                Label("上移", systemImage: "arrow.up")
-            }
-            .disabled(!canMove(record, by: -1))
-            Button {
-                moveRule(record, by: 1)
-            } label: {
-                Label("下移", systemImage: "arrow.down")
-            }
-            .disabled(!canMove(record, by: 1))
-            Divider()
-            Button {
-                pendingDuplicate = record
-            } label: {
-                Label("复制为新规则", systemImage: "plus.square.on.square")
-            }
-            snoozeMenu(for: record)
-            if record.presetId == nil {
-                Divider()
-                Button(role: .destructive) {
-                    pendingDelete = record
-                } label: {
-                    Label("删除", systemImage: "trash")
-                }
-            }
-        }
+        // No .contextMenu here — long-press is reserved for native
+        // drag-to-reorder (.onMove on the parent ForEach). The
+        // previous menu's actions all have other entry points:
+        //   启用 / 停用 → row-trailing Toggle
+        //   静音       → leading swipe + RuleDetail's snooze section
+        //   复制       → "+" toolbar button picks from preset templates
+        //   删除       → trailing swipe (custom rules only)
     }
 
     /// True iff the rule has a sibling in the same section it could
@@ -308,15 +273,32 @@ struct AutomationsHomeView: View {
         return target >= 0 && target < bucket.count
     }
 
-    /// Move a rule one position in its section. delta = -1 = up,
-    /// +1 = down. Phase D.2 persists via PUT /automations/order on the
-    /// backend (display_order column); the response is the freshly
-    /// sorted full list which AutomationRulesStore swaps into its
-    /// cache so the UI re-renders.
-    ///
-    /// We send the full ordered list (preset + custom rows merged in
-    /// the order they currently appear) so positions stay stable
-    /// across mixed buckets.
+    private enum Bucket { case preset, custom }
+
+    /// Native drag-to-reorder handler. SwiftUI gives us the source
+    /// index set + destination index *within the section*. We slice
+    /// the bucket, apply the move, then merge back into a full list
+    /// that PUTs to /automations/order — same shape as the legacy
+    /// up/down menu path that this replaces.
+    private func moveBucket(_ bucket: Bucket, from source: IndexSet, to destination: Int) {
+        var ordered = (bucket == .preset ? presetRules : customRules)
+        ordered.move(fromOffsets: source, toOffset: destination)
+        let merged = (bucket == .preset)
+            ? ordered + customRules
+            : presetRules + ordered
+        // Defensive: any rules that didn't make the merge (shouldn't
+        // happen if buckets cover all rules) get appended so the
+        // server-side reorder PUT is well-formed.
+        let mergedIds = Set(merged.map(\.id))
+        let stragglers = rulesStore.rules.filter { !mergedIds.contains($0.id) }
+        let payload = (merged + stragglers).map(\.id)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task { await rulesStore.reorder(ruleIds: payload) }
+    }
+
+    /// Legacy up/down move — kept as private helper in case we want
+    /// to expose it elsewhere (e.g. accessibility custom action).
+    /// Mostly obsolete now that drag-to-reorder is the primary path.
     private func moveRule(_ record: RuleRecord, by delta: Int) {
         let bucket = record.presetId == nil ? customRules : presetRules
         guard let idx = bucket.firstIndex(where: { $0.id == record.id }) else {

@@ -18,12 +18,10 @@ struct MapHomeView: View {
     @State private var routeState: RouteState = .empty
     @State private var recenterToken: Int = 0
     @State private var showingPlanningSettings = false
-    /// Drives the bottom drawer .sheet — must flip false on
-    /// .onDisappear so popping back to Hub doesn't leave the
-    /// 附近 / 最近 sheet stuck on top of the parent. Was previously
-    /// `.constant(true)` which kept iOS' presentation tree pinned
-    /// past the navigation pop and surfaced the drawer over Hub.
-    @State private var drawerVisible = false
+    /// Drawer height — fraction of screen height. Toggles between
+    /// peek (0.28) and expanded (0.66) when user taps the chevron.
+    /// Drag gesture on the handle adjusts within those bounds.
+    @State private var drawerExpanded = false
     private let alongRoutePOIService = AlongRoutePOIService()
 
     enum RouteState {
@@ -47,24 +45,36 @@ struct MapHomeView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            AMapVehicleMapView(
-                coordinate: viewModel.coordinate.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) },
-                vehicleTitle: viewModel.displayName ?? "我的 Tesla",
-                batteryLevel: viewModel.batteryLevel,
-                route: routeState.loadedPlan,
-                recenterToken: recenterToken
-            )
-            .ignoresSafeArea()
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                AMapVehicleMapView(
+                    coordinate: viewModel.coordinate.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) },
+                    vehicleTitle: viewModel.displayName ?? "我的 Tesla",
+                    batteryLevel: viewModel.batteryLevel,
+                    route: routeState.loadedPlan,
+                    recenterToken: recenterToken
+                )
+                .ignoresSafeArea()
 
-            VStack {
-                Spacer()
-                HStack {
+                VStack {
                     Spacer()
-                    recenterButton
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 240)
+                    HStack {
+                        Spacer()
+                        recenterButton
+                            .padding(.trailing, 16)
+                            .padding(.bottom, drawerHeight(in: geo) + 16)
+                    }
                 }
+
+                inlineDrawer
+                    .frame(height: drawerHeight(in: geo))
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.12), radius: 8, y: -2)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .ignoresSafeArea(edges: .bottom)
             }
         }
         .navigationTitle("充电规划")
@@ -101,9 +111,52 @@ struct MapHomeView: View {
         .sheet(isPresented: $showingPlanningSettings) {
             RoutePlanningSettingsSheet()
         }
-        .onAppear { drawerVisible = true }
-        .onDisappear { drawerVisible = false }
-        .sheet(isPresented: $drawerVisible) {
+        .sheet(isPresented: $showingSearch) {
+            SearchView(service: AMapPOISearchService()) { result in
+                Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
+                startRouteLoad(result)
+            }
+        }
+        .sheet(item: $pendingStation) { station in
+            ChargingStationDetailView(station: station) { picked in
+                startRouteLoad(POIResult(
+                    id: picked.id,
+                    name: picked.name,
+                    address: picked.address ?? "",
+                    latitude: picked.latitude,
+                    longitude: picked.longitude
+                ))
+            }
+        }
+    }
+
+    /// Inline bottom drawer — no `.sheet()`, lives inside the map's
+    /// ZStack. Replaces the previous `.sheet(isPresented:)` which
+    /// occasionally outlived the navigation pop and stranded the
+    /// drawer over HubView. By being a direct child of MapHomeView
+    /// the drawer dies with the view.
+    private var inlineDrawer: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+                    drawerExpanded.toggle()
+                }
+            } label: {
+                VStack(spacing: 4) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.4))
+                        .frame(width: 38, height: 5)
+                    Image(systemName: drawerExpanded ? "chevron.down" : "chevron.up")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(drawerExpanded ? "收起" : "展开")
+
             HomeBottomSheet(
                 mode: drawerMode,
                 apiService: apiService,
@@ -128,28 +181,12 @@ struct MapHomeView: View {
                     routeState = .empty
                 }
             )
-            .presentationDetents([.height(220), .medium, .large])
-            .presentationBackgroundInteraction(.enabled(upThrough: .large))
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled()
-            .sheet(isPresented: $showingSearch) {
-                SearchView(service: AMapPOISearchService()) { result in
-                    Log.app.notice("destination picked: \(result.name, privacy: .public) (\(result.latitude), \(result.longitude))")
-                    startRouteLoad(result)
-                }
-            }
-            .sheet(item: $pendingStation) { station in
-                ChargingStationDetailView(station: station) { picked in
-                    startRouteLoad(POIResult(
-                        id: picked.id,
-                        name: picked.name,
-                        address: picked.address ?? "",
-                        latitude: picked.latitude,
-                        longitude: picked.longitude
-                    ))
-                }
-            }
         }
+    }
+
+    private func drawerHeight(in geo: GeometryProxy) -> CGFloat {
+        let h = geo.size.height
+        return drawerExpanded ? h * 0.66 : h * 0.30
     }
 
     private var drawerMode: HomeBottomSheet.Mode {
