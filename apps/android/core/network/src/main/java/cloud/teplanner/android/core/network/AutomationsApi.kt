@@ -31,4 +31,7 @@ interface AutomationsApi {
 
     @DELETE("api/v1/automations/{id}/snooze")
     suspend fun unsnooze(@Path("id") id: String): BaseResponse
+
+    @PUT("api/v1/automations/order")
+    suspend fun reorder(@Body body: ReorderRequest): RuleListResponse
 }

@@ -125,6 +125,9 @@ dependencies {
     // F.2 — :core:network exposes JsonObject + we pretty-print rule
     // specs in the detail screen.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // Compose drag-to-reorder for the automation list — mirrors iOS
+    // List + .onMove. Compose stdlib doesn't ship one.
+    implementation("sh.calvin.reorderable:reorderable:2.4.0")
 
     // DI
     implementation("com.google.dagger:hilt-android:2.51.1")

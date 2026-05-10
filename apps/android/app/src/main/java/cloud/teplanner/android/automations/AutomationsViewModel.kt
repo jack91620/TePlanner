@@ -3,6 +3,7 @@ package cloud.teplanner.android.automations
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.teplanner.android.core.network.AutomationsApi
+import cloud.teplanner.android.core.network.ReorderRequest
 import cloud.teplanner.android.core.network.RuleResponse
 import cloud.teplanner.android.core.network.RuleUpdateRequest
 import cloud.teplanner.android.core.network.SnoozeRecord
@@ -107,6 +108,30 @@ class AutomationsViewModel @Inject constructor(
             runCatching { api.delete(ruleId) }.onFailure {
                 _state.update { s -> s.copy(rules = previous, error = "删除失败：${it.message}") }
             }
+        }
+    }
+
+    /// Persist a new display order. Mirrors iOS `AutomationRulesStore.reorder`.
+    /// Caller passes the full ordered id list (preset + custom merged); the
+    /// PUT response is the freshly-sorted full list which we swap in.
+    fun reorder(orderedIds: List<String>) {
+        val previous = _state.value.rules
+        // Optimistic local sort by id index — keeps UI snappy during the
+        // round-trip; server response replaces with the canonical order.
+        val byId = previous.associateBy { it.id }
+        val sorted = orderedIds.mapNotNull { byId[it] } +
+            previous.filter { it.id !in orderedIds.toSet() }
+        _state.update { it.copy(rules = sorted) }
+        viewModelScope.launch {
+            runCatching { api.reorder(ReorderRequest(ruleIds = orderedIds)) }
+                .onSuccess { resp ->
+                    _state.update { it.copy(rules = resp.rules) }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(rules = previous, error = "排序失败：${err.message}")
+                    }
+                }
         }
     }
 

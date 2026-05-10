@@ -59,3 +59,9 @@ data class BaseResponse(
     val success: Boolean,
     val message: String? = null,
 )
+
+@Serializable
+data class ReorderRequest(
+    @SerialName("rule_ids") val ruleIds: List<String>,
+    val clear: Boolean = false,
+)
