@@ -158,10 +158,11 @@ async def ensure_presets_seeded(db: AsyncSession, user_id: int) -> int:
       ALL_PRESETS list reaches existing users on their next list
       fetch — no schema migration needed.
 
-    Newly-backfilled presets default to ``enabled=False`` so we don't
-    surprise existing users with rules they never opted into. The
-    one-shot first-seeding path keeps ``enabled=True`` (matches the
-    historical behaviour for fresh accounts).
+    All seeded presets default to ``enabled=False`` — both first-time
+    and backfill paths. User feedback (2026-05-10): the auto-enabled
+    behaviour surprised people with notifications they never opted
+    into. The list view's prominent green toggle makes opting in a
+    single tap so the cost of the change is low.
 
     Returns the number of preset rows inserted on this call.
     """
@@ -181,10 +182,7 @@ async def ensure_presets_seeded(db: AsyncSession, user_id: int) -> int:
             user_id=user_id,
             preset_id=preset.preset_id,
             name=preset.name,
-            # First-seed: enable by default (the user just signed up).
-            # Backfill: leave disabled — existing users see the new
-            # row but choose whether to turn it on themselves.
-            enabled=is_first_seed,
+            enabled=False,
             spec_json=json.dumps(preset.spec, ensure_ascii=False),
             version=1,
         ))
