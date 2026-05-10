@@ -31,18 +31,18 @@ struct AutomationsHomeView: View {
         _capabilitiesStore = StateObject(wrappedValue: CapabilitiesStore(apiService: apiService))
     }
 
-    /// kinds (e.g. "camp_mode", "sentry_mode") whose conditions are
-    /// currently true on the server. A rule row is shown as "正在触发"
-    /// iff its spec.kind is in this set. iOS used kind-based matching
-    /// (not ruleId) historically because alerts come from the engine
-    /// pre-D.6 — keeping that contract for back-compat.
-    private var firingKinds: Set<String> {
-        Set(automationEngine.alerts.map { $0.kind.rawValue })
+    /// 2026-05-10 — replaced the client-side AutomationEngine.alerts
+    /// kind-match with the server-supplied `record.isFiring` field
+    /// (RuleResponse.is_firing on the wire). The engine path was a
+    /// dead loop because applyServerAlerts was never called outside
+    /// of unit tests. Backend computes liveness centrally so all 3
+    /// platforms get one truth.
+    private func isFiring(_ record: RuleRecord) -> Bool {
+        record.isFiring
     }
 
-    private func isFiring(_ record: RuleRecord) -> Bool {
-        guard let kind = record.spec.string("kind") else { return false }
-        return firingKinds.contains(kind)
+    private var firingRules: [RuleRecord] {
+        rulesStore.rules.filter { $0.isFiring }
     }
 
     @ViewBuilder
@@ -53,20 +53,6 @@ struct AutomationsHomeView: View {
         // else: nil → SwiftUI default list row background
     }
 
-    private var firingRuleNames: [String] {
-        let kinds = firingKinds
-        // Prefer rule names (user-customized), fall back to alert title
-        // for kinds that don't map to any current rule (shouldn't
-        // normally happen but covers transient cache mismatch).
-        return automationEngine.alerts.map { alert in
-            if let rule = rulesStore.rules.first(where: {
-                $0.spec.string("kind") == alert.kind.rawValue
-            }) {
-                return rule.name
-            }
-            return alert.title
-        }
-    }
 
     var body: some View {
         List {
@@ -79,7 +65,7 @@ struct AutomationsHomeView: View {
             } else if rulesStore.rules.isEmpty && !rulesStore.isLoading {
                 emptyStateSection
             }
-            if !automationEngine.alerts.isEmpty {
+            if !firingRules.isEmpty {
                 Section {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -88,9 +74,9 @@ struct AutomationsHomeView: View {
                             .padding(8)
                             .background(Color.red, in: Circle())
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(automationEngine.alerts.count) 条规则正在触发")
+                            Text("\(firingRules.count) 条规则正在触发")
                                 .font(.subheadline.weight(.semibold))
-                            Text(firingRuleNames.joined(separator: " · "))
+                            Text(firingRules.map(\.name).joined(separator: " · "))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)

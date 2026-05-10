@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -60,6 +60,17 @@ class RuleResponse(BaseModel):
     # canonical preset/created-at ordering". iOS reads this on each
     # refresh and renders rules in server order.
     display_order: Optional[int] = None
+    # 2026-05-10 — server-computed "currently firing" flag, replaces
+    # the iOS-side kind-matching workaround. v1 heuristic: enabled
+    # rule fired within the last 30 minutes. Real per-trigger-type
+    # liveness check (state_duration: query latest telemetry against
+    # threshold; state_transition: dismissed flag) lands when the
+    # alert ledger gets an `acknowledged_at` column. Until then the
+    # heuristic works because state_duration alerts re-fire on each
+    # tick the condition is still true, and state_transition alerts
+    # are explicitly time-bound by user attention.
+    is_firing: bool = False
+    firing_since: Optional[datetime] = None
 
 
 class RuleListResponse(BaseModel):
@@ -78,10 +89,18 @@ class RuleUpdateRequest(BaseModel):
     spec: Optional[dict] = None
 
 
+_FIRING_WINDOW_MINUTES = 30
+
+
 def _row_to_response(
     row: AutomationRule,
     last_fired_at: Optional[datetime] = None,
 ) -> RuleResponse:
+    is_firing = bool(
+        row.enabled
+        and last_fired_at is not None
+        and last_fired_at >= datetime.utcnow() - timedelta(minutes=_FIRING_WINDOW_MINUTES)
+    )
     return RuleResponse(
         id=row.id,
         preset_id=row.preset_id,
@@ -92,6 +111,8 @@ def _row_to_response(
         updated_at=row.updated_at,
         last_fired_at=last_fired_at,
         display_order=row.display_order,
+        is_firing=is_firing,
+        firing_since=last_fired_at if is_firing else None,
     )
 
 

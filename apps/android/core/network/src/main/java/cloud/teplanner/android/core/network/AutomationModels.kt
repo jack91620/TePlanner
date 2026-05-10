@@ -20,6 +20,12 @@ data class RuleResponse(
     val version: Int = 1,
     @SerialName("last_fired_at") val lastFiredAt: String? = null,
     @SerialName("display_order") val displayOrder: Int? = null,
+    /** 2026-05-10 — server-computed liveness flag. true iff the rule
+     *  has fired within the last 30 minutes (heuristic to be refined
+     *  once alert-acknowledged tracking lands). Both iOS and Android
+     *  read this directly; no client-side join required. */
+    @SerialName("is_firing") val isFiring: Boolean = false,
+    @SerialName("firing_since") val firingSince: String? = null,
 )
 
 @Serializable

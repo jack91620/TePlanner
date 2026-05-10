@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -242,15 +243,18 @@ private fun RuleRowCard(
     onToggle: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
+    val firing = rule.isFiring
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDragging)
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            else MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = when {
+                isDragging -> MaterialTheme.colorScheme.surfaceContainerHigh
+                firing -> Color(0xFFFFE5E5)  // 12% red wash, mirrors iOS
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            },
         ),
     ) {
         Row(
@@ -258,16 +262,46 @@ private fun RuleRowCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                imageVector = if (snooze != null) Icons.Filled.NotificationsOff
-                              else Icons.Filled.Notifications,
-                contentDescription = null,
-                tint = if (snooze != null) MaterialTheme.colorScheme.tertiary
-                       else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
-            )
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        if (firing) Color(0xFFD32F2F) else Color.Transparent,
+                        shape = RoundedCornerShape(8.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = when {
+                        firing -> Icons.Filled.Warning
+                        snooze != null -> Icons.Filled.NotificationsOff
+                        else -> Icons.Filled.Notifications
+                    },
+                    contentDescription = null,
+                    tint = when {
+                        firing -> Color.White
+                        snooze != null -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.size(if (firing) 22.dp else 28.dp),
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
-                Text(rule.name, style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(rule.name, style = MaterialTheme.typography.bodyLarge)
+                    if (firing) {
+                        Text(
+                            "正在触发",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .background(Color(0xFFD32F2F),
+                                            shape = RoundedCornerShape(50))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
                 if (snooze != null) {
                     Text(
                         "已静音至 ${snooze.snoozedUntilUtc.take(16).replace('T', ' ')}",

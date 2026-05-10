@@ -198,6 +198,13 @@ Schemes:
   when they have a clear semantic (e.g. "no POIs in this segment").
   Saved as `feedback_fail_fast.md` in memory — applies project-wide.
 - JSON wire format pinned by `ModelDecodingTests`.
+- **Cross-platform feature spec**: any feature that touches more than
+  one client (iOS / Android / Harmony) gets a doc under
+  `docs/features/<slice>.md` using `docs/features/_template.md`.
+  The doc is the single PR-blocking artifact: backend endpoints +
+  per-platform acceptance + Maestro flow path. Catches the "iOS first,
+  Android port later, both drift" failure mode. See
+  `docs/features/firing-indicator.md` as a worked example.
 
 ## Architecture cheat sheet
 

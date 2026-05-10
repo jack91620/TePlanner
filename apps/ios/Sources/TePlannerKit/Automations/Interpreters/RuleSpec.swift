@@ -30,6 +30,13 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
     /// so iOS preserves order as-received and only writes back via
     /// `PUT /automations/order` on user drag/move.
     public let displayOrder: Int?
+    /// 2026-05-10 — server-computed "currently firing" flag.
+    /// Replaces the old client-side kind-matching against
+    /// AutomationEngine.alerts (which never received data outside
+    /// of unit tests). Defaults to false on legacy responses that
+    /// don't include the field, so older builds keep building.
+    public let isFiring: Bool
+    public let firingSince: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -40,6 +47,8 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         case version
         case lastFiredAt = "last_fired_at"
         case displayOrder = "display_order"
+        case isFiring = "is_firing"
+        case firingSince = "firing_since"
     }
 
     public init(
@@ -50,7 +59,9 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         spec: RuleSpec,
         version: Int = 1,
         lastFiredAt: Date? = nil,
-        displayOrder: Int? = nil
+        displayOrder: Int? = nil,
+        isFiring: Bool = false,
+        firingSince: Date? = nil
     ) {
         self.id = id
         self.presetId = presetId
@@ -60,5 +71,21 @@ public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
         self.version = version
         self.lastFiredAt = lastFiredAt
         self.displayOrder = displayOrder
+        self.isFiring = isFiring
+        self.firingSince = firingSince
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.presetId = try c.decodeIfPresent(String.self, forKey: .presetId)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.enabled = try c.decode(Bool.self, forKey: .enabled)
+        self.spec = try c.decode(RuleSpec.self, forKey: .spec)
+        self.version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        self.lastFiredAt = try c.decodeIfPresent(Date.self, forKey: .lastFiredAt)
+        self.displayOrder = try c.decodeIfPresent(Int.self, forKey: .displayOrder)
+        self.isFiring = try c.decodeIfPresent(Bool.self, forKey: .isFiring) ?? false
+        self.firingSince = try c.decodeIfPresent(Date.self, forKey: .firingSince)
     }
 }
