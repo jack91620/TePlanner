@@ -1,0 +1,9 @@
+# TePlanner 每日运维巡检 — 每天 08:03 Asia/Shanghai（系统已 CST，直接用本地时分）
+#
+# 部署：
+#   sudo cp ops/cron/teplanner-daily-inspection.cron /etc/cron.d/teplanner-daily-inspection
+#
+# 不能放进 user crontab —— /home/ubuntu/ops/daily-inspection.sh 需要写
+# /home/ubuntu/.openclaw/workspace/HEARTBEAT.md，但用户级 cron 在登录会话外
+# 跑时 PATH 异常、TZ 异常。系统 cron 提供的环境更稳。
+3 8 * * * ubuntu /home/ubuntu/ops/daily-inspection.sh >> /home/ubuntu/ops/state/inspection.log 2>&1

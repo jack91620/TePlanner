@@ -29,6 +29,16 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
 uvicorn_access.addHandler(handler)
 
+# Forward ERROR+ logs to OpenClaw → WeChat. URL/token are env-only
+# (Settings.Config.extra="ignore"), so we read os.environ directly.
+# Silently no-op when not configured (dev / CI runs).
+import os as _os
+from app.utils.openclaw_alert import install as _install_openclaw_alerts
+_install_openclaw_alerts(
+    url=_os.environ.get("OPENCLAW_HOOK_URL"),
+    token=_os.environ.get("OPENCLAW_HOOK_TOKEN"),
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -28,16 +28,73 @@ STATE_DIR="$OPS_HOME/state"
 SNAP_DIR="$STATE_DIR/snapshots"
 INC_LOG="$STATE_DIR/incidents.log"
 RESTART_COUNTER="$STATE_DIR/restart-counter"
+ALERT_DEDUP_FILE="$STATE_DIR/alert-dedup.tsv"
 SERVER_LOG="/home/ubuntu/TePlanner/backend/server.log"
 HEALTH_URL="https://api.teplanner.cloud/health"
+
+# Load webhook credentials from alert.env (missing file = local log only)
+ALERT_ENV_FILE="${ALERT_ENV_FILE:-/home/ubuntu/ops/alert.env}"
+if [ -f "$ALERT_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$ALERT_ENV_FILE"
+fi
+OPENCLAW_HOOK_URL="${OPENCLAW_HOOK_URL:-}"
+OPENCLAW_HOOK_TOKEN="${OPENCLAW_HOOK_TOKEN:-}"
+ALERT_DEDUP_WINDOW_S="${ALERT_DEDUP_WINDOW_S:-3600}"
 
 mkdir -p "$SNAP_DIR"
 TS_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TS_FILE="$(date -u +%Y%m%dT%H%M%SZ)"
 
+# Send alert to OpenClaw /hooks/agent → WeChat direct delivery.
+# Per-signature 1h dedup prevents flooding. Best-effort: silently skipped
+# when webhook env is unset or gateway is unreachable.
+notify_alert() {
+    local signature="$1"; shift
+    local text="$*"
+    [ -z "$OPENCLAW_HOOK_URL" ] && return 0
+    [ -z "$OPENCLAW_HOOK_TOKEN" ] && return 0
+
+    local now cutoff last
+    now="$(date -u +%s)"
+    cutoff=$((now - ALERT_DEDUP_WINDOW_S))
+    if [ -f "$ALERT_DEDUP_FILE" ]; then
+        last="$(awk -F'\t' -v sig="$signature" '$1==sig {print $2}' "$ALERT_DEDUP_FILE" | tail -1)"
+        if [ -n "$last" ] && [ "$last" -ge "$cutoff" ]; then
+            return 0
+        fi
+    fi
+
+    # Update dedup file atomically
+    {
+        if [ -f "$ALERT_DEDUP_FILE" ]; then
+            awk -F'\t' -v cutoff="$cutoff" -v sig="$signature" \
+                '$1!=sig && $2>=cutoff' "$ALERT_DEDUP_FILE"
+        fi
+        printf '%s\t%s\n' "$signature" "$now"
+    } > "$ALERT_DEDUP_FILE.tmp" && mv "$ALERT_DEDUP_FILE.tmp" "$ALERT_DEDUP_FILE"
+
+    local payload
+    payload="$(jq -n \
+        --arg m "[teplanner-monitor] $text" \
+        '{message:$m, name:"teplanner-alert", deliver:true, channel:"openclaw-weixin", to:"o9cq8048r-As7icF_Ty1Q2INOYe0@im.wechat"}')"
+    curl -s -m 4 -o /dev/null \
+        -X POST "$OPENCLAW_HOOK_URL/agent" \
+        -H "Authorization: Bearer $OPENCLAW_HOOK_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$payload" || true
+}
+
 log_event() {
     local kind="$1"; shift
-    echo "$TS_ISO $kind $*" >> "$INC_LOG"
+    local body="$*"
+    echo "$TS_ISO $kind $body" >> "$INC_LOG"
+    if [ "$kind" = "ALERT" ]; then
+        # Normalize numbers in signature to avoid "99999s" vs "100000s" mismatches
+        local sig
+        sig="$(echo "$body" | sed -E 's/[0-9]+/N/g' | cut -c1-60)"
+        notify_alert "$sig" "$body"
+    fi
 }
 
 # --- 1. health probe ----------------------------------------------------------
@@ -51,42 +108,29 @@ UVICORN_ALIVE="false"
 [ -n "$UVICORN_PID" ] && UVICORN_ALIVE="true"
 
 # --- 3. polling / cron tick recency ------------------------------------------
-# Phase 6 renamed `polling.py` → `cron_tick.py`. The post-rename code
-# emits "cron tick complete users=N polled=N failed=N" once per tick.
-# Match BOTH strings so the watchdog works during a forward-rolled
-# deploy (new code) AND if anyone ever rolls back (old code). Without
-# this dual match, the loop reported `pollingAgeS=99999` indefinitely
-# and triggered an empty restart every hour — see ops/reports/2026-05-09.md.
+# Backend runs under systemd (StandardOutput=journal) so server.log is no
+# longer being written. Source of truth is now journald. Match both old
+# `polling tick complete` and new `cron tick complete` event names so this
+# works across rolled-forward and rolled-back deploys.
+# History: pre-systemd this read server.log; that path produced ~17 false
+# `polling frozen` restarts in 24h on 2026-05-10 because server.log mtime
+# froze at backend startup. See ops/reports/2026-05-10.md.
 POLLING_FRESH="unknown"
-if [ -f "$SERVER_LOG" ]; then
-    # -a forces text mode — server.log occasionally contains stray
-    # bytes from upstream Tesla SDK that grep otherwise refuses,
-    # turning matches into the literal string "Binary file matches".
-    LAST_TICK_LINE="$(grep -aE 'polling tick complete|cron tick complete' "$SERVER_LOG" | tail -1 || true)"
-    if [ -n "$LAST_TICK_LINE" ]; then
-        # Two log formats coexist depending on whether structlog is
-        # wired this boot:
-        #   JSON: {"event":"polling tick complete","timestamp":"2026-05-08T05:25:04.596542Z",...}
-        #   Plain: 2026-05-08 02:32:50 - INFO - app.services.polling - polling tick complete: ...
-        # Try JSON first; on parse failure fall back to extracting the
-        # leading "YYYY-MM-DD HH:MM:SS" prefix.
-        LAST_TICK_TS="$(echo "$LAST_TICK_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('timestamp',''))" 2>/dev/null || true)"
-        if [ -z "$LAST_TICK_TS" ]; then
-            LAST_TICK_TS="$(echo "$LAST_TICK_LINE" | awk '{print $1" "$2}')"
-        fi
-        LAST_TICK_EPOCH="$(date -d "$LAST_TICK_TS" +%s 2>/dev/null || echo 0)"
-        NOW_EPOCH="$(date +%s)"
-        AGE_S=$((NOW_EPOCH - LAST_TICK_EPOCH))
-        if [ "$AGE_S" -lt 900 ]; then
-            POLLING_FRESH="true"
-        else
-            POLLING_FRESH="false"
-        fi
+LAST_TICK_LINE="$(journalctl -u teplanner-backend --since '20 min ago' --no-pager -o short-iso 2>/dev/null \
+    | grep -aE 'cron tick complete|polling tick complete' | tail -1 || true)"
+if [ -n "$LAST_TICK_LINE" ]; then
+    # short-iso format: 2026-05-10T08:58:22+0800 host service[pid]: ...
+    LAST_TICK_TS="$(echo "$LAST_TICK_LINE" | awk '{print $1}')"
+    LAST_TICK_EPOCH="$(date -d "$LAST_TICK_TS" +%s 2>/dev/null || echo 0)"
+    NOW_EPOCH="$(date +%s)"
+    AGE_S=$((NOW_EPOCH - LAST_TICK_EPOCH))
+    if [ "$AGE_S" -lt 900 ]; then
+        POLLING_FRESH="true"
     else
         POLLING_FRESH="false"
-        AGE_S=99999
     fi
 else
+    POLLING_FRESH="false"
     AGE_S=99999
 fi
 
@@ -155,7 +199,7 @@ restart_backend() {
         return 1
     fi
     log_event ACTION "restarting backend: $reason"
-    cd /home/ubuntu/TePlanner/backend && yes y | bash start.sh -d -s >> "$INC_LOG" 2>&1 || true
+    sudo systemctl restart teplanner-backend >> "$INC_LOG" 2>&1 || true
     record_restart "$reason"
     return 0
 }
