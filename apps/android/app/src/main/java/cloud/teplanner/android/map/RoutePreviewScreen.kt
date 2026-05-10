@@ -161,11 +161,10 @@ fun RoutePreviewScreen(
                     query = destinationQuery,
                     onQueryChange = { q ->
                         destinationQuery = q
-                        vm.search(q, around = state.origin?.let {
-                            cloud.teplanner.android.core.network.Coordinate(
-                                it.latitude, it.longitude,
-                            )
-                        })
+                        // Origin bias would 0-out cross-country searches
+                        // (backend search_nearby is radius-bounded). Do
+                        // a nationwide keyword search instead.
+                        vm.search(q, around = null)
                     },
                     isSearching = state.isSearching,
                     results = state.searchResults,
