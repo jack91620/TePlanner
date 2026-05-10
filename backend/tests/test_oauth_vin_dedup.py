@@ -8,12 +8,18 @@ orphan on the same VIN — 139 such users on a single VIN as of
 time so the leak doesn't recur.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import select
 from unittest.mock import patch, AsyncMock
 
 from app.db.models import TeslaToken, User, Vehicle
 from app.services.tesla_auth_service import dedup_anon_by_vin
+
+
+def _expires():
+    return datetime.utcnow() + timedelta(hours=8)
 
 
 @pytest.fixture
@@ -72,6 +78,7 @@ async def test_dedup_merges_anon_into_canonical(db_session, anon_user, canonical
     db_session.add(TeslaToken(
         user_id=anon_user.id, access_token="encrypted_new",
         refresh_token="encrypted_refresh_new",
+        expires_at=_expires(),
     ))
     await db_session.commit()
 
@@ -110,6 +117,7 @@ async def test_dedup_skips_real_user(db_session, real_user, canonical_user):
     ))
     db_session.add(TeslaToken(
         user_id=real_user.id, access_token="enc", refresh_token="enc",
+        expires_at=_expires(),
     ))
     await db_session.commit()
 
@@ -133,6 +141,7 @@ async def test_dedup_keeps_anon_when_vin_is_new(db_session, anon_user):
     """First time this VIN is seen → no merge. Anon stays as canonical."""
     db_session.add(TeslaToken(
         user_id=anon_user.id, access_token="enc", refresh_token="enc",
+        expires_at=_expires(),
     ))
     await db_session.commit()
 
