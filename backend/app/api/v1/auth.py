@@ -348,7 +348,15 @@ async def tesla_authorize(
 
     created_user_id = user_id
 
-    # If no user_id provided, create an anonymous user
+    # If no user_id provided, create an anonymous user.
+    #
+    # WARN: this path historically leaked 242 test users into prod
+    # (user did `auth/tesla/authorize` from iOS without keychain
+    # user_id → fresh anon → bound to real Tesla VIN). Cleaned up on
+    # 2026-05-10. The OAuth callback should dedupe the anon user
+    # against existing users bound to the same VIN — TODO, tracked in
+    # docs/features/. Until then, log every anon creation so we can
+    # spot the leak rate.
     if not user_id:
         anonymous_email = f"android_{uuid.uuid4().hex[:8]}@test.local"
         new_user = User(
@@ -359,6 +367,12 @@ async def tesla_authorize(
         await db.commit()
         await db.refresh(new_user)
         created_user_id = new_user.id
+        import logging
+        logging.getLogger(__name__).warning(
+            "anonymous user created via /auth/tesla/authorize: id=%s email=%s "
+            "(no user_id passed; expected if first-time iOS login but suspicious otherwise)",
+            new_user.id, anonymous_email,
+        )
 
     auth = TeslaAuth()
     result = auth.get_authorization_url()
