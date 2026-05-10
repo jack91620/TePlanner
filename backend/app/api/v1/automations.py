@@ -338,11 +338,11 @@ async def delete_rule(
     row = (await db.execute(stmt)).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "rule not found")
-    if row.preset_id is not None:
-        raise HTTPException(
-            400,
-            "preset rules cannot be deleted; disable them instead",
-        )
+    # Preset rules used to be undeletable here ("disable them instead"),
+    # but real-device feedback was that users want to remove presets they
+    # don't use. Deletion is now allowed across the board; the iOS list
+    # gates with a confirmation dialog. A future "restore presets" entry
+    # in settings can re-seed them if regretted.
     await db.delete(row)
     await db.flush()
     logger.info("user %s deleted rule %s", user.id, rule_id)

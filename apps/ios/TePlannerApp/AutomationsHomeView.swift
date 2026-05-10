@@ -129,12 +129,19 @@ struct AutomationsHomeView: View {
                         ruleRow(record)
                             .listRowBackground(rowBackground(for: record))
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    pendingDelete = record
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
                     }
                     .onMove { from, to in moveBucket(.preset, from: from, to: to) }
                 } header: {
                     Text("预设 · \(presetRules.count)")
                 } footer: {
-                    Text("右滑静音、长按拖动调整顺序；预设规则不可删除。")
+                    Text("右滑静音、左滑删除、长按拖动调整顺序。")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
