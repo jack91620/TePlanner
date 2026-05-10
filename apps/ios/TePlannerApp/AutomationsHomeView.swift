@@ -13,6 +13,7 @@ struct AutomationsHomeView: View {
     @ObservedObject var rulesStore: AutomationRulesStore
     @StateObject private var capabilitiesStore: CapabilitiesStore
     @ObservedObject private var snoozeStore: BackendSnoozeStore
+    @ObservedObject private var automationEngine: AutomationEngine
     @State private var showingBuilder = false
     @State private var workingError: String?
     @State private var pendingDelete: RuleRecord?
@@ -22,11 +23,49 @@ struct AutomationsHomeView: View {
 
     private let apiService: APIServiceProtocol
 
-    init(rulesStore: AutomationRulesStore, apiService: APIServiceProtocol, snoozeStore: BackendSnoozeStore) {
+    init(rulesStore: AutomationRulesStore, apiService: APIServiceProtocol, snoozeStore: BackendSnoozeStore, automationEngine: AutomationEngine) {
         self.rulesStore = rulesStore
         self.apiService = apiService
         self.snoozeStore = snoozeStore
+        self.automationEngine = automationEngine
         _capabilitiesStore = StateObject(wrappedValue: CapabilitiesStore(apiService: apiService))
+    }
+
+    /// kinds (e.g. "camp_mode", "sentry_mode") whose conditions are
+    /// currently true on the server. A rule row is shown as "正在触发"
+    /// iff its spec.kind is in this set. iOS used kind-based matching
+    /// (not ruleId) historically because alerts come from the engine
+    /// pre-D.6 — keeping that contract for back-compat.
+    private var firingKinds: Set<String> {
+        Set(automationEngine.alerts.map { $0.kind.rawValue })
+    }
+
+    private func isFiring(_ record: RuleRecord) -> Bool {
+        guard let kind = record.spec.string("kind") else { return false }
+        return firingKinds.contains(kind)
+    }
+
+    @ViewBuilder
+    private func rowBackground(for record: RuleRecord) -> some View {
+        if isFiring(record) {
+            Color.red.opacity(0.12)
+        }
+        // else: nil → SwiftUI default list row background
+    }
+
+    private var firingRuleNames: [String] {
+        let kinds = firingKinds
+        // Prefer rule names (user-customized), fall back to alert title
+        // for kinds that don't map to any current rule (shouldn't
+        // normally happen but covers transient cache mismatch).
+        return automationEngine.alerts.map { alert in
+            if let rule = rulesStore.rules.first(where: {
+                $0.spec.string("kind") == alert.kind.rawValue
+            }) {
+                return rule.name
+            }
+            return alert.title
+        }
     }
 
     var body: some View {
@@ -39,6 +78,27 @@ struct AutomationsHomeView: View {
                 loadErrorSection(message: err)
             } else if rulesStore.rules.isEmpty && !rulesStore.isLoading {
                 emptyStateSection
+            }
+            if !automationEngine.alerts.isEmpty {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.white)
+                            .font(.title3)
+                            .padding(8)
+                            .background(Color.red, in: Circle())
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(automationEngine.alerts.count) 条规则正在触发")
+                                .font(.subheadline.weight(.semibold))
+                            Text(firingRuleNames.joined(separator: " · "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                    }
+                }
+                .listRowBackground(Color.red.opacity(0.10))
             }
             if snoozedCount > 0 {
                 Section {
@@ -67,6 +127,7 @@ struct AutomationsHomeView: View {
                 Section {
                     ForEach(presetRules) { record in
                         ruleRow(record)
+                            .listRowBackground(rowBackground(for: record))
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                     }
                     .onMove { from, to in moveBucket(.preset, from: from, to: to) }
@@ -82,6 +143,7 @@ struct AutomationsHomeView: View {
                 Section("我的自动化 · \(customRules.count)") {
                     ForEach(customRules) { record in
                         ruleRow(record)
+                            .listRowBackground(rowBackground(for: record))
                             .swipeActions(edge: .leading) { snoozeSwipeButton(for: record) }
                             .swipeActions {
                                 Button(role: .destructive) {
@@ -328,21 +390,39 @@ struct AutomationsHomeView: View {
 
     @ViewBuilder
     private func ruleRowLabel(_ record: RuleRecord) -> some View {
+        let firing = isFiring(record)
         HStack(alignment: .top, spacing: 12) {
             // iOS 快捷指令-style accent: trigger-typed icon in a
-            // colored rounded square, dimmed when rule is off.
+            // colored rounded square, dimmed when rule is off. When
+            // the rule is currently firing on the server, swap the
+            // tile to solid red and animate the icon.
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08))
-                Image(systemName: RuleDisplay.triggerSymbol(record.spec))
-                    .foregroundStyle(record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary))
+                    .fill(firing
+                          ? AnyShapeStyle(Color.red)
+                          : AnyShapeStyle(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08)))
+                Image(systemName: firing ? "exclamationmark.triangle.fill" : RuleDisplay.triggerSymbol(record.spec))
+                    .foregroundStyle(firing
+                                     ? AnyShapeStyle(Color.white)
+                                     : (record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary)))
                     .font(.subheadline)
+                    .symbolEffect(.bounce, value: firing)
             }
             .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 4) {
-                Text(record.name)
-                    .font(.body)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(record.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    if firing {
+                        Text("正在触发")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.red, in: Capsule())
+                    }
+                }
                 // "When X happens, do Y" — the iOS Shortcuts pattern.
                 // Dimmed prefix labels (当 / 那么) help users parse
                 // long sentences at a glance.

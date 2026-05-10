@@ -688,7 +688,7 @@ struct HubView: View {
 
     private var automationsEntry: some View {
         NavigationLink {
-            AutomationsHomeView(rulesStore: rulesStore, apiService: apiService, snoozeStore: snoozeStore)
+            AutomationsHomeView(rulesStore: rulesStore, apiService: apiService, snoozeStore: snoozeStore, automationEngine: automationEngine)
         } label: {
             HubEntryCard(
                 icon: "bell.badge.fill",
