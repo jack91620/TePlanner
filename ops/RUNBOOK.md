@@ -120,6 +120,22 @@ in repo. Source of truth:
 | OpenClaw config | not in repo (per-machine) | `~/.openclaw/openclaw.json` |
 
 If you edit any of these on prod, immediately also edit the repo copy
-+ commit + push. `ops/install-server-monitor.sh` covers the watchdog
-deploy; the systemd / nginx changes are still manual `sudo cp` +
-`systemctl daemon-reload` / `nginx -s reload`.
++ commit + push.
+
+**Deploy infra changes** (systemd / nginx / system cron):
+
+```
+SSHPASS='...' bash ops/install-infra.sh --dry-run   # preview drift
+SSHPASS='...' bash ops/install-infra.sh             # apply
+```
+
+The script sha256-diffs every templated file against the deployed
+copy; only differing files get uploaded; only affected daemons get
+reloaded; idempotent (a second run says "all in sync").
+
+**Deploy backend code**: `git pull` on the VM + `sudo systemctl
+restart teplanner-backend.service`. Don't run `bash start.sh -d -s` —
+that creates a ghost uvicorn that fights systemd for port 8000.
+
+**Deploy watchdog scripts**: `ops/install-server-monitor.sh` (separate
+because it runs a verify tick after install).

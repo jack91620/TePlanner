@@ -376,6 +376,18 @@ change goes:
   ios-development` → ssh server → `git fetch + git reset --hard
   origin/ios-development` → restart backend.
 
+**Infra changes** (systemd units, nginx vhost, system cron) live in
+`ops/{systemd,nginx,cron}/` and deploy via:
+
+```
+SSHPASS='...' bash ops/install-infra.sh --dry-run   # see drift
+SSHPASS='...' bash ops/install-infra.sh             # apply
+```
+
+sha256-diff against `/etc/...` before upload, only reload affected
+daemons, idempotent. See `ops/systemd/README.md` for unit list +
+`ops/RUNBOOK.md` for the full asset map.
+
 Server tracks `origin/ios-development`. After pushing local commits:
 
 ```
