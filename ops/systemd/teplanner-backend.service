@@ -1,0 +1,49 @@
+[Unit]
+Description=TePlanner FastAPI backend (uvicorn)
+Documentation=https://github.com/jack91620/TePlanner
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/TePlanner/backend
+
+# conda 环境 PATH，确保 uvicorn / python 取自 teplanner env
+Environment=PATH=/home/ubuntu/miniconda3/envs/teplanner/bin:/usr/bin:/bin
+
+# 生产参数：监听 127.0.0.1（前面有 nginx 反代）+ 2 worker，不再用 --reload
+ExecStart=/home/ubuntu/miniconda3/envs/teplanner/bin/uvicorn app.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1
+
+# uvicorn 多 worker 模式收 SIGHUP 会平滑重载 worker
+ExecReload=/bin/kill -HUP $MAINPID
+
+# 进程异常退出自动拉起
+Restart=always
+RestartSec=5
+
+# 优雅停止：先发 SIGTERM 给 main，再清理 worker 子进程
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# 日志走 journald，用 journalctl -u teplanner-backend 查看
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=teplanner-backend
+
+# 资源/安全加固（保守值）
+LimitNOFILE=65535
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/ubuntu/TePlanner /home/ubuntu/.openclaw
+
+[Install]
+WantedBy=multi-user.target

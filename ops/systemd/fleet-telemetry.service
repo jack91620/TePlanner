@@ -1,0 +1,16 @@
+[Unit]
+Description=Tesla Fleet Telemetry Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+ExecStart=/home/ubuntu/fleet-telemetry-bin -config /home/ubuntu/fleet-telemetry-config.json
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/ubuntu/fleet-telemetry.log
+StandardError=append:/home/ubuntu/fleet-telemetry.log
+
+[Install]
+WantedBy=multi-user.target

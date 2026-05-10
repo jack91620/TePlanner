@@ -91,3 +91,35 @@ For now: file-based. The user reads `ops/reports/` next time they
 open a session. Future: pipe into the APNs `/devices` channel so a
 production failure pushes to the developer's TestFlight-installed
 phone — same plumbing we built for product alerts.
+
+Live channel today: **OpenClaw → WeChat** (since 2026-05-09).
+- Backend: `app.utils.openclaw_alert.install()` runs at module load,
+  wires a `logging.Handler` that POSTs ERROR+ records to
+  `OPENCLAW_HOOK_URL` with token from env. Dedup window 1 hour per
+  signature.
+- Watchdog: `ops/server-monitor.sh` and `ops/daily-inspection.sh` shell
+  out to `openclaw message send --channel openclaw-weixin` for
+  infrastructure-level alerts (port down, polling frozen, error spike).
+- Test the chain end-to-end: `bash ops/simulate-alert.sh polling_frozen`.
+
+## Production config templates (committed 2026-05-11)
+
+All config previously edited directly on the prod VM is now templated
+in repo. Source of truth:
+
+| Asset | Repo path | Deployed path |
+|---|---|---|
+| Backend env vars | `backend/.env.example` | `~/TePlanner/backend/.env` (gitignored) |
+| Backend systemd unit | `ops/systemd/teplanner-backend.service` | `/etc/systemd/system/teplanner-backend.service` |
+| Tesla VCP proxy unit | `ops/systemd/tesla-http-proxy.service` | `/etc/systemd/system/tesla-http-proxy.service` |
+| Fleet Telemetry unit | `ops/systemd/fleet-telemetry.service` | `/etc/systemd/system/fleet-telemetry.service` |
+| nginx vhost | `ops/nginx/teplanner.conf` | `/etc/nginx/sites-enabled/teplanner` |
+| Watchdog cron | `ops/cron/teplanner-daily-inspection.cron` | `/etc/cron.d/teplanner-daily-inspection` |
+| Webhook secrets | `ops/alert.env.example` | `/home/ubuntu/ops/alert.env` (gitignored) |
+| Tesla VCP keys | not in repo (`*.pem` gitignored) | `~/teplanner-keys/{private,public}.pem`, `proxy-tls.{crt,key}` |
+| OpenClaw config | not in repo (per-machine) | `~/.openclaw/openclaw.json` |
+
+If you edit any of these on prod, immediately also edit the repo copy
++ commit + push. `ops/install-server-monitor.sh` covers the watchdog
+deploy; the systemd / nginx changes are still manual `sudo cp` +
+`systemctl daemon-reload` / `nginx -s reload`.

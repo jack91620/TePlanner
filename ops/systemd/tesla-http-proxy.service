@@ -1,0 +1,21 @@
+[Unit]
+Description=Tesla Vehicle Command HTTP Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/teplanner-keys
+ExecStart=/home/ubuntu/go/bin/tesla-http-proxy \
+  -keyring-type file \
+  -key-file /home/ubuntu/teplanner-keys/private.pem \
+  -cert /home/ubuntu/teplanner-keys/proxy-tls.crt \
+  -tls-key /home/ubuntu/teplanner-keys/proxy-tls.key \
+  -host 127.0.0.1 \
+  -port 4443 \
+  -verbose
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
