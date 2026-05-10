@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from sqlalchemy import select
@@ -27,6 +28,22 @@ from app.services.automation.base import VehicleStateSnapshot
 from app.services.telemetry.state_writer import telemetry_value_key
 
 logger = logging.getLogger(__name__)
+
+# 2026-05-10 — incident: a stale `tel:climate.keeper_mode:value=3`
+# row from 06:11 fed the rules engine for 3+ hours after the user
+# turned camp mode off. Tesla DID send the 3→0 transition, but the
+# state_writer crashed on duplicate :since rows and silently lost
+# the write. Defense in depth: any row not refreshed within
+# MAX_TELEMETRY_AGE_MINUTES is treated as "no data" rather than
+# authoritative truth. The interpreter already handles None as
+# "absent" → is_on=False → no ghost alerts.
+#
+# 30 min covers normal Tesla Fleet Telemetry rhythm with margin
+# (Tesla emits within seconds while car awake; idles when car
+# sleeps). Trade-off: alerts that should fire silently while car
+# sleeps won't — acceptable, since we have no proof the state is
+# still true, and the next telemetry post-wake re-establishes it.
+MAX_TELEMETRY_AGE_MINUTES = 30
 
 
 def _decode(raw: Optional[str]) -> Any:
@@ -55,7 +72,20 @@ async def _read_value(
         .limit(1)
     )
     row = (await db.execute(stmt)).scalars().first()
-    return _decode(row.value) if row else None
+    if row is None:
+        return None
+    if row.updated_at is None:
+        return _decode(row.value)
+    age = datetime.utcnow() - row.updated_at
+    if age > timedelta(minutes=MAX_TELEMETRY_AGE_MINUTES):
+        logger.debug(
+            "telemetry value stale (age=%.1fmin > %dmin) — treating as None: "
+            "user=%s vehicle=%s entity=%s",
+            age.total_seconds() / 60, MAX_TELEMETRY_AGE_MINUTES,
+            user_id, vehicle_id, entity,
+        )
+        return None
+    return _decode(row.value)
 
 
 async def build_snapshot_from_telemetry(
