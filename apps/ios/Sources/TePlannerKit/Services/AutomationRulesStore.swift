@@ -45,6 +45,13 @@ public final class AutomationRulesStore: ObservableObject {
 
     /// Update one rule's spec / enabled / name on backend, then
     /// refresh the local cache from the response.
+    ///
+    /// On API failure we ALSO trigger a full list refresh — covers
+    /// the "request reached server, response packet dropped" race
+    /// where the DB committed but the client got a network error.
+    /// Without this, the local cache would drift from the server
+    /// (UI shows old enabled value, DB has new) until the next
+    /// pull-to-refresh / app foreground.
     public func update(id: String, name: String? = nil, enabled: Bool? = nil, spec: RuleSpec? = nil) async -> Bool {
         let result = await apiService.updateAutomation(id: id, name: name, enabled: enabled, spec: spec)
         switch result {
@@ -54,8 +61,8 @@ public final class AutomationRulesStore: ObservableObject {
             }
             return true
         case .failure(let error):
-            Log.api.error("automation update failed: \(error.localizedDescription, privacy: .public)")
-            lastError = error.localizedDescription
+            Log.api.error("automation update failed: \(error.localizedDescription, privacy: .public) — refreshing to converge")
+            await refreshPreservingError(error.localizedDescription)
             return false
         }
     }
@@ -67,10 +74,19 @@ public final class AutomationRulesStore: ObservableObject {
             rules.removeAll { $0.id == id }
             return true
         case .failure(let error):
-            Log.api.error("automation delete failed: \(error.localizedDescription, privacy: .public)")
-            lastError = error.localizedDescription
+            Log.api.error("automation delete failed: \(error.localizedDescription, privacy: .public) — refreshing to converge")
+            await refreshPreservingError(error.localizedDescription)
             return false
         }
+    }
+
+    /// Run refresh() but keep the existing error message visible to
+    /// the user even if the refresh itself succeeds. The original
+    /// op (update/delete/reorder) failed; the user needs to know,
+    /// regardless of whether the follow-up sync worked.
+    private func refreshPreservingError(_ message: String) async {
+        await refresh()
+        lastError = message
     }
 
     public func create(name: String, enabled: Bool = true, spec: RuleSpec) async -> RuleRecord? {
@@ -97,8 +113,8 @@ public final class AutomationRulesStore: ObservableObject {
             rules = fresh
             return true
         case .failure(let error):
-            Log.api.error("automation reorder failed: \(error.localizedDescription, privacy: .public)")
-            lastError = error.localizedDescription
+            Log.api.error("automation reorder failed: \(error.localizedDescription, privacy: .public) — refreshing to converge")
+            await refreshPreservingError(error.localizedDescription)
             return false
         }
     }

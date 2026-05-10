@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,7 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.hilt.navigation.compose.hiltViewModel
 import cloud.teplanner.android.core.network.RuleResponse
 import cloud.teplanner.android.core.network.SnoozeRecord
@@ -75,6 +80,19 @@ fun AutomationsListScreen(
 ) {
     val state by vm.state.collectAsState()
     var pendingDelete by remember { mutableStateOf<RuleResponse?>(null) }
+
+    // Refresh on resume — converges UI with server truth after the
+    // app comes back from background. Same purpose as iOS scenePhase
+    // .active hook in HubView. Catches any toggle/delete/reorder that
+    // the client thinks failed but actually committed server-side.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) vm.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -248,6 +266,7 @@ private fun RuleRowCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(12.dp))
+            .testTag("automation_row_${rule.id}")
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = when {

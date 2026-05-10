@@ -176,7 +176,15 @@ struct HubView: View {
             switch newPhase {
             case .active:
                 viewModel.startPolling()
-                Task { await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id) }
+                // Refresh on every foreground so any silent drift
+                // (e.g. toggle PATCH succeeded but client got network
+                // error and didn't realize, or server-side seeding
+                // added a new preset, or another device changed state)
+                // converges within seconds of the user opening the app.
+                Task {
+                    await rulesStore.refresh()
+                    await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id)
+                }
             default: viewModel.stopPolling()
             }
         }

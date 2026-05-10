@@ -21,10 +21,10 @@ final class GeneratedSDKImportTests: XCTestCase {
     func test_can_construct_charging_session_request() throws {
         let body = TePlannerAPI.ChargingSessionRequest(
             clientSessionId: "test",
-            locationName: "Home",
-            startRangeKm: 100,
+            startedAt: Date(),
             startSoc: 30,
-            startedAt: Date()
+            startRangeKm: 100,
+            locationName: "Home"
         )
         XCTAssertEqual(body.startSoc, 30)
         XCTAssertEqual(body.locationName, "Home")
