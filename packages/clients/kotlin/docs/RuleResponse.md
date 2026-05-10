@@ -4,15 +4,17 @@
 ## Properties
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
-| **enabled** | **kotlin.Boolean** |  |  |
 | **id** | **kotlin.String** |  |  |
-| **name** | **kotlin.String** |  |  |
 | **presetId** | **kotlin.String** |  |  |
+| **name** | **kotlin.String** |  |  |
+| **enabled** | **kotlin.Boolean** |  |  |
 | **spec** | [**kotlin.Any**](.md) |  |  |
 | **version** | **kotlin.Int** |  |  |
-| **displayOrder** | **kotlin.Int** |  |  [optional] |
-| **lastFiredAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
 | **updatedAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
+| **lastFiredAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
+| **displayOrder** | **kotlin.Int** |  |  [optional] |
+| **isFiring** | **kotlin.Boolean** |  |  [optional] |
+| **firingSince** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
 
 
 

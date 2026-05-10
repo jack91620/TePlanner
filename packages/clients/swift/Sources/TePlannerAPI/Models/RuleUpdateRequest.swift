@@ -13,19 +13,19 @@ import AnyCodable
 public struct RuleUpdateRequest: Codable, JSONEncodable, Hashable {
 
     public static let nameRule = StringRule(minLength: nil, maxLength: 128, pattern: nil)
-    public var enabled: Bool?
     public var name: String?
+    public var enabled: Bool?
     public var spec: AnyCodable?
 
-    public init(enabled: Bool? = nil, name: String? = nil, spec: AnyCodable? = nil) {
-        self.enabled = enabled
+    public init(name: String? = nil, enabled: Bool? = nil, spec: AnyCodable? = nil) {
         self.name = name
+        self.enabled = enabled
         self.spec = spec
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case enabled
         case name
+        case enabled
         case spec
     }
 
@@ -33,8 +33,8 @@ public struct RuleUpdateRequest: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(enabled, forKey: .enabled)
         try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(enabled, forKey: .enabled)
         try container.encodeIfPresent(spec, forKey: .spec)
     }
 }

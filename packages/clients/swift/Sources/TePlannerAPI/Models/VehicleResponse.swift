@@ -13,41 +13,41 @@ import AnyCodable
 /** Vehicle response model. */
 public struct VehicleResponse: Codable, JSONEncodable, Hashable {
 
-    public var displayName: String
     public var id: String
-    public var isPrimary: Bool? = false
+    public var vin: String?
+    public var displayName: String
     public var model: String?
     public var state: String
-    public var vin: String?
+    public var isPrimary: Bool? = false
 
-    public init(displayName: String, id: String, isPrimary: Bool? = false, model: String? = nil, state: String, vin: String? = nil) {
-        self.displayName = displayName
+    public init(id: String, vin: String? = nil, displayName: String, model: String? = nil, state: String, isPrimary: Bool? = false) {
         self.id = id
-        self.isPrimary = isPrimary
+        self.vin = vin
+        self.displayName = displayName
         self.model = model
         self.state = state
-        self.vin = vin
+        self.isPrimary = isPrimary
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case displayName = "display_name"
         case id
-        case isPrimary = "is_primary"
+        case vin
+        case displayName = "display_name"
         case model
         case state
-        case vin
+        case isPrimary = "is_primary"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(displayName, forKey: .displayName)
         try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
+        try container.encodeIfPresent(vin, forKey: .vin)
+        try container.encode(displayName, forKey: .displayName)
         try container.encodeIfPresent(model, forKey: .model)
         try container.encode(state, forKey: .state)
-        try container.encodeIfPresent(vin, forKey: .vin)
+        try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
     }
 }
 

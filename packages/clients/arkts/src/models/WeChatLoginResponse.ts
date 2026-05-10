@@ -27,24 +27,6 @@ export interface WeChatLoginResponse {
     access_token: string;
     /**
      * 
-     * @type {number}
-     * @memberof WeChatLoginResponse
-     */
-    expires_in: number;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof WeChatLoginResponse
-     */
-    has_tesla_linked?: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof WeChatLoginResponse
-     */
-    openid: string;
-    /**
-     * 
      * @type {string}
      * @memberof WeChatLoginResponse
      */
@@ -54,7 +36,25 @@ export interface WeChatLoginResponse {
      * @type {number}
      * @memberof WeChatLoginResponse
      */
+    expires_in: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof WeChatLoginResponse
+     */
     user_id: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof WeChatLoginResponse
+     */
+    openid: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WeChatLoginResponse
+     */
+    has_tesla_linked?: boolean;
 }
 
 /**
@@ -63,8 +63,8 @@ export interface WeChatLoginResponse {
 export function instanceOfWeChatLoginResponse(value: object): value is WeChatLoginResponse {
     if (!('access_token' in value) || value['access_token'] === undefined) return false;
     if (!('expires_in' in value) || value['expires_in'] === undefined) return false;
-    if (!('openid' in value) || value['openid'] === undefined) return false;
     if (!('user_id' in value) || value['user_id'] === undefined) return false;
+    if (!('openid' in value) || value['openid'] === undefined) return false;
     return true;
 }
 
@@ -79,11 +79,11 @@ export function WeChatLoginResponseFromJSONTyped(json: any, ignoreDiscriminator:
     return {
         
         'access_token': json['access_token'],
-        'expires_in': json['expires_in'],
-        'has_tesla_linked': json['has_tesla_linked'] == null ? undefined : json['has_tesla_linked'],
-        'openid': json['openid'],
         'token_type': json['token_type'] == null ? undefined : json['token_type'],
+        'expires_in': json['expires_in'],
         'user_id': json['user_id'],
+        'openid': json['openid'],
+        'has_tesla_linked': json['has_tesla_linked'] == null ? undefined : json['has_tesla_linked'],
     };
 }
 
@@ -99,11 +99,11 @@ export function WeChatLoginResponseToJSONTyped(value?: WeChatLoginResponse | nul
     return {
         
         'access_token': value['access_token'],
-        'expires_in': value['expires_in'],
-        'has_tesla_linked': value['has_tesla_linked'],
-        'openid': value['openid'],
         'token_type': value['token_type'],
+        'expires_in': value['expires_in'],
         'user_id': value['user_id'],
+        'openid': value['openid'],
+        'has_tesla_linked': value['has_tesla_linked'],
     };
 }
 

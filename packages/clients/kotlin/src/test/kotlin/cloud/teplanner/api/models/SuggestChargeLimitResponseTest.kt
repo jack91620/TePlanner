@@ -33,10 +33,10 @@ class SuggestChargeLimitResponseTest : ShouldSpec() {
         // uncomment below to create an instance of SuggestChargeLimitResponse
         //val modelInstance = SuggestChargeLimitResponse()
 
-        // to test the property `alreadyMatches`
-        should("test alreadyMatches") {
+        // to test the property `recommendedPercent`
+        should("test recommendedPercent") {
             // uncomment below to test the property
-            //modelInstance.alreadyMatches shouldBe ("TODO")
+            //modelInstance.recommendedPercent shouldBe ("TODO")
         }
 
         // to test the property `currentPercent`
@@ -45,22 +45,22 @@ class SuggestChargeLimitResponseTest : ShouldSpec() {
             //modelInstance.currentPercent shouldBe ("TODO")
         }
 
-        // to test the property `hoursAway`
-        should("test hoursAway") {
-            // uncomment below to test the property
-            //modelInstance.hoursAway shouldBe ("TODO")
-        }
-
         // to test the property `reason`
         should("test reason") {
             // uncomment below to test the property
             //modelInstance.reason shouldBe ("TODO")
         }
 
-        // to test the property `recommendedPercent`
-        should("test recommendedPercent") {
+        // to test the property `hoursAway`
+        should("test hoursAway") {
             // uncomment below to test the property
-            //modelInstance.recommendedPercent shouldBe ("TODO")
+            //modelInstance.hoursAway shouldBe ("TODO")
+        }
+
+        // to test the property `alreadyMatches`
+        should("test alreadyMatches") {
+            // uncomment below to test the property
+            //modelInstance.alreadyMatches shouldBe ("TODO")
         }
 
     }

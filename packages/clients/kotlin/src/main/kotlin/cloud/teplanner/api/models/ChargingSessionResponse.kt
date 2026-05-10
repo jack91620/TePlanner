@@ -30,52 +30,61 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param clientSessionId 
- * @param durationMinutes 
- * @param endRangeKm 
- * @param endSoc 
- * @param endedAsComplete 
- * @param endedAt 
- * @param energyAddedKwh 
  * @param id 
+ * @param vehicleId 
+ * @param clientSessionId 
+ * @param startedAt 
+ * @param endedAt 
+ * @param startSoc 
+ * @param endSoc 
+ * @param startRangeKm 
+ * @param endRangeKm 
+ * @param energyAddedKwh 
+ * @param locationName 
  * @param lat 
  * @param lng 
- * @param locationName 
+ * @param endedAsComplete 
+ * @param source 
+ * @param durationMinutes 
  * @param rangeAddedKm 
  * @param socDelta 
- * @param source 
- * @param startRangeKm 
- * @param startSoc 
- * @param startedAt 
- * @param vehicleId 
  */
 
 
 data class ChargingSessionResponse (
 
+    @Json(name = "id")
+    val id: kotlin.Int,
+
+    @Json(name = "vehicle_id")
+    val vehicleId: kotlin.String?,
+
     @Json(name = "client_session_id")
     val clientSessionId: kotlin.String?,
 
-    @Json(name = "duration_minutes")
-    val durationMinutes: kotlin.Int?,
-
-    @Json(name = "end_range_km")
-    val endRangeKm: java.math.BigDecimal?,
-
-    @Json(name = "end_soc")
-    val endSoc: kotlin.Int?,
-
-    @Json(name = "ended_as_complete")
-    val endedAsComplete: kotlin.Boolean?,
+    @Json(name = "started_at")
+    val startedAt: java.time.OffsetDateTime,
 
     @Json(name = "ended_at")
     val endedAt: java.time.OffsetDateTime?,
 
+    @Json(name = "start_soc")
+    val startSoc: kotlin.Int?,
+
+    @Json(name = "end_soc")
+    val endSoc: kotlin.Int?,
+
+    @Json(name = "start_range_km")
+    val startRangeKm: java.math.BigDecimal?,
+
+    @Json(name = "end_range_km")
+    val endRangeKm: java.math.BigDecimal?,
+
     @Json(name = "energy_added_kwh")
     val energyAddedKwh: java.math.BigDecimal?,
 
-    @Json(name = "id")
-    val id: kotlin.Int,
+    @Json(name = "location_name")
+    val locationName: kotlin.String?,
 
     @Json(name = "lat")
     val lat: java.math.BigDecimal?,
@@ -83,29 +92,20 @@ data class ChargingSessionResponse (
     @Json(name = "lng")
     val lng: java.math.BigDecimal?,
 
-    @Json(name = "location_name")
-    val locationName: kotlin.String?,
+    @Json(name = "ended_as_complete")
+    val endedAsComplete: kotlin.Boolean?,
+
+    @Json(name = "source")
+    val source: kotlin.String,
+
+    @Json(name = "duration_minutes")
+    val durationMinutes: kotlin.Int?,
 
     @Json(name = "range_added_km")
     val rangeAddedKm: java.math.BigDecimal?,
 
     @Json(name = "soc_delta")
-    val socDelta: kotlin.Int?,
-
-    @Json(name = "source")
-    val source: kotlin.String,
-
-    @Json(name = "start_range_km")
-    val startRangeKm: java.math.BigDecimal?,
-
-    @Json(name = "start_soc")
-    val startSoc: kotlin.Int?,
-
-    @Json(name = "started_at")
-    val startedAt: java.time.OffsetDateTime,
-
-    @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String?
+    val socDelta: kotlin.Int?
 
 ) {
 

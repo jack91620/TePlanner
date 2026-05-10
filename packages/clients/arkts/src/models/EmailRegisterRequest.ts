@@ -30,13 +30,13 @@ export interface EmailRegisterRequest {
      * @type {string}
      * @memberof EmailRegisterRequest
      */
-    nickname?: string | null;
+    password: string;
     /**
      * 
      * @type {string}
      * @memberof EmailRegisterRequest
      */
-    password: string;
+    nickname?: string | null;
 }
 
 /**
@@ -59,8 +59,8 @@ export function EmailRegisterRequestFromJSONTyped(json: any, ignoreDiscriminator
     return {
         
         'email': json['email'],
-        'nickname': json['nickname'] == null ? undefined : json['nickname'],
         'password': json['password'],
+        'nickname': json['nickname'] == null ? undefined : json['nickname'],
     };
 }
 
@@ -76,8 +76,8 @@ export function EmailRegisterRequestToJSONTyped(value?: EmailRegisterRequest | n
     return {
         
         'email': value['email'],
-        'nickname': value['nickname'],
         'password': value['password'],
+        'nickname': value['nickname'],
     };
 }
 

@@ -6,10 +6,10 @@
 | ------------ | ------------- | ------------- | ------------- |
 | **accessToken** | **kotlin.String** |  |  |
 | **expiresIn** | **kotlin.Int** |  |  |
-| **openid** | **kotlin.String** |  |  |
 | **userId** | **kotlin.Int** |  |  |
-| **hasTeslaLinked** | **kotlin.Boolean** |  |  [optional] |
+| **openid** | **kotlin.String** |  |  |
 | **tokenType** | **kotlin.String** |  |  [optional] |
+| **hasTeslaLinked** | **kotlin.Boolean** |  |  [optional] |
 
 
 

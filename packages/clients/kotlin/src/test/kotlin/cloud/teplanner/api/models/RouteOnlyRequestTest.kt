@@ -34,16 +34,16 @@ class RouteOnlyRequestTest : ShouldSpec() {
         // uncomment below to create an instance of RouteOnlyRequest
         //val modelInstance = RouteOnlyRequest()
 
-        // to test the property `destination`
-        should("test destination") {
-            // uncomment below to test the property
-            //modelInstance.destination shouldBe ("TODO")
-        }
-
         // to test the property `origin`
         should("test origin") {
             // uncomment below to test the property
             //modelInstance.origin shouldBe ("TODO")
+        }
+
+        // to test the property `destination`
+        should("test destination") {
+            // uncomment below to test the property
+            //modelInstance.destination shouldBe ("TODO")
         }
 
     }

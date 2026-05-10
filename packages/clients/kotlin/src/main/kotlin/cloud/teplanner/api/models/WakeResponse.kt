@@ -30,22 +30,22 @@ import com.squareup.moshi.JsonClass
 /**
  * Wake response model.
  *
- * @param message 
- * @param state 
  * @param vehicleId 
+ * @param state 
+ * @param message 
  */
 
 
 data class WakeResponse (
 
-    @Json(name = "message")
-    val message: kotlin.String,
+    @Json(name = "vehicle_id")
+    val vehicleId: kotlin.String,
 
     @Json(name = "state")
     val state: kotlin.String,
 
-    @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String
+    @Json(name = "message")
+    val message: kotlin.String
 
 ) {
 

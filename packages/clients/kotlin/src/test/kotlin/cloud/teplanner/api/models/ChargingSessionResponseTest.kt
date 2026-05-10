@@ -33,34 +33,28 @@ class ChargingSessionResponseTest : ShouldSpec() {
         // uncomment below to create an instance of ChargingSessionResponse
         //val modelInstance = ChargingSessionResponse()
 
+        // to test the property `id`
+        should("test id") {
+            // uncomment below to test the property
+            //modelInstance.id shouldBe ("TODO")
+        }
+
+        // to test the property `vehicleId`
+        should("test vehicleId") {
+            // uncomment below to test the property
+            //modelInstance.vehicleId shouldBe ("TODO")
+        }
+
         // to test the property `clientSessionId`
         should("test clientSessionId") {
             // uncomment below to test the property
             //modelInstance.clientSessionId shouldBe ("TODO")
         }
 
-        // to test the property `durationMinutes`
-        should("test durationMinutes") {
+        // to test the property `startedAt`
+        should("test startedAt") {
             // uncomment below to test the property
-            //modelInstance.durationMinutes shouldBe ("TODO")
-        }
-
-        // to test the property `endRangeKm`
-        should("test endRangeKm") {
-            // uncomment below to test the property
-            //modelInstance.endRangeKm shouldBe ("TODO")
-        }
-
-        // to test the property `endSoc`
-        should("test endSoc") {
-            // uncomment below to test the property
-            //modelInstance.endSoc shouldBe ("TODO")
-        }
-
-        // to test the property `endedAsComplete`
-        should("test endedAsComplete") {
-            // uncomment below to test the property
-            //modelInstance.endedAsComplete shouldBe ("TODO")
+            //modelInstance.startedAt shouldBe ("TODO")
         }
 
         // to test the property `endedAt`
@@ -69,16 +63,40 @@ class ChargingSessionResponseTest : ShouldSpec() {
             //modelInstance.endedAt shouldBe ("TODO")
         }
 
+        // to test the property `startSoc`
+        should("test startSoc") {
+            // uncomment below to test the property
+            //modelInstance.startSoc shouldBe ("TODO")
+        }
+
+        // to test the property `endSoc`
+        should("test endSoc") {
+            // uncomment below to test the property
+            //modelInstance.endSoc shouldBe ("TODO")
+        }
+
+        // to test the property `startRangeKm`
+        should("test startRangeKm") {
+            // uncomment below to test the property
+            //modelInstance.startRangeKm shouldBe ("TODO")
+        }
+
+        // to test the property `endRangeKm`
+        should("test endRangeKm") {
+            // uncomment below to test the property
+            //modelInstance.endRangeKm shouldBe ("TODO")
+        }
+
         // to test the property `energyAddedKwh`
         should("test energyAddedKwh") {
             // uncomment below to test the property
             //modelInstance.energyAddedKwh shouldBe ("TODO")
         }
 
-        // to test the property `id`
-        should("test id") {
+        // to test the property `locationName`
+        should("test locationName") {
             // uncomment below to test the property
-            //modelInstance.id shouldBe ("TODO")
+            //modelInstance.locationName shouldBe ("TODO")
         }
 
         // to test the property `lat`
@@ -93,10 +111,22 @@ class ChargingSessionResponseTest : ShouldSpec() {
             //modelInstance.lng shouldBe ("TODO")
         }
 
-        // to test the property `locationName`
-        should("test locationName") {
+        // to test the property `endedAsComplete`
+        should("test endedAsComplete") {
             // uncomment below to test the property
-            //modelInstance.locationName shouldBe ("TODO")
+            //modelInstance.endedAsComplete shouldBe ("TODO")
+        }
+
+        // to test the property `source`
+        should("test source") {
+            // uncomment below to test the property
+            //modelInstance.source shouldBe ("TODO")
+        }
+
+        // to test the property `durationMinutes`
+        should("test durationMinutes") {
+            // uncomment below to test the property
+            //modelInstance.durationMinutes shouldBe ("TODO")
         }
 
         // to test the property `rangeAddedKm`
@@ -109,36 +139,6 @@ class ChargingSessionResponseTest : ShouldSpec() {
         should("test socDelta") {
             // uncomment below to test the property
             //modelInstance.socDelta shouldBe ("TODO")
-        }
-
-        // to test the property `source`
-        should("test source") {
-            // uncomment below to test the property
-            //modelInstance.source shouldBe ("TODO")
-        }
-
-        // to test the property `startRangeKm`
-        should("test startRangeKm") {
-            // uncomment below to test the property
-            //modelInstance.startRangeKm shouldBe ("TODO")
-        }
-
-        // to test the property `startSoc`
-        should("test startSoc") {
-            // uncomment below to test the property
-            //modelInstance.startSoc shouldBe ("TODO")
-        }
-
-        // to test the property `startedAt`
-        should("test startedAt") {
-            // uncomment below to test the property
-            //modelInstance.startedAt shouldBe ("TODO")
-        }
-
-        // to test the property `vehicleId`
-        should("test vehicleId") {
-            // uncomment below to test the property
-            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
     }

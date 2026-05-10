@@ -34,16 +34,16 @@ class TelemetryStateResponseTest : ShouldSpec() {
         // uncomment below to create an instance of TelemetryStateResponse
         //val modelInstance = TelemetryStateResponse()
 
-        // to test the property `propertyEntries`
-        should("test propertyEntries") {
-            // uncomment below to test the property
-            //modelInstance.propertyEntries shouldBe ("TODO")
-        }
-
         // to test the property `vehicleId`
         should("test vehicleId") {
             // uncomment below to test the property
             //modelInstance.vehicleId shouldBe ("TODO")
+        }
+
+        // to test the property `propertyEntries`
+        should("test propertyEntries") {
+            // uncomment below to test the property
+            //modelInstance.propertyEntries shouldBe ("TODO")
         }
 
     }

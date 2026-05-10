@@ -30,18 +30,18 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param deviceId 
  * @param success 
+ * @param deviceId 
  */
 
 
 data class RegisterDeviceResponse (
 
-    @Json(name = "device_id")
-    val deviceId: kotlin.Int,
-
     @Json(name = "success")
-    val success: kotlin.Boolean
+    val success: kotlin.Boolean,
+
+    @Json(name = "device_id")
+    val deviceId: kotlin.Int
 
 ) {
 

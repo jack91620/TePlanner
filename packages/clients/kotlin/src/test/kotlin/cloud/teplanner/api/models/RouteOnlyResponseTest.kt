@@ -33,10 +33,22 @@ class RouteOnlyResponseTest : ShouldSpec() {
         // uncomment below to create an instance of RouteOnlyResponse
         //val modelInstance = RouteOnlyResponse()
 
+        // to test the property `origin`
+        should("test origin") {
+            // uncomment below to test the property
+            //modelInstance.origin shouldBe ("TODO")
+        }
+
         // to test the property `destination`
         should("test destination") {
             // uncomment below to test the property
             //modelInstance.destination shouldBe ("TODO")
+        }
+
+        // to test the property `totalDistanceKm`
+        should("test totalDistanceKm") {
+            // uncomment below to test the property
+            //modelInstance.totalDistanceKm shouldBe ("TODO")
         }
 
         // to test the property `drivingDurationMinutes`
@@ -45,22 +57,10 @@ class RouteOnlyResponseTest : ShouldSpec() {
             //modelInstance.drivingDurationMinutes shouldBe ("TODO")
         }
 
-        // to test the property `origin`
-        should("test origin") {
-            // uncomment below to test the property
-            //modelInstance.origin shouldBe ("TODO")
-        }
-
         // to test the property `polyline`
         should("test polyline") {
             // uncomment below to test the property
             //modelInstance.polyline shouldBe ("TODO")
-        }
-
-        // to test the property `totalDistanceKm`
-        should("test totalDistanceKm") {
-            // uncomment below to test the property
-            //modelInstance.totalDistanceKm shouldBe ("TODO")
         }
 
     }

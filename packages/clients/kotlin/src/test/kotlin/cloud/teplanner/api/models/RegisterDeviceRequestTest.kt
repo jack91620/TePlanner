@@ -33,7 +33,7 @@ class RegisterDeviceRequestTest : ShouldSpec() {
         // uncomment below to create an instance of RegisterDeviceRequest
         //val modelInstance = RegisterDeviceRequest()
 
-        // to test the property `token` - Hex APNs device token
+        // to test the property `token` - Provider device token (APNs hex / JPush registration_id / Huawei push token)
         should("test token") {
             // uncomment below to test the property
             //modelInstance.token shouldBe ("TODO")
@@ -43,6 +43,18 @@ class RegisterDeviceRequestTest : ShouldSpec() {
         should("test bundleId") {
             // uncomment below to test the property
             //modelInstance.bundleId shouldBe ("TODO")
+        }
+
+        // to test the property `platform`
+        should("test platform") {
+            // uncomment below to test the property
+            //modelInstance.platform shouldBe ("TODO")
+        }
+
+        // to test the property `providerToken`
+        should("test providerToken") {
+            // uncomment below to test the property
+            //modelInstance.providerToken shouldBe ("TODO")
         }
 
     }

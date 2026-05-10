@@ -13,26 +13,36 @@ import AnyCodable
 public struct RegisterDeviceRequest: Codable, JSONEncodable, Hashable {
 
     public static let tokenRule = StringRule(minLength: 10, maxLength: 200, pattern: nil)
-    public var bundleId: String?
-    /** Hex APNs device token */
+    public static let platformRule = StringRule(minLength: nil, maxLength: 20, pattern: nil)
+    public static let providerTokenRule = StringRule(minLength: nil, maxLength: 255, pattern: nil)
+    /** Provider device token (APNs hex / JPush registration_id / Huawei push token) */
     public var token: String
+    public var bundleId: String?
+    public var platform: String? = "apns"
+    public var providerToken: String?
 
-    public init(bundleId: String? = nil, token: String) {
-        self.bundleId = bundleId
+    public init(token: String, bundleId: String? = nil, platform: String? = "apns", providerToken: String? = nil) {
         self.token = token
+        self.bundleId = bundleId
+        self.platform = platform
+        self.providerToken = providerToken
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case bundleId = "bundle_id"
         case token
+        case bundleId = "bundle_id"
+        case platform
+        case providerToken = "provider_token"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(bundleId, forKey: .bundleId)
         try container.encode(token, forKey: .token)
+        try container.encodeIfPresent(bundleId, forKey: .bundleId)
+        try container.encodeIfPresent(platform, forKey: .platform)
+        try container.encodeIfPresent(providerToken, forKey: .providerToken)
     }
 }
 

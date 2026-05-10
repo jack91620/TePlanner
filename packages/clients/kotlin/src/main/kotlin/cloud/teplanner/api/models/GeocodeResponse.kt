@@ -30,23 +30,23 @@ import com.squareup.moshi.JsonClass
 /**
  * Geocode response.
  *
- * @param address 
  * @param latitude 
  * @param longitude 
+ * @param address 
  * @param formattedAddress 
  */
 
 
 data class GeocodeResponse (
 
-    @Json(name = "address")
-    val address: kotlin.String,
-
     @Json(name = "latitude")
     val latitude: java.math.BigDecimal,
 
     @Json(name = "longitude")
     val longitude: java.math.BigDecimal,
+
+    @Json(name = "address")
+    val address: kotlin.String,
 
     @Json(name = "formatted_address")
     val formattedAddress: kotlin.String? = null

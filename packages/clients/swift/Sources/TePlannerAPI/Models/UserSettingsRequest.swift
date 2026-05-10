@@ -12,26 +12,26 @@ import AnyCodable
 
 public struct UserSettingsRequest: Codable, JSONEncodable, Hashable {
 
-    public var replaceAll: Bool? = false
     /** Full settings document. PUT replaces the keys present in this dict but leaves untouched keys alone — pass `replace_all=true` to wipe and re-seed. */
     public var settings: AnyCodable
+    public var replaceAll: Bool? = false
 
-    public init(replaceAll: Bool? = false, settings: AnyCodable) {
-        self.replaceAll = replaceAll
+    public init(settings: AnyCodable, replaceAll: Bool? = false) {
         self.settings = settings
+        self.replaceAll = replaceAll
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case replaceAll = "replace_all"
         case settings
+        case replaceAll = "replace_all"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(replaceAll, forKey: .replaceAll)
         try container.encode(settings, forKey: .settings)
+        try container.encodeIfPresent(replaceAll, forKey: .replaceAll)
     }
 }
 

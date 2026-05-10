@@ -7,18 +7,18 @@ Route planning response.
 
 Name | Type
 ------------ | -------------
-`arrival_soc` | number
-`charging_duration_minutes` | number
-`charging_stops` | [Array&lt;ChargingStopResponse&gt;](ChargingStopResponse.md)
-`destination` | object
-`driving_duration_minutes` | number
-`initial_soc` | number
-`num_charging_stops` | number
-`origin` | object
-`polyline` | Array&lt;object&gt;
 `route_id` | number
+`origin` | object
+`destination` | object
 `total_distance_km` | number
 `total_duration_minutes` | number
+`driving_duration_minutes` | number
+`charging_duration_minutes` | number
+`charging_stops` | [Array&lt;ChargingStopResponse&gt;](ChargingStopResponse.md)
+`num_charging_stops` | number
+`initial_soc` | number
+`arrival_soc` | number
+`polyline` | Array&lt;object&gt;
 `warnings` | Array&lt;string&gt;
 
 ## Example
@@ -28,18 +28,18 @@ import type { RoutePlanResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "arrival_soc": null,
-  "charging_duration_minutes": null,
-  "charging_stops": null,
-  "destination": null,
-  "driving_duration_minutes": null,
-  "initial_soc": null,
-  "num_charging_stops": null,
-  "origin": null,
-  "polyline": null,
   "route_id": null,
+  "origin": null,
+  "destination": null,
   "total_distance_km": null,
   "total_duration_minutes": null,
+  "driving_duration_minutes": null,
+  "charging_duration_minutes": null,
+  "charging_stops": null,
+  "num_charging_stops": null,
+  "initial_soc": null,
+  "arrival_soc": null,
+  "polyline": null,
   "warnings": null,
 } satisfies RoutePlanResponse
 

@@ -6,9 +6,9 @@
 
 Name | Type
 ------------ | -------------
+`until` | Date
 `hours` | number
 `reason` | string
-`until` | Date
 
 ## Example
 
@@ -17,9 +17,9 @@ import type { SnoozeRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "until": null,
   "hours": null,
   "reason": null,
-  "until": null,
 } satisfies SnoozeRequest
 
 console.log(example)

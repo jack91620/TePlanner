@@ -31,10 +31,10 @@ import com.squareup.moshi.JsonClass
 /**
  * Phase 8.2: greedy charging-stop selection over client-provided POIs. The iOS client gathers POIs via AMap SDK along-route search (proper road corridor) and posts them here.
  *
- * @param candidatePois 
- * @param initialSoc 
  * @param polyline [[lat, lng], …]
  * @param totalDistanceKm 
+ * @param candidatePois 
+ * @param initialSoc 
  * @param carType 
  * @param minArrivalSoc 
  * @param vehicleRangeKm 
@@ -43,18 +43,18 @@ import com.squareup.moshi.JsonClass
 
 data class ChargingPlanRequest (
 
-    @Json(name = "candidate_pois")
-    val candidatePois: kotlin.collections.List<POIInput>,
-
-    @Json(name = "initial_soc")
-    val initialSoc: kotlin.Int,
-
     /* [[lat, lng], …] */
     @Json(name = "polyline")
     val polyline: kotlin.collections.List<kotlin.collections.List<java.math.BigDecimal>>,
 
     @Json(name = "total_distance_km")
     val totalDistanceKm: java.math.BigDecimal,
+
+    @Json(name = "candidate_pois")
+    val candidatePois: kotlin.collections.List<POIInput>,
+
+    @Json(name = "initial_soc")
+    val initialSoc: kotlin.Int,
 
     @Json(name = "car_type")
     val carType: kotlin.String? = "model_y_long_range",

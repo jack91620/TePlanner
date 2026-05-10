@@ -1,0 +1,7 @@
+# Mark codegen output as generated so GitHub collapses these files in
+# PR review and Linguist excludes them from language stats. Real source
+# of truth is packages/clients/openapi.json (the snapshot) +
+# scripts/codegen.sh (the generator config).
+packages/clients/swift/**       linguist-generated=true
+packages/clients/kotlin/**      linguist-generated=true
+packages/clients/arkts/**       linguist-generated=true

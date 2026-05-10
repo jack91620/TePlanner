@@ -13,25 +13,25 @@ import AnyCodable
 /** Output: just the charging-related fields. The iOS client merges this with the previously-fetched route data to produce its RoutePlanResponse-shape view model. */
 public struct ChargingPlanResponse: Codable, JSONEncodable, Hashable {
 
-    public var arrivalSoc: Int
-    public var chargingDurationMinutes: Int
     public var chargingStops: [ChargingStopResponse]
     public var numChargingStops: Int
+    public var chargingDurationMinutes: Int
+    public var arrivalSoc: Int
     public var warnings: [String]?
 
-    public init(arrivalSoc: Int, chargingDurationMinutes: Int, chargingStops: [ChargingStopResponse], numChargingStops: Int, warnings: [String]? = nil) {
-        self.arrivalSoc = arrivalSoc
-        self.chargingDurationMinutes = chargingDurationMinutes
+    public init(chargingStops: [ChargingStopResponse], numChargingStops: Int, chargingDurationMinutes: Int, arrivalSoc: Int, warnings: [String]? = nil) {
         self.chargingStops = chargingStops
         self.numChargingStops = numChargingStops
+        self.chargingDurationMinutes = chargingDurationMinutes
+        self.arrivalSoc = arrivalSoc
         self.warnings = warnings
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case arrivalSoc = "arrival_soc"
-        case chargingDurationMinutes = "charging_duration_minutes"
         case chargingStops = "charging_stops"
         case numChargingStops = "num_charging_stops"
+        case chargingDurationMinutes = "charging_duration_minutes"
+        case arrivalSoc = "arrival_soc"
         case warnings
     }
 
@@ -39,10 +39,10 @@ public struct ChargingPlanResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(arrivalSoc, forKey: .arrivalSoc)
-        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
         try container.encode(chargingStops, forKey: .chargingStops)
         try container.encode(numChargingStops, forKey: .numChargingStops)
+        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
+        try container.encode(arrivalSoc, forKey: .arrivalSoc)
         try container.encodeIfPresent(warnings, forKey: .warnings)
     }
 }

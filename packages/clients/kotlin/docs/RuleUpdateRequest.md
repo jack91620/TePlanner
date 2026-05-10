@@ -4,8 +4,8 @@
 ## Properties
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
-| **enabled** | **kotlin.Boolean** |  |  [optional] |
 | **name** | **kotlin.String** |  |  [optional] |
+| **enabled** | **kotlin.Boolean** |  |  [optional] |
 | **spec** | [**kotlin.Any**](.md) |  |  [optional] |
 
 

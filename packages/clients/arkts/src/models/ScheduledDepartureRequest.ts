@@ -27,10 +27,10 @@ export interface ScheduledDepartureRequest {
     departure_at_utc: Date;
     /**
      * 
-     * @type {boolean}
+     * @type {number}
      * @memberof ScheduledDepartureRequest
      */
-    enabled?: boolean;
+    lead_minutes?: number;
     /**
      * 
      * @type {string}
@@ -39,10 +39,10 @@ export interface ScheduledDepartureRequest {
     label?: string | null;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof ScheduledDepartureRequest
      */
-    lead_minutes?: number;
+    vehicle_id?: string | null;
     /**
      * 
      * @type {number}
@@ -51,10 +51,10 @@ export interface ScheduledDepartureRequest {
     target_charge_soc?: number | null;
     /**
      * 
-     * @type {string}
+     * @type {boolean}
      * @memberof ScheduledDepartureRequest
      */
-    vehicle_id?: string | null;
+    enabled?: boolean;
 }
 
 /**
@@ -76,11 +76,11 @@ export function ScheduledDepartureRequestFromJSONTyped(json: any, ignoreDiscrimi
     return {
         
         'departure_at_utc': (new Date(json['departure_at_utc'])),
-        'enabled': json['enabled'] == null ? undefined : json['enabled'],
-        'label': json['label'] == null ? undefined : json['label'],
         'lead_minutes': json['lead_minutes'] == null ? undefined : json['lead_minutes'],
-        'target_charge_soc': json['target_charge_soc'] == null ? undefined : json['target_charge_soc'],
+        'label': json['label'] == null ? undefined : json['label'],
         'vehicle_id': json['vehicle_id'] == null ? undefined : json['vehicle_id'],
+        'target_charge_soc': json['target_charge_soc'] == null ? undefined : json['target_charge_soc'],
+        'enabled': json['enabled'] == null ? undefined : json['enabled'],
     };
 }
 
@@ -96,11 +96,11 @@ export function ScheduledDepartureRequestToJSONTyped(value?: ScheduledDepartureR
     return {
         
         'departure_at_utc': value['departure_at_utc'].toISOString(),
-        'enabled': value['enabled'],
-        'label': value['label'],
         'lead_minutes': value['lead_minutes'],
-        'target_charge_soc': value['target_charge_soc'],
+        'label': value['label'],
         'vehicle_id': value['vehicle_id'],
+        'target_charge_soc': value['target_charge_soc'],
+        'enabled': value['enabled'],
     };
 }
 

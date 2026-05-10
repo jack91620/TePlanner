@@ -24,31 +24,13 @@ export interface ChargingStopResponse {
      * @type {string}
      * @memberof ChargingStopResponse
      */
-    address?: string | null;
+    station_id: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof ChargingStopResponse
      */
-    arrival_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStopResponse
-     */
-    charging_duration_minutes: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStopResponse
-     */
-    departure_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStopResponse
-     */
-    distance_from_start_km: number;
+    name: string;
     /**
      * 
      * @type {number}
@@ -66,7 +48,7 @@ export interface ChargingStopResponse {
      * @type {string}
      * @memberof ChargingStopResponse
      */
-    name: string;
+    address?: string | null;
     /**
      * 
      * @type {string}
@@ -75,24 +57,42 @@ export interface ChargingStopResponse {
     operator?: string | null;
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof ChargingStopResponse
      */
-    station_id: string;
+    distance_from_start_km: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStopResponse
+     */
+    arrival_soc: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStopResponse
+     */
+    departure_soc: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStopResponse
+     */
+    charging_duration_minutes: number;
 }
 
 /**
  * Check if a given object implements the ChargingStopResponse interface.
  */
 export function instanceOfChargingStopResponse(value: object): value is ChargingStopResponse {
-    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
-    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
-    if (!('departure_soc' in value) || value['departure_soc'] === undefined) return false;
-    if (!('distance_from_start_km' in value) || value['distance_from_start_km'] === undefined) return false;
+    if (!('station_id' in value) || value['station_id'] === undefined) return false;
+    if (!('name' in value) || value['name'] === undefined) return false;
     if (!('latitude' in value) || value['latitude'] === undefined) return false;
     if (!('longitude' in value) || value['longitude'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
-    if (!('station_id' in value) || value['station_id'] === undefined) return false;
+    if (!('distance_from_start_km' in value) || value['distance_from_start_km'] === undefined) return false;
+    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
+    if (!('departure_soc' in value) || value['departure_soc'] === undefined) return false;
+    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
     return true;
 }
 
@@ -106,16 +106,16 @@ export function ChargingStopResponseFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
-        'address': json['address'] == null ? undefined : json['address'],
-        'arrival_soc': json['arrival_soc'],
-        'charging_duration_minutes': json['charging_duration_minutes'],
-        'departure_soc': json['departure_soc'],
-        'distance_from_start_km': json['distance_from_start_km'],
+        'station_id': json['station_id'],
+        'name': json['name'],
         'latitude': json['latitude'],
         'longitude': json['longitude'],
-        'name': json['name'],
+        'address': json['address'] == null ? undefined : json['address'],
         'operator': json['operator'] == null ? undefined : json['operator'],
-        'station_id': json['station_id'],
+        'distance_from_start_km': json['distance_from_start_km'],
+        'arrival_soc': json['arrival_soc'],
+        'departure_soc': json['departure_soc'],
+        'charging_duration_minutes': json['charging_duration_minutes'],
     };
 }
 
@@ -130,16 +130,16 @@ export function ChargingStopResponseToJSONTyped(value?: ChargingStopResponse | n
 
     return {
         
-        'address': value['address'],
-        'arrival_soc': value['arrival_soc'],
-        'charging_duration_minutes': value['charging_duration_minutes'],
-        'departure_soc': value['departure_soc'],
-        'distance_from_start_km': value['distance_from_start_km'],
+        'station_id': value['station_id'],
+        'name': value['name'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
-        'name': value['name'],
+        'address': value['address'],
         'operator': value['operator'],
-        'station_id': value['station_id'],
+        'distance_from_start_km': value['distance_from_start_km'],
+        'arrival_soc': value['arrival_soc'],
+        'departure_soc': value['departure_soc'],
+        'charging_duration_minutes': value['charging_duration_minutes'],
     };
 }
 

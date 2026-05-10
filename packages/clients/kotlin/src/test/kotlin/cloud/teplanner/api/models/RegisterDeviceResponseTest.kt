@@ -33,16 +33,16 @@ class RegisterDeviceResponseTest : ShouldSpec() {
         // uncomment below to create an instance of RegisterDeviceResponse
         //val modelInstance = RegisterDeviceResponse()
 
-        // to test the property `deviceId`
-        should("test deviceId") {
-            // uncomment below to test the property
-            //modelInstance.deviceId shouldBe ("TODO")
-        }
-
         // to test the property `success`
         should("test success") {
             // uncomment below to test the property
             //modelInstance.success shouldBe ("TODO")
+        }
+
+        // to test the property `deviceId`
+        should("test deviceId") {
+            // uncomment below to test the property
+            //modelInstance.deviceId shouldBe ("TODO")
         }
 
     }

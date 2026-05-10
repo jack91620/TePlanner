@@ -31,9 +31,9 @@ import com.squareup.moshi.JsonClass
  * Candidate POI for the charging-plan endpoint. Shape mirrors AMapRoutePOI (iOS SDK) — only id / name / lat / lng required.
  *
  * @param id 
+ * @param name 
  * @param latitude 
  * @param longitude 
- * @param name 
  * @param address 
  */
 
@@ -43,14 +43,14 @@ data class POIInput (
     @Json(name = "id")
     val id: kotlin.String,
 
+    @Json(name = "name")
+    val name: kotlin.String,
+
     @Json(name = "latitude")
     val latitude: java.math.BigDecimal,
 
     @Json(name = "longitude")
     val longitude: java.math.BigDecimal,
-
-    @Json(name = "name")
-    val name: kotlin.String,
 
     @Json(name = "address")
     val address: kotlin.String? = null

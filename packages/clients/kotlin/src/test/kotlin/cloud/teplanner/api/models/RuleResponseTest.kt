@@ -33,16 +33,16 @@ class RuleResponseTest : ShouldSpec() {
         // uncomment below to create an instance of RuleResponse
         //val modelInstance = RuleResponse()
 
-        // to test the property `enabled`
-        should("test enabled") {
-            // uncomment below to test the property
-            //modelInstance.enabled shouldBe ("TODO")
-        }
-
         // to test the property `id`
         should("test id") {
             // uncomment below to test the property
             //modelInstance.id shouldBe ("TODO")
+        }
+
+        // to test the property `presetId`
+        should("test presetId") {
+            // uncomment below to test the property
+            //modelInstance.presetId shouldBe ("TODO")
         }
 
         // to test the property `name`
@@ -51,10 +51,10 @@ class RuleResponseTest : ShouldSpec() {
             //modelInstance.name shouldBe ("TODO")
         }
 
-        // to test the property `presetId`
-        should("test presetId") {
+        // to test the property `enabled`
+        should("test enabled") {
             // uncomment below to test the property
-            //modelInstance.presetId shouldBe ("TODO")
+            //modelInstance.enabled shouldBe ("TODO")
         }
 
         // to test the property `spec`
@@ -69,10 +69,10 @@ class RuleResponseTest : ShouldSpec() {
             //modelInstance.version shouldBe ("TODO")
         }
 
-        // to test the property `displayOrder`
-        should("test displayOrder") {
+        // to test the property `updatedAt`
+        should("test updatedAt") {
             // uncomment below to test the property
-            //modelInstance.displayOrder shouldBe ("TODO")
+            //modelInstance.updatedAt shouldBe ("TODO")
         }
 
         // to test the property `lastFiredAt`
@@ -81,10 +81,22 @@ class RuleResponseTest : ShouldSpec() {
             //modelInstance.lastFiredAt shouldBe ("TODO")
         }
 
-        // to test the property `updatedAt`
-        should("test updatedAt") {
+        // to test the property `displayOrder`
+        should("test displayOrder") {
             // uncomment below to test the property
-            //modelInstance.updatedAt shouldBe ("TODO")
+            //modelInstance.displayOrder shouldBe ("TODO")
+        }
+
+        // to test the property `isFiring`
+        should("test isFiring") {
+            // uncomment below to test the property
+            //modelInstance.isFiring shouldBe ("TODO")
+        }
+
+        // to test the property `firingSince`
+        should("test firingSince") {
+            // uncomment below to test the property
+            //modelInstance.firingSince shouldBe ("TODO")
         }
 
     }

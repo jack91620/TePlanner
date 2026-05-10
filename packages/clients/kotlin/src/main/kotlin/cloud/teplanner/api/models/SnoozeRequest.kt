@@ -30,22 +30,22 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
+ * @param until 
  * @param hours 
  * @param reason 
- * @param until 
  */
 
 
 data class SnoozeRequest (
 
+    @Json(name = "until")
+    val until: java.time.OffsetDateTime? = null,
+
     @Json(name = "hours")
     val hours: java.math.BigDecimal? = null,
 
     @Json(name = "reason")
-    val reason: kotlin.String? = null,
-
-    @Json(name = "until")
-    val until: java.time.OffsetDateTime? = null
+    val reason: kotlin.String? = null
 
 ) {
 

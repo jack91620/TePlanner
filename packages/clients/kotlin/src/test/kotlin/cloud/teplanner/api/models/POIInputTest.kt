@@ -39,6 +39,12 @@ class POIInputTest : ShouldSpec() {
             //modelInstance.id shouldBe ("TODO")
         }
 
+        // to test the property `name`
+        should("test name") {
+            // uncomment below to test the property
+            //modelInstance.name shouldBe ("TODO")
+        }
+
         // to test the property `latitude`
         should("test latitude") {
             // uncomment below to test the property
@@ -49,12 +55,6 @@ class POIInputTest : ShouldSpec() {
         should("test longitude") {
             // uncomment below to test the property
             //modelInstance.longitude shouldBe ("TODO")
-        }
-
-        // to test the property `name`
-        should("test name") {
-            // uncomment below to test the property
-            //modelInstance.name shouldBe ("TODO")
         }
 
         // to test the property `address`

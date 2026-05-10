@@ -80,7 +80,7 @@ Register a new user with email and password (Android / non- WeChat clients). Log
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let emailRegisterRequest = EmailRegisterRequest(email: "email_example", nickname: "nickname_example", password: "password_example") // EmailRegisterRequest | 
+let emailRegisterRequest = EmailRegisterRequest(email: "email_example", password: "password_example", nickname: "nickname_example") // EmailRegisterRequest | 
 
 // Email Register
 AuthAPI.emailRegisterApiV1AuthRegisterPost(emailRegisterRequest: emailRegisterRequest) { (response, error) in

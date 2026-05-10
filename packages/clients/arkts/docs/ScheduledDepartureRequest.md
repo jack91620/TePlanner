@@ -7,11 +7,11 @@
 Name | Type
 ------------ | -------------
 `departure_at_utc` | Date
-`enabled` | boolean
-`label` | string
 `lead_minutes` | number
-`target_charge_soc` | number
+`label` | string
 `vehicle_id` | string
+`target_charge_soc` | number
+`enabled` | boolean
 
 ## Example
 
@@ -21,11 +21,11 @@ import type { ScheduledDepartureRequest } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "departure_at_utc": null,
-  "enabled": null,
-  "label": null,
   "lead_minutes": null,
-  "target_charge_soc": null,
+  "label": null,
   "vehicle_id": null,
+  "target_charge_soc": null,
+  "enabled": null,
 } satisfies ScheduledDepartureRequest
 
 console.log(example)

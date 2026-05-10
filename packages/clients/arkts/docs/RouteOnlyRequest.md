@@ -7,8 +7,8 @@ Phase 8.2: route metadata only (no charging plan).  Used by the iOS client to ge
 
 Name | Type
 ------------ | -------------
-`destination` | [LocationInput](LocationInput.md)
 `origin` | [LocationInput](LocationInput.md)
+`destination` | [LocationInput](LocationInput.md)
 
 ## Example
 
@@ -17,8 +17,8 @@ import type { RouteOnlyRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "destination": null,
   "origin": null,
+  "destination": null,
 } satisfies RouteOnlyRequest
 
 console.log(example)

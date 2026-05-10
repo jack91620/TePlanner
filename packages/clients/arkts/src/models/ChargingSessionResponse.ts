@@ -21,34 +21,28 @@ import { mapValues } from '../runtime';
 export interface ChargingSessionResponse {
     /**
      * 
+     * @type {number}
+     * @memberof ChargingSessionResponse
+     */
+    id: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingSessionResponse
+     */
+    vehicle_id: string | null;
+    /**
+     * 
      * @type {string}
      * @memberof ChargingSessionResponse
      */
     client_session_id: string | null;
     /**
      * 
-     * @type {number}
+     * @type {Date}
      * @memberof ChargingSessionResponse
      */
-    duration_minutes: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingSessionResponse
-     */
-    end_range_km: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingSessionResponse
-     */
-    end_soc: number | null;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ChargingSessionResponse
-     */
-    ended_as_complete: boolean | null;
+    started_at: Date;
     /**
      * 
      * @type {Date}
@@ -60,13 +54,37 @@ export interface ChargingSessionResponse {
      * @type {number}
      * @memberof ChargingSessionResponse
      */
-    energy_added_kwh: number | null;
+    start_soc: number | null;
     /**
      * 
      * @type {number}
      * @memberof ChargingSessionResponse
      */
-    id: number;
+    end_soc: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingSessionResponse
+     */
+    start_range_km: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingSessionResponse
+     */
+    end_range_km: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingSessionResponse
+     */
+    energy_added_kwh: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingSessionResponse
+     */
+    location_name: string | null;
     /**
      * 
      * @type {number}
@@ -81,10 +99,22 @@ export interface ChargingSessionResponse {
     lng: number | null;
     /**
      * 
+     * @type {boolean}
+     * @memberof ChargingSessionResponse
+     */
+    ended_as_complete: boolean | null;
+    /**
+     * 
      * @type {string}
      * @memberof ChargingSessionResponse
      */
-    location_name: string | null;
+    source: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingSessionResponse
+     */
+    duration_minutes: number | null;
     /**
      * 
      * @type {number}
@@ -97,60 +127,30 @@ export interface ChargingSessionResponse {
      * @memberof ChargingSessionResponse
      */
     soc_delta: number | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingSessionResponse
-     */
-    source: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingSessionResponse
-     */
-    start_range_km: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingSessionResponse
-     */
-    start_soc: number | null;
-    /**
-     * 
-     * @type {Date}
-     * @memberof ChargingSessionResponse
-     */
-    started_at: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingSessionResponse
-     */
-    vehicle_id: string | null;
 }
 
 /**
  * Check if a given object implements the ChargingSessionResponse interface.
  */
 export function instanceOfChargingSessionResponse(value: object): value is ChargingSessionResponse {
-    if (!('client_session_id' in value) || value['client_session_id'] === undefined) return false;
-    if (!('duration_minutes' in value) || value['duration_minutes'] === undefined) return false;
-    if (!('end_range_km' in value) || value['end_range_km'] === undefined) return false;
-    if (!('end_soc' in value) || value['end_soc'] === undefined) return false;
-    if (!('ended_as_complete' in value) || value['ended_as_complete'] === undefined) return false;
-    if (!('ended_at' in value) || value['ended_at'] === undefined) return false;
-    if (!('energy_added_kwh' in value) || value['energy_added_kwh'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
+    if (!('client_session_id' in value) || value['client_session_id'] === undefined) return false;
+    if (!('started_at' in value) || value['started_at'] === undefined) return false;
+    if (!('ended_at' in value) || value['ended_at'] === undefined) return false;
+    if (!('start_soc' in value) || value['start_soc'] === undefined) return false;
+    if (!('end_soc' in value) || value['end_soc'] === undefined) return false;
+    if (!('start_range_km' in value) || value['start_range_km'] === undefined) return false;
+    if (!('end_range_km' in value) || value['end_range_km'] === undefined) return false;
+    if (!('energy_added_kwh' in value) || value['energy_added_kwh'] === undefined) return false;
+    if (!('location_name' in value) || value['location_name'] === undefined) return false;
     if (!('lat' in value) || value['lat'] === undefined) return false;
     if (!('lng' in value) || value['lng'] === undefined) return false;
-    if (!('location_name' in value) || value['location_name'] === undefined) return false;
+    if (!('ended_as_complete' in value) || value['ended_as_complete'] === undefined) return false;
+    if (!('source' in value) || value['source'] === undefined) return false;
+    if (!('duration_minutes' in value) || value['duration_minutes'] === undefined) return false;
     if (!('range_added_km' in value) || value['range_added_km'] === undefined) return false;
     if (!('soc_delta' in value) || value['soc_delta'] === undefined) return false;
-    if (!('source' in value) || value['source'] === undefined) return false;
-    if (!('start_range_km' in value) || value['start_range_km'] === undefined) return false;
-    if (!('start_soc' in value) || value['start_soc'] === undefined) return false;
-    if (!('started_at' in value) || value['started_at'] === undefined) return false;
-    if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
     return true;
 }
 
@@ -164,24 +164,24 @@ export function ChargingSessionResponseFromJSONTyped(json: any, ignoreDiscrimina
     }
     return {
         
-        'client_session_id': json['client_session_id'],
-        'duration_minutes': json['duration_minutes'],
-        'end_range_km': json['end_range_km'],
-        'end_soc': json['end_soc'],
-        'ended_as_complete': json['ended_as_complete'],
-        'ended_at': (json['ended_at'] == null ? null : new Date(json['ended_at'])),
-        'energy_added_kwh': json['energy_added_kwh'],
         'id': json['id'],
+        'vehicle_id': json['vehicle_id'],
+        'client_session_id': json['client_session_id'],
+        'started_at': (new Date(json['started_at'])),
+        'ended_at': (json['ended_at'] == null ? null : new Date(json['ended_at'])),
+        'start_soc': json['start_soc'],
+        'end_soc': json['end_soc'],
+        'start_range_km': json['start_range_km'],
+        'end_range_km': json['end_range_km'],
+        'energy_added_kwh': json['energy_added_kwh'],
+        'location_name': json['location_name'],
         'lat': json['lat'],
         'lng': json['lng'],
-        'location_name': json['location_name'],
+        'ended_as_complete': json['ended_as_complete'],
+        'source': json['source'],
+        'duration_minutes': json['duration_minutes'],
         'range_added_km': json['range_added_km'],
         'soc_delta': json['soc_delta'],
-        'source': json['source'],
-        'start_range_km': json['start_range_km'],
-        'start_soc': json['start_soc'],
-        'started_at': (new Date(json['started_at'])),
-        'vehicle_id': json['vehicle_id'],
     };
 }
 
@@ -196,24 +196,24 @@ export function ChargingSessionResponseToJSONTyped(value?: ChargingSessionRespon
 
     return {
         
-        'client_session_id': value['client_session_id'],
-        'duration_minutes': value['duration_minutes'],
-        'end_range_km': value['end_range_km'],
-        'end_soc': value['end_soc'],
-        'ended_as_complete': value['ended_as_complete'],
-        'ended_at': value['ended_at'] == null ? value['ended_at'] : value['ended_at'].toISOString(),
-        'energy_added_kwh': value['energy_added_kwh'],
         'id': value['id'],
+        'vehicle_id': value['vehicle_id'],
+        'client_session_id': value['client_session_id'],
+        'started_at': value['started_at'].toISOString(),
+        'ended_at': value['ended_at'] == null ? value['ended_at'] : value['ended_at'].toISOString(),
+        'start_soc': value['start_soc'],
+        'end_soc': value['end_soc'],
+        'start_range_km': value['start_range_km'],
+        'end_range_km': value['end_range_km'],
+        'energy_added_kwh': value['energy_added_kwh'],
+        'location_name': value['location_name'],
         'lat': value['lat'],
         'lng': value['lng'],
-        'location_name': value['location_name'],
+        'ended_as_complete': value['ended_as_complete'],
+        'source': value['source'],
+        'duration_minutes': value['duration_minutes'],
         'range_added_km': value['range_added_km'],
         'soc_delta': value['soc_delta'],
-        'source': value['source'],
-        'start_range_km': value['start_range_km'],
-        'start_soc': value['start_soc'],
-        'started_at': value['started_at'].toISOString(),
-        'vehicle_id': value['vehicle_id'],
     };
 }
 

@@ -29,24 +29,24 @@ import {
 export interface TelemetryStateResponse {
     /**
      * 
-     * @type {Array<TelemetryStateEntry>}
-     * @memberof TelemetryStateResponse
-     */
-    entries: Array<TelemetryStateEntry>;
-    /**
-     * 
      * @type {string}
      * @memberof TelemetryStateResponse
      */
     vehicle_id: string | null;
+    /**
+     * 
+     * @type {Array<TelemetryStateEntry>}
+     * @memberof TelemetryStateResponse
+     */
+    entries: Array<TelemetryStateEntry>;
 }
 
 /**
  * Check if a given object implements the TelemetryStateResponse interface.
  */
 export function instanceOfTelemetryStateResponse(value: object): value is TelemetryStateResponse {
-    if (!('entries' in value) || value['entries'] === undefined) return false;
     if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
+    if (!('entries' in value) || value['entries'] === undefined) return false;
     return true;
 }
 
@@ -60,8 +60,8 @@ export function TelemetryStateResponseFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
         
-        'entries': ((json['entries'] as Array<any>).map(TelemetryStateEntryFromJSON)),
         'vehicle_id': json['vehicle_id'],
+        'entries': ((json['entries'] as Array<any>).map(TelemetryStateEntryFromJSON)),
     };
 }
 
@@ -76,8 +76,8 @@ export function TelemetryStateResponseToJSONTyped(value?: TelemetryStateResponse
 
     return {
         
-        'entries': ((value['entries'] as Array<any>).map(TelemetryStateEntryToJSON)),
         'vehicle_id': value['vehicle_id'],
+        'entries': ((value['entries'] as Array<any>).map(TelemetryStateEntryToJSON)),
     };
 }
 

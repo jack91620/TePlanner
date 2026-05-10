@@ -33,6 +33,12 @@ class VehicleStateResponseTest : ShouldSpec() {
         // uncomment below to create an instance of VehicleStateResponse
         //val modelInstance = VehicleStateResponse()
 
+        // to test the property `vehicleId`
+        should("test vehicleId") {
+            // uncomment below to test the property
+            //modelInstance.vehicleId shouldBe ("TODO")
+        }
+
         // to test the property `displayName`
         should("test displayName") {
             // uncomment below to test the property
@@ -43,12 +49,6 @@ class VehicleStateResponseTest : ShouldSpec() {
         should("test state") {
             // uncomment below to test the property
             //modelInstance.state shouldBe ("TODO")
-        }
-
-        // to test the property `vehicleId`
-        should("test vehicleId") {
-            // uncomment below to test the property
-            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
         // to test the property `batteryLevel`
@@ -63,46 +63,16 @@ class VehicleStateResponseTest : ShouldSpec() {
             //modelInstance.batteryRangeKm shouldBe ("TODO")
         }
 
-        // to test the property `cabinOverheatProtectionOn`
-        should("test cabinOverheatProtectionOn") {
+        // to test the property `usableBatteryLevel`
+        should("test usableBatteryLevel") {
             // uncomment below to test the property
-            //modelInstance.cabinOverheatProtectionOn shouldBe ("TODO")
-        }
-
-        // to test the property `chargeLimitSoc`
-        should("test chargeLimitSoc") {
-            // uncomment below to test the property
-            //modelInstance.chargeLimitSoc shouldBe ("TODO")
+            //modelInstance.usableBatteryLevel shouldBe ("TODO")
         }
 
         // to test the property `chargingState`
         should("test chargingState") {
             // uncomment below to test the property
             //modelInstance.chargingState shouldBe ("TODO")
-        }
-
-        // to test the property `climateKeeperMode`
-        should("test climateKeeperMode") {
-            // uncomment below to test the property
-            //modelInstance.climateKeeperMode shouldBe ("TODO")
-        }
-
-        // to test the property `heading`
-        should("test heading") {
-            // uncomment below to test the property
-            //modelInstance.heading shouldBe ("TODO")
-        }
-
-        // to test the property `insideTemp`
-        should("test insideTemp") {
-            // uncomment below to test the property
-            //modelInstance.insideTemp shouldBe ("TODO")
-        }
-
-        // to test the property `isClimateOn`
-        should("test isClimateOn") {
-            // uncomment below to test the property
-            //modelInstance.isClimateOn shouldBe ("TODO")
         }
 
         // to test the property `latitude`
@@ -117,22 +87,10 @@ class VehicleStateResponseTest : ShouldSpec() {
             //modelInstance.longitude shouldBe ("TODO")
         }
 
-        // to test the property `odometerKm`
-        should("test odometerKm") {
+        // to test the property `heading`
+        should("test heading") {
             // uncomment below to test the property
-            //modelInstance.odometerKm shouldBe ("TODO")
-        }
-
-        // to test the property `outsideTemp`
-        should("test outsideTemp") {
-            // uncomment below to test the property
-            //modelInstance.outsideTemp shouldBe ("TODO")
-        }
-
-        // to test the property `sentryModeOn`
-        should("test sentryModeOn") {
-            // uncomment below to test the property
-            //modelInstance.sentryModeOn shouldBe ("TODO")
+            //modelInstance.heading shouldBe ("TODO")
         }
 
         // to test the property `speed`
@@ -141,10 +99,52 @@ class VehicleStateResponseTest : ShouldSpec() {
             //modelInstance.speed shouldBe ("TODO")
         }
 
-        // to test the property `usableBatteryLevel`
-        should("test usableBatteryLevel") {
+        // to test the property `odometerKm`
+        should("test odometerKm") {
             // uncomment below to test the property
-            //modelInstance.usableBatteryLevel shouldBe ("TODO")
+            //modelInstance.odometerKm shouldBe ("TODO")
+        }
+
+        // to test the property `insideTemp`
+        should("test insideTemp") {
+            // uncomment below to test the property
+            //modelInstance.insideTemp shouldBe ("TODO")
+        }
+
+        // to test the property `outsideTemp`
+        should("test outsideTemp") {
+            // uncomment below to test the property
+            //modelInstance.outsideTemp shouldBe ("TODO")
+        }
+
+        // to test the property `climateKeeperMode`
+        should("test climateKeeperMode") {
+            // uncomment below to test the property
+            //modelInstance.climateKeeperMode shouldBe ("TODO")
+        }
+
+        // to test the property `isClimateOn`
+        should("test isClimateOn") {
+            // uncomment below to test the property
+            //modelInstance.isClimateOn shouldBe ("TODO")
+        }
+
+        // to test the property `sentryModeOn`
+        should("test sentryModeOn") {
+            // uncomment below to test the property
+            //modelInstance.sentryModeOn shouldBe ("TODO")
+        }
+
+        // to test the property `cabinOverheatProtectionOn`
+        should("test cabinOverheatProtectionOn") {
+            // uncomment below to test the property
+            //modelInstance.cabinOverheatProtectionOn shouldBe ("TODO")
+        }
+
+        // to test the property `chargeLimitSoc`
+        should("test chargeLimitSoc") {
+            // uncomment below to test the property
+            //modelInstance.chargeLimitSoc shouldBe ("TODO")
         }
 
     }

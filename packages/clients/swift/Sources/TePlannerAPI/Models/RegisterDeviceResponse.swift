@@ -12,25 +12,25 @@ import AnyCodable
 
 public struct RegisterDeviceResponse: Codable, JSONEncodable, Hashable {
 
-    public var deviceId: Int
     public var success: Bool
+    public var deviceId: Int
 
-    public init(deviceId: Int, success: Bool) {
-        self.deviceId = deviceId
+    public init(success: Bool, deviceId: Int) {
         self.success = success
+        self.deviceId = deviceId
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case deviceId = "device_id"
         case success
+        case deviceId = "device_id"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(deviceId, forKey: .deviceId)
         try container.encode(success, forKey: .success)
+        try container.encode(deviceId, forKey: .deviceId)
     }
 }
 

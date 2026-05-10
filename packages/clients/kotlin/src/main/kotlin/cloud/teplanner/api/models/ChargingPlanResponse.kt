@@ -31,27 +31,27 @@ import com.squareup.moshi.JsonClass
 /**
  * Output: just the charging-related fields. The iOS client merges this with the previously-fetched route data to produce its RoutePlanResponse-shape view model.
  *
- * @param arrivalSoc 
- * @param chargingDurationMinutes 
  * @param chargingStops 
  * @param numChargingStops 
+ * @param chargingDurationMinutes 
+ * @param arrivalSoc 
  * @param warnings 
  */
 
 
 data class ChargingPlanResponse (
 
-    @Json(name = "arrival_soc")
-    val arrivalSoc: kotlin.Int,
-
-    @Json(name = "charging_duration_minutes")
-    val chargingDurationMinutes: kotlin.Int,
-
     @Json(name = "charging_stops")
     val chargingStops: kotlin.collections.List<ChargingStopResponse>,
 
     @Json(name = "num_charging_stops")
     val numChargingStops: kotlin.Int,
+
+    @Json(name = "charging_duration_minutes")
+    val chargingDurationMinutes: kotlin.Int,
+
+    @Json(name = "arrival_soc")
+    val arrivalSoc: kotlin.Int,
 
     @Json(name = "warnings")
     val warnings: kotlin.collections.List<kotlin.String>? = null

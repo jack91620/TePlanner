@@ -21,6 +21,54 @@ import { mapValues } from '../runtime';
 export interface RuleResponse {
     /**
      * 
+     * @type {string}
+     * @memberof RuleResponse
+     */
+    id: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RuleResponse
+     */
+    preset_id: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof RuleResponse
+     */
+    name: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RuleResponse
+     */
+    enabled: boolean;
+    /**
+     * 
+     * @type {object}
+     * @memberof RuleResponse
+     */
+    spec: object;
+    /**
+     * 
+     * @type {number}
+     * @memberof RuleResponse
+     */
+    version: number;
+    /**
+     * 
+     * @type {Date}
+     * @memberof RuleResponse
+     */
+    updated_at?: Date | null;
+    /**
+     * 
+     * @type {Date}
+     * @memberof RuleResponse
+     */
+    last_fired_at?: Date | null;
+    /**
+     * 
      * @type {number}
      * @memberof RuleResponse
      */
@@ -30,59 +78,23 @@ export interface RuleResponse {
      * @type {boolean}
      * @memberof RuleResponse
      */
-    enabled: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof RuleResponse
-     */
-    id: string;
+    is_firing?: boolean;
     /**
      * 
      * @type {Date}
      * @memberof RuleResponse
      */
-    last_fired_at?: Date | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof RuleResponse
-     */
-    name: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RuleResponse
-     */
-    preset_id: string | null;
-    /**
-     * 
-     * @type {object}
-     * @memberof RuleResponse
-     */
-    spec: object;
-    /**
-     * 
-     * @type {Date}
-     * @memberof RuleResponse
-     */
-    updated_at?: Date | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof RuleResponse
-     */
-    version: number;
+    firing_since?: Date | null;
 }
 
 /**
  * Check if a given object implements the RuleResponse interface.
  */
 export function instanceOfRuleResponse(value: object): value is RuleResponse {
-    if (!('enabled' in value) || value['enabled'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
     if (!('preset_id' in value) || value['preset_id'] === undefined) return false;
+    if (!('name' in value) || value['name'] === undefined) return false;
+    if (!('enabled' in value) || value['enabled'] === undefined) return false;
     if (!('spec' in value) || value['spec'] === undefined) return false;
     if (!('version' in value) || value['version'] === undefined) return false;
     return true;
@@ -98,15 +110,17 @@ export function RuleResponseFromJSONTyped(json: any, ignoreDiscriminator: boolea
     }
     return {
         
-        'display_order': json['display_order'] == null ? undefined : json['display_order'],
-        'enabled': json['enabled'],
         'id': json['id'],
-        'last_fired_at': json['last_fired_at'] == null ? undefined : (new Date(json['last_fired_at'])),
-        'name': json['name'],
         'preset_id': json['preset_id'],
+        'name': json['name'],
+        'enabled': json['enabled'],
         'spec': json['spec'],
-        'updated_at': json['updated_at'] == null ? undefined : (new Date(json['updated_at'])),
         'version': json['version'],
+        'updated_at': json['updated_at'] == null ? undefined : (new Date(json['updated_at'])),
+        'last_fired_at': json['last_fired_at'] == null ? undefined : (new Date(json['last_fired_at'])),
+        'display_order': json['display_order'] == null ? undefined : json['display_order'],
+        'is_firing': json['is_firing'] == null ? undefined : json['is_firing'],
+        'firing_since': json['firing_since'] == null ? undefined : (new Date(json['firing_since'])),
     };
 }
 
@@ -121,15 +135,17 @@ export function RuleResponseToJSONTyped(value?: RuleResponse | null, ignoreDiscr
 
     return {
         
-        'display_order': value['display_order'],
-        'enabled': value['enabled'],
         'id': value['id'],
-        'last_fired_at': value['last_fired_at'] == null ? value['last_fired_at'] : value['last_fired_at'].toISOString(),
-        'name': value['name'],
         'preset_id': value['preset_id'],
+        'name': value['name'],
+        'enabled': value['enabled'],
         'spec': value['spec'],
-        'updated_at': value['updated_at'] == null ? value['updated_at'] : value['updated_at'].toISOString(),
         'version': value['version'],
+        'updated_at': value['updated_at'] == null ? value['updated_at'] : value['updated_at'].toISOString(),
+        'last_fired_at': value['last_fired_at'] == null ? value['last_fired_at'] : value['last_fired_at'].toISOString(),
+        'display_order': value['display_order'],
+        'is_firing': value['is_firing'],
+        'firing_since': value['firing_since'] == null ? value['firing_since'] : value['firing_since'].toISOString(),
     };
 }
 

@@ -29,7 +29,7 @@ Create Rule
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let ruleCreateRequest = RuleCreateRequest(enabled: false, name: "name_example", spec: 123) // RuleCreateRequest | 
+let ruleCreateRequest = RuleCreateRequest(name: "name_example", enabled: false, spec: 123) // RuleCreateRequest | 
 
 // Create Rule
 AutomationsAPI.createRuleApiV1AutomationsPost(ruleCreateRequest: ruleCreateRequest) { (response, error) in
@@ -361,7 +361,7 @@ Persist a user-defined display order. Returns the full rule list in the new cano
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let ruleOrderRequest = RuleOrderRequest(clear: false, ruleIds: ["ruleIds_example"]) // RuleOrderRequest | 
+let ruleOrderRequest = RuleOrderRequest(ruleIds: ["ruleIds_example"], clear: false) // RuleOrderRequest | 
 
 // Reorder Rules
 AutomationsAPI.reorderRulesApiV1AutomationsOrderPut(ruleOrderRequest: ruleOrderRequest) { (response, error) in
@@ -412,7 +412,7 @@ Snooze ``rule_id`` until ``until`` (absolute UTC) or for ``hours`` from now. Exa
 import TePlannerAPI
 
 let ruleId = "ruleId_example" // String | 
-let snoozeRequest = SnoozeRequest(hours: 123, reason: "reason_example", until: Date()) // SnoozeRequest | 
+let snoozeRequest = SnoozeRequest(until: Date(), hours: 123, reason: "reason_example") // SnoozeRequest | 
 
 // Snooze Rule
 AutomationsAPI.snoozeRuleApiV1AutomationsRuleIdSnoozePost(ruleId: ruleId, snoozeRequest: snoozeRequest) { (response, error) in
@@ -512,7 +512,7 @@ Update Rule
 import TePlannerAPI
 
 let ruleId = "ruleId_example" // String | 
-let ruleUpdateRequest = RuleUpdateRequest(enabled: false, name: "name_example", spec: 123) // RuleUpdateRequest | 
+let ruleUpdateRequest = RuleUpdateRequest(name: "name_example", enabled: false, spec: 123) // RuleUpdateRequest | 
 
 // Update Rule
 AutomationsAPI.updateRuleApiV1AutomationsRuleIdPut(ruleId: ruleId, ruleUpdateRequest: ruleUpdateRequest) { (response, error) in

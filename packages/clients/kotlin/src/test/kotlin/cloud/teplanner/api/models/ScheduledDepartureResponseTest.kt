@@ -33,10 +33,22 @@ class ScheduledDepartureResponseTest : ShouldSpec() {
         // uncomment below to create an instance of ScheduledDepartureResponse
         //val modelInstance = ScheduledDepartureResponse()
 
+        // to test the property `id`
+        should("test id") {
+            // uncomment below to test the property
+            //modelInstance.id shouldBe ("TODO")
+        }
+
         // to test the property `departureAtUtc`
         should("test departureAtUtc") {
             // uncomment below to test the property
             //modelInstance.departureAtUtc shouldBe ("TODO")
+        }
+
+        // to test the property `leadMinutes`
+        should("test leadMinutes") {
+            // uncomment below to test the property
+            //modelInstance.leadMinutes shouldBe ("TODO")
         }
 
         // to test the property `enabled`
@@ -51,28 +63,16 @@ class ScheduledDepartureResponseTest : ShouldSpec() {
             //modelInstance.fireAtUtc shouldBe ("TODO")
         }
 
-        // to test the property `id`
-        should("test id") {
-            // uncomment below to test the property
-            //modelInstance.id shouldBe ("TODO")
-        }
-
-        // to test the property `leadMinutes`
-        should("test leadMinutes") {
-            // uncomment below to test the property
-            //modelInstance.leadMinutes shouldBe ("TODO")
-        }
-
-        // to test the property `createdAt`
-        should("test createdAt") {
-            // uncomment below to test the property
-            //modelInstance.createdAt shouldBe ("TODO")
-        }
-
         // to test the property `label`
         should("test label") {
             // uncomment below to test the property
             //modelInstance.label shouldBe ("TODO")
+        }
+
+        // to test the property `vehicleId`
+        should("test vehicleId") {
+            // uncomment below to test the property
+            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
         // to test the property `targetChargeSoc`
@@ -81,16 +81,16 @@ class ScheduledDepartureResponseTest : ShouldSpec() {
             //modelInstance.targetChargeSoc shouldBe ("TODO")
         }
 
+        // to test the property `createdAt`
+        should("test createdAt") {
+            // uncomment below to test the property
+            //modelInstance.createdAt shouldBe ("TODO")
+        }
+
         // to test the property `updatedAt`
         should("test updatedAt") {
             // uncomment below to test the property
             //modelInstance.updatedAt shouldBe ("TODO")
-        }
-
-        // to test the property `vehicleId`
-        should("test vehicleId") {
-            // uncomment below to test the property
-            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
     }

@@ -13,37 +13,37 @@ import AnyCodable
 /** Candidate POI for the charging-plan endpoint. Shape mirrors AMapRoutePOI (iOS SDK) — only id / name / lat / lng required. */
 public struct POIInput: Codable, JSONEncodable, Hashable {
 
-    public var address: String?
     public var id: String
+    public var name: String
     public var latitude: Double
     public var longitude: Double
-    public var name: String
+    public var address: String?
 
-    public init(address: String? = nil, id: String, latitude: Double, longitude: Double, name: String) {
-        self.address = address
+    public init(id: String, name: String, latitude: Double, longitude: Double, address: String? = nil) {
         self.id = id
+        self.name = name
         self.latitude = latitude
         self.longitude = longitude
-        self.name = name
+        self.address = address
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case address
         case id
+        case name
         case latitude
         case longitude
-        case name
+        case address
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(address, forKey: .address)
         try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
         try container.encode(latitude, forKey: .latitude)
         try container.encode(longitude, forKey: .longitude)
-        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(address, forKey: .address)
     }
 }
 

@@ -31,18 +31,18 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param propertyEntries 
  * @param vehicleId 
+ * @param propertyEntries 
  */
 
 
 data class TelemetryStateResponse (
 
-    @Json(name = "entries")
-    val propertyEntries: kotlin.collections.List<TelemetryStateEntry>,
-
     @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String?
+    val vehicleId: kotlin.String?,
+
+    @Json(name = "entries")
+    val propertyEntries: kotlin.collections.List<TelemetryStateEntry>
 
 ) {
 

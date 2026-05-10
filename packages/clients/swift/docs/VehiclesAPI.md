@@ -798,7 +798,7 @@ Create or update a charging session.  iOS POSTs once on plug-in (ended_at NULL) 
 import TePlannerAPI
 
 let vehicleId = "vehicleId_example" // String | 
-let chargingSessionRequest = ChargingSessionRequest(clientSessionId: "clientSessionId_example", endRangeKm: 123, endSoc: 123, endedAsComplete: false, endedAt: Date(), energyAddedKwh: 123, lat: 123, lng: 123, locationName: "locationName_example", startRangeKm: 123, startSoc: 123, startedAt: Date()) // ChargingSessionRequest | 
+let chargingSessionRequest = ChargingSessionRequest(clientSessionId: "clientSessionId_example", startedAt: Date(), endedAt: Date(), startSoc: 123, endSoc: 123, startRangeKm: 123, endRangeKm: 123, energyAddedKwh: 123, locationName: "locationName_example", lat: 123, lng: 123, endedAsComplete: false) // ChargingSessionRequest | 
 
 // Upsert Charging Session
 VehiclesAPI.upsertChargingSessionApiV1VehiclesVehicleIdSessionsPost(vehicleId: vehicleId, chargingSessionRequest: chargingSessionRequest) { (response, error) in

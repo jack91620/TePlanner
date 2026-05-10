@@ -163,7 +163,7 @@ Replace the user's scheduled departure with the supplied row. UNIQUE(user_id) en
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let scheduledDepartureRequest = ScheduledDepartureRequest(departureAtUtc: Date(), enabled: false, label: "label_example", leadMinutes: 123, targetChargeSoc: 123, vehicleId: "vehicleId_example") // ScheduledDepartureRequest | 
+let scheduledDepartureRequest = ScheduledDepartureRequest(departureAtUtc: Date(), leadMinutes: 123, label: "label_example", vehicleId: "vehicleId_example", targetChargeSoc: 123, enabled: false) // ScheduledDepartureRequest | 
 
 // Upsert Scheduled Departure
 UserAPI.upsertScheduledDepartureApiV1UserScheduledDeparturePut(scheduledDepartureRequest: scheduledDepartureRequest) { (response, error) in
@@ -213,7 +213,7 @@ Merge ``body.settings`` into the user's settings dict (or replace entirely if ``
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let userSettingsRequest = UserSettingsRequest(replaceAll: false, settings: 123) // UserSettingsRequest | 
+let userSettingsRequest = UserSettingsRequest(settings: 123, replaceAll: false) // UserSettingsRequest | 
 
 // Upsert User Settings
 UserAPI.upsertUserSettingsApiV1UserSettingsPut(userSettingsRequest: userSettingsRequest) { (response, error) in

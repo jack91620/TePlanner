@@ -21,10 +21,28 @@ import { mapValues } from '../runtime';
 export interface PendingCommandResponse {
     /**
      * 
+     * @type {number}
+     * @memberof PendingCommandResponse
+     */
+    id: number;
+    /**
+     * 
      * @type {string}
      * @memberof PendingCommandResponse
      */
     capability: string;
+    /**
+     * 
+     * @type {object}
+     * @memberof PendingCommandResponse
+     */
+    expected_state: object;
+    /**
+     * 
+     * @type {Date}
+     * @memberof PendingCommandResponse
+     */
+    dispatched_at: Date;
     /**
      * 
      * @type {Date}
@@ -36,41 +54,23 @@ export interface PendingCommandResponse {
      * @type {Date}
      * @memberof PendingCommandResponse
      */
-    dispatched_at: Date;
-    /**
-     * 
-     * @type {object}
-     * @memberof PendingCommandResponse
-     */
-    expected_state: object;
-    /**
-     * 
-     * @type {number}
-     * @memberof PendingCommandResponse
-     */
-    id: number;
+    timed_out_at?: Date | null;
     /**
      * 
      * @type {string}
      * @memberof PendingCommandResponse
      */
     status: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof PendingCommandResponse
-     */
-    timed_out_at?: Date | null;
 }
 
 /**
  * Check if a given object implements the PendingCommandResponse interface.
  */
 export function instanceOfPendingCommandResponse(value: object): value is PendingCommandResponse {
-    if (!('capability' in value) || value['capability'] === undefined) return false;
-    if (!('dispatched_at' in value) || value['dispatched_at'] === undefined) return false;
-    if (!('expected_state' in value) || value['expected_state'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('capability' in value) || value['capability'] === undefined) return false;
+    if (!('expected_state' in value) || value['expected_state'] === undefined) return false;
+    if (!('dispatched_at' in value) || value['dispatched_at'] === undefined) return false;
     if (!('status' in value) || value['status'] === undefined) return false;
     return true;
 }
@@ -85,13 +85,13 @@ export function PendingCommandResponseFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
         
-        'capability': json['capability'],
-        'confirmed_at': json['confirmed_at'] == null ? undefined : (new Date(json['confirmed_at'])),
-        'dispatched_at': (new Date(json['dispatched_at'])),
-        'expected_state': json['expected_state'],
         'id': json['id'],
-        'status': json['status'],
+        'capability': json['capability'],
+        'expected_state': json['expected_state'],
+        'dispatched_at': (new Date(json['dispatched_at'])),
+        'confirmed_at': json['confirmed_at'] == null ? undefined : (new Date(json['confirmed_at'])),
         'timed_out_at': json['timed_out_at'] == null ? undefined : (new Date(json['timed_out_at'])),
+        'status': json['status'],
     };
 }
 
@@ -106,13 +106,13 @@ export function PendingCommandResponseToJSONTyped(value?: PendingCommandResponse
 
     return {
         
-        'capability': value['capability'],
-        'confirmed_at': value['confirmed_at'] == null ? value['confirmed_at'] : value['confirmed_at'].toISOString(),
-        'dispatched_at': value['dispatched_at'].toISOString(),
-        'expected_state': value['expected_state'],
         'id': value['id'],
-        'status': value['status'],
+        'capability': value['capability'],
+        'expected_state': value['expected_state'],
+        'dispatched_at': value['dispatched_at'].toISOString(),
+        'confirmed_at': value['confirmed_at'] == null ? value['confirmed_at'] : value['confirmed_at'].toISOString(),
         'timed_out_at': value['timed_out_at'] == null ? value['timed_out_at'] : value['timed_out_at'].toISOString(),
+        'status': value['status'],
     };
 }
 

@@ -13,57 +13,57 @@ import AnyCodable
 /** Charging stop in route. */
 public struct ChargingStopResponse: Codable, JSONEncodable, Hashable {
 
-    public var address: String?
-    public var arrivalSoc: Int
-    public var chargingDurationMinutes: Int
-    public var departureSoc: Int
-    public var distanceFromStartKm: Double
+    public var stationId: String
+    public var name: String
     public var latitude: Double
     public var longitude: Double
-    public var name: String
+    public var address: String?
     public var _operator: String?
-    public var stationId: String
+    public var distanceFromStartKm: Double
+    public var arrivalSoc: Int
+    public var departureSoc: Int
+    public var chargingDurationMinutes: Int
 
-    public init(address: String? = nil, arrivalSoc: Int, chargingDurationMinutes: Int, departureSoc: Int, distanceFromStartKm: Double, latitude: Double, longitude: Double, name: String, _operator: String? = nil, stationId: String) {
-        self.address = address
-        self.arrivalSoc = arrivalSoc
-        self.chargingDurationMinutes = chargingDurationMinutes
-        self.departureSoc = departureSoc
-        self.distanceFromStartKm = distanceFromStartKm
+    public init(stationId: String, name: String, latitude: Double, longitude: Double, address: String? = nil, _operator: String? = nil, distanceFromStartKm: Double, arrivalSoc: Int, departureSoc: Int, chargingDurationMinutes: Int) {
+        self.stationId = stationId
+        self.name = name
         self.latitude = latitude
         self.longitude = longitude
-        self.name = name
+        self.address = address
         self._operator = _operator
-        self.stationId = stationId
+        self.distanceFromStartKm = distanceFromStartKm
+        self.arrivalSoc = arrivalSoc
+        self.departureSoc = departureSoc
+        self.chargingDurationMinutes = chargingDurationMinutes
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case address
-        case arrivalSoc = "arrival_soc"
-        case chargingDurationMinutes = "charging_duration_minutes"
-        case departureSoc = "departure_soc"
-        case distanceFromStartKm = "distance_from_start_km"
+        case stationId = "station_id"
+        case name
         case latitude
         case longitude
-        case name
+        case address
         case _operator = "operator"
-        case stationId = "station_id"
+        case distanceFromStartKm = "distance_from_start_km"
+        case arrivalSoc = "arrival_soc"
+        case departureSoc = "departure_soc"
+        case chargingDurationMinutes = "charging_duration_minutes"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(address, forKey: .address)
-        try container.encode(arrivalSoc, forKey: .arrivalSoc)
-        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
-        try container.encode(departureSoc, forKey: .departureSoc)
-        try container.encode(distanceFromStartKm, forKey: .distanceFromStartKm)
+        try container.encode(stationId, forKey: .stationId)
+        try container.encode(name, forKey: .name)
         try container.encode(latitude, forKey: .latitude)
         try container.encode(longitude, forKey: .longitude)
-        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(address, forKey: .address)
         try container.encodeIfPresent(_operator, forKey: ._operator)
-        try container.encode(stationId, forKey: .stationId)
+        try container.encode(distanceFromStartKm, forKey: .distanceFromStartKm)
+        try container.encode(arrivalSoc, forKey: .arrivalSoc)
+        try container.encode(departureSoc, forKey: .departureSoc)
+        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
     }
 }
 

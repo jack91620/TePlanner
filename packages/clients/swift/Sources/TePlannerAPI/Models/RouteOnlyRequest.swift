@@ -13,25 +13,25 @@ import AnyCodable
 /** Phase 8.2: route metadata only (no charging plan).  Used by the iOS client to get the polyline first, then run AMap SDK along-route POI search locally, then post the candidate POIs back via /charging-plan to compute the greedy charging stops. */
 public struct RouteOnlyRequest: Codable, JSONEncodable, Hashable {
 
-    public var destination: LocationInput
     public var origin: LocationInput
+    public var destination: LocationInput
 
-    public init(destination: LocationInput, origin: LocationInput) {
-        self.destination = destination
+    public init(origin: LocationInput, destination: LocationInput) {
         self.origin = origin
+        self.destination = destination
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case destination
         case origin
+        case destination
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(destination, forKey: .destination)
         try container.encode(origin, forKey: .origin)
+        try container.encode(destination, forKey: .destination)
     }
 }
 

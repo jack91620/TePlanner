@@ -33,16 +33,16 @@ class RuleUpdateRequestTest : ShouldSpec() {
         // uncomment below to create an instance of RuleUpdateRequest
         //val modelInstance = RuleUpdateRequest()
 
-        // to test the property `enabled`
-        should("test enabled") {
-            // uncomment below to test the property
-            //modelInstance.enabled shouldBe ("TODO")
-        }
-
         // to test the property `name`
         should("test name") {
             // uncomment below to test the property
             //modelInstance.name shouldBe ("TODO")
+        }
+
+        // to test the property `enabled`
+        should("test enabled") {
+            // uncomment below to test the property
+            //modelInstance.enabled shouldBe ("TODO")
         }
 
         // to test the property `spec`

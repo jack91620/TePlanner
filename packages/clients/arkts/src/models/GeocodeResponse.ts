@@ -21,18 +21,6 @@ import { mapValues } from '../runtime';
 export interface GeocodeResponse {
     /**
      * 
-     * @type {string}
-     * @memberof GeocodeResponse
-     */
-    address: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof GeocodeResponse
-     */
-    formatted_address?: string | null;
-    /**
-     * 
      * @type {number}
      * @memberof GeocodeResponse
      */
@@ -43,15 +31,27 @@ export interface GeocodeResponse {
      * @memberof GeocodeResponse
      */
     longitude: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GeocodeResponse
+     */
+    address: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GeocodeResponse
+     */
+    formatted_address?: string | null;
 }
 
 /**
  * Check if a given object implements the GeocodeResponse interface.
  */
 export function instanceOfGeocodeResponse(value: object): value is GeocodeResponse {
-    if (!('address' in value) || value['address'] === undefined) return false;
     if (!('latitude' in value) || value['latitude'] === undefined) return false;
     if (!('longitude' in value) || value['longitude'] === undefined) return false;
+    if (!('address' in value) || value['address'] === undefined) return false;
     return true;
 }
 
@@ -65,10 +65,10 @@ export function GeocodeResponseFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'address': json['address'],
-        'formatted_address': json['formatted_address'] == null ? undefined : json['formatted_address'],
         'latitude': json['latitude'],
         'longitude': json['longitude'],
+        'address': json['address'],
+        'formatted_address': json['formatted_address'] == null ? undefined : json['formatted_address'],
     };
 }
 
@@ -83,10 +83,10 @@ export function GeocodeResponseToJSONTyped(value?: GeocodeResponse | null, ignor
 
     return {
         
-        'address': value['address'],
-        'formatted_address': value['formatted_address'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
+        'address': value['address'],
+        'formatted_address': value['formatted_address'],
     };
 }
 

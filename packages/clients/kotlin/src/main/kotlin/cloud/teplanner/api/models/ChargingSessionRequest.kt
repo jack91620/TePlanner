@@ -32,16 +32,16 @@ import com.squareup.moshi.JsonClass
  *
  * @param startedAt 
  * @param clientSessionId 
- * @param endRangeKm 
- * @param endSoc 
- * @param endedAsComplete 
  * @param endedAt 
+ * @param startSoc 
+ * @param endSoc 
+ * @param startRangeKm 
+ * @param endRangeKm 
  * @param energyAddedKwh 
+ * @param locationName 
  * @param lat 
  * @param lng 
- * @param locationName 
- * @param startRangeKm 
- * @param startSoc 
+ * @param endedAsComplete 
  */
 
 
@@ -53,20 +53,26 @@ data class ChargingSessionRequest (
     @Json(name = "client_session_id")
     val clientSessionId: kotlin.String? = null,
 
-    @Json(name = "end_range_km")
-    val endRangeKm: java.math.BigDecimal? = null,
+    @Json(name = "ended_at")
+    val endedAt: java.time.OffsetDateTime? = null,
+
+    @Json(name = "start_soc")
+    val startSoc: kotlin.Int? = null,
 
     @Json(name = "end_soc")
     val endSoc: kotlin.Int? = null,
 
-    @Json(name = "ended_as_complete")
-    val endedAsComplete: kotlin.Boolean? = null,
+    @Json(name = "start_range_km")
+    val startRangeKm: java.math.BigDecimal? = null,
 
-    @Json(name = "ended_at")
-    val endedAt: java.time.OffsetDateTime? = null,
+    @Json(name = "end_range_km")
+    val endRangeKm: java.math.BigDecimal? = null,
 
     @Json(name = "energy_added_kwh")
     val energyAddedKwh: java.math.BigDecimal? = null,
+
+    @Json(name = "location_name")
+    val locationName: kotlin.String? = null,
 
     @Json(name = "lat")
     val lat: java.math.BigDecimal? = null,
@@ -74,14 +80,8 @@ data class ChargingSessionRequest (
     @Json(name = "lng")
     val lng: java.math.BigDecimal? = null,
 
-    @Json(name = "location_name")
-    val locationName: kotlin.String? = null,
-
-    @Json(name = "start_range_km")
-    val startRangeKm: java.math.BigDecimal? = null,
-
-    @Json(name = "start_soc")
-    val startSoc: kotlin.Int? = null
+    @Json(name = "ended_as_complete")
+    val endedAsComplete: kotlin.Boolean? = null
 
 ) {
 

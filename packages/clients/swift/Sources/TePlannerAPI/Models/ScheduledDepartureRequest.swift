@@ -12,34 +12,34 @@ import AnyCodable
 
 public struct ScheduledDepartureRequest: Codable, JSONEncodable, Hashable {
 
-    public static let labelRule = StringRule(minLength: nil, maxLength: 64, pattern: nil)
     public static let leadMinutesRule = NumericRule<Int>(minimum: 1, exclusiveMinimum: false, maximum: 240, exclusiveMaximum: false, multipleOf: nil)
-    public static let targetChargeSocRule = NumericRule<Int>(minimum: 20, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
+    public static let labelRule = StringRule(minLength: nil, maxLength: 64, pattern: nil)
     public static let vehicleIdRule = StringRule(minLength: nil, maxLength: 64, pattern: nil)
+    public static let targetChargeSocRule = NumericRule<Int>(minimum: 20, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
     /** When the user intends to drive off (UTC). */
     public var departureAtUtc: Date
-    public var enabled: Bool? = true
-    public var label: String?
     public var leadMinutes: Int? = 15
-    public var targetChargeSoc: Int?
+    public var label: String?
     public var vehicleId: String?
+    public var targetChargeSoc: Int?
+    public var enabled: Bool? = true
 
-    public init(departureAtUtc: Date, enabled: Bool? = true, label: String? = nil, leadMinutes: Int? = 15, targetChargeSoc: Int? = nil, vehicleId: String? = nil) {
+    public init(departureAtUtc: Date, leadMinutes: Int? = 15, label: String? = nil, vehicleId: String? = nil, targetChargeSoc: Int? = nil, enabled: Bool? = true) {
         self.departureAtUtc = departureAtUtc
-        self.enabled = enabled
-        self.label = label
         self.leadMinutes = leadMinutes
-        self.targetChargeSoc = targetChargeSoc
+        self.label = label
         self.vehicleId = vehicleId
+        self.targetChargeSoc = targetChargeSoc
+        self.enabled = enabled
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case departureAtUtc = "departure_at_utc"
-        case enabled
-        case label
         case leadMinutes = "lead_minutes"
-        case targetChargeSoc = "target_charge_soc"
+        case label
         case vehicleId = "vehicle_id"
+        case targetChargeSoc = "target_charge_soc"
+        case enabled
     }
 
     // Encodable protocol methods
@@ -47,11 +47,11 @@ public struct ScheduledDepartureRequest: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(departureAtUtc, forKey: .departureAtUtc)
-        try container.encodeIfPresent(enabled, forKey: .enabled)
-        try container.encodeIfPresent(label, forKey: .label)
         try container.encodeIfPresent(leadMinutes, forKey: .leadMinutes)
-        try container.encodeIfPresent(targetChargeSoc, forKey: .targetChargeSoc)
+        try container.encodeIfPresent(label, forKey: .label)
         try container.encodeIfPresent(vehicleId, forKey: .vehicleId)
+        try container.encodeIfPresent(targetChargeSoc, forKey: .targetChargeSoc)
+        try container.encodeIfPresent(enabled, forKey: .enabled)
     }
 }
 

@@ -7,10 +7,10 @@ Geocode response.
 
 Name | Type
 ------------ | -------------
-`address` | string
-`formatted_address` | string
 `latitude` | number
 `longitude` | number
+`address` | string
+`formatted_address` | string
 
 ## Example
 
@@ -19,10 +19,10 @@ import type { GeocodeResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "address": null,
-  "formatted_address": null,
   "latitude": null,
   "longitude": null,
+  "address": null,
+  "formatted_address": null,
 } satisfies GeocodeResponse
 
 console.log(example)

@@ -33,12 +33,6 @@ class GeocodeResponseTest : ShouldSpec() {
         // uncomment below to create an instance of GeocodeResponse
         //val modelInstance = GeocodeResponse()
 
-        // to test the property `address`
-        should("test address") {
-            // uncomment below to test the property
-            //modelInstance.address shouldBe ("TODO")
-        }
-
         // to test the property `latitude`
         should("test latitude") {
             // uncomment below to test the property
@@ -49,6 +43,12 @@ class GeocodeResponseTest : ShouldSpec() {
         should("test longitude") {
             // uncomment below to test the property
             //modelInstance.longitude shouldBe ("TODO")
+        }
+
+        // to test the property `address`
+        should("test address") {
+            // uncomment below to test the property
+            //modelInstance.address shouldBe ("TODO")
         }
 
         // to test the property `formattedAddress`

@@ -13,49 +13,49 @@ import AnyCodable
 /** Route planning response. */
 public struct RoutePlanResponse: Codable, JSONEncodable, Hashable {
 
-    public var arrivalSoc: Int
-    public var chargingDurationMinutes: Int
-    public var chargingStops: [ChargingStopResponse]
-    public var destination: AnyCodable
-    public var drivingDurationMinutes: Int
-    public var initialSoc: Int
-    public var numChargingStops: Int
-    public var origin: AnyCodable
-    public var polyline: [AnyCodable]?
     public var routeId: Int?
+    public var origin: AnyCodable
+    public var destination: AnyCodable
     public var totalDistanceKm: Double
     public var totalDurationMinutes: Int
+    public var drivingDurationMinutes: Int
+    public var chargingDurationMinutes: Int
+    public var chargingStops: [ChargingStopResponse]
+    public var numChargingStops: Int
+    public var initialSoc: Int
+    public var arrivalSoc: Int
+    public var polyline: [AnyCodable]?
     public var warnings: [String]?
 
-    public init(arrivalSoc: Int, chargingDurationMinutes: Int, chargingStops: [ChargingStopResponse], destination: AnyCodable, drivingDurationMinutes: Int, initialSoc: Int, numChargingStops: Int, origin: AnyCodable, polyline: [AnyCodable]? = nil, routeId: Int? = nil, totalDistanceKm: Double, totalDurationMinutes: Int, warnings: [String]? = nil) {
-        self.arrivalSoc = arrivalSoc
-        self.chargingDurationMinutes = chargingDurationMinutes
-        self.chargingStops = chargingStops
-        self.destination = destination
-        self.drivingDurationMinutes = drivingDurationMinutes
-        self.initialSoc = initialSoc
-        self.numChargingStops = numChargingStops
-        self.origin = origin
-        self.polyline = polyline
+    public init(routeId: Int? = nil, origin: AnyCodable, destination: AnyCodable, totalDistanceKm: Double, totalDurationMinutes: Int, drivingDurationMinutes: Int, chargingDurationMinutes: Int, chargingStops: [ChargingStopResponse], numChargingStops: Int, initialSoc: Int, arrivalSoc: Int, polyline: [AnyCodable]? = nil, warnings: [String]? = nil) {
         self.routeId = routeId
+        self.origin = origin
+        self.destination = destination
         self.totalDistanceKm = totalDistanceKm
         self.totalDurationMinutes = totalDurationMinutes
+        self.drivingDurationMinutes = drivingDurationMinutes
+        self.chargingDurationMinutes = chargingDurationMinutes
+        self.chargingStops = chargingStops
+        self.numChargingStops = numChargingStops
+        self.initialSoc = initialSoc
+        self.arrivalSoc = arrivalSoc
+        self.polyline = polyline
         self.warnings = warnings
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case arrivalSoc = "arrival_soc"
-        case chargingDurationMinutes = "charging_duration_minutes"
-        case chargingStops = "charging_stops"
-        case destination
-        case drivingDurationMinutes = "driving_duration_minutes"
-        case initialSoc = "initial_soc"
-        case numChargingStops = "num_charging_stops"
-        case origin
-        case polyline
         case routeId = "route_id"
+        case origin
+        case destination
         case totalDistanceKm = "total_distance_km"
         case totalDurationMinutes = "total_duration_minutes"
+        case drivingDurationMinutes = "driving_duration_minutes"
+        case chargingDurationMinutes = "charging_duration_minutes"
+        case chargingStops = "charging_stops"
+        case numChargingStops = "num_charging_stops"
+        case initialSoc = "initial_soc"
+        case arrivalSoc = "arrival_soc"
+        case polyline
         case warnings
     }
 
@@ -63,18 +63,18 @@ public struct RoutePlanResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(arrivalSoc, forKey: .arrivalSoc)
-        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
-        try container.encode(chargingStops, forKey: .chargingStops)
-        try container.encode(destination, forKey: .destination)
-        try container.encode(drivingDurationMinutes, forKey: .drivingDurationMinutes)
-        try container.encode(initialSoc, forKey: .initialSoc)
-        try container.encode(numChargingStops, forKey: .numChargingStops)
-        try container.encode(origin, forKey: .origin)
-        try container.encodeIfPresent(polyline, forKey: .polyline)
         try container.encodeIfPresent(routeId, forKey: .routeId)
+        try container.encode(origin, forKey: .origin)
+        try container.encode(destination, forKey: .destination)
         try container.encode(totalDistanceKm, forKey: .totalDistanceKm)
         try container.encode(totalDurationMinutes, forKey: .totalDurationMinutes)
+        try container.encode(drivingDurationMinutes, forKey: .drivingDurationMinutes)
+        try container.encode(chargingDurationMinutes, forKey: .chargingDurationMinutes)
+        try container.encode(chargingStops, forKey: .chargingStops)
+        try container.encode(numChargingStops, forKey: .numChargingStops)
+        try container.encode(initialSoc, forKey: .initialSoc)
+        try container.encode(arrivalSoc, forKey: .arrivalSoc)
+        try container.encodeIfPresent(polyline, forKey: .polyline)
         try container.encodeIfPresent(warnings, forKey: .warnings)
     }
 }

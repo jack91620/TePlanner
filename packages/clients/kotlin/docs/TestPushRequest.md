@@ -4,8 +4,8 @@
 ## Properties
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
-| **body** | **kotlin.String** |  |  [optional] |
 | **title** | **kotlin.String** |  |  [optional] |
+| **body** | **kotlin.String** |  |  [optional] |
 
 
 

@@ -29,7 +29,7 @@ Phase 8.2: greedy charging-stop selection over client-provided candidate POIs. P
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let chargingPlanRequest = ChargingPlanRequest(candidatePois: [POIInput(address: "address_example", id: "id_example", latitude: 123, longitude: 123, name: "name_example")], carType: "carType_example", initialSoc: 123, minArrivalSoc: 123, polyline: [[123]], totalDistanceKm: 123, vehicleRangeKm: 123) // ChargingPlanRequest | 
+let chargingPlanRequest = ChargingPlanRequest(polyline: [[123]], totalDistanceKm: 123, candidatePois: [POIInput(id: "id_example", name: "name_example", latitude: 123, longitude: 123, address: "address_example")], initialSoc: 123, carType: "carType_example", minArrivalSoc: 123, vehicleRangeKm: 123) // ChargingPlanRequest | 
 
 // Charging Plan
 RoutesAPI.chargingPlanApiV1RoutesChargingPlanPost(chargingPlanRequest: chargingPlanRequest) { (response, error) in
@@ -231,7 +231,7 @@ Send planned route to vehicle.  Sends navigation waypoints to the vehicle's navi
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let navigateRouteRequest = NavigateRouteRequest(vehicleId: "vehicleId_example", waypoints: [LocationInput(address: "address_example", latitude: 123, longitude: 123)]) // NavigateRouteRequest | 
+let navigateRouteRequest = NavigateRouteRequest(vehicleId: "vehicleId_example", waypoints: [LocationInput(latitude: 123, longitude: 123, address: "address_example")]) // NavigateRouteRequest | 
 
 // Navigate Route
 RoutesAPI.navigateRouteApiV1RoutesNavigatePost(navigateRouteRequest: navigateRouteRequest) { (response, error) in
@@ -383,7 +383,7 @@ Phase 8.2: AMap routing only — polyline + distance + duration.  No POI search,
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let routeOnlyRequest = RouteOnlyRequest(destination: LocationInput(address: "address_example", latitude: 123, longitude: 123), origin: nil) // RouteOnlyRequest | 
+let routeOnlyRequest = RouteOnlyRequest(origin: LocationInput(latitude: 123, longitude: 123, address: "address_example"), destination: nil) // RouteOnlyRequest | 
 
 // Route Only
 RoutesAPI.routeOnlyApiV1RoutesRoutePost(routeOnlyRequest: routeOnlyRequest) { (response, error) in

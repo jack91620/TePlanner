@@ -3,16 +3,16 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**createdAt** | **Date** |  | [optional] 
+**id** | **Int** |  | 
 **departureAtUtc** | **Date** |  | 
+**leadMinutes** | **Int** |  | 
+**label** | **String** |  | [optional] 
+**vehicleId** | **String** |  | [optional] 
+**targetChargeSoc** | **Int** |  | [optional] 
 **enabled** | **Bool** |  | 
 **fireAtUtc** | **Date** |  | 
-**id** | **Int** |  | 
-**label** | **String** |  | [optional] 
-**leadMinutes** | **Int** |  | 
-**targetChargeSoc** | **Int** |  | [optional] 
+**createdAt** | **Date** |  | [optional] 
 **updatedAt** | **Date** |  | [optional] 
-**vehicleId** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

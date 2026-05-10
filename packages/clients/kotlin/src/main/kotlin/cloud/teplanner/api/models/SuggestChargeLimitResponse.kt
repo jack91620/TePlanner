@@ -30,30 +30,30 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param alreadyMatches 
- * @param currentPercent 
- * @param hoursAway 
- * @param reason 
  * @param recommendedPercent 
+ * @param currentPercent 
+ * @param reason 
+ * @param hoursAway 
+ * @param alreadyMatches 
  */
 
 
 data class SuggestChargeLimitResponse (
 
-    @Json(name = "already_matches")
-    val alreadyMatches: kotlin.Boolean,
+    @Json(name = "recommended_percent")
+    val recommendedPercent: kotlin.Int,
 
     @Json(name = "current_percent")
     val currentPercent: kotlin.Int?,
 
-    @Json(name = "hours_away")
-    val hoursAway: kotlin.Int?,
-
     @Json(name = "reason")
     val reason: kotlin.String,
 
-    @Json(name = "recommended_percent")
-    val recommendedPercent: kotlin.Int
+    @Json(name = "hours_away")
+    val hoursAway: kotlin.Int?,
+
+    @Json(name = "already_matches")
+    val alreadyMatches: kotlin.Boolean
 
 ) {
 

@@ -13,37 +13,37 @@ import AnyCodable
 /** Lightweight response — polyline + raw distance/duration only. */
 public struct RouteOnlyResponse: Codable, JSONEncodable, Hashable {
 
-    public var destination: AnyCodable
-    public var drivingDurationMinutes: Int
     public var origin: AnyCodable
-    public var polyline: [AnyCodable]
+    public var destination: AnyCodable
     public var totalDistanceKm: Double
+    public var drivingDurationMinutes: Int
+    public var polyline: [AnyCodable]
 
-    public init(destination: AnyCodable, drivingDurationMinutes: Int, origin: AnyCodable, polyline: [AnyCodable], totalDistanceKm: Double) {
-        self.destination = destination
-        self.drivingDurationMinutes = drivingDurationMinutes
+    public init(origin: AnyCodable, destination: AnyCodable, totalDistanceKm: Double, drivingDurationMinutes: Int, polyline: [AnyCodable]) {
         self.origin = origin
-        self.polyline = polyline
+        self.destination = destination
         self.totalDistanceKm = totalDistanceKm
+        self.drivingDurationMinutes = drivingDurationMinutes
+        self.polyline = polyline
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case destination
-        case drivingDurationMinutes = "driving_duration_minutes"
         case origin
-        case polyline
+        case destination
         case totalDistanceKm = "total_distance_km"
+        case drivingDurationMinutes = "driving_duration_minutes"
+        case polyline
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(destination, forKey: .destination)
-        try container.encode(drivingDurationMinutes, forKey: .drivingDurationMinutes)
         try container.encode(origin, forKey: .origin)
-        try container.encode(polyline, forKey: .polyline)
+        try container.encode(destination, forKey: .destination)
         try container.encode(totalDistanceKm, forKey: .totalDistanceKm)
+        try container.encode(drivingDurationMinutes, forKey: .drivingDurationMinutes)
+        try container.encode(polyline, forKey: .polyline)
     }
 }
 

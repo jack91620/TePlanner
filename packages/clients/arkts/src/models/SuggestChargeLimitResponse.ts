@@ -21,22 +21,16 @@ import { mapValues } from '../runtime';
 export interface SuggestChargeLimitResponse {
     /**
      * 
-     * @type {boolean}
+     * @type {number}
      * @memberof SuggestChargeLimitResponse
      */
-    already_matches: boolean;
+    recommended_percent: number;
     /**
      * 
      * @type {number}
      * @memberof SuggestChargeLimitResponse
      */
     current_percent: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof SuggestChargeLimitResponse
-     */
-    hours_away: number | null;
     /**
      * 
      * @type {string}
@@ -48,18 +42,24 @@ export interface SuggestChargeLimitResponse {
      * @type {number}
      * @memberof SuggestChargeLimitResponse
      */
-    recommended_percent: number;
+    hours_away: number | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof SuggestChargeLimitResponse
+     */
+    already_matches: boolean;
 }
 
 /**
  * Check if a given object implements the SuggestChargeLimitResponse interface.
  */
 export function instanceOfSuggestChargeLimitResponse(value: object): value is SuggestChargeLimitResponse {
-    if (!('already_matches' in value) || value['already_matches'] === undefined) return false;
-    if (!('current_percent' in value) || value['current_percent'] === undefined) return false;
-    if (!('hours_away' in value) || value['hours_away'] === undefined) return false;
-    if (!('reason' in value) || value['reason'] === undefined) return false;
     if (!('recommended_percent' in value) || value['recommended_percent'] === undefined) return false;
+    if (!('current_percent' in value) || value['current_percent'] === undefined) return false;
+    if (!('reason' in value) || value['reason'] === undefined) return false;
+    if (!('hours_away' in value) || value['hours_away'] === undefined) return false;
+    if (!('already_matches' in value) || value['already_matches'] === undefined) return false;
     return true;
 }
 
@@ -73,11 +73,11 @@ export function SuggestChargeLimitResponseFromJSONTyped(json: any, ignoreDiscrim
     }
     return {
         
-        'already_matches': json['already_matches'],
-        'current_percent': json['current_percent'],
-        'hours_away': json['hours_away'],
-        'reason': json['reason'],
         'recommended_percent': json['recommended_percent'],
+        'current_percent': json['current_percent'],
+        'reason': json['reason'],
+        'hours_away': json['hours_away'],
+        'already_matches': json['already_matches'],
     };
 }
 
@@ -92,11 +92,11 @@ export function SuggestChargeLimitResponseToJSONTyped(value?: SuggestChargeLimit
 
     return {
         
-        'already_matches': value['already_matches'],
-        'current_percent': value['current_percent'],
-        'hours_away': value['hours_away'],
-        'reason': value['reason'],
         'recommended_percent': value['recommended_percent'],
+        'current_percent': value['current_percent'],
+        'reason': value['reason'],
+        'hours_away': value['hours_away'],
+        'already_matches': value['already_matches'],
     };
 }
 

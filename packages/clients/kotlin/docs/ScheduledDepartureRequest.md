@@ -5,11 +5,11 @@
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
 | **departureAtUtc** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) | When the user intends to drive off (UTC). |  |
-| **enabled** | **kotlin.Boolean** |  |  [optional] |
-| **label** | **kotlin.String** |  |  [optional] |
 | **leadMinutes** | **kotlin.Int** |  |  [optional] |
-| **targetChargeSoc** | **kotlin.Int** |  |  [optional] |
+| **label** | **kotlin.String** |  |  [optional] |
 | **vehicleId** | **kotlin.String** |  |  [optional] |
+| **targetChargeSoc** | **kotlin.Int** |  |  [optional] |
+| **enabled** | **kotlin.Boolean** |  |  [optional] |
 
 
 

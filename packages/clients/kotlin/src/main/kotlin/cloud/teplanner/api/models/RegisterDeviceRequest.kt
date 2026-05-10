@@ -30,19 +30,27 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param token Hex APNs device token
+ * @param token Provider device token (APNs hex / JPush registration_id / Huawei push token)
  * @param bundleId 
+ * @param platform 
+ * @param providerToken 
  */
 
 
 data class RegisterDeviceRequest (
 
-    /* Hex APNs device token */
+    /* Provider device token (APNs hex / JPush registration_id / Huawei push token) */
     @Json(name = "token")
     val token: kotlin.String,
 
     @Json(name = "bundle_id")
-    val bundleId: kotlin.String? = null
+    val bundleId: kotlin.String? = null,
+
+    @Json(name = "platform")
+    val platform: kotlin.String? = "apns",
+
+    @Json(name = "provider_token")
+    val providerToken: kotlin.String? = null
 
 ) {
 

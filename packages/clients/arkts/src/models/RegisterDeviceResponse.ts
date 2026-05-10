@@ -21,24 +21,24 @@ import { mapValues } from '../runtime';
 export interface RegisterDeviceResponse {
     /**
      * 
-     * @type {number}
-     * @memberof RegisterDeviceResponse
-     */
-    device_id: number;
-    /**
-     * 
      * @type {boolean}
      * @memberof RegisterDeviceResponse
      */
     success: boolean;
+    /**
+     * 
+     * @type {number}
+     * @memberof RegisterDeviceResponse
+     */
+    device_id: number;
 }
 
 /**
  * Check if a given object implements the RegisterDeviceResponse interface.
  */
 export function instanceOfRegisterDeviceResponse(value: object): value is RegisterDeviceResponse {
-    if (!('device_id' in value) || value['device_id'] === undefined) return false;
     if (!('success' in value) || value['success'] === undefined) return false;
+    if (!('device_id' in value) || value['device_id'] === undefined) return false;
     return true;
 }
 
@@ -52,8 +52,8 @@ export function RegisterDeviceResponseFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
         
-        'device_id': json['device_id'],
         'success': json['success'],
+        'device_id': json['device_id'],
     };
 }
 
@@ -68,8 +68,8 @@ export function RegisterDeviceResponseToJSONTyped(value?: RegisterDeviceResponse
 
     return {
         
-        'device_id': value['device_id'],
         'success': value['success'],
+        'device_id': value['device_id'],
     };
 }
 

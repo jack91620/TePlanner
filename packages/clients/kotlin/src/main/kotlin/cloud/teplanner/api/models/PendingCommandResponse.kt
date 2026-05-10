@@ -30,10 +30,10 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param capability 
- * @param dispatchedAt 
- * @param expectedState 
  * @param id 
+ * @param capability 
+ * @param expectedState 
+ * @param dispatchedAt 
  * @param status 
  * @param confirmedAt 
  * @param timedOutAt 
@@ -42,17 +42,17 @@ import com.squareup.moshi.JsonClass
 
 data class PendingCommandResponse (
 
+    @Json(name = "id")
+    val id: kotlin.Int,
+
     @Json(name = "capability")
     val capability: kotlin.String,
-
-    @Json(name = "dispatched_at")
-    val dispatchedAt: java.time.OffsetDateTime,
 
     @Json(name = "expected_state")
     val expectedState: kotlin.Any,
 
-    @Json(name = "id")
-    val id: kotlin.Int,
+    @Json(name = "dispatched_at")
+    val dispatchedAt: java.time.OffsetDateTime,
 
     @Json(name = "status")
     val status: kotlin.String,

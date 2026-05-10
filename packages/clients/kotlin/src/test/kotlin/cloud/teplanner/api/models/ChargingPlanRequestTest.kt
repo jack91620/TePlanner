@@ -34,18 +34,6 @@ class ChargingPlanRequestTest : ShouldSpec() {
         // uncomment below to create an instance of ChargingPlanRequest
         //val modelInstance = ChargingPlanRequest()
 
-        // to test the property `candidatePois`
-        should("test candidatePois") {
-            // uncomment below to test the property
-            //modelInstance.candidatePois shouldBe ("TODO")
-        }
-
-        // to test the property `initialSoc`
-        should("test initialSoc") {
-            // uncomment below to test the property
-            //modelInstance.initialSoc shouldBe ("TODO")
-        }
-
         // to test the property `polyline` - [[lat, lng], …]
         should("test polyline") {
             // uncomment below to test the property
@@ -56,6 +44,18 @@ class ChargingPlanRequestTest : ShouldSpec() {
         should("test totalDistanceKm") {
             // uncomment below to test the property
             //modelInstance.totalDistanceKm shouldBe ("TODO")
+        }
+
+        // to test the property `candidatePois`
+        should("test candidatePois") {
+            // uncomment below to test the property
+            //modelInstance.candidatePois shouldBe ("TODO")
+        }
+
+        // to test the property `initialSoc`
+        should("test initialSoc") {
+            // uncomment below to test the property
+            //modelInstance.initialSoc shouldBe ("TODO")
         }
 
         // to test the property `carType`

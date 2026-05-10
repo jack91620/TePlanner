@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`enabled` | boolean
 `name` | string
+`enabled` | boolean
 `spec` | object
 
 ## Example
@@ -17,8 +17,8 @@ import type { RuleCreateRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "enabled": null,
   "name": null,
+  "enabled": null,
   "spec": null,
 } satisfies RuleCreateRequest
 

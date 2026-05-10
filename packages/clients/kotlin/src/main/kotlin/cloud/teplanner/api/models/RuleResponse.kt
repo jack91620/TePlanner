@@ -30,31 +30,33 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param enabled 
  * @param id 
- * @param name 
  * @param presetId 
+ * @param name 
+ * @param enabled 
  * @param spec 
  * @param version 
- * @param displayOrder 
- * @param lastFiredAt 
  * @param updatedAt 
+ * @param lastFiredAt 
+ * @param displayOrder 
+ * @param isFiring 
+ * @param firingSince 
  */
 
 
 data class RuleResponse (
 
-    @Json(name = "enabled")
-    val enabled: kotlin.Boolean,
-
     @Json(name = "id")
     val id: kotlin.String,
+
+    @Json(name = "preset_id")
+    val presetId: kotlin.String?,
 
     @Json(name = "name")
     val name: kotlin.String,
 
-    @Json(name = "preset_id")
-    val presetId: kotlin.String?,
+    @Json(name = "enabled")
+    val enabled: kotlin.Boolean,
 
     @Json(name = "spec")
     val spec: kotlin.Any,
@@ -62,14 +64,20 @@ data class RuleResponse (
     @Json(name = "version")
     val version: kotlin.Int,
 
-    @Json(name = "display_order")
-    val displayOrder: kotlin.Int? = null,
+    @Json(name = "updated_at")
+    val updatedAt: java.time.OffsetDateTime? = null,
 
     @Json(name = "last_fired_at")
     val lastFiredAt: java.time.OffsetDateTime? = null,
 
-    @Json(name = "updated_at")
-    val updatedAt: java.time.OffsetDateTime? = null
+    @Json(name = "display_order")
+    val displayOrder: kotlin.Int? = null,
+
+    @Json(name = "is_firing")
+    val isFiring: kotlin.Boolean? = false,
+
+    @Json(name = "firing_since")
+    val firingSince: java.time.OffsetDateTime? = null
 
 ) {
 

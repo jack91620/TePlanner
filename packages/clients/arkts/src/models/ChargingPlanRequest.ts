@@ -30,30 +30,6 @@ import {
  */
 export interface ChargingPlanRequest {
     /**
-     * 
-     * @type {Array<POIInput>}
-     * @memberof ChargingPlanRequest
-     */
-    candidate_pois: Array<POIInput>;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingPlanRequest
-     */
-    car_type?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingPlanRequest
-     */
-    initial_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingPlanRequest
-     */
-    min_arrival_soc?: number;
-    /**
      * [[lat, lng], …]
      * @type {Array<Array<number>>}
      * @memberof ChargingPlanRequest
@@ -67,6 +43,30 @@ export interface ChargingPlanRequest {
     total_distance_km: number;
     /**
      * 
+     * @type {Array<POIInput>}
+     * @memberof ChargingPlanRequest
+     */
+    candidate_pois: Array<POIInput>;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingPlanRequest
+     */
+    initial_soc: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingPlanRequest
+     */
+    car_type?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingPlanRequest
+     */
+    min_arrival_soc?: number;
+    /**
+     * 
      * @type {number}
      * @memberof ChargingPlanRequest
      */
@@ -77,10 +77,10 @@ export interface ChargingPlanRequest {
  * Check if a given object implements the ChargingPlanRequest interface.
  */
 export function instanceOfChargingPlanRequest(value: object): value is ChargingPlanRequest {
-    if (!('candidate_pois' in value) || value['candidate_pois'] === undefined) return false;
-    if (!('initial_soc' in value) || value['initial_soc'] === undefined) return false;
     if (!('polyline' in value) || value['polyline'] === undefined) return false;
     if (!('total_distance_km' in value) || value['total_distance_km'] === undefined) return false;
+    if (!('candidate_pois' in value) || value['candidate_pois'] === undefined) return false;
+    if (!('initial_soc' in value) || value['initial_soc'] === undefined) return false;
     return true;
 }
 
@@ -94,12 +94,12 @@ export function ChargingPlanRequestFromJSONTyped(json: any, ignoreDiscriminator:
     }
     return {
         
-        'candidate_pois': ((json['candidate_pois'] as Array<any>).map(POIInputFromJSON)),
-        'car_type': json['car_type'] == null ? undefined : json['car_type'],
-        'initial_soc': json['initial_soc'],
-        'min_arrival_soc': json['min_arrival_soc'] == null ? undefined : json['min_arrival_soc'],
         'polyline': json['polyline'],
         'total_distance_km': json['total_distance_km'],
+        'candidate_pois': ((json['candidate_pois'] as Array<any>).map(POIInputFromJSON)),
+        'initial_soc': json['initial_soc'],
+        'car_type': json['car_type'] == null ? undefined : json['car_type'],
+        'min_arrival_soc': json['min_arrival_soc'] == null ? undefined : json['min_arrival_soc'],
         'vehicle_range_km': json['vehicle_range_km'] == null ? undefined : json['vehicle_range_km'],
     };
 }
@@ -115,12 +115,12 @@ export function ChargingPlanRequestToJSONTyped(value?: ChargingPlanRequest | nul
 
     return {
         
-        'candidate_pois': ((value['candidate_pois'] as Array<any>).map(POIInputToJSON)),
-        'car_type': value['car_type'],
-        'initial_soc': value['initial_soc'],
-        'min_arrival_soc': value['min_arrival_soc'],
         'polyline': value['polyline'],
         'total_distance_km': value['total_distance_km'],
+        'candidate_pois': ((value['candidate_pois'] as Array<any>).map(POIInputToJSON)),
+        'initial_soc': value['initial_soc'],
+        'car_type': value['car_type'],
+        'min_arrival_soc': value['min_arrival_soc'],
         'vehicle_range_km': value['vehicle_range_km'],
     };
 }

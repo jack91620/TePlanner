@@ -13,29 +13,29 @@ import AnyCodable
 /** Wake response model. */
 public struct WakeResponse: Codable, JSONEncodable, Hashable {
 
-    public var message: String
-    public var state: String
     public var vehicleId: String
+    public var state: String
+    public var message: String
 
-    public init(message: String, state: String, vehicleId: String) {
-        self.message = message
-        self.state = state
+    public init(vehicleId: String, state: String, message: String) {
         self.vehicleId = vehicleId
+        self.state = state
+        self.message = message
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case message
-        case state
         case vehicleId = "vehicle_id"
+        case state
+        case message
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(message, forKey: .message)
-        try container.encode(state, forKey: .state)
         try container.encode(vehicleId, forKey: .vehicleId)
+        try container.encode(state, forKey: .state)
+        try container.encode(message, forKey: .message)
     }
 }
 

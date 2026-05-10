@@ -21,12 +21,6 @@ import { mapValues } from '../runtime';
 export interface RecentFireEntry {
     /**
      * 
-     * @type {Date}
-     * @memberof RecentFireEntry
-     */
-    cleared_at?: Date | null;
-    /**
-     * 
      * @type {string}
      * @memberof RecentFireEntry
      */
@@ -37,6 +31,12 @@ export interface RecentFireEntry {
      * @memberof RecentFireEntry
      */
     pushed_at: Date;
+    /**
+     * 
+     * @type {Date}
+     * @memberof RecentFireEntry
+     */
+    cleared_at?: Date | null;
 }
 
 /**
@@ -58,9 +58,9 @@ export function RecentFireEntryFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'cleared_at': json['cleared_at'] == null ? undefined : (new Date(json['cleared_at'])),
         'kind': json['kind'],
         'pushed_at': (new Date(json['pushed_at'])),
+        'cleared_at': json['cleared_at'] == null ? undefined : (new Date(json['cleared_at'])),
     };
 }
 
@@ -75,9 +75,9 @@ export function RecentFireEntryToJSONTyped(value?: RecentFireEntry | null, ignor
 
     return {
         
-        'cleared_at': value['cleared_at'] == null ? value['cleared_at'] : value['cleared_at'].toISOString(),
         'kind': value['kind'],
         'pushed_at': value['pushed_at'].toISOString(),
+        'cleared_at': value['cleared_at'] == null ? value['cleared_at'] : value['cleared_at'].toISOString(),
     };
 }
 

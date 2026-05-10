@@ -30,29 +30,32 @@ import com.squareup.moshi.JsonClass
 /**
  * Vehicle state response.
  *
+ * @param vehicleId 
  * @param displayName 
  * @param state 
- * @param vehicleId 
  * @param batteryLevel 
  * @param batteryRangeKm 
- * @param cabinOverheatProtectionOn 
- * @param chargeLimitSoc 
+ * @param usableBatteryLevel 
  * @param chargingState 
- * @param climateKeeperMode 
- * @param heading 
- * @param insideTemp 
- * @param isClimateOn 
  * @param latitude 
  * @param longitude 
- * @param odometerKm 
- * @param outsideTemp 
- * @param sentryModeOn 
+ * @param heading 
  * @param speed 
- * @param usableBatteryLevel 
+ * @param odometerKm 
+ * @param insideTemp 
+ * @param outsideTemp 
+ * @param climateKeeperMode 
+ * @param isClimateOn 
+ * @param sentryModeOn 
+ * @param cabinOverheatProtectionOn 
+ * @param chargeLimitSoc 
  */
 
 
 data class VehicleStateResponse (
+
+    @Json(name = "vehicle_id")
+    val vehicleId: kotlin.String,
 
     @Json(name = "display_name")
     val displayName: kotlin.String,
@@ -60,35 +63,17 @@ data class VehicleStateResponse (
     @Json(name = "state")
     val state: kotlin.String,
 
-    @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String,
-
     @Json(name = "battery_level")
     val batteryLevel: kotlin.Int? = null,
 
     @Json(name = "battery_range_km")
     val batteryRangeKm: java.math.BigDecimal? = null,
 
-    @Json(name = "cabin_overheat_protection_on")
-    val cabinOverheatProtectionOn: kotlin.Boolean? = null,
-
-    @Json(name = "charge_limit_soc")
-    val chargeLimitSoc: kotlin.Int? = null,
+    @Json(name = "usable_battery_level")
+    val usableBatteryLevel: kotlin.Int? = null,
 
     @Json(name = "charging_state")
     val chargingState: kotlin.String? = null,
-
-    @Json(name = "climate_keeper_mode")
-    val climateKeeperMode: kotlin.Int? = null,
-
-    @Json(name = "heading")
-    val heading: kotlin.Int? = null,
-
-    @Json(name = "inside_temp")
-    val insideTemp: java.math.BigDecimal? = null,
-
-    @Json(name = "is_climate_on")
-    val isClimateOn: kotlin.Boolean? = null,
 
     @Json(name = "latitude")
     val latitude: java.math.BigDecimal? = null,
@@ -96,20 +81,35 @@ data class VehicleStateResponse (
     @Json(name = "longitude")
     val longitude: java.math.BigDecimal? = null,
 
-    @Json(name = "odometer_km")
-    val odometerKm: java.math.BigDecimal? = null,
-
-    @Json(name = "outside_temp")
-    val outsideTemp: java.math.BigDecimal? = null,
-
-    @Json(name = "sentry_mode_on")
-    val sentryModeOn: kotlin.Boolean? = null,
+    @Json(name = "heading")
+    val heading: kotlin.Int? = null,
 
     @Json(name = "speed")
     val speed: kotlin.Int? = null,
 
-    @Json(name = "usable_battery_level")
-    val usableBatteryLevel: kotlin.Int? = null
+    @Json(name = "odometer_km")
+    val odometerKm: java.math.BigDecimal? = null,
+
+    @Json(name = "inside_temp")
+    val insideTemp: java.math.BigDecimal? = null,
+
+    @Json(name = "outside_temp")
+    val outsideTemp: java.math.BigDecimal? = null,
+
+    @Json(name = "climate_keeper_mode")
+    val climateKeeperMode: kotlin.Int? = null,
+
+    @Json(name = "is_climate_on")
+    val isClimateOn: kotlin.Boolean? = null,
+
+    @Json(name = "sentry_mode_on")
+    val sentryModeOn: kotlin.Boolean? = null,
+
+    @Json(name = "cabin_overheat_protection_on")
+    val cabinOverheatProtectionOn: kotlin.Boolean? = null,
+
+    @Json(name = "charge_limit_soc")
+    val chargeLimitSoc: kotlin.Int? = null
 
 ) {
 

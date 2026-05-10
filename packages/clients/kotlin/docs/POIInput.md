@@ -5,9 +5,9 @@
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
 | **id** | **kotlin.String** |  |  |
+| **name** | **kotlin.String** |  |  |
 | **latitude** | [**java.math.BigDecimal**](java.math.BigDecimal.md) |  |  |
 | **longitude** | [**java.math.BigDecimal**](java.math.BigDecimal.md) |  |  |
-| **name** | **kotlin.String** |  |  |
 | **address** | **kotlin.String** |  |  [optional] |
 
 

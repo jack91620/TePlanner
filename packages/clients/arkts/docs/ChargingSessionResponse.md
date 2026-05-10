@@ -6,24 +6,24 @@
 
 Name | Type
 ------------ | -------------
-`client_session_id` | string
-`duration_minutes` | number
-`end_range_km` | number
-`end_soc` | number
-`ended_as_complete` | boolean
-`ended_at` | Date
-`energy_added_kwh` | number
 `id` | number
+`vehicle_id` | string
+`client_session_id` | string
+`started_at` | Date
+`ended_at` | Date
+`start_soc` | number
+`end_soc` | number
+`start_range_km` | number
+`end_range_km` | number
+`energy_added_kwh` | number
+`location_name` | string
 `lat` | number
 `lng` | number
-`location_name` | string
+`ended_as_complete` | boolean
+`source` | string
+`duration_minutes` | number
 `range_added_km` | number
 `soc_delta` | number
-`source` | string
-`start_range_km` | number
-`start_soc` | number
-`started_at` | Date
-`vehicle_id` | string
 
 ## Example
 
@@ -32,24 +32,24 @@ import type { ChargingSessionResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "client_session_id": null,
-  "duration_minutes": null,
-  "end_range_km": null,
-  "end_soc": null,
-  "ended_as_complete": null,
-  "ended_at": null,
-  "energy_added_kwh": null,
   "id": null,
+  "vehicle_id": null,
+  "client_session_id": null,
+  "started_at": null,
+  "ended_at": null,
+  "start_soc": null,
+  "end_soc": null,
+  "start_range_km": null,
+  "end_range_km": null,
+  "energy_added_kwh": null,
+  "location_name": null,
   "lat": null,
   "lng": null,
-  "location_name": null,
+  "ended_as_complete": null,
+  "source": null,
+  "duration_minutes": null,
   "range_added_km": null,
   "soc_delta": null,
-  "source": null,
-  "start_range_km": null,
-  "start_soc": null,
-  "started_at": null,
-  "vehicle_id": null,
 } satisfies ChargingSessionResponse
 
 console.log(example)

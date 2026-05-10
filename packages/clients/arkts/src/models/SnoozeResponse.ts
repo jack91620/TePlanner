@@ -21,18 +21,6 @@ import { mapValues } from '../runtime';
 export interface SnoozeResponse {
     /**
      * 
-     * @type {Date}
-     * @memberof SnoozeResponse
-     */
-    created_at: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof SnoozeResponse
-     */
-    reason?: string | null;
-    /**
-     * 
      * @type {string}
      * @memberof SnoozeResponse
      */
@@ -43,15 +31,27 @@ export interface SnoozeResponse {
      * @memberof SnoozeResponse
      */
     snoozed_until_utc: Date;
+    /**
+     * 
+     * @type {string}
+     * @memberof SnoozeResponse
+     */
+    reason?: string | null;
+    /**
+     * 
+     * @type {Date}
+     * @memberof SnoozeResponse
+     */
+    created_at: Date;
 }
 
 /**
  * Check if a given object implements the SnoozeResponse interface.
  */
 export function instanceOfSnoozeResponse(value: object): value is SnoozeResponse {
-    if (!('created_at' in value) || value['created_at'] === undefined) return false;
     if (!('rule_id' in value) || value['rule_id'] === undefined) return false;
     if (!('snoozed_until_utc' in value) || value['snoozed_until_utc'] === undefined) return false;
+    if (!('created_at' in value) || value['created_at'] === undefined) return false;
     return true;
 }
 
@@ -65,10 +65,10 @@ export function SnoozeResponseFromJSONTyped(json: any, ignoreDiscriminator: bool
     }
     return {
         
-        'created_at': (new Date(json['created_at'])),
-        'reason': json['reason'] == null ? undefined : json['reason'],
         'rule_id': json['rule_id'],
         'snoozed_until_utc': (new Date(json['snoozed_until_utc'])),
+        'reason': json['reason'] == null ? undefined : json['reason'],
+        'created_at': (new Date(json['created_at'])),
     };
 }
 
@@ -83,10 +83,10 @@ export function SnoozeResponseToJSONTyped(value?: SnoozeResponse | null, ignoreD
 
     return {
         
-        'created_at': value['created_at'].toISOString(),
-        'reason': value['reason'],
         'rule_id': value['rule_id'],
         'snoozed_until_utc': value['snoozed_until_utc'].toISOString(),
+        'reason': value['reason'],
+        'created_at': value['created_at'].toISOString(),
     };
 }
 

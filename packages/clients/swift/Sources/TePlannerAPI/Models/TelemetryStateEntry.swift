@@ -14,19 +14,19 @@ import AnyCodable
 public struct TelemetryStateEntry: Codable, JSONEncodable, Hashable {
 
     public var entity: String
-    public var since: Date
     public var value: AnyCodable?
+    public var since: Date
 
-    public init(entity: String, since: Date, value: AnyCodable?) {
+    public init(entity: String, value: AnyCodable?, since: Date) {
         self.entity = entity
-        self.since = since
         self.value = value
+        self.since = since
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case entity
-        case since
         case value
+        case since
     }
 
     // Encodable protocol methods
@@ -34,8 +34,8 @@ public struct TelemetryStateEntry: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(entity, forKey: .entity)
-        try container.encode(since, forKey: .since)
         try container.encode(value, forKey: .value)
+        try container.encode(since, forKey: .since)
     }
 }
 

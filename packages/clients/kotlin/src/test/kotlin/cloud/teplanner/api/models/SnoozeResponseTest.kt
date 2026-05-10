@@ -33,12 +33,6 @@ class SnoozeResponseTest : ShouldSpec() {
         // uncomment below to create an instance of SnoozeResponse
         //val modelInstance = SnoozeResponse()
 
-        // to test the property `createdAt`
-        should("test createdAt") {
-            // uncomment below to test the property
-            //modelInstance.createdAt shouldBe ("TODO")
-        }
-
         // to test the property `ruleId`
         should("test ruleId") {
             // uncomment below to test the property
@@ -49,6 +43,12 @@ class SnoozeResponseTest : ShouldSpec() {
         should("test snoozedUntilUtc") {
             // uncomment below to test the property
             //modelInstance.snoozedUntilUtc shouldBe ("TODO")
+        }
+
+        // to test the property `createdAt`
+        should("test createdAt") {
+            // uncomment below to test the property
+            //modelInstance.createdAt shouldBe ("TODO")
         }
 
         // to test the property `reason`

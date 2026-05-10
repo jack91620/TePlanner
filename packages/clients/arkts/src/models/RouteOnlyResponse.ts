@@ -24,7 +24,19 @@ export interface RouteOnlyResponse {
      * @type {object}
      * @memberof RouteOnlyResponse
      */
+    origin: object;
+    /**
+     * 
+     * @type {object}
+     * @memberof RouteOnlyResponse
+     */
     destination: object;
+    /**
+     * 
+     * @type {number}
+     * @memberof RouteOnlyResponse
+     */
+    total_distance_km: number;
     /**
      * 
      * @type {number}
@@ -33,33 +45,21 @@ export interface RouteOnlyResponse {
     driving_duration_minutes: number;
     /**
      * 
-     * @type {object}
-     * @memberof RouteOnlyResponse
-     */
-    origin: object;
-    /**
-     * 
      * @type {Array<object>}
      * @memberof RouteOnlyResponse
      */
     polyline: Array<object>;
-    /**
-     * 
-     * @type {number}
-     * @memberof RouteOnlyResponse
-     */
-    total_distance_km: number;
 }
 
 /**
  * Check if a given object implements the RouteOnlyResponse interface.
  */
 export function instanceOfRouteOnlyResponse(value: object): value is RouteOnlyResponse {
-    if (!('destination' in value) || value['destination'] === undefined) return false;
-    if (!('driving_duration_minutes' in value) || value['driving_duration_minutes'] === undefined) return false;
     if (!('origin' in value) || value['origin'] === undefined) return false;
-    if (!('polyline' in value) || value['polyline'] === undefined) return false;
+    if (!('destination' in value) || value['destination'] === undefined) return false;
     if (!('total_distance_km' in value) || value['total_distance_km'] === undefined) return false;
+    if (!('driving_duration_minutes' in value) || value['driving_duration_minutes'] === undefined) return false;
+    if (!('polyline' in value) || value['polyline'] === undefined) return false;
     return true;
 }
 
@@ -73,11 +73,11 @@ export function RouteOnlyResponseFromJSONTyped(json: any, ignoreDiscriminator: b
     }
     return {
         
-        'destination': json['destination'],
-        'driving_duration_minutes': json['driving_duration_minutes'],
         'origin': json['origin'],
-        'polyline': json['polyline'],
+        'destination': json['destination'],
         'total_distance_km': json['total_distance_km'],
+        'driving_duration_minutes': json['driving_duration_minutes'],
+        'polyline': json['polyline'],
     };
 }
 
@@ -92,11 +92,11 @@ export function RouteOnlyResponseToJSONTyped(value?: RouteOnlyResponse | null, i
 
     return {
         
-        'destination': value['destination'],
-        'driving_duration_minutes': value['driving_duration_minutes'],
         'origin': value['origin'],
-        'polyline': value['polyline'],
+        'destination': value['destination'],
         'total_distance_km': value['total_distance_km'],
+        'driving_duration_minutes': value['driving_duration_minutes'],
+        'polyline': value['polyline'],
     };
 }
 

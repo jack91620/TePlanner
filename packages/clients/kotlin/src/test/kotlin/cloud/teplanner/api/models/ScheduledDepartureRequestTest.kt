@@ -39,10 +39,10 @@ class ScheduledDepartureRequestTest : ShouldSpec() {
             //modelInstance.departureAtUtc shouldBe ("TODO")
         }
 
-        // to test the property `enabled`
-        should("test enabled") {
+        // to test the property `leadMinutes`
+        should("test leadMinutes") {
             // uncomment below to test the property
-            //modelInstance.enabled shouldBe ("TODO")
+            //modelInstance.leadMinutes shouldBe ("TODO")
         }
 
         // to test the property `label`
@@ -51,10 +51,10 @@ class ScheduledDepartureRequestTest : ShouldSpec() {
             //modelInstance.label shouldBe ("TODO")
         }
 
-        // to test the property `leadMinutes`
-        should("test leadMinutes") {
+        // to test the property `vehicleId`
+        should("test vehicleId") {
             // uncomment below to test the property
-            //modelInstance.leadMinutes shouldBe ("TODO")
+            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
         // to test the property `targetChargeSoc`
@@ -63,10 +63,10 @@ class ScheduledDepartureRequestTest : ShouldSpec() {
             //modelInstance.targetChargeSoc shouldBe ("TODO")
         }
 
-        // to test the property `vehicleId`
-        should("test vehicleId") {
+        // to test the property `enabled`
+        should("test enabled") {
             // uncomment below to test the property
-            //modelInstance.vehicleId shouldBe ("TODO")
+            //modelInstance.enabled shouldBe ("TODO")
         }
 
     }

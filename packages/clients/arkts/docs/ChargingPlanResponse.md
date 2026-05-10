@@ -7,10 +7,10 @@ Output: just the charging-related fields. The iOS client merges this with the pr
 
 Name | Type
 ------------ | -------------
-`arrival_soc` | number
-`charging_duration_minutes` | number
 `charging_stops` | [Array&lt;ChargingStopResponse&gt;](ChargingStopResponse.md)
 `num_charging_stops` | number
+`charging_duration_minutes` | number
+`arrival_soc` | number
 `warnings` | Array&lt;string&gt;
 
 ## Example
@@ -20,10 +20,10 @@ import type { ChargingPlanResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "arrival_soc": null,
-  "charging_duration_minutes": null,
   "charging_stops": null,
   "num_charging_stops": null,
+  "charging_duration_minutes": null,
+  "arrival_soc": null,
   "warnings": null,
 } satisfies ChargingPlanResponse
 

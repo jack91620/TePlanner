@@ -31,12 +31,12 @@ import com.squareup.moshi.JsonClass
  * Email auth response.
  *
  * @param accessToken 
- * @param email 
  * @param expiresIn 
  * @param userId 
- * @param hasTeslaLinked 
- * @param nickname 
+ * @param email 
  * @param tokenType 
+ * @param nickname 
+ * @param hasTeslaLinked 
  */
 
 
@@ -45,23 +45,23 @@ data class EmailAuthResponse (
     @Json(name = "access_token")
     val accessToken: kotlin.String,
 
-    @Json(name = "email")
-    val email: kotlin.String,
-
     @Json(name = "expires_in")
     val expiresIn: kotlin.Int,
 
     @Json(name = "user_id")
     val userId: kotlin.Int,
 
-    @Json(name = "has_tesla_linked")
-    val hasTeslaLinked: kotlin.Boolean? = false,
+    @Json(name = "email")
+    val email: kotlin.String,
+
+    @Json(name = "token_type")
+    val tokenType: kotlin.String? = "Bearer",
 
     @Json(name = "nickname")
     val nickname: kotlin.String? = null,
 
-    @Json(name = "token_type")
-    val tokenType: kotlin.String? = "Bearer"
+    @Json(name = "has_tesla_linked")
+    val hasTeslaLinked: kotlin.Boolean? = false
 
 ) {
 

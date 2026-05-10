@@ -45,28 +45,28 @@ class WeChatLoginResponseTest : ShouldSpec() {
             //modelInstance.expiresIn shouldBe ("TODO")
         }
 
-        // to test the property `openid`
-        should("test openid") {
-            // uncomment below to test the property
-            //modelInstance.openid shouldBe ("TODO")
-        }
-
         // to test the property `userId`
         should("test userId") {
             // uncomment below to test the property
             //modelInstance.userId shouldBe ("TODO")
         }
 
-        // to test the property `hasTeslaLinked`
-        should("test hasTeslaLinked") {
+        // to test the property `openid`
+        should("test openid") {
             // uncomment below to test the property
-            //modelInstance.hasTeslaLinked shouldBe ("TODO")
+            //modelInstance.openid shouldBe ("TODO")
         }
 
         // to test the property `tokenType`
         should("test tokenType") {
             // uncomment below to test the property
             //modelInstance.tokenType shouldBe ("TODO")
+        }
+
+        // to test the property `hasTeslaLinked`
+        should("test hasTeslaLinked") {
+            // uncomment below to test the property
+            //modelInstance.hasTeslaLinked shouldBe ("TODO")
         }
 
     }

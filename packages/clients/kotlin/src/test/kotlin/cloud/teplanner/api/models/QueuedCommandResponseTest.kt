@@ -33,22 +33,16 @@ class QueuedCommandResponseTest : ShouldSpec() {
         // uncomment below to create an instance of QueuedCommandResponse
         //val modelInstance = QueuedCommandResponse()
 
-        // to test the property `capability`
-        should("test capability") {
-            // uncomment below to test the property
-            //modelInstance.capability shouldBe ("TODO")
-        }
-
-        // to test the property `dispatchPolicy`
-        should("test dispatchPolicy") {
-            // uncomment below to test the property
-            //modelInstance.dispatchPolicy shouldBe ("TODO")
-        }
-
         // to test the property `id`
         should("test id") {
             // uncomment below to test the property
             //modelInstance.id shouldBe ("TODO")
+        }
+
+        // to test the property `capability`
+        should("test capability") {
+            // uncomment below to test the property
+            //modelInstance.capability shouldBe ("TODO")
         }
 
         // to test the property `params`
@@ -57,10 +51,22 @@ class QueuedCommandResponseTest : ShouldSpec() {
             //modelInstance.params shouldBe ("TODO")
         }
 
+        // to test the property `dispatchPolicy`
+        should("test dispatchPolicy") {
+            // uncomment below to test the property
+            //modelInstance.dispatchPolicy shouldBe ("TODO")
+        }
+
         // to test the property `queuedAt`
         should("test queuedAt") {
             // uncomment below to test the property
             //modelInstance.queuedAt shouldBe ("TODO")
+        }
+
+        // to test the property `ttlSeconds`
+        should("test ttlSeconds") {
+            // uncomment below to test the property
+            //modelInstance.ttlSeconds shouldBe ("TODO")
         }
 
         // to test the property `status`
@@ -69,10 +75,10 @@ class QueuedCommandResponseTest : ShouldSpec() {
             //modelInstance.status shouldBe ("TODO")
         }
 
-        // to test the property `ttlSeconds`
-        should("test ttlSeconds") {
+        // to test the property `sentAt`
+        should("test sentAt") {
             // uncomment below to test the property
-            //modelInstance.ttlSeconds shouldBe ("TODO")
+            //modelInstance.sentAt shouldBe ("TODO")
         }
 
         // to test the property `droppedAt`
@@ -85,12 +91,6 @@ class QueuedCommandResponseTest : ShouldSpec() {
         should("test error") {
             // uncomment below to test the property
             //modelInstance.error shouldBe ("TODO")
-        }
-
-        // to test the property `sentAt`
-        should("test sentAt") {
-            // uncomment below to test the property
-            //modelInstance.sentAt shouldBe ("TODO")
         }
 
     }

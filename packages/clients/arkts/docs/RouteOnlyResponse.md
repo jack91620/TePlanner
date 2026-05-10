@@ -7,11 +7,11 @@ Lightweight response — polyline + raw distance/duration only.
 
 Name | Type
 ------------ | -------------
-`destination` | object
-`driving_duration_minutes` | number
 `origin` | object
-`polyline` | Array&lt;object&gt;
+`destination` | object
 `total_distance_km` | number
+`driving_duration_minutes` | number
+`polyline` | Array&lt;object&gt;
 
 ## Example
 
@@ -20,11 +20,11 @@ import type { RouteOnlyResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "destination": null,
-  "driving_duration_minutes": null,
   "origin": null,
-  "polyline": null,
+  "destination": null,
   "total_distance_km": null,
+  "driving_duration_minutes": null,
+  "polyline": null,
 } satisfies RouteOnlyResponse
 
 console.log(example)

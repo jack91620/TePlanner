@@ -102,7 +102,7 @@ open class DevicesAPI {
     /**
      Test Push
      - POST /api/v1/devices/test-push
-     - Send a debug push to all of this user's registered devices. Useful while wiring up — flip APNs creds, hit this endpoint, see if a notification lands on the phone.
+     - Send a debug push to all of this user's registered devices. Phase E — routes through PushDispatcher so APNs / JPush / Huawei Push Kit all receive it according to each token's platform field.
      - Bearer Token:
        - type: http
        - name: HTTPBearer

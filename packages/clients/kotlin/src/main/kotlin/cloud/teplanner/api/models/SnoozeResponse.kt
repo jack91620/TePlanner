@@ -30,23 +30,23 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param createdAt 
  * @param ruleId 
  * @param snoozedUntilUtc 
+ * @param createdAt 
  * @param reason 
  */
 
 
 data class SnoozeResponse (
 
-    @Json(name = "created_at")
-    val createdAt: java.time.OffsetDateTime,
-
     @Json(name = "rule_id")
     val ruleId: kotlin.String,
 
     @Json(name = "snoozed_until_utc")
     val snoozedUntilUtc: java.time.OffsetDateTime,
+
+    @Json(name = "created_at")
+    val createdAt: java.time.OffsetDateTime,
 
     @Json(name = "reason")
     val reason: kotlin.String? = null

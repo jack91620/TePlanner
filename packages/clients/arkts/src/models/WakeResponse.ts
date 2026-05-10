@@ -24,7 +24,7 @@ export interface WakeResponse {
      * @type {string}
      * @memberof WakeResponse
      */
-    message: string;
+    vehicle_id: string;
     /**
      * 
      * @type {string}
@@ -36,16 +36,16 @@ export interface WakeResponse {
      * @type {string}
      * @memberof WakeResponse
      */
-    vehicle_id: string;
+    message: string;
 }
 
 /**
  * Check if a given object implements the WakeResponse interface.
  */
 export function instanceOfWakeResponse(value: object): value is WakeResponse {
-    if (!('message' in value) || value['message'] === undefined) return false;
-    if (!('state' in value) || value['state'] === undefined) return false;
     if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
+    if (!('state' in value) || value['state'] === undefined) return false;
+    if (!('message' in value) || value['message'] === undefined) return false;
     return true;
 }
 
@@ -59,9 +59,9 @@ export function WakeResponseFromJSONTyped(json: any, ignoreDiscriminator: boolea
     }
     return {
         
-        'message': json['message'],
-        'state': json['state'],
         'vehicle_id': json['vehicle_id'],
+        'state': json['state'],
+        'message': json['message'],
     };
 }
 
@@ -76,9 +76,9 @@ export function WakeResponseToJSONTyped(value?: WakeResponse | null, ignoreDiscr
 
     return {
         
-        'message': value['message'],
-        'state': value['state'],
         'vehicle_id': value['vehicle_id'],
+        'state': value['state'],
+        'message': value['message'],
     };
 }
 

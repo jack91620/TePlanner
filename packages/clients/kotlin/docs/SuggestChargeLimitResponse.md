@@ -4,11 +4,11 @@
 ## Properties
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
-| **alreadyMatches** | **kotlin.Boolean** |  |  |
-| **currentPercent** | **kotlin.Int** |  |  |
-| **hoursAway** | **kotlin.Int** |  |  |
-| **reason** | **kotlin.String** |  |  |
 | **recommendedPercent** | **kotlin.Int** |  |  |
+| **currentPercent** | **kotlin.Int** |  |  |
+| **reason** | **kotlin.String** |  |  |
+| **hoursAway** | **kotlin.Int** |  |  |
+| **alreadyMatches** | **kotlin.Boolean** |  |  |
 
 
 

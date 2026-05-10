@@ -30,31 +30,34 @@ import com.squareup.moshi.JsonClass
 /**
  * Charging station model.
  *
- * @param address 
  * @param id 
+ * @param name 
+ * @param address 
  * @param latitude 
  * @param longitude 
- * @param name 
- * @param availablePorts 
- * @param category 
  * @param distanceKm 
- * @param openHours 
  * @param `operator` 
- * @param powerKw 
- * @param pricePerKwh 
  * @param tel 
+ * @param powerKw 
+ * @param availablePorts 
  * @param totalPorts 
+ * @param pricePerKwh 
+ * @param openHours 
+ * @param category 
  * @param type 
  */
 
 
 data class ChargingStation (
 
-    @Json(name = "address")
-    val address: kotlin.String,
-
     @Json(name = "id")
     val id: kotlin.String,
+
+    @Json(name = "name")
+    val name: kotlin.String,
+
+    @Json(name = "address")
+    val address: kotlin.String,
 
     @Json(name = "latitude")
     val latitude: java.math.BigDecimal,
@@ -62,35 +65,32 @@ data class ChargingStation (
     @Json(name = "longitude")
     val longitude: java.math.BigDecimal,
 
-    @Json(name = "name")
-    val name: kotlin.String,
-
-    @Json(name = "available_ports")
-    val availablePorts: kotlin.Int? = null,
-
-    @Json(name = "category")
-    val category: kotlin.String? = null,
-
     @Json(name = "distance_km")
     val distanceKm: java.math.BigDecimal? = null,
-
-    @Json(name = "open_hours")
-    val openHours: kotlin.String? = null,
 
     @Json(name = "operator")
     val `operator`: kotlin.String? = null,
 
+    @Json(name = "tel")
+    val tel: kotlin.String? = null,
+
     @Json(name = "power_kw")
     val powerKw: kotlin.Int? = null,
+
+    @Json(name = "available_ports")
+    val availablePorts: kotlin.Int? = null,
+
+    @Json(name = "total_ports")
+    val totalPorts: kotlin.Int? = null,
 
     @Json(name = "price_per_kwh")
     val pricePerKwh: java.math.BigDecimal? = null,
 
-    @Json(name = "tel")
-    val tel: kotlin.String? = null,
+    @Json(name = "open_hours")
+    val openHours: kotlin.String? = null,
 
-    @Json(name = "total_ports")
-    val totalPorts: kotlin.Int? = null,
+    @Json(name = "category")
+    val category: kotlin.String? = null,
 
     @Json(name = "type")
     val type: kotlin.String? = null

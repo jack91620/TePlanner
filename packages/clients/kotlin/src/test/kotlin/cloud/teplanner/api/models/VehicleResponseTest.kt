@@ -33,16 +33,16 @@ class VehicleResponseTest : ShouldSpec() {
         // uncomment below to create an instance of VehicleResponse
         //val modelInstance = VehicleResponse()
 
-        // to test the property `displayName`
-        should("test displayName") {
-            // uncomment below to test the property
-            //modelInstance.displayName shouldBe ("TODO")
-        }
-
         // to test the property `id`
         should("test id") {
             // uncomment below to test the property
             //modelInstance.id shouldBe ("TODO")
+        }
+
+        // to test the property `displayName`
+        should("test displayName") {
+            // uncomment below to test the property
+            //modelInstance.displayName shouldBe ("TODO")
         }
 
         // to test the property `state`
@@ -51,10 +51,10 @@ class VehicleResponseTest : ShouldSpec() {
             //modelInstance.state shouldBe ("TODO")
         }
 
-        // to test the property `isPrimary`
-        should("test isPrimary") {
+        // to test the property `vin`
+        should("test vin") {
             // uncomment below to test the property
-            //modelInstance.isPrimary shouldBe ("TODO")
+            //modelInstance.vin shouldBe ("TODO")
         }
 
         // to test the property `model`
@@ -63,10 +63,10 @@ class VehicleResponseTest : ShouldSpec() {
             //modelInstance.model shouldBe ("TODO")
         }
 
-        // to test the property `vin`
-        should("test vin") {
+        // to test the property `isPrimary`
+        should("test isPrimary") {
             // uncomment below to test the property
-            //modelInstance.vin shouldBe ("TODO")
+            //modelInstance.isPrimary shouldBe ("TODO")
         }
 
     }

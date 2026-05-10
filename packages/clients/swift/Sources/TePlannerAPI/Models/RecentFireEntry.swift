@@ -12,29 +12,29 @@ import AnyCodable
 
 public struct RecentFireEntry: Codable, JSONEncodable, Hashable {
 
-    public var clearedAt: Date?
     public var kind: String
     public var pushedAt: Date
+    public var clearedAt: Date?
 
-    public init(clearedAt: Date? = nil, kind: String, pushedAt: Date) {
-        self.clearedAt = clearedAt
+    public init(kind: String, pushedAt: Date, clearedAt: Date? = nil) {
         self.kind = kind
         self.pushedAt = pushedAt
+        self.clearedAt = clearedAt
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case clearedAt = "cleared_at"
         case kind
         case pushedAt = "pushed_at"
+        case clearedAt = "cleared_at"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(clearedAt, forKey: .clearedAt)
         try container.encode(kind, forKey: .kind)
         try container.encode(pushedAt, forKey: .pushedAt)
+        try container.encodeIfPresent(clearedAt, forKey: .clearedAt)
     }
 }
 

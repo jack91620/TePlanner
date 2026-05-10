@@ -33,6 +33,12 @@ class SnoozeRequestTest : ShouldSpec() {
         // uncomment below to create an instance of SnoozeRequest
         //val modelInstance = SnoozeRequest()
 
+        // to test the property `until`
+        should("test until") {
+            // uncomment below to test the property
+            //modelInstance.until shouldBe ("TODO")
+        }
+
         // to test the property `hours`
         should("test hours") {
             // uncomment below to test the property
@@ -43,12 +49,6 @@ class SnoozeRequestTest : ShouldSpec() {
         should("test reason") {
             // uncomment below to test the property
             //modelInstance.reason shouldBe ("TODO")
-        }
-
-        // to test the property `until`
-        should("test until") {
-            // uncomment below to test the property
-            //modelInstance.until shouldBe ("TODO")
         }
 
     }

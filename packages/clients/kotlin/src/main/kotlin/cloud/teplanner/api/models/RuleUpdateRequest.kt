@@ -30,19 +30,19 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param enabled 
  * @param name 
+ * @param enabled 
  * @param spec 
  */
 
 
 data class RuleUpdateRequest (
 
-    @Json(name = "enabled")
-    val enabled: kotlin.Boolean? = null,
-
     @Json(name = "name")
     val name: kotlin.String? = null,
+
+    @Json(name = "enabled")
+    val enabled: kotlin.Boolean? = null,
 
     @Json(name = "spec")
     val spec: kotlin.Any? = null

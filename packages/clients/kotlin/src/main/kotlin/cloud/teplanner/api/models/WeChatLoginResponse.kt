@@ -32,10 +32,10 @@ import com.squareup.moshi.JsonClass
  *
  * @param accessToken 
  * @param expiresIn 
- * @param openid 
  * @param userId 
- * @param hasTeslaLinked 
+ * @param openid 
  * @param tokenType 
+ * @param hasTeslaLinked 
  */
 
 
@@ -47,17 +47,17 @@ data class WeChatLoginResponse (
     @Json(name = "expires_in")
     val expiresIn: kotlin.Int,
 
-    @Json(name = "openid")
-    val openid: kotlin.String,
-
     @Json(name = "user_id")
     val userId: kotlin.Int,
 
-    @Json(name = "has_tesla_linked")
-    val hasTeslaLinked: kotlin.Boolean? = false,
+    @Json(name = "openid")
+    val openid: kotlin.String,
 
     @Json(name = "token_type")
-    val tokenType: kotlin.String? = "Bearer"
+    val tokenType: kotlin.String? = "Bearer",
+
+    @Json(name = "has_tesla_linked")
+    val hasTeslaLinked: kotlin.Boolean? = false
 
 ) {
 

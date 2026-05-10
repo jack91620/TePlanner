@@ -13,93 +13,93 @@ import AnyCodable
 /** Vehicle state response. */
 public struct VehicleStateResponse: Codable, JSONEncodable, Hashable {
 
+    public var vehicleId: String
+    public var displayName: String
+    public var state: String
     public var batteryLevel: Int?
     public var batteryRangeKm: Double?
-    public var cabinOverheatProtectionOn: Bool?
-    public var chargeLimitSoc: Int?
+    public var usableBatteryLevel: Int?
     public var chargingState: String?
-    public var climateKeeperMode: Int?
-    public var displayName: String
-    public var heading: Int?
-    public var insideTemp: Double?
-    public var isClimateOn: Bool?
     public var latitude: Double?
     public var longitude: Double?
-    public var odometerKm: Double?
-    public var outsideTemp: Double?
-    public var sentryModeOn: Bool?
+    public var heading: Int?
     public var speed: Int?
-    public var state: String
-    public var usableBatteryLevel: Int?
-    public var vehicleId: String
+    public var odometerKm: Double?
+    public var insideTemp: Double?
+    public var outsideTemp: Double?
+    public var climateKeeperMode: Int?
+    public var isClimateOn: Bool?
+    public var sentryModeOn: Bool?
+    public var cabinOverheatProtectionOn: Bool?
+    public var chargeLimitSoc: Int?
 
-    public init(batteryLevel: Int? = nil, batteryRangeKm: Double? = nil, cabinOverheatProtectionOn: Bool? = nil, chargeLimitSoc: Int? = nil, chargingState: String? = nil, climateKeeperMode: Int? = nil, displayName: String, heading: Int? = nil, insideTemp: Double? = nil, isClimateOn: Bool? = nil, latitude: Double? = nil, longitude: Double? = nil, odometerKm: Double? = nil, outsideTemp: Double? = nil, sentryModeOn: Bool? = nil, speed: Int? = nil, state: String, usableBatteryLevel: Int? = nil, vehicleId: String) {
+    public init(vehicleId: String, displayName: String, state: String, batteryLevel: Int? = nil, batteryRangeKm: Double? = nil, usableBatteryLevel: Int? = nil, chargingState: String? = nil, latitude: Double? = nil, longitude: Double? = nil, heading: Int? = nil, speed: Int? = nil, odometerKm: Double? = nil, insideTemp: Double? = nil, outsideTemp: Double? = nil, climateKeeperMode: Int? = nil, isClimateOn: Bool? = nil, sentryModeOn: Bool? = nil, cabinOverheatProtectionOn: Bool? = nil, chargeLimitSoc: Int? = nil) {
+        self.vehicleId = vehicleId
+        self.displayName = displayName
+        self.state = state
         self.batteryLevel = batteryLevel
         self.batteryRangeKm = batteryRangeKm
-        self.cabinOverheatProtectionOn = cabinOverheatProtectionOn
-        self.chargeLimitSoc = chargeLimitSoc
+        self.usableBatteryLevel = usableBatteryLevel
         self.chargingState = chargingState
-        self.climateKeeperMode = climateKeeperMode
-        self.displayName = displayName
-        self.heading = heading
-        self.insideTemp = insideTemp
-        self.isClimateOn = isClimateOn
         self.latitude = latitude
         self.longitude = longitude
-        self.odometerKm = odometerKm
-        self.outsideTemp = outsideTemp
-        self.sentryModeOn = sentryModeOn
+        self.heading = heading
         self.speed = speed
-        self.state = state
-        self.usableBatteryLevel = usableBatteryLevel
-        self.vehicleId = vehicleId
+        self.odometerKm = odometerKm
+        self.insideTemp = insideTemp
+        self.outsideTemp = outsideTemp
+        self.climateKeeperMode = climateKeeperMode
+        self.isClimateOn = isClimateOn
+        self.sentryModeOn = sentryModeOn
+        self.cabinOverheatProtectionOn = cabinOverheatProtectionOn
+        self.chargeLimitSoc = chargeLimitSoc
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
+        case vehicleId = "vehicle_id"
+        case displayName = "display_name"
+        case state
         case batteryLevel = "battery_level"
         case batteryRangeKm = "battery_range_km"
-        case cabinOverheatProtectionOn = "cabin_overheat_protection_on"
-        case chargeLimitSoc = "charge_limit_soc"
+        case usableBatteryLevel = "usable_battery_level"
         case chargingState = "charging_state"
-        case climateKeeperMode = "climate_keeper_mode"
-        case displayName = "display_name"
-        case heading
-        case insideTemp = "inside_temp"
-        case isClimateOn = "is_climate_on"
         case latitude
         case longitude
-        case odometerKm = "odometer_km"
-        case outsideTemp = "outside_temp"
-        case sentryModeOn = "sentry_mode_on"
+        case heading
         case speed
-        case state
-        case usableBatteryLevel = "usable_battery_level"
-        case vehicleId = "vehicle_id"
+        case odometerKm = "odometer_km"
+        case insideTemp = "inside_temp"
+        case outsideTemp = "outside_temp"
+        case climateKeeperMode = "climate_keeper_mode"
+        case isClimateOn = "is_climate_on"
+        case sentryModeOn = "sentry_mode_on"
+        case cabinOverheatProtectionOn = "cabin_overheat_protection_on"
+        case chargeLimitSoc = "charge_limit_soc"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(vehicleId, forKey: .vehicleId)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(state, forKey: .state)
         try container.encodeIfPresent(batteryLevel, forKey: .batteryLevel)
         try container.encodeIfPresent(batteryRangeKm, forKey: .batteryRangeKm)
-        try container.encodeIfPresent(cabinOverheatProtectionOn, forKey: .cabinOverheatProtectionOn)
-        try container.encodeIfPresent(chargeLimitSoc, forKey: .chargeLimitSoc)
+        try container.encodeIfPresent(usableBatteryLevel, forKey: .usableBatteryLevel)
         try container.encodeIfPresent(chargingState, forKey: .chargingState)
-        try container.encodeIfPresent(climateKeeperMode, forKey: .climateKeeperMode)
-        try container.encode(displayName, forKey: .displayName)
-        try container.encodeIfPresent(heading, forKey: .heading)
-        try container.encodeIfPresent(insideTemp, forKey: .insideTemp)
-        try container.encodeIfPresent(isClimateOn, forKey: .isClimateOn)
         try container.encodeIfPresent(latitude, forKey: .latitude)
         try container.encodeIfPresent(longitude, forKey: .longitude)
-        try container.encodeIfPresent(odometerKm, forKey: .odometerKm)
-        try container.encodeIfPresent(outsideTemp, forKey: .outsideTemp)
-        try container.encodeIfPresent(sentryModeOn, forKey: .sentryModeOn)
+        try container.encodeIfPresent(heading, forKey: .heading)
         try container.encodeIfPresent(speed, forKey: .speed)
-        try container.encode(state, forKey: .state)
-        try container.encodeIfPresent(usableBatteryLevel, forKey: .usableBatteryLevel)
-        try container.encode(vehicleId, forKey: .vehicleId)
+        try container.encodeIfPresent(odometerKm, forKey: .odometerKm)
+        try container.encodeIfPresent(insideTemp, forKey: .insideTemp)
+        try container.encodeIfPresent(outsideTemp, forKey: .outsideTemp)
+        try container.encodeIfPresent(climateKeeperMode, forKey: .climateKeeperMode)
+        try container.encodeIfPresent(isClimateOn, forKey: .isClimateOn)
+        try container.encodeIfPresent(sentryModeOn, forKey: .sentryModeOn)
+        try container.encodeIfPresent(cabinOverheatProtectionOn, forKey: .cabinOverheatProtectionOn)
+        try container.encodeIfPresent(chargeLimitSoc, forKey: .chargeLimitSoc)
     }
 }
 

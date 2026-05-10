@@ -31,18 +31,6 @@ import {
 export interface ChargingPlanResponse {
     /**
      * 
-     * @type {number}
-     * @memberof ChargingPlanResponse
-     */
-    arrival_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingPlanResponse
-     */
-    charging_duration_minutes: number;
-    /**
-     * 
      * @type {Array<ChargingStopResponse>}
      * @memberof ChargingPlanResponse
      */
@@ -55,6 +43,18 @@ export interface ChargingPlanResponse {
     num_charging_stops: number;
     /**
      * 
+     * @type {number}
+     * @memberof ChargingPlanResponse
+     */
+    charging_duration_minutes: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingPlanResponse
+     */
+    arrival_soc: number;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof ChargingPlanResponse
      */
@@ -65,10 +65,10 @@ export interface ChargingPlanResponse {
  * Check if a given object implements the ChargingPlanResponse interface.
  */
 export function instanceOfChargingPlanResponse(value: object): value is ChargingPlanResponse {
-    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
-    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
     if (!('charging_stops' in value) || value['charging_stops'] === undefined) return false;
     if (!('num_charging_stops' in value) || value['num_charging_stops'] === undefined) return false;
+    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
+    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
     return true;
 }
 
@@ -82,10 +82,10 @@ export function ChargingPlanResponseFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
-        'arrival_soc': json['arrival_soc'],
-        'charging_duration_minutes': json['charging_duration_minutes'],
         'charging_stops': ((json['charging_stops'] as Array<any>).map(ChargingStopResponseFromJSON)),
         'num_charging_stops': json['num_charging_stops'],
+        'charging_duration_minutes': json['charging_duration_minutes'],
+        'arrival_soc': json['arrival_soc'],
         'warnings': json['warnings'] == null ? undefined : json['warnings'],
     };
 }
@@ -101,10 +101,10 @@ export function ChargingPlanResponseToJSONTyped(value?: ChargingPlanResponse | n
 
     return {
         
-        'arrival_soc': value['arrival_soc'],
-        'charging_duration_minutes': value['charging_duration_minutes'],
         'charging_stops': ((value['charging_stops'] as Array<any>).map(ChargingStopResponseToJSON)),
         'num_charging_stops': value['num_charging_stops'],
+        'charging_duration_minutes': value['charging_duration_minutes'],
+        'arrival_soc': value['arrival_soc'],
         'warnings': value['warnings'],
     };
 }

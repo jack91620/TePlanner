@@ -15,32 +15,32 @@ public struct ChargingPlanRequest: Codable, JSONEncodable, Hashable {
 
     public static let initialSocRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
     public static let minArrivalSocRule = NumericRule<Int>(minimum: 5, exclusiveMinimum: false, maximum: 50, exclusiveMaximum: false, multipleOf: nil)
-    public var candidatePois: [POIInput]
-    public var carType: String? = "model_y_long_range"
-    public var initialSoc: Int
-    public var minArrivalSoc: Int? = 20
     /** [[lat, lng], …] */
     public var polyline: [[Double]]
     public var totalDistanceKm: Double
+    public var candidatePois: [POIInput]
+    public var initialSoc: Int
+    public var carType: String? = "model_y_long_range"
+    public var minArrivalSoc: Int? = 20
     public var vehicleRangeKm: Double?
 
-    public init(candidatePois: [POIInput], carType: String? = "model_y_long_range", initialSoc: Int, minArrivalSoc: Int? = 20, polyline: [[Double]], totalDistanceKm: Double, vehicleRangeKm: Double? = nil) {
-        self.candidatePois = candidatePois
-        self.carType = carType
-        self.initialSoc = initialSoc
-        self.minArrivalSoc = minArrivalSoc
+    public init(polyline: [[Double]], totalDistanceKm: Double, candidatePois: [POIInput], initialSoc: Int, carType: String? = "model_y_long_range", minArrivalSoc: Int? = 20, vehicleRangeKm: Double? = nil) {
         self.polyline = polyline
         self.totalDistanceKm = totalDistanceKm
+        self.candidatePois = candidatePois
+        self.initialSoc = initialSoc
+        self.carType = carType
+        self.minArrivalSoc = minArrivalSoc
         self.vehicleRangeKm = vehicleRangeKm
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case candidatePois = "candidate_pois"
-        case carType = "car_type"
-        case initialSoc = "initial_soc"
-        case minArrivalSoc = "min_arrival_soc"
         case polyline
         case totalDistanceKm = "total_distance_km"
+        case candidatePois = "candidate_pois"
+        case initialSoc = "initial_soc"
+        case carType = "car_type"
+        case minArrivalSoc = "min_arrival_soc"
         case vehicleRangeKm = "vehicle_range_km"
     }
 
@@ -48,12 +48,12 @@ public struct ChargingPlanRequest: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(candidatePois, forKey: .candidatePois)
-        try container.encodeIfPresent(carType, forKey: .carType)
-        try container.encode(initialSoc, forKey: .initialSoc)
-        try container.encodeIfPresent(minArrivalSoc, forKey: .minArrivalSoc)
         try container.encode(polyline, forKey: .polyline)
         try container.encode(totalDistanceKm, forKey: .totalDistanceKm)
+        try container.encode(candidatePois, forKey: .candidatePois)
+        try container.encode(initialSoc, forKey: .initialSoc)
+        try container.encodeIfPresent(carType, forKey: .carType)
+        try container.encodeIfPresent(minArrivalSoc, forKey: .minArrivalSoc)
         try container.encodeIfPresent(vehicleRangeKm, forKey: .vehicleRangeKm)
     }
 }

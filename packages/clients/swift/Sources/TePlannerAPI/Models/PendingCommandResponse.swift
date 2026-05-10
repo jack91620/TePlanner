@@ -12,45 +12,45 @@ import AnyCodable
 
 public struct PendingCommandResponse: Codable, JSONEncodable, Hashable {
 
-    public var capability: String
-    public var confirmedAt: Date?
-    public var dispatchedAt: Date
-    public var expectedState: AnyCodable
     public var id: Int
-    public var status: String
+    public var capability: String
+    public var expectedState: AnyCodable
+    public var dispatchedAt: Date
+    public var confirmedAt: Date?
     public var timedOutAt: Date?
+    public var status: String
 
-    public init(capability: String, confirmedAt: Date? = nil, dispatchedAt: Date, expectedState: AnyCodable, id: Int, status: String, timedOutAt: Date? = nil) {
-        self.capability = capability
-        self.confirmedAt = confirmedAt
-        self.dispatchedAt = dispatchedAt
-        self.expectedState = expectedState
+    public init(id: Int, capability: String, expectedState: AnyCodable, dispatchedAt: Date, confirmedAt: Date? = nil, timedOutAt: Date? = nil, status: String) {
         self.id = id
-        self.status = status
+        self.capability = capability
+        self.expectedState = expectedState
+        self.dispatchedAt = dispatchedAt
+        self.confirmedAt = confirmedAt
         self.timedOutAt = timedOutAt
+        self.status = status
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case capability
-        case confirmedAt = "confirmed_at"
-        case dispatchedAt = "dispatched_at"
-        case expectedState = "expected_state"
         case id
-        case status
+        case capability
+        case expectedState = "expected_state"
+        case dispatchedAt = "dispatched_at"
+        case confirmedAt = "confirmed_at"
         case timedOutAt = "timed_out_at"
+        case status
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(capability, forKey: .capability)
-        try container.encodeIfPresent(confirmedAt, forKey: .confirmedAt)
-        try container.encode(dispatchedAt, forKey: .dispatchedAt)
-        try container.encode(expectedState, forKey: .expectedState)
         try container.encode(id, forKey: .id)
-        try container.encode(status, forKey: .status)
+        try container.encode(capability, forKey: .capability)
+        try container.encode(expectedState, forKey: .expectedState)
+        try container.encode(dispatchedAt, forKey: .dispatchedAt)
+        try container.encodeIfPresent(confirmedAt, forKey: .confirmedAt)
         try container.encodeIfPresent(timedOutAt, forKey: .timedOutAt)
+        try container.encode(status, forKey: .status)
     }
 }
 

@@ -24,31 +24,19 @@ export interface ChargingStation {
      * @type {string}
      * @memberof ChargingStation
      */
-    address: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStation
-     */
-    available_ports?: number | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingStation
-     */
-    category?: string | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStation
-     */
-    distance_km?: number | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingStation
-     */
     id: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingStation
+     */
+    name: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingStation
+     */
+    address: string;
     /**
      * 
      * @type {number}
@@ -63,34 +51,16 @@ export interface ChargingStation {
     longitude: number;
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof ChargingStation
      */
-    name: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ChargingStation
-     */
-    open_hours?: string | null;
+    distance_km?: number | null;
     /**
      * 
      * @type {string}
      * @memberof ChargingStation
      */
     operator?: string | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStation
-     */
-    power_kw?: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ChargingStation
-     */
-    price_per_kwh?: number | null;
     /**
      * 
      * @type {string}
@@ -102,7 +72,37 @@ export interface ChargingStation {
      * @type {number}
      * @memberof ChargingStation
      */
+    power_kw?: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStation
+     */
+    available_ports?: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStation
+     */
     total_ports?: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ChargingStation
+     */
+    price_per_kwh?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingStation
+     */
+    open_hours?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChargingStation
+     */
+    category?: string | null;
     /**
      * 
      * @type {string}
@@ -115,11 +115,11 @@ export interface ChargingStation {
  * Check if a given object implements the ChargingStation interface.
  */
 export function instanceOfChargingStation(value: object): value is ChargingStation {
-    if (!('address' in value) || value['address'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('name' in value) || value['name'] === undefined) return false;
+    if (!('address' in value) || value['address'] === undefined) return false;
     if (!('latitude' in value) || value['latitude'] === undefined) return false;
     if (!('longitude' in value) || value['longitude'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
     return true;
 }
 
@@ -133,20 +133,20 @@ export function ChargingStationFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'address': json['address'],
-        'available_ports': json['available_ports'] == null ? undefined : json['available_ports'],
-        'category': json['category'] == null ? undefined : json['category'],
-        'distance_km': json['distance_km'] == null ? undefined : json['distance_km'],
         'id': json['id'],
+        'name': json['name'],
+        'address': json['address'],
         'latitude': json['latitude'],
         'longitude': json['longitude'],
-        'name': json['name'],
-        'open_hours': json['open_hours'] == null ? undefined : json['open_hours'],
+        'distance_km': json['distance_km'] == null ? undefined : json['distance_km'],
         'operator': json['operator'] == null ? undefined : json['operator'],
-        'power_kw': json['power_kw'] == null ? undefined : json['power_kw'],
-        'price_per_kwh': json['price_per_kwh'] == null ? undefined : json['price_per_kwh'],
         'tel': json['tel'] == null ? undefined : json['tel'],
+        'power_kw': json['power_kw'] == null ? undefined : json['power_kw'],
+        'available_ports': json['available_ports'] == null ? undefined : json['available_ports'],
         'total_ports': json['total_ports'] == null ? undefined : json['total_ports'],
+        'price_per_kwh': json['price_per_kwh'] == null ? undefined : json['price_per_kwh'],
+        'open_hours': json['open_hours'] == null ? undefined : json['open_hours'],
+        'category': json['category'] == null ? undefined : json['category'],
         'type': json['type'] == null ? undefined : json['type'],
     };
 }
@@ -162,20 +162,20 @@ export function ChargingStationToJSONTyped(value?: ChargingStation | null, ignor
 
     return {
         
-        'address': value['address'],
-        'available_ports': value['available_ports'],
-        'category': value['category'],
-        'distance_km': value['distance_km'],
         'id': value['id'],
+        'name': value['name'],
+        'address': value['address'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
-        'name': value['name'],
-        'open_hours': value['open_hours'],
+        'distance_km': value['distance_km'],
         'operator': value['operator'],
-        'power_kw': value['power_kw'],
-        'price_per_kwh': value['price_per_kwh'],
         'tel': value['tel'],
+        'power_kw': value['power_kw'],
+        'available_ports': value['available_ports'],
         'total_ports': value['total_ports'],
+        'price_per_kwh': value['price_per_kwh'],
+        'open_hours': value['open_hours'],
+        'category': value['category'],
         'type': value['type'],
     };
 }

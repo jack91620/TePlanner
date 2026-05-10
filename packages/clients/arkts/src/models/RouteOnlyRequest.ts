@@ -36,21 +36,21 @@ export interface RouteOnlyRequest {
      * @type {LocationInput}
      * @memberof RouteOnlyRequest
      */
-    destination: LocationInput;
+    origin: LocationInput;
     /**
      * 
      * @type {LocationInput}
      * @memberof RouteOnlyRequest
      */
-    origin: LocationInput;
+    destination: LocationInput;
 }
 
 /**
  * Check if a given object implements the RouteOnlyRequest interface.
  */
 export function instanceOfRouteOnlyRequest(value: object): value is RouteOnlyRequest {
-    if (!('destination' in value) || value['destination'] === undefined) return false;
     if (!('origin' in value) || value['origin'] === undefined) return false;
+    if (!('destination' in value) || value['destination'] === undefined) return false;
     return true;
 }
 
@@ -64,8 +64,8 @@ export function RouteOnlyRequestFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
         
-        'destination': LocationInputFromJSON(json['destination']),
         'origin': LocationInputFromJSON(json['origin']),
+        'destination': LocationInputFromJSON(json['destination']),
     };
 }
 
@@ -80,8 +80,8 @@ export function RouteOnlyRequestToJSONTyped(value?: RouteOnlyRequest | null, ign
 
     return {
         
-        'destination': LocationInputToJSON(value['destination']),
         'origin': LocationInputToJSON(value['origin']),
+        'destination': LocationInputToJSON(value['destination']),
     };
 }
 

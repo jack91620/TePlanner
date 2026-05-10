@@ -24,13 +24,13 @@ export interface TestPushRequest {
      * @type {string}
      * @memberof TestPushRequest
      */
-    body?: string;
+    title?: string;
     /**
      * 
      * @type {string}
      * @memberof TestPushRequest
      */
-    title?: string;
+    body?: string;
 }
 
 /**
@@ -50,8 +50,8 @@ export function TestPushRequestFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'body': json['body'] == null ? undefined : json['body'],
         'title': json['title'] == null ? undefined : json['title'],
+        'body': json['body'] == null ? undefined : json['body'],
     };
 }
 
@@ -66,8 +66,8 @@ export function TestPushRequestToJSONTyped(value?: TestPushRequest | null, ignor
 
     return {
         
-        'body': value['body'],
         'title': value['title'],
+        'body': value['body'],
     };
 }
 

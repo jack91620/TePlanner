@@ -30,50 +30,50 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param capability 
- * @param dispatchPolicy 
  * @param id 
+ * @param capability 
  * @param params 
+ * @param dispatchPolicy 
  * @param queuedAt 
- * @param status 
  * @param ttlSeconds 
+ * @param status 
+ * @param sentAt 
  * @param droppedAt 
  * @param error 
- * @param sentAt 
  */
 
 
 data class QueuedCommandResponse (
 
-    @Json(name = "capability")
-    val capability: kotlin.String,
-
-    @Json(name = "dispatch_policy")
-    val dispatchPolicy: kotlin.String,
-
     @Json(name = "id")
     val id: kotlin.Int,
+
+    @Json(name = "capability")
+    val capability: kotlin.String,
 
     @Json(name = "params")
     val params: kotlin.Any,
 
+    @Json(name = "dispatch_policy")
+    val dispatchPolicy: kotlin.String,
+
     @Json(name = "queued_at")
     val queuedAt: java.time.OffsetDateTime,
+
+    @Json(name = "ttl_seconds")
+    val ttlSeconds: kotlin.Int,
 
     @Json(name = "status")
     val status: kotlin.String,
 
-    @Json(name = "ttl_seconds")
-    val ttlSeconds: kotlin.Int,
+    @Json(name = "sent_at")
+    val sentAt: java.time.OffsetDateTime? = null,
 
     @Json(name = "dropped_at")
     val droppedAt: java.time.OffsetDateTime? = null,
 
     @Json(name = "error")
-    val error: kotlin.String? = null,
-
-    @Json(name = "sent_at")
-    val sentAt: java.time.OffsetDateTime? = null
+    val error: kotlin.String? = null
 
 ) {
 

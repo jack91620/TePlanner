@@ -6,16 +6,16 @@
 
 Name | Type
 ------------ | -------------
-`created_at` | Date
+`id` | number
 `departure_at_utc` | Date
+`lead_minutes` | number
+`label` | string
+`vehicle_id` | string
+`target_charge_soc` | number
 `enabled` | boolean
 `fire_at_utc` | Date
-`id` | number
-`label` | string
-`lead_minutes` | number
-`target_charge_soc` | number
+`created_at` | Date
 `updated_at` | Date
-`vehicle_id` | string
 
 ## Example
 
@@ -24,16 +24,16 @@ import type { ScheduledDepartureResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "created_at": null,
+  "id": null,
   "departure_at_utc": null,
+  "lead_minutes": null,
+  "label": null,
+  "vehicle_id": null,
+  "target_charge_soc": null,
   "enabled": null,
   "fire_at_utc": null,
-  "id": null,
-  "label": null,
-  "lead_minutes": null,
-  "target_charge_soc": null,
+  "created_at": null,
   "updated_at": null,
-  "vehicle_id": null,
 } satisfies ScheduledDepartureResponse
 
 console.log(example)

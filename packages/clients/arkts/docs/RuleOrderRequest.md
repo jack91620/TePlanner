@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`clear` | boolean
 `rule_ids` | Array&lt;string&gt;
+`clear` | boolean
 
 ## Example
 
@@ -16,8 +16,8 @@ import type { RuleOrderRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "clear": null,
   "rule_ids": null,
+  "clear": null,
 } satisfies RuleOrderRequest
 
 console.log(example)

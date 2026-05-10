@@ -30,14 +30,14 @@ import com.squareup.moshi.JsonClass
 /**
  * Charging stop in route.
  *
- * @param arrivalSoc 
- * @param chargingDurationMinutes 
- * @param departureSoc 
- * @param distanceFromStartKm 
+ * @param stationId 
+ * @param name 
  * @param latitude 
  * @param longitude 
- * @param name 
- * @param stationId 
+ * @param distanceFromStartKm 
+ * @param arrivalSoc 
+ * @param departureSoc 
+ * @param chargingDurationMinutes 
  * @param address 
  * @param `operator` 
  */
@@ -45,17 +45,11 @@ import com.squareup.moshi.JsonClass
 
 data class ChargingStopResponse (
 
-    @Json(name = "arrival_soc")
-    val arrivalSoc: kotlin.Int,
+    @Json(name = "station_id")
+    val stationId: kotlin.String,
 
-    @Json(name = "charging_duration_minutes")
-    val chargingDurationMinutes: kotlin.Int,
-
-    @Json(name = "departure_soc")
-    val departureSoc: kotlin.Int,
-
-    @Json(name = "distance_from_start_km")
-    val distanceFromStartKm: java.math.BigDecimal,
+    @Json(name = "name")
+    val name: kotlin.String,
 
     @Json(name = "latitude")
     val latitude: java.math.BigDecimal,
@@ -63,11 +57,17 @@ data class ChargingStopResponse (
     @Json(name = "longitude")
     val longitude: java.math.BigDecimal,
 
-    @Json(name = "name")
-    val name: kotlin.String,
+    @Json(name = "distance_from_start_km")
+    val distanceFromStartKm: java.math.BigDecimal,
 
-    @Json(name = "station_id")
-    val stationId: kotlin.String,
+    @Json(name = "arrival_soc")
+    val arrivalSoc: kotlin.Int,
+
+    @Json(name = "departure_soc")
+    val departureSoc: kotlin.Int,
+
+    @Json(name = "charging_duration_minutes")
+    val chargingDurationMinutes: kotlin.Int,
 
     @Json(name = "address")
     val address: kotlin.String? = null,

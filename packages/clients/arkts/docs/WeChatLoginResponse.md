@@ -8,11 +8,11 @@ WeChat login response.
 Name | Type
 ------------ | -------------
 `access_token` | string
-`expires_in` | number
-`has_tesla_linked` | boolean
-`openid` | string
 `token_type` | string
+`expires_in` | number
 `user_id` | number
+`openid` | string
+`has_tesla_linked` | boolean
 
 ## Example
 
@@ -22,11 +22,11 @@ import type { WeChatLoginResponse } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "access_token": null,
-  "expires_in": null,
-  "has_tesla_linked": null,
-  "openid": null,
   "token_type": null,
+  "expires_in": null,
   "user_id": null,
+  "openid": null,
+  "has_tesla_linked": null,
 } satisfies WeChatLoginResponse
 
 console.log(example)

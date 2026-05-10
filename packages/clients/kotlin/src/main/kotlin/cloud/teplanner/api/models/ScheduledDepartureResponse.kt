@@ -30,23 +30,29 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
+ * @param id 
  * @param departureAtUtc 
+ * @param leadMinutes 
  * @param enabled 
  * @param fireAtUtc 
- * @param id 
- * @param leadMinutes 
- * @param createdAt 
  * @param label 
- * @param targetChargeSoc 
- * @param updatedAt 
  * @param vehicleId 
+ * @param targetChargeSoc 
+ * @param createdAt 
+ * @param updatedAt 
  */
 
 
 data class ScheduledDepartureResponse (
 
+    @Json(name = "id")
+    val id: kotlin.Int,
+
     @Json(name = "departure_at_utc")
     val departureAtUtc: java.time.OffsetDateTime,
+
+    @Json(name = "lead_minutes")
+    val leadMinutes: kotlin.Int,
 
     @Json(name = "enabled")
     val enabled: kotlin.Boolean,
@@ -54,26 +60,20 @@ data class ScheduledDepartureResponse (
     @Json(name = "fire_at_utc")
     val fireAtUtc: java.time.OffsetDateTime,
 
-    @Json(name = "id")
-    val id: kotlin.Int,
-
-    @Json(name = "lead_minutes")
-    val leadMinutes: kotlin.Int,
-
-    @Json(name = "created_at")
-    val createdAt: java.time.OffsetDateTime? = null,
-
     @Json(name = "label")
     val label: kotlin.String? = null,
+
+    @Json(name = "vehicle_id")
+    val vehicleId: kotlin.String? = null,
 
     @Json(name = "target_charge_soc")
     val targetChargeSoc: kotlin.Int? = null,
 
-    @Json(name = "updated_at")
-    val updatedAt: java.time.OffsetDateTime? = null,
+    @Json(name = "created_at")
+    val createdAt: java.time.OffsetDateTime? = null,
 
-    @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String? = null
+    @Json(name = "updated_at")
+    val updatedAt: java.time.OffsetDateTime? = null
 
 ) {
 

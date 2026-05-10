@@ -14,29 +14,29 @@ public struct SnoozeRequest: Codable, JSONEncodable, Hashable {
 
     public static let hoursRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: true, maximum: 720.0, exclusiveMaximum: false, multipleOf: nil)
     public static let reasonRule = StringRule(minLength: nil, maxLength: 128, pattern: nil)
+    public var until: Date?
     public var hours: Double?
     public var reason: String?
-    public var until: Date?
 
-    public init(hours: Double? = nil, reason: String? = nil, until: Date? = nil) {
+    public init(until: Date? = nil, hours: Double? = nil, reason: String? = nil) {
+        self.until = until
         self.hours = hours
         self.reason = reason
-        self.until = until
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
+        case until
         case hours
         case reason
-        case until
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(until, forKey: .until)
         try container.encodeIfPresent(hours, forKey: .hours)
         try container.encodeIfPresent(reason, forKey: .reason)
-        try container.encodeIfPresent(until, forKey: .until)
     }
 }
 

@@ -30,30 +30,30 @@ import com.squareup.moshi.JsonClass
 /**
  * Lightweight response — polyline + raw distance/duration only.
  *
- * @param destination 
- * @param drivingDurationMinutes 
  * @param origin 
- * @param polyline 
+ * @param destination 
  * @param totalDistanceKm 
+ * @param drivingDurationMinutes 
+ * @param polyline 
  */
 
 
 data class RouteOnlyResponse (
 
+    @Json(name = "origin")
+    val origin: kotlin.Any,
+
     @Json(name = "destination")
     val destination: kotlin.Any,
+
+    @Json(name = "total_distance_km")
+    val totalDistanceKm: java.math.BigDecimal,
 
     @Json(name = "driving_duration_minutes")
     val drivingDurationMinutes: kotlin.Int,
 
-    @Json(name = "origin")
-    val origin: kotlin.Any,
-
     @Json(name = "polyline")
-    val polyline: kotlin.collections.List<kotlin.Any>,
-
-    @Json(name = "total_distance_km")
-    val totalDistanceKm: java.math.BigDecimal
+    val polyline: kotlin.collections.List<kotlin.Any>
 
 ) {
 

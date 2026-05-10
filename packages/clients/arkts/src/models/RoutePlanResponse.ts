@@ -32,43 +32,7 @@ export interface RoutePlanResponse {
      * @type {number}
      * @memberof RoutePlanResponse
      */
-    arrival_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof RoutePlanResponse
-     */
-    charging_duration_minutes: number;
-    /**
-     * 
-     * @type {Array<ChargingStopResponse>}
-     * @memberof RoutePlanResponse
-     */
-    charging_stops: Array<ChargingStopResponse>;
-    /**
-     * 
-     * @type {object}
-     * @memberof RoutePlanResponse
-     */
-    destination: object;
-    /**
-     * 
-     * @type {number}
-     * @memberof RoutePlanResponse
-     */
-    driving_duration_minutes: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof RoutePlanResponse
-     */
-    initial_soc: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof RoutePlanResponse
-     */
-    num_charging_stops: number;
+    route_id?: number | null;
     /**
      * 
      * @type {object}
@@ -77,16 +41,10 @@ export interface RoutePlanResponse {
     origin: object;
     /**
      * 
-     * @type {Array<object>}
+     * @type {object}
      * @memberof RoutePlanResponse
      */
-    polyline?: Array<object>;
-    /**
-     * 
-     * @type {number}
-     * @memberof RoutePlanResponse
-     */
-    route_id?: number | null;
+    destination: object;
     /**
      * 
      * @type {number}
@@ -101,6 +59,48 @@ export interface RoutePlanResponse {
     total_duration_minutes: number;
     /**
      * 
+     * @type {number}
+     * @memberof RoutePlanResponse
+     */
+    driving_duration_minutes: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RoutePlanResponse
+     */
+    charging_duration_minutes: number;
+    /**
+     * 
+     * @type {Array<ChargingStopResponse>}
+     * @memberof RoutePlanResponse
+     */
+    charging_stops: Array<ChargingStopResponse>;
+    /**
+     * 
+     * @type {number}
+     * @memberof RoutePlanResponse
+     */
+    num_charging_stops: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RoutePlanResponse
+     */
+    initial_soc: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RoutePlanResponse
+     */
+    arrival_soc: number;
+    /**
+     * 
+     * @type {Array<object>}
+     * @memberof RoutePlanResponse
+     */
+    polyline?: Array<object>;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof RoutePlanResponse
      */
@@ -111,16 +111,16 @@ export interface RoutePlanResponse {
  * Check if a given object implements the RoutePlanResponse interface.
  */
 export function instanceOfRoutePlanResponse(value: object): value is RoutePlanResponse {
-    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
-    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
-    if (!('charging_stops' in value) || value['charging_stops'] === undefined) return false;
-    if (!('destination' in value) || value['destination'] === undefined) return false;
-    if (!('driving_duration_minutes' in value) || value['driving_duration_minutes'] === undefined) return false;
-    if (!('initial_soc' in value) || value['initial_soc'] === undefined) return false;
-    if (!('num_charging_stops' in value) || value['num_charging_stops'] === undefined) return false;
     if (!('origin' in value) || value['origin'] === undefined) return false;
+    if (!('destination' in value) || value['destination'] === undefined) return false;
     if (!('total_distance_km' in value) || value['total_distance_km'] === undefined) return false;
     if (!('total_duration_minutes' in value) || value['total_duration_minutes'] === undefined) return false;
+    if (!('driving_duration_minutes' in value) || value['driving_duration_minutes'] === undefined) return false;
+    if (!('charging_duration_minutes' in value) || value['charging_duration_minutes'] === undefined) return false;
+    if (!('charging_stops' in value) || value['charging_stops'] === undefined) return false;
+    if (!('num_charging_stops' in value) || value['num_charging_stops'] === undefined) return false;
+    if (!('initial_soc' in value) || value['initial_soc'] === undefined) return false;
+    if (!('arrival_soc' in value) || value['arrival_soc'] === undefined) return false;
     return true;
 }
 
@@ -134,18 +134,18 @@ export function RoutePlanResponseFromJSONTyped(json: any, ignoreDiscriminator: b
     }
     return {
         
-        'arrival_soc': json['arrival_soc'],
-        'charging_duration_minutes': json['charging_duration_minutes'],
-        'charging_stops': ((json['charging_stops'] as Array<any>).map(ChargingStopResponseFromJSON)),
-        'destination': json['destination'],
-        'driving_duration_minutes': json['driving_duration_minutes'],
-        'initial_soc': json['initial_soc'],
-        'num_charging_stops': json['num_charging_stops'],
-        'origin': json['origin'],
-        'polyline': json['polyline'] == null ? undefined : json['polyline'],
         'route_id': json['route_id'] == null ? undefined : json['route_id'],
+        'origin': json['origin'],
+        'destination': json['destination'],
         'total_distance_km': json['total_distance_km'],
         'total_duration_minutes': json['total_duration_minutes'],
+        'driving_duration_minutes': json['driving_duration_minutes'],
+        'charging_duration_minutes': json['charging_duration_minutes'],
+        'charging_stops': ((json['charging_stops'] as Array<any>).map(ChargingStopResponseFromJSON)),
+        'num_charging_stops': json['num_charging_stops'],
+        'initial_soc': json['initial_soc'],
+        'arrival_soc': json['arrival_soc'],
+        'polyline': json['polyline'] == null ? undefined : json['polyline'],
         'warnings': json['warnings'] == null ? undefined : json['warnings'],
     };
 }
@@ -161,18 +161,18 @@ export function RoutePlanResponseToJSONTyped(value?: RoutePlanResponse | null, i
 
     return {
         
-        'arrival_soc': value['arrival_soc'],
-        'charging_duration_minutes': value['charging_duration_minutes'],
-        'charging_stops': ((value['charging_stops'] as Array<any>).map(ChargingStopResponseToJSON)),
-        'destination': value['destination'],
-        'driving_duration_minutes': value['driving_duration_minutes'],
-        'initial_soc': value['initial_soc'],
-        'num_charging_stops': value['num_charging_stops'],
-        'origin': value['origin'],
-        'polyline': value['polyline'],
         'route_id': value['route_id'],
+        'origin': value['origin'],
+        'destination': value['destination'],
         'total_distance_km': value['total_distance_km'],
         'total_duration_minutes': value['total_duration_minutes'],
+        'driving_duration_minutes': value['driving_duration_minutes'],
+        'charging_duration_minutes': value['charging_duration_minutes'],
+        'charging_stops': ((value['charging_stops'] as Array<any>).map(ChargingStopResponseToJSON)),
+        'num_charging_stops': value['num_charging_stops'],
+        'initial_soc': value['initial_soc'],
+        'arrival_soc': value['arrival_soc'],
+        'polyline': value['polyline'],
         'warnings': value['warnings'],
     };
 }

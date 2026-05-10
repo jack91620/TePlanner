@@ -21,6 +21,12 @@ import { mapValues } from '../runtime';
 export interface SnoozeRequest {
     /**
      * 
+     * @type {Date}
+     * @memberof SnoozeRequest
+     */
+    until?: Date | null;
+    /**
+     * 
      * @type {number}
      * @memberof SnoozeRequest
      */
@@ -31,12 +37,6 @@ export interface SnoozeRequest {
      * @memberof SnoozeRequest
      */
     reason?: string | null;
-    /**
-     * 
-     * @type {Date}
-     * @memberof SnoozeRequest
-     */
-    until?: Date | null;
 }
 
 /**
@@ -56,9 +56,9 @@ export function SnoozeRequestFromJSONTyped(json: any, ignoreDiscriminator: boole
     }
     return {
         
+        'until': json['until'] == null ? undefined : (new Date(json['until'])),
         'hours': json['hours'] == null ? undefined : json['hours'],
         'reason': json['reason'] == null ? undefined : json['reason'],
-        'until': json['until'] == null ? undefined : (new Date(json['until'])),
     };
 }
 
@@ -73,9 +73,9 @@ export function SnoozeRequestToJSONTyped(value?: SnoozeRequest | null, ignoreDis
 
     return {
         
+        'until': value['until'] == null ? value['until'] : value['until'].toISOString(),
         'hours': value['hours'],
         'reason': value['reason'],
-        'until': value['until'] == null ? value['until'] : value['until'].toISOString(),
     };
 }
 

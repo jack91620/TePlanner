@@ -12,57 +12,57 @@ import AnyCodable
 
 public struct QueuedCommandResponse: Codable, JSONEncodable, Hashable {
 
-    public var capability: String
-    public var dispatchPolicy: String
-    public var droppedAt: Date?
-    public var error: String?
     public var id: Int
+    public var capability: String
     public var params: AnyCodable
+    public var dispatchPolicy: String
     public var queuedAt: Date
     public var sentAt: Date?
-    public var status: String
+    public var droppedAt: Date?
     public var ttlSeconds: Int
+    public var error: String?
+    public var status: String
 
-    public init(capability: String, dispatchPolicy: String, droppedAt: Date? = nil, error: String? = nil, id: Int, params: AnyCodable, queuedAt: Date, sentAt: Date? = nil, status: String, ttlSeconds: Int) {
-        self.capability = capability
-        self.dispatchPolicy = dispatchPolicy
-        self.droppedAt = droppedAt
-        self.error = error
+    public init(id: Int, capability: String, params: AnyCodable, dispatchPolicy: String, queuedAt: Date, sentAt: Date? = nil, droppedAt: Date? = nil, ttlSeconds: Int, error: String? = nil, status: String) {
         self.id = id
+        self.capability = capability
         self.params = params
+        self.dispatchPolicy = dispatchPolicy
         self.queuedAt = queuedAt
         self.sentAt = sentAt
-        self.status = status
+        self.droppedAt = droppedAt
         self.ttlSeconds = ttlSeconds
+        self.error = error
+        self.status = status
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case capability
-        case dispatchPolicy = "dispatch_policy"
-        case droppedAt = "dropped_at"
-        case error
         case id
+        case capability
         case params
+        case dispatchPolicy = "dispatch_policy"
         case queuedAt = "queued_at"
         case sentAt = "sent_at"
-        case status
+        case droppedAt = "dropped_at"
         case ttlSeconds = "ttl_seconds"
+        case error
+        case status
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(capability, forKey: .capability)
-        try container.encode(dispatchPolicy, forKey: .dispatchPolicy)
-        try container.encodeIfPresent(droppedAt, forKey: .droppedAt)
-        try container.encodeIfPresent(error, forKey: .error)
         try container.encode(id, forKey: .id)
+        try container.encode(capability, forKey: .capability)
         try container.encode(params, forKey: .params)
+        try container.encode(dispatchPolicy, forKey: .dispatchPolicy)
         try container.encode(queuedAt, forKey: .queuedAt)
         try container.encodeIfPresent(sentAt, forKey: .sentAt)
-        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(droppedAt, forKey: .droppedAt)
         try container.encode(ttlSeconds, forKey: .ttlSeconds)
+        try container.encodeIfPresent(error, forKey: .error)
+        try container.encode(status, forKey: .status)
     }
 }
 

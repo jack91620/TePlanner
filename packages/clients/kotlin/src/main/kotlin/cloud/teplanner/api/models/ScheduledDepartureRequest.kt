@@ -31,11 +31,11 @@ import com.squareup.moshi.JsonClass
  * 
  *
  * @param departureAtUtc When the user intends to drive off (UTC).
- * @param enabled 
- * @param label 
  * @param leadMinutes 
- * @param targetChargeSoc 
+ * @param label 
  * @param vehicleId 
+ * @param targetChargeSoc 
+ * @param enabled 
  */
 
 
@@ -45,20 +45,20 @@ data class ScheduledDepartureRequest (
     @Json(name = "departure_at_utc")
     val departureAtUtc: java.time.OffsetDateTime,
 
-    @Json(name = "enabled")
-    val enabled: kotlin.Boolean? = true,
+    @Json(name = "lead_minutes")
+    val leadMinutes: kotlin.Int? = 15,
 
     @Json(name = "label")
     val label: kotlin.String? = null,
 
-    @Json(name = "lead_minutes")
-    val leadMinutes: kotlin.Int? = 15,
+    @Json(name = "vehicle_id")
+    val vehicleId: kotlin.String? = null,
 
     @Json(name = "target_charge_soc")
     val targetChargeSoc: kotlin.Int? = null,
 
-    @Json(name = "vehicle_id")
-    val vehicleId: kotlin.String? = null
+    @Json(name = "enabled")
+    val enabled: kotlin.Boolean? = true
 
 ) {
 

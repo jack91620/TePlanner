@@ -33,10 +33,10 @@ class WakeResponseTest : ShouldSpec() {
         // uncomment below to create an instance of WakeResponse
         //val modelInstance = WakeResponse()
 
-        // to test the property `message`
-        should("test message") {
+        // to test the property `vehicleId`
+        should("test vehicleId") {
             // uncomment below to test the property
-            //modelInstance.message shouldBe ("TODO")
+            //modelInstance.vehicleId shouldBe ("TODO")
         }
 
         // to test the property `state`
@@ -45,10 +45,10 @@ class WakeResponseTest : ShouldSpec() {
             //modelInstance.state shouldBe ("TODO")
         }
 
-        // to test the property `vehicleId`
-        should("test vehicleId") {
+        // to test the property `message`
+        should("test message") {
             // uncomment below to test the property
-            //modelInstance.vehicleId shouldBe ("TODO")
+            //modelInstance.message shouldBe ("TODO")
         }
 
     }

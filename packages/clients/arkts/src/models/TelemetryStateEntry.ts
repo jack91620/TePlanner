@@ -27,16 +27,16 @@ export interface TelemetryStateEntry {
     entity: string;
     /**
      * 
-     * @type {Date}
-     * @memberof TelemetryStateEntry
-     */
-    since: Date;
-    /**
-     * 
      * @type {}
      * @memberof TelemetryStateEntry
      */
     value:  | null;
+    /**
+     * 
+     * @type {Date}
+     * @memberof TelemetryStateEntry
+     */
+    since: Date;
 }
 
 /**
@@ -44,8 +44,8 @@ export interface TelemetryStateEntry {
  */
 export function instanceOfTelemetryStateEntry(value: object): value is TelemetryStateEntry {
     if (!('entity' in value) || value['entity'] === undefined) return false;
-    if (!('since' in value) || value['since'] === undefined) return false;
     if (!('value' in value) || value['value'] === undefined) return false;
+    if (!('since' in value) || value['since'] === undefined) return false;
     return true;
 }
 
@@ -60,8 +60,8 @@ export function TelemetryStateEntryFromJSONTyped(json: any, ignoreDiscriminator:
     return {
         
         'entity': json['entity'],
-        'since': (new Date(json['since'])),
         'value': FromJSON(json['value']),
+        'since': (new Date(json['since'])),
     };
 }
 
@@ -77,8 +77,8 @@ export function TelemetryStateEntryToJSONTyped(value?: TelemetryStateEntry | nul
     return {
         
         'entity': value['entity'],
-        'since': value['since'].toISOString(),
         'value': ToJSON(value['value']),
+        'since': value['since'].toISOString(),
     };
 }
 

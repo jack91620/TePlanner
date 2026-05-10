@@ -20,17 +20,17 @@ import { mapValues } from '../runtime';
  */
 export interface UserSettingsRequest {
     /**
-     * 
-     * @type {boolean}
-     * @memberof UserSettingsRequest
-     */
-    replace_all?: boolean;
-    /**
      * Full settings document. PUT replaces the keys present in this dict but leaves untouched keys alone — pass `replace_all=true` to wipe and re-seed.
      * @type {object}
      * @memberof UserSettingsRequest
      */
     settings: object;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UserSettingsRequest
+     */
+    replace_all?: boolean;
 }
 
 /**
@@ -51,8 +51,8 @@ export function UserSettingsRequestFromJSONTyped(json: any, ignoreDiscriminator:
     }
     return {
         
-        'replace_all': json['replace_all'] == null ? undefined : json['replace_all'],
         'settings': json['settings'],
+        'replace_all': json['replace_all'] == null ? undefined : json['replace_all'],
     };
 }
 
@@ -67,8 +67,8 @@ export function UserSettingsRequestToJSONTyped(value?: UserSettingsRequest | nul
 
     return {
         
-        'replace_all': value['replace_all'],
         'settings': value['settings'],
+        'replace_all': value['replace_all'],
     };
 }
 

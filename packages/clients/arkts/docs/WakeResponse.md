@@ -7,9 +7,9 @@ Wake response model.
 
 Name | Type
 ------------ | -------------
-`message` | string
-`state` | string
 `vehicle_id` | string
+`state` | string
+`message` | string
 
 ## Example
 
@@ -18,9 +18,9 @@ import type { WakeResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "message": null,
-  "state": null,
   "vehicle_id": null,
+  "state": null,
+  "message": null,
 } satisfies WakeResponse
 
 console.log(example)

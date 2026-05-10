@@ -39,12 +39,6 @@ class EmailAuthResponseTest : ShouldSpec() {
             //modelInstance.accessToken shouldBe ("TODO")
         }
 
-        // to test the property `email`
-        should("test email") {
-            // uncomment below to test the property
-            //modelInstance.email shouldBe ("TODO")
-        }
-
         // to test the property `expiresIn`
         should("test expiresIn") {
             // uncomment below to test the property
@@ -57,10 +51,16 @@ class EmailAuthResponseTest : ShouldSpec() {
             //modelInstance.userId shouldBe ("TODO")
         }
 
-        // to test the property `hasTeslaLinked`
-        should("test hasTeslaLinked") {
+        // to test the property `email`
+        should("test email") {
             // uncomment below to test the property
-            //modelInstance.hasTeslaLinked shouldBe ("TODO")
+            //modelInstance.email shouldBe ("TODO")
+        }
+
+        // to test the property `tokenType`
+        should("test tokenType") {
+            // uncomment below to test the property
+            //modelInstance.tokenType shouldBe ("TODO")
         }
 
         // to test the property `nickname`
@@ -69,10 +69,10 @@ class EmailAuthResponseTest : ShouldSpec() {
             //modelInstance.nickname shouldBe ("TODO")
         }
 
-        // to test the property `tokenType`
-        should("test tokenType") {
+        // to test the property `hasTeslaLinked`
+        should("test hasTeslaLinked") {
             // uncomment below to test the property
-            //modelInstance.tokenType shouldBe ("TODO")
+            //modelInstance.hasTeslaLinked shouldBe ("TODO")
         }
 
     }

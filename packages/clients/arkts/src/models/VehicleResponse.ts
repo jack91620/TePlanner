@@ -24,19 +24,19 @@ export interface VehicleResponse {
      * @type {string}
      * @memberof VehicleResponse
      */
-    display_name: string;
+    id: string;
     /**
      * 
      * @type {string}
      * @memberof VehicleResponse
      */
-    id: string;
+    vin?: string | null;
     /**
      * 
-     * @type {boolean}
+     * @type {string}
      * @memberof VehicleResponse
      */
-    is_primary?: boolean;
+    display_name: string;
     /**
      * 
      * @type {string}
@@ -51,18 +51,18 @@ export interface VehicleResponse {
     state: string;
     /**
      * 
-     * @type {string}
+     * @type {boolean}
      * @memberof VehicleResponse
      */
-    vin?: string | null;
+    is_primary?: boolean;
 }
 
 /**
  * Check if a given object implements the VehicleResponse interface.
  */
 export function instanceOfVehicleResponse(value: object): value is VehicleResponse {
-    if (!('display_name' in value) || value['display_name'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('display_name' in value) || value['display_name'] === undefined) return false;
     if (!('state' in value) || value['state'] === undefined) return false;
     return true;
 }
@@ -77,12 +77,12 @@ export function VehicleResponseFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'display_name': json['display_name'],
         'id': json['id'],
-        'is_primary': json['is_primary'] == null ? undefined : json['is_primary'],
+        'vin': json['vin'] == null ? undefined : json['vin'],
+        'display_name': json['display_name'],
         'model': json['model'] == null ? undefined : json['model'],
         'state': json['state'],
-        'vin': json['vin'] == null ? undefined : json['vin'],
+        'is_primary': json['is_primary'] == null ? undefined : json['is_primary'],
     };
 }
 
@@ -97,12 +97,12 @@ export function VehicleResponseToJSONTyped(value?: VehicleResponse | null, ignor
 
     return {
         
-        'display_name': value['display_name'],
         'id': value['id'],
-        'is_primary': value['is_primary'],
+        'vin': value['vin'],
+        'display_name': value['display_name'],
         'model': value['model'],
         'state': value['state'],
-        'vin': value['vin'],
+        'is_primary': value['is_primary'],
     };
 }
 

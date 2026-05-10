@@ -6,16 +6,16 @@
 
 Name | Type
 ------------ | -------------
-`capability` | string
-`dispatch_policy` | string
-`dropped_at` | Date
-`error` | string
 `id` | number
+`capability` | string
 `params` | object
+`dispatch_policy` | string
 `queued_at` | Date
 `sent_at` | Date
-`status` | string
+`dropped_at` | Date
 `ttl_seconds` | number
+`error` | string
+`status` | string
 
 ## Example
 
@@ -24,16 +24,16 @@ import type { QueuedCommandResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "capability": null,
-  "dispatch_policy": null,
-  "dropped_at": null,
-  "error": null,
   "id": null,
+  "capability": null,
   "params": null,
+  "dispatch_policy": null,
   "queued_at": null,
   "sent_at": null,
-  "status": null,
+  "dropped_at": null,
   "ttl_seconds": null,
+  "error": null,
+  "status": null,
 } satisfies QueuedCommandResponse
 
 console.log(example)

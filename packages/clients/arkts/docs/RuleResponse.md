@@ -6,15 +6,17 @@
 
 Name | Type
 ------------ | -------------
-`display_order` | number
-`enabled` | boolean
 `id` | string
-`last_fired_at` | Date
-`name` | string
 `preset_id` | string
+`name` | string
+`enabled` | boolean
 `spec` | object
-`updated_at` | Date
 `version` | number
+`updated_at` | Date
+`last_fired_at` | Date
+`display_order` | number
+`is_firing` | boolean
+`firing_since` | Date
 
 ## Example
 
@@ -23,15 +25,17 @@ import type { RuleResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "display_order": null,
-  "enabled": null,
   "id": null,
-  "last_fired_at": null,
-  "name": null,
   "preset_id": null,
+  "name": null,
+  "enabled": null,
   "spec": null,
-  "updated_at": null,
   "version": null,
+  "updated_at": null,
+  "last_fired_at": null,
+  "display_order": null,
+  "is_firing": null,
+  "firing_since": null,
 } satisfies RuleResponse
 
 console.log(example)

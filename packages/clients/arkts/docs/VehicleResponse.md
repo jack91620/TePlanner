@@ -7,12 +7,12 @@ Vehicle response model.
 
 Name | Type
 ------------ | -------------
-`display_name` | string
 `id` | string
-`is_primary` | boolean
+`vin` | string
+`display_name` | string
 `model` | string
 `state` | string
-`vin` | string
+`is_primary` | boolean
 
 ## Example
 
@@ -21,12 +21,12 @@ import type { VehicleResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "display_name": null,
   "id": null,
-  "is_primary": null,
+  "vin": null,
+  "display_name": null,
   "model": null,
   "state": null,
-  "vin": null,
+  "is_primary": null,
 } satisfies VehicleResponse
 
 console.log(example)

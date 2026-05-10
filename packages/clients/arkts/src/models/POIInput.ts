@@ -25,13 +25,13 @@ export interface POIInput {
      * @type {string}
      * @memberof POIInput
      */
-    address?: string | null;
+    id: string;
     /**
      * 
      * @type {string}
      * @memberof POIInput
      */
-    id: string;
+    name: string;
     /**
      * 
      * @type {number}
@@ -49,7 +49,7 @@ export interface POIInput {
      * @type {string}
      * @memberof POIInput
      */
-    name: string;
+    address?: string | null;
 }
 
 /**
@@ -57,9 +57,9 @@ export interface POIInput {
  */
 export function instanceOfPOIInput(value: object): value is POIInput {
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('name' in value) || value['name'] === undefined) return false;
     if (!('latitude' in value) || value['latitude'] === undefined) return false;
     if (!('longitude' in value) || value['longitude'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
     return true;
 }
 
@@ -73,11 +73,11 @@ export function POIInputFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
     }
     return {
         
-        'address': json['address'] == null ? undefined : json['address'],
         'id': json['id'],
+        'name': json['name'],
         'latitude': json['latitude'],
         'longitude': json['longitude'],
-        'name': json['name'],
+        'address': json['address'] == null ? undefined : json['address'],
     };
 }
 
@@ -92,11 +92,11 @@ export function POIInputToJSONTyped(value?: POIInput | null, ignoreDiscriminator
 
     return {
         
-        'address': value['address'],
         'id': value['id'],
+        'name': value['name'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
-        'name': value['name'],
+        'address': value['address'],
     };
 }
 

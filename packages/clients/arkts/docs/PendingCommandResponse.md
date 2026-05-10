@@ -6,13 +6,13 @@
 
 Name | Type
 ------------ | -------------
-`capability` | string
-`confirmed_at` | Date
-`dispatched_at` | Date
-`expected_state` | object
 `id` | number
-`status` | string
+`capability` | string
+`expected_state` | object
+`dispatched_at` | Date
+`confirmed_at` | Date
 `timed_out_at` | Date
+`status` | string
 
 ## Example
 
@@ -21,13 +21,13 @@ import type { PendingCommandResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "capability": null,
-  "confirmed_at": null,
-  "dispatched_at": null,
-  "expected_state": null,
   "id": null,
-  "status": null,
+  "capability": null,
+  "expected_state": null,
+  "dispatched_at": null,
+  "confirmed_at": null,
   "timed_out_at": null,
+  "status": null,
 } satisfies PendingCommandResponse
 
 console.log(example)

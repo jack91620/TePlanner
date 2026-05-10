@@ -6,11 +6,11 @@
 
 Name | Type
 ------------ | -------------
-`already_matches` | boolean
-`current_percent` | number
-`hours_away` | number
-`reason` | string
 `recommended_percent` | number
+`current_percent` | number
+`reason` | string
+`hours_away` | number
+`already_matches` | boolean
 
 ## Example
 
@@ -19,11 +19,11 @@ import type { SuggestChargeLimitResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "already_matches": null,
-  "current_percent": null,
-  "hours_away": null,
-  "reason": null,
   "recommended_percent": null,
+  "current_percent": null,
+  "reason": null,
+  "hours_away": null,
+  "already_matches": null,
 } satisfies SuggestChargeLimitResponse
 
 console.log(example)

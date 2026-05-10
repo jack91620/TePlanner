@@ -20,17 +20,29 @@ import { mapValues } from '../runtime';
  */
 export interface RegisterDeviceRequest {
     /**
+     * Provider device token (APNs hex / JPush registration_id / Huawei push token)
+     * @type {string}
+     * @memberof RegisterDeviceRequest
+     */
+    token: string;
+    /**
      * 
      * @type {string}
      * @memberof RegisterDeviceRequest
      */
     bundle_id?: string | null;
     /**
-     * Hex APNs device token
+     * 
      * @type {string}
      * @memberof RegisterDeviceRequest
      */
-    token: string;
+    platform?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RegisterDeviceRequest
+     */
+    provider_token?: string | null;
 }
 
 /**
@@ -51,8 +63,10 @@ export function RegisterDeviceRequestFromJSONTyped(json: any, ignoreDiscriminato
     }
     return {
         
-        'bundle_id': json['bundle_id'] == null ? undefined : json['bundle_id'],
         'token': json['token'],
+        'bundle_id': json['bundle_id'] == null ? undefined : json['bundle_id'],
+        'platform': json['platform'] == null ? undefined : json['platform'],
+        'provider_token': json['provider_token'] == null ? undefined : json['provider_token'],
     };
 }
 
@@ -67,8 +81,10 @@ export function RegisterDeviceRequestToJSONTyped(value?: RegisterDeviceRequest |
 
     return {
         
-        'bundle_id': value['bundle_id'],
         'token': value['token'],
+        'bundle_id': value['bundle_id'],
+        'platform': value['platform'],
+        'provider_token': value['provider_token'],
     };
 }
 

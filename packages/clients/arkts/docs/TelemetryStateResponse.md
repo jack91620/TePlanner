@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`entries` | [Array&lt;TelemetryStateEntry&gt;](TelemetryStateEntry.md)
 `vehicle_id` | string
+`entries` | [Array&lt;TelemetryStateEntry&gt;](TelemetryStateEntry.md)
 
 ## Example
 
@@ -16,8 +16,8 @@ import type { TelemetryStateResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "entries": null,
   "vehicle_id": null,
+  "entries": null,
 } satisfies TelemetryStateResponse
 
 console.log(example)

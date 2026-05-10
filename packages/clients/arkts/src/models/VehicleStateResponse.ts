@@ -21,6 +21,24 @@ import { mapValues } from '../runtime';
 export interface VehicleStateResponse {
     /**
      * 
+     * @type {string}
+     * @memberof VehicleStateResponse
+     */
+    vehicle_id: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof VehicleStateResponse
+     */
+    display_name: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof VehicleStateResponse
+     */
+    state: string;
+    /**
+     * 
      * @type {number}
      * @memberof VehicleStateResponse
      */
@@ -33,52 +51,16 @@ export interface VehicleStateResponse {
     battery_range_km?: number | null;
     /**
      * 
-     * @type {boolean}
-     * @memberof VehicleStateResponse
-     */
-    cabin_overheat_protection_on?: boolean | null;
-    /**
-     * 
      * @type {number}
      * @memberof VehicleStateResponse
      */
-    charge_limit_soc?: number | null;
+    usable_battery_level?: number | null;
     /**
      * 
      * @type {string}
      * @memberof VehicleStateResponse
      */
     charging_state?: string | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof VehicleStateResponse
-     */
-    climate_keeper_mode?: number | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof VehicleStateResponse
-     */
-    display_name: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof VehicleStateResponse
-     */
-    heading?: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof VehicleStateResponse
-     */
-    inside_temp?: number | null;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof VehicleStateResponse
-     */
-    is_climate_on?: boolean | null;
     /**
      * 
      * @type {number}
@@ -96,19 +78,7 @@ export interface VehicleStateResponse {
      * @type {number}
      * @memberof VehicleStateResponse
      */
-    odometer_km?: number | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof VehicleStateResponse
-     */
-    outside_temp?: number | null;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof VehicleStateResponse
-     */
-    sentry_mode_on?: boolean | null;
+    heading?: number | null;
     /**
      * 
      * @type {number}
@@ -117,31 +87,61 @@ export interface VehicleStateResponse {
     speed?: number | null;
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof VehicleStateResponse
      */
-    state: string;
+    odometer_km?: number | null;
     /**
      * 
      * @type {number}
      * @memberof VehicleStateResponse
      */
-    usable_battery_level?: number | null;
+    inside_temp?: number | null;
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof VehicleStateResponse
      */
-    vehicle_id: string;
+    outside_temp?: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof VehicleStateResponse
+     */
+    climate_keeper_mode?: number | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof VehicleStateResponse
+     */
+    is_climate_on?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof VehicleStateResponse
+     */
+    sentry_mode_on?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof VehicleStateResponse
+     */
+    cabin_overheat_protection_on?: boolean | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof VehicleStateResponse
+     */
+    charge_limit_soc?: number | null;
 }
 
 /**
  * Check if a given object implements the VehicleStateResponse interface.
  */
 export function instanceOfVehicleStateResponse(value: object): value is VehicleStateResponse {
+    if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
     if (!('display_name' in value) || value['display_name'] === undefined) return false;
     if (!('state' in value) || value['state'] === undefined) return false;
-    if (!('vehicle_id' in value) || value['vehicle_id'] === undefined) return false;
     return true;
 }
 
@@ -155,25 +155,25 @@ export function VehicleStateResponseFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
+        'vehicle_id': json['vehicle_id'],
+        'display_name': json['display_name'],
+        'state': json['state'],
         'battery_level': json['battery_level'] == null ? undefined : json['battery_level'],
         'battery_range_km': json['battery_range_km'] == null ? undefined : json['battery_range_km'],
-        'cabin_overheat_protection_on': json['cabin_overheat_protection_on'] == null ? undefined : json['cabin_overheat_protection_on'],
-        'charge_limit_soc': json['charge_limit_soc'] == null ? undefined : json['charge_limit_soc'],
+        'usable_battery_level': json['usable_battery_level'] == null ? undefined : json['usable_battery_level'],
         'charging_state': json['charging_state'] == null ? undefined : json['charging_state'],
-        'climate_keeper_mode': json['climate_keeper_mode'] == null ? undefined : json['climate_keeper_mode'],
-        'display_name': json['display_name'],
-        'heading': json['heading'] == null ? undefined : json['heading'],
-        'inside_temp': json['inside_temp'] == null ? undefined : json['inside_temp'],
-        'is_climate_on': json['is_climate_on'] == null ? undefined : json['is_climate_on'],
         'latitude': json['latitude'] == null ? undefined : json['latitude'],
         'longitude': json['longitude'] == null ? undefined : json['longitude'],
-        'odometer_km': json['odometer_km'] == null ? undefined : json['odometer_km'],
-        'outside_temp': json['outside_temp'] == null ? undefined : json['outside_temp'],
-        'sentry_mode_on': json['sentry_mode_on'] == null ? undefined : json['sentry_mode_on'],
+        'heading': json['heading'] == null ? undefined : json['heading'],
         'speed': json['speed'] == null ? undefined : json['speed'],
-        'state': json['state'],
-        'usable_battery_level': json['usable_battery_level'] == null ? undefined : json['usable_battery_level'],
-        'vehicle_id': json['vehicle_id'],
+        'odometer_km': json['odometer_km'] == null ? undefined : json['odometer_km'],
+        'inside_temp': json['inside_temp'] == null ? undefined : json['inside_temp'],
+        'outside_temp': json['outside_temp'] == null ? undefined : json['outside_temp'],
+        'climate_keeper_mode': json['climate_keeper_mode'] == null ? undefined : json['climate_keeper_mode'],
+        'is_climate_on': json['is_climate_on'] == null ? undefined : json['is_climate_on'],
+        'sentry_mode_on': json['sentry_mode_on'] == null ? undefined : json['sentry_mode_on'],
+        'cabin_overheat_protection_on': json['cabin_overheat_protection_on'] == null ? undefined : json['cabin_overheat_protection_on'],
+        'charge_limit_soc': json['charge_limit_soc'] == null ? undefined : json['charge_limit_soc'],
     };
 }
 
@@ -188,25 +188,25 @@ export function VehicleStateResponseToJSONTyped(value?: VehicleStateResponse | n
 
     return {
         
+        'vehicle_id': value['vehicle_id'],
+        'display_name': value['display_name'],
+        'state': value['state'],
         'battery_level': value['battery_level'],
         'battery_range_km': value['battery_range_km'],
-        'cabin_overheat_protection_on': value['cabin_overheat_protection_on'],
-        'charge_limit_soc': value['charge_limit_soc'],
+        'usable_battery_level': value['usable_battery_level'],
         'charging_state': value['charging_state'],
-        'climate_keeper_mode': value['climate_keeper_mode'],
-        'display_name': value['display_name'],
-        'heading': value['heading'],
-        'inside_temp': value['inside_temp'],
-        'is_climate_on': value['is_climate_on'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
-        'odometer_km': value['odometer_km'],
-        'outside_temp': value['outside_temp'],
-        'sentry_mode_on': value['sentry_mode_on'],
+        'heading': value['heading'],
         'speed': value['speed'],
-        'state': value['state'],
-        'usable_battery_level': value['usable_battery_level'],
-        'vehicle_id': value['vehicle_id'],
+        'odometer_km': value['odometer_km'],
+        'inside_temp': value['inside_temp'],
+        'outside_temp': value['outside_temp'],
+        'climate_keeper_mode': value['climate_keeper_mode'],
+        'is_climate_on': value['is_climate_on'],
+        'sentry_mode_on': value['sentry_mode_on'],
+        'cabin_overheat_protection_on': value['cabin_overheat_protection_on'],
+        'charge_limit_soc': value['charge_limit_soc'],
     };
 }
 

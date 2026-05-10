@@ -3,16 +3,16 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**address** | **String** |  | [optional] 
-**arrivalSoc** | **Int** |  | 
-**chargingDurationMinutes** | **Int** |  | 
-**departureSoc** | **Int** |  | 
-**distanceFromStartKm** | **Double** |  | 
+**stationId** | **String** |  | 
+**name** | **String** |  | 
 **latitude** | **Double** |  | 
 **longitude** | **Double** |  | 
-**name** | **String** |  | 
+**address** | **String** |  | [optional] 
 **_operator** | **String** |  | [optional] 
-**stationId** | **String** |  | 
+**distanceFromStartKm** | **Double** |  | 
+**arrivalSoc** | **Int** |  | 
+**departureSoc** | **Int** |  | 
+**chargingDurationMinutes** | **Int** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

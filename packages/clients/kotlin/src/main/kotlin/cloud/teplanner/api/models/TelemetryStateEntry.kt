@@ -32,8 +32,8 @@ import com.squareup.moshi.JsonClass
  * One ``tel:<entity>:since`` + value pair from automation_state.
  *
  * @param entity 
- * @param since 
  * @param `value` 
+ * @param since 
  */
 
 
@@ -42,11 +42,11 @@ data class TelemetryStateEntry (
     @Json(name = "entity")
     val entity: kotlin.String,
 
-    @Json(name = "since")
-    val since: java.time.OffsetDateTime,
-
     @Json(name = "value")
-    val `value`: AnyOfLessThanGreaterThan?
+    val `value`: AnyOfLessThanGreaterThan?,
+
+    @Json(name = "since")
+    val since: java.time.OffsetDateTime
 
 ) {
 

@@ -7,9 +7,9 @@ Location input model.
 
 Name | Type
 ------------ | -------------
-`address` | string
 `latitude` | number
 `longitude` | number
+`address` | string
 
 ## Example
 
@@ -18,9 +18,9 @@ import type { LocationInput } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "address": null,
   "latitude": null,
   "longitude": null,
+  "address": null,
 } satisfies LocationInput
 
 console.log(example)

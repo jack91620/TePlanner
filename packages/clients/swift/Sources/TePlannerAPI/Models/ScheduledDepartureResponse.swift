@@ -12,57 +12,57 @@ import AnyCodable
 
 public struct ScheduledDepartureResponse: Codable, JSONEncodable, Hashable {
 
-    public var createdAt: Date?
+    public var id: Int
     public var departureAtUtc: Date
+    public var leadMinutes: Int
+    public var label: String?
+    public var vehicleId: String?
+    public var targetChargeSoc: Int?
     public var enabled: Bool
     public var fireAtUtc: Date
-    public var id: Int
-    public var label: String?
-    public var leadMinutes: Int
-    public var targetChargeSoc: Int?
+    public var createdAt: Date?
     public var updatedAt: Date?
-    public var vehicleId: String?
 
-    public init(createdAt: Date? = nil, departureAtUtc: Date, enabled: Bool, fireAtUtc: Date, id: Int, label: String? = nil, leadMinutes: Int, targetChargeSoc: Int? = nil, updatedAt: Date? = nil, vehicleId: String? = nil) {
-        self.createdAt = createdAt
+    public init(id: Int, departureAtUtc: Date, leadMinutes: Int, label: String? = nil, vehicleId: String? = nil, targetChargeSoc: Int? = nil, enabled: Bool, fireAtUtc: Date, createdAt: Date? = nil, updatedAt: Date? = nil) {
+        self.id = id
         self.departureAtUtc = departureAtUtc
+        self.leadMinutes = leadMinutes
+        self.label = label
+        self.vehicleId = vehicleId
+        self.targetChargeSoc = targetChargeSoc
         self.enabled = enabled
         self.fireAtUtc = fireAtUtc
-        self.id = id
-        self.label = label
-        self.leadMinutes = leadMinutes
-        self.targetChargeSoc = targetChargeSoc
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.vehicleId = vehicleId
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case createdAt = "created_at"
+        case id
         case departureAtUtc = "departure_at_utc"
+        case leadMinutes = "lead_minutes"
+        case label
+        case vehicleId = "vehicle_id"
+        case targetChargeSoc = "target_charge_soc"
         case enabled
         case fireAtUtc = "fire_at_utc"
-        case id
-        case label
-        case leadMinutes = "lead_minutes"
-        case targetChargeSoc = "target_charge_soc"
+        case createdAt = "created_at"
         case updatedAt = "updated_at"
-        case vehicleId = "vehicle_id"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encode(id, forKey: .id)
         try container.encode(departureAtUtc, forKey: .departureAtUtc)
+        try container.encode(leadMinutes, forKey: .leadMinutes)
+        try container.encodeIfPresent(label, forKey: .label)
+        try container.encodeIfPresent(vehicleId, forKey: .vehicleId)
+        try container.encodeIfPresent(targetChargeSoc, forKey: .targetChargeSoc)
         try container.encode(enabled, forKey: .enabled)
         try container.encode(fireAtUtc, forKey: .fireAtUtc)
-        try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(label, forKey: .label)
-        try container.encode(leadMinutes, forKey: .leadMinutes)
-        try container.encodeIfPresent(targetChargeSoc, forKey: .targetChargeSoc)
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
-        try container.encodeIfPresent(vehicleId, forKey: .vehicleId)
     }
 }
 

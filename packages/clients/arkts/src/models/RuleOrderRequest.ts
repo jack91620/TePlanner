@@ -20,17 +20,17 @@ import { mapValues } from '../runtime';
  */
 export interface RuleOrderRequest {
     /**
-     * 
-     * @type {boolean}
-     * @memberof RuleOrderRequest
-     */
-    clear?: boolean;
-    /**
      * Ordered list of rule ids. Position in the list becomes display_order (0 = first). Rules NOT in the list keep their existing display_order; pass an empty list combined with `clear=true` to reset all overrides.
      * @type {Array<string>}
      * @memberof RuleOrderRequest
      */
     rule_ids: Array<string>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RuleOrderRequest
+     */
+    clear?: boolean;
 }
 
 /**
@@ -51,8 +51,8 @@ export function RuleOrderRequestFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
         
-        'clear': json['clear'] == null ? undefined : json['clear'],
         'rule_ids': json['rule_ids'],
+        'clear': json['clear'] == null ? undefined : json['clear'],
     };
 }
 
@@ -67,8 +67,8 @@ export function RuleOrderRequestToJSONTyped(value?: RuleOrderRequest | null, ign
 
     return {
         
-        'clear': value['clear'],
         'rule_ids': value['rule_ids'],
+        'clear': value['clear'],
     };
 }
 

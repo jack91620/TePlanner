@@ -6,10 +6,10 @@
 
 Name | Type
 ------------ | -------------
-`created_at` | Date
-`reason` | string
 `rule_id` | string
 `snoozed_until_utc` | Date
+`reason` | string
+`created_at` | Date
 
 ## Example
 
@@ -18,10 +18,10 @@ import type { SnoozeResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "created_at": null,
-  "reason": null,
   "rule_id": null,
   "snoozed_until_utc": null,
+  "reason": null,
+  "created_at": null,
 } satisfies SnoozeResponse
 
 console.log(example)

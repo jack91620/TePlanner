@@ -30,34 +30,34 @@ import com.squareup.moshi.JsonClass
 /**
  * Vehicle response model.
  *
- * @param displayName 
  * @param id 
+ * @param displayName 
  * @param state 
- * @param isPrimary 
- * @param model 
  * @param vin 
+ * @param model 
+ * @param isPrimary 
  */
 
 
 data class VehicleResponse (
 
-    @Json(name = "display_name")
-    val displayName: kotlin.String,
-
     @Json(name = "id")
     val id: kotlin.String,
+
+    @Json(name = "display_name")
+    val displayName: kotlin.String,
 
     @Json(name = "state")
     val state: kotlin.String,
 
-    @Json(name = "is_primary")
-    val isPrimary: kotlin.Boolean? = false,
+    @Json(name = "vin")
+    val vin: kotlin.String? = null,
 
     @Json(name = "model")
     val model: kotlin.String? = null,
 
-    @Json(name = "vin")
-    val vin: kotlin.String? = null
+    @Json(name = "is_primary")
+    val isPrimary: kotlin.Boolean? = false
 
 ) {
 

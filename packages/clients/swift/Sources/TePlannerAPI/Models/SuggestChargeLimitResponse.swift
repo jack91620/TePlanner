@@ -12,37 +12,37 @@ import AnyCodable
 
 public struct SuggestChargeLimitResponse: Codable, JSONEncodable, Hashable {
 
-    public var alreadyMatches: Bool
-    public var currentPercent: Int?
-    public var hoursAway: Int?
-    public var reason: String
     public var recommendedPercent: Int
+    public var currentPercent: Int?
+    public var reason: String
+    public var hoursAway: Int?
+    public var alreadyMatches: Bool
 
-    public init(alreadyMatches: Bool, currentPercent: Int?, hoursAway: Int?, reason: String, recommendedPercent: Int) {
-        self.alreadyMatches = alreadyMatches
-        self.currentPercent = currentPercent
-        self.hoursAway = hoursAway
-        self.reason = reason
+    public init(recommendedPercent: Int, currentPercent: Int?, reason: String, hoursAway: Int?, alreadyMatches: Bool) {
         self.recommendedPercent = recommendedPercent
+        self.currentPercent = currentPercent
+        self.reason = reason
+        self.hoursAway = hoursAway
+        self.alreadyMatches = alreadyMatches
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case alreadyMatches = "already_matches"
-        case currentPercent = "current_percent"
-        case hoursAway = "hours_away"
-        case reason
         case recommendedPercent = "recommended_percent"
+        case currentPercent = "current_percent"
+        case reason
+        case hoursAway = "hours_away"
+        case alreadyMatches = "already_matches"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(alreadyMatches, forKey: .alreadyMatches)
-        try container.encode(currentPercent, forKey: .currentPercent)
-        try container.encode(hoursAway, forKey: .hoursAway)
-        try container.encode(reason, forKey: .reason)
         try container.encode(recommendedPercent, forKey: .recommendedPercent)
+        try container.encode(currentPercent, forKey: .currentPercent)
+        try container.encode(reason, forKey: .reason)
+        try container.encode(hoursAway, forKey: .hoursAway)
+        try container.encode(alreadyMatches, forKey: .alreadyMatches)
     }
 }
 

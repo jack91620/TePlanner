@@ -40,16 +40,16 @@ class TelemetryStateEntryTest : ShouldSpec() {
             //modelInstance.entity shouldBe ("TODO")
         }
 
-        // to test the property `since`
-        should("test since") {
-            // uncomment below to test the property
-            //modelInstance.since shouldBe ("TODO")
-        }
-
         // to test the property ``value``
         should("test `value`") {
             // uncomment below to test the property
             //modelInstance.`value` shouldBe ("TODO")
+        }
+
+        // to test the property `since`
+        should("test since") {
+            // uncomment below to test the property
+            //modelInstance.since shouldBe ("TODO")
         }
 
     }

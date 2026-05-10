@@ -12,25 +12,25 @@ import AnyCodable
 
 public struct TelemetryStateResponse: Codable, JSONEncodable, Hashable {
 
-    public var entries: [TelemetryStateEntry]
     public var vehicleId: String?
+    public var entries: [TelemetryStateEntry]
 
-    public init(entries: [TelemetryStateEntry], vehicleId: String?) {
-        self.entries = entries
+    public init(vehicleId: String?, entries: [TelemetryStateEntry]) {
         self.vehicleId = vehicleId
+        self.entries = entries
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case entries
         case vehicleId = "vehicle_id"
+        case entries
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(entries, forKey: .entries)
         try container.encode(vehicleId, forKey: .vehicleId)
+        try container.encode(entries, forKey: .entries)
     }
 }
 

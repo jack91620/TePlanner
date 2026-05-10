@@ -7,17 +7,17 @@
 Name | Type
 ------------ | -------------
 `client_session_id` | string
-`end_range_km` | number
-`end_soc` | number
-`ended_as_complete` | boolean
+`started_at` | Date
 `ended_at` | Date
+`start_soc` | number
+`end_soc` | number
+`start_range_km` | number
+`end_range_km` | number
 `energy_added_kwh` | number
+`location_name` | string
 `lat` | number
 `lng` | number
-`location_name` | string
-`start_range_km` | number
-`start_soc` | number
-`started_at` | Date
+`ended_as_complete` | boolean
 
 ## Example
 
@@ -27,17 +27,17 @@ import type { ChargingSessionRequest } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "client_session_id": null,
-  "end_range_km": null,
-  "end_soc": null,
-  "ended_as_complete": null,
+  "started_at": null,
   "ended_at": null,
+  "start_soc": null,
+  "end_soc": null,
+  "start_range_km": null,
+  "end_range_km": null,
   "energy_added_kwh": null,
+  "location_name": null,
   "lat": null,
   "lng": null,
-  "location_name": null,
-  "start_range_km": null,
-  "start_soc": null,
-  "started_at": null,
+  "ended_as_complete": null,
 } satisfies ChargingSessionRequest
 
 console.log(example)

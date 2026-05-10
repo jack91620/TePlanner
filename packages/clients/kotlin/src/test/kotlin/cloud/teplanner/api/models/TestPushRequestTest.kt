@@ -33,16 +33,16 @@ class TestPushRequestTest : ShouldSpec() {
         // uncomment below to create an instance of TestPushRequest
         //val modelInstance = TestPushRequest()
 
-        // to test the property `body`
-        should("test body") {
-            // uncomment below to test the property
-            //modelInstance.body shouldBe ("TODO")
-        }
-
         // to test the property `title`
         should("test title") {
             // uncomment below to test the property
             //modelInstance.title shouldBe ("TODO")
+        }
+
+        // to test the property `body`
+        should("test body") {
+            // uncomment below to test the property
+            //modelInstance.body shouldBe ("TODO")
         }
 
     }

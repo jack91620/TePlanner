@@ -33,16 +33,16 @@ class PendingCommandResponseTest : ShouldSpec() {
         // uncomment below to create an instance of PendingCommandResponse
         //val modelInstance = PendingCommandResponse()
 
+        // to test the property `id`
+        should("test id") {
+            // uncomment below to test the property
+            //modelInstance.id shouldBe ("TODO")
+        }
+
         // to test the property `capability`
         should("test capability") {
             // uncomment below to test the property
             //modelInstance.capability shouldBe ("TODO")
-        }
-
-        // to test the property `dispatchedAt`
-        should("test dispatchedAt") {
-            // uncomment below to test the property
-            //modelInstance.dispatchedAt shouldBe ("TODO")
         }
 
         // to test the property `expectedState`
@@ -51,10 +51,10 @@ class PendingCommandResponseTest : ShouldSpec() {
             //modelInstance.expectedState shouldBe ("TODO")
         }
 
-        // to test the property `id`
-        should("test id") {
+        // to test the property `dispatchedAt`
+        should("test dispatchedAt") {
             // uncomment below to test the property
-            //modelInstance.id shouldBe ("TODO")
+            //modelInstance.dispatchedAt shouldBe ("TODO")
         }
 
         // to test the property `status`

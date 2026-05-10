@@ -12,89 +12,89 @@ import AnyCodable
 
 public struct ChargingSessionResponse: Codable, JSONEncodable, Hashable {
 
-    public var clientSessionId: String?
-    public var durationMinutes: Int?
-    public var endRangeKm: Double?
-    public var endSoc: Int?
-    public var endedAsComplete: Bool?
-    public var endedAt: Date?
-    public var energyAddedKwh: Double?
     public var id: Int
+    public var vehicleId: String?
+    public var clientSessionId: String?
+    public var startedAt: Date
+    public var endedAt: Date?
+    public var startSoc: Int?
+    public var endSoc: Int?
+    public var startRangeKm: Double?
+    public var endRangeKm: Double?
+    public var energyAddedKwh: Double?
+    public var locationName: String?
     public var lat: Double?
     public var lng: Double?
-    public var locationName: String?
+    public var endedAsComplete: Bool?
+    public var source: String
+    public var durationMinutes: Int?
     public var rangeAddedKm: Double?
     public var socDelta: Int?
-    public var source: String
-    public var startRangeKm: Double?
-    public var startSoc: Int?
-    public var startedAt: Date
-    public var vehicleId: String?
 
-    public init(clientSessionId: String?, durationMinutes: Int?, endRangeKm: Double?, endSoc: Int?, endedAsComplete: Bool?, endedAt: Date?, energyAddedKwh: Double?, id: Int, lat: Double?, lng: Double?, locationName: String?, rangeAddedKm: Double?, socDelta: Int?, source: String, startRangeKm: Double?, startSoc: Int?, startedAt: Date, vehicleId: String?) {
-        self.clientSessionId = clientSessionId
-        self.durationMinutes = durationMinutes
-        self.endRangeKm = endRangeKm
-        self.endSoc = endSoc
-        self.endedAsComplete = endedAsComplete
-        self.endedAt = endedAt
-        self.energyAddedKwh = energyAddedKwh
+    public init(id: Int, vehicleId: String?, clientSessionId: String?, startedAt: Date, endedAt: Date?, startSoc: Int?, endSoc: Int?, startRangeKm: Double?, endRangeKm: Double?, energyAddedKwh: Double?, locationName: String?, lat: Double?, lng: Double?, endedAsComplete: Bool?, source: String, durationMinutes: Int?, rangeAddedKm: Double?, socDelta: Int?) {
         self.id = id
+        self.vehicleId = vehicleId
+        self.clientSessionId = clientSessionId
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.startSoc = startSoc
+        self.endSoc = endSoc
+        self.startRangeKm = startRangeKm
+        self.endRangeKm = endRangeKm
+        self.energyAddedKwh = energyAddedKwh
+        self.locationName = locationName
         self.lat = lat
         self.lng = lng
-        self.locationName = locationName
+        self.endedAsComplete = endedAsComplete
+        self.source = source
+        self.durationMinutes = durationMinutes
         self.rangeAddedKm = rangeAddedKm
         self.socDelta = socDelta
-        self.source = source
-        self.startRangeKm = startRangeKm
-        self.startSoc = startSoc
-        self.startedAt = startedAt
-        self.vehicleId = vehicleId
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case clientSessionId = "client_session_id"
-        case durationMinutes = "duration_minutes"
-        case endRangeKm = "end_range_km"
-        case endSoc = "end_soc"
-        case endedAsComplete = "ended_as_complete"
-        case endedAt = "ended_at"
-        case energyAddedKwh = "energy_added_kwh"
         case id
+        case vehicleId = "vehicle_id"
+        case clientSessionId = "client_session_id"
+        case startedAt = "started_at"
+        case endedAt = "ended_at"
+        case startSoc = "start_soc"
+        case endSoc = "end_soc"
+        case startRangeKm = "start_range_km"
+        case endRangeKm = "end_range_km"
+        case energyAddedKwh = "energy_added_kwh"
+        case locationName = "location_name"
         case lat
         case lng
-        case locationName = "location_name"
+        case endedAsComplete = "ended_as_complete"
+        case source
+        case durationMinutes = "duration_minutes"
         case rangeAddedKm = "range_added_km"
         case socDelta = "soc_delta"
-        case source
-        case startRangeKm = "start_range_km"
-        case startSoc = "start_soc"
-        case startedAt = "started_at"
-        case vehicleId = "vehicle_id"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(clientSessionId, forKey: .clientSessionId)
-        try container.encode(durationMinutes, forKey: .durationMinutes)
-        try container.encode(endRangeKm, forKey: .endRangeKm)
-        try container.encode(endSoc, forKey: .endSoc)
-        try container.encode(endedAsComplete, forKey: .endedAsComplete)
-        try container.encode(endedAt, forKey: .endedAt)
-        try container.encode(energyAddedKwh, forKey: .energyAddedKwh)
         try container.encode(id, forKey: .id)
+        try container.encode(vehicleId, forKey: .vehicleId)
+        try container.encode(clientSessionId, forKey: .clientSessionId)
+        try container.encode(startedAt, forKey: .startedAt)
+        try container.encode(endedAt, forKey: .endedAt)
+        try container.encode(startSoc, forKey: .startSoc)
+        try container.encode(endSoc, forKey: .endSoc)
+        try container.encode(startRangeKm, forKey: .startRangeKm)
+        try container.encode(endRangeKm, forKey: .endRangeKm)
+        try container.encode(energyAddedKwh, forKey: .energyAddedKwh)
+        try container.encode(locationName, forKey: .locationName)
         try container.encode(lat, forKey: .lat)
         try container.encode(lng, forKey: .lng)
-        try container.encode(locationName, forKey: .locationName)
+        try container.encode(endedAsComplete, forKey: .endedAsComplete)
+        try container.encode(source, forKey: .source)
+        try container.encode(durationMinutes, forKey: .durationMinutes)
         try container.encode(rangeAddedKm, forKey: .rangeAddedKm)
         try container.encode(socDelta, forKey: .socDelta)
-        try container.encode(source, forKey: .source)
-        try container.encode(startRangeKm, forKey: .startRangeKm)
-        try container.encode(startSoc, forKey: .startSoc)
-        try container.encode(startedAt, forKey: .startedAt)
-        try container.encode(vehicleId, forKey: .vehicleId)
     }
 }
 

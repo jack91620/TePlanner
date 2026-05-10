@@ -7,20 +7,20 @@ Charging station model.
 
 Name | Type
 ------------ | -------------
-`address` | string
-`available_ports` | number
-`category` | string
-`distance_km` | number
 `id` | string
+`name` | string
+`address` | string
 `latitude` | number
 `longitude` | number
-`name` | string
-`open_hours` | string
+`distance_km` | number
 `operator` | string
-`power_kw` | number
-`price_per_kwh` | number
 `tel` | string
+`power_kw` | number
+`available_ports` | number
 `total_ports` | number
+`price_per_kwh` | number
+`open_hours` | string
+`category` | string
 `type` | string
 
 ## Example
@@ -30,20 +30,20 @@ import type { ChargingStation } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "address": null,
-  "available_ports": null,
-  "category": null,
-  "distance_km": null,
   "id": null,
+  "name": null,
+  "address": null,
   "latitude": null,
   "longitude": null,
-  "name": null,
-  "open_hours": null,
+  "distance_km": null,
   "operator": null,
-  "power_kw": null,
-  "price_per_kwh": null,
   "tel": null,
+  "power_kw": null,
+  "available_ports": null,
   "total_ports": null,
+  "price_per_kwh": null,
+  "open_hours": null,
+  "category": null,
   "type": null,
 } satisfies ChargingStation
 

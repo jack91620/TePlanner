@@ -151,7 +151,7 @@ This endpoint does not need any parameter.
 
 Test Push
 
-Send a debug push to all of this user\&#39;s registered devices. Useful while wiring up — flip APNs creds, hit this endpoint, see if a notification lands on the phone.
+Send a debug push to all of this user\&#39;s registered devices. Phase E — routes through PushDispatcher so APNs / JPush / Huawei Push Kit all receive it according to each token\&#39;s platform field.
 
 ### Example
 

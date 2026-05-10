@@ -21,16 +21,16 @@ import { mapValues } from '../runtime';
 export interface RuleUpdateRequest {
     /**
      * 
-     * @type {boolean}
-     * @memberof RuleUpdateRequest
-     */
-    enabled?: boolean | null;
-    /**
-     * 
      * @type {string}
      * @memberof RuleUpdateRequest
      */
     name?: string | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RuleUpdateRequest
+     */
+    enabled?: boolean | null;
     /**
      * 
      * @type {object}
@@ -56,8 +56,8 @@ export function RuleUpdateRequestFromJSONTyped(json: any, ignoreDiscriminator: b
     }
     return {
         
-        'enabled': json['enabled'] == null ? undefined : json['enabled'],
         'name': json['name'] == null ? undefined : json['name'],
+        'enabled': json['enabled'] == null ? undefined : json['enabled'],
         'spec': json['spec'] == null ? undefined : json['spec'],
     };
 }
@@ -73,8 +73,8 @@ export function RuleUpdateRequestToJSONTyped(value?: RuleUpdateRequest | null, i
 
     return {
         
-        'enabled': value['enabled'],
         'name': value['name'],
+        'enabled': value['enabled'],
         'spec': value['spec'],
     };
 }

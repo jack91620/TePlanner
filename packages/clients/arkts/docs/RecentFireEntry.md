@@ -6,9 +6,9 @@
 
 Name | Type
 ------------ | -------------
-`cleared_at` | Date
 `kind` | string
 `pushed_at` | Date
+`cleared_at` | Date
 
 ## Example
 
@@ -17,9 +17,9 @@ import type { RecentFireEntry } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "cleared_at": null,
   "kind": null,
   "pushed_at": null,
+  "cleared_at": null,
 } satisfies RecentFireEntry
 
 console.log(example)

@@ -21,40 +21,28 @@ import { mapValues } from '../runtime';
 export interface QueuedCommandResponse {
     /**
      * 
-     * @type {string}
-     * @memberof QueuedCommandResponse
-     */
-    capability: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof QueuedCommandResponse
-     */
-    dispatch_policy: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof QueuedCommandResponse
-     */
-    dropped_at?: Date | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof QueuedCommandResponse
-     */
-    error?: string | null;
-    /**
-     * 
      * @type {number}
      * @memberof QueuedCommandResponse
      */
     id: number;
     /**
      * 
+     * @type {string}
+     * @memberof QueuedCommandResponse
+     */
+    capability: string;
+    /**
+     * 
      * @type {object}
      * @memberof QueuedCommandResponse
      */
     params: object;
+    /**
+     * 
+     * @type {string}
+     * @memberof QueuedCommandResponse
+     */
+    dispatch_policy: string;
     /**
      * 
      * @type {Date}
@@ -69,29 +57,41 @@ export interface QueuedCommandResponse {
     sent_at?: Date | null;
     /**
      * 
-     * @type {string}
+     * @type {Date}
      * @memberof QueuedCommandResponse
      */
-    status: string;
+    dropped_at?: Date | null;
     /**
      * 
      * @type {number}
      * @memberof QueuedCommandResponse
      */
     ttl_seconds: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof QueuedCommandResponse
+     */
+    error?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof QueuedCommandResponse
+     */
+    status: string;
 }
 
 /**
  * Check if a given object implements the QueuedCommandResponse interface.
  */
 export function instanceOfQueuedCommandResponse(value: object): value is QueuedCommandResponse {
-    if (!('capability' in value) || value['capability'] === undefined) return false;
-    if (!('dispatch_policy' in value) || value['dispatch_policy'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('capability' in value) || value['capability'] === undefined) return false;
     if (!('params' in value) || value['params'] === undefined) return false;
+    if (!('dispatch_policy' in value) || value['dispatch_policy'] === undefined) return false;
     if (!('queued_at' in value) || value['queued_at'] === undefined) return false;
-    if (!('status' in value) || value['status'] === undefined) return false;
     if (!('ttl_seconds' in value) || value['ttl_seconds'] === undefined) return false;
+    if (!('status' in value) || value['status'] === undefined) return false;
     return true;
 }
 
@@ -105,16 +105,16 @@ export function QueuedCommandResponseFromJSONTyped(json: any, ignoreDiscriminato
     }
     return {
         
-        'capability': json['capability'],
-        'dispatch_policy': json['dispatch_policy'],
-        'dropped_at': json['dropped_at'] == null ? undefined : (new Date(json['dropped_at'])),
-        'error': json['error'] == null ? undefined : json['error'],
         'id': json['id'],
+        'capability': json['capability'],
         'params': json['params'],
+        'dispatch_policy': json['dispatch_policy'],
         'queued_at': (new Date(json['queued_at'])),
         'sent_at': json['sent_at'] == null ? undefined : (new Date(json['sent_at'])),
-        'status': json['status'],
+        'dropped_at': json['dropped_at'] == null ? undefined : (new Date(json['dropped_at'])),
         'ttl_seconds': json['ttl_seconds'],
+        'error': json['error'] == null ? undefined : json['error'],
+        'status': json['status'],
     };
 }
 
@@ -129,16 +129,16 @@ export function QueuedCommandResponseToJSONTyped(value?: QueuedCommandResponse |
 
     return {
         
-        'capability': value['capability'],
-        'dispatch_policy': value['dispatch_policy'],
-        'dropped_at': value['dropped_at'] == null ? value['dropped_at'] : value['dropped_at'].toISOString(),
-        'error': value['error'],
         'id': value['id'],
+        'capability': value['capability'],
         'params': value['params'],
+        'dispatch_policy': value['dispatch_policy'],
         'queued_at': value['queued_at'].toISOString(),
         'sent_at': value['sent_at'] == null ? value['sent_at'] : value['sent_at'].toISOString(),
-        'status': value['status'],
+        'dropped_at': value['dropped_at'] == null ? value['dropped_at'] : value['dropped_at'].toISOString(),
         'ttl_seconds': value['ttl_seconds'],
+        'error': value['error'],
+        'status': value['status'],
     };
 }
 

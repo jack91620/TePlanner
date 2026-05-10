@@ -7,16 +7,16 @@ Charging stop in route.
 
 Name | Type
 ------------ | -------------
-`address` | string
-`arrival_soc` | number
-`charging_duration_minutes` | number
-`departure_soc` | number
-`distance_from_start_km` | number
+`station_id` | string
+`name` | string
 `latitude` | number
 `longitude` | number
-`name` | string
+`address` | string
 `operator` | string
-`station_id` | string
+`distance_from_start_km` | number
+`arrival_soc` | number
+`departure_soc` | number
+`charging_duration_minutes` | number
 
 ## Example
 
@@ -25,16 +25,16 @@ import type { ChargingStopResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "address": null,
-  "arrival_soc": null,
-  "charging_duration_minutes": null,
-  "departure_soc": null,
-  "distance_from_start_km": null,
+  "station_id": null,
+  "name": null,
   "latitude": null,
   "longitude": null,
-  "name": null,
+  "address": null,
   "operator": null,
-  "station_id": null,
+  "distance_from_start_km": null,
+  "arrival_soc": null,
+  "departure_soc": null,
+  "charging_duration_minutes": null,
 } satisfies ChargingStopResponse
 
 console.log(example)

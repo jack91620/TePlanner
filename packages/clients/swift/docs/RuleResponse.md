@@ -3,15 +3,17 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**displayOrder** | **Int** |  | [optional] 
-**enabled** | **Bool** |  | 
 **id** | **String** |  | 
-**lastFiredAt** | **Date** |  | [optional] 
-**name** | **String** |  | 
 **presetId** | **String** |  | 
+**name** | **String** |  | 
+**enabled** | **Bool** |  | 
 **spec** | **AnyCodable** |  | 
-**updatedAt** | **Date** |  | [optional] 
 **version** | **Int** |  | 
+**updatedAt** | **Date** |  | [optional] 
+**lastFiredAt** | **Date** |  | [optional] 
+**displayOrder** | **Int** |  | [optional] 
+**isFiring** | **Bool** |  | [optional] [default to false]
+**firingSince** | **Date** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

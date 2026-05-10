@@ -14,28 +14,28 @@ import AnyCodable
 public struct WeChatLoginResponse: Codable, JSONEncodable, Hashable {
 
     public var accessToken: String
-    public var expiresIn: Int
-    public var hasTeslaLinked: Bool? = false
-    public var openid: String
     public var tokenType: String? = "Bearer"
+    public var expiresIn: Int
     public var userId: Int
+    public var openid: String
+    public var hasTeslaLinked: Bool? = false
 
-    public init(accessToken: String, expiresIn: Int, hasTeslaLinked: Bool? = false, openid: String, tokenType: String? = "Bearer", userId: Int) {
+    public init(accessToken: String, tokenType: String? = "Bearer", expiresIn: Int, userId: Int, openid: String, hasTeslaLinked: Bool? = false) {
         self.accessToken = accessToken
-        self.expiresIn = expiresIn
-        self.hasTeslaLinked = hasTeslaLinked
-        self.openid = openid
         self.tokenType = tokenType
+        self.expiresIn = expiresIn
         self.userId = userId
+        self.openid = openid
+        self.hasTeslaLinked = hasTeslaLinked
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case accessToken = "access_token"
-        case expiresIn = "expires_in"
-        case hasTeslaLinked = "has_tesla_linked"
-        case openid
         case tokenType = "token_type"
+        case expiresIn = "expires_in"
         case userId = "user_id"
+        case openid
+        case hasTeslaLinked = "has_tesla_linked"
     }
 
     // Encodable protocol methods
@@ -43,11 +43,11 @@ public struct WeChatLoginResponse: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(accessToken, forKey: .accessToken)
-        try container.encode(expiresIn, forKey: .expiresIn)
-        try container.encodeIfPresent(hasTeslaLinked, forKey: .hasTeslaLinked)
-        try container.encode(openid, forKey: .openid)
         try container.encodeIfPresent(tokenType, forKey: .tokenType)
+        try container.encode(expiresIn, forKey: .expiresIn)
         try container.encode(userId, forKey: .userId)
+        try container.encode(openid, forKey: .openid)
+        try container.encodeIfPresent(hasTeslaLinked, forKey: .hasTeslaLinked)
     }
 }
 

@@ -21,16 +21,40 @@ import { mapValues } from '../runtime';
 export interface ScheduledDepartureResponse {
     /**
      * 
-     * @type {Date}
+     * @type {number}
      * @memberof ScheduledDepartureResponse
      */
-    created_at?: Date | null;
+    id: number;
     /**
      * 
      * @type {Date}
      * @memberof ScheduledDepartureResponse
      */
     departure_at_utc: Date;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScheduledDepartureResponse
+     */
+    lead_minutes: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScheduledDepartureResponse
+     */
+    label?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScheduledDepartureResponse
+     */
+    vehicle_id?: string | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScheduledDepartureResponse
+     */
+    target_charge_soc?: number | null;
     /**
      * 
      * @type {boolean}
@@ -45,51 +69,27 @@ export interface ScheduledDepartureResponse {
     fire_at_utc: Date;
     /**
      * 
-     * @type {number}
+     * @type {Date}
      * @memberof ScheduledDepartureResponse
      */
-    id: number;
-    /**
-     * 
-     * @type {string}
-     * @memberof ScheduledDepartureResponse
-     */
-    label?: string | null;
-    /**
-     * 
-     * @type {number}
-     * @memberof ScheduledDepartureResponse
-     */
-    lead_minutes: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ScheduledDepartureResponse
-     */
-    target_charge_soc?: number | null;
+    created_at?: Date | null;
     /**
      * 
      * @type {Date}
      * @memberof ScheduledDepartureResponse
      */
     updated_at?: Date | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ScheduledDepartureResponse
-     */
-    vehicle_id?: string | null;
 }
 
 /**
  * Check if a given object implements the ScheduledDepartureResponse interface.
  */
 export function instanceOfScheduledDepartureResponse(value: object): value is ScheduledDepartureResponse {
+    if (!('id' in value) || value['id'] === undefined) return false;
     if (!('departure_at_utc' in value) || value['departure_at_utc'] === undefined) return false;
+    if (!('lead_minutes' in value) || value['lead_minutes'] === undefined) return false;
     if (!('enabled' in value) || value['enabled'] === undefined) return false;
     if (!('fire_at_utc' in value) || value['fire_at_utc'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('lead_minutes' in value) || value['lead_minutes'] === undefined) return false;
     return true;
 }
 
@@ -103,16 +103,16 @@ export function ScheduledDepartureResponseFromJSONTyped(json: any, ignoreDiscrim
     }
     return {
         
-        'created_at': json['created_at'] == null ? undefined : (new Date(json['created_at'])),
+        'id': json['id'],
         'departure_at_utc': (new Date(json['departure_at_utc'])),
+        'lead_minutes': json['lead_minutes'],
+        'label': json['label'] == null ? undefined : json['label'],
+        'vehicle_id': json['vehicle_id'] == null ? undefined : json['vehicle_id'],
+        'target_charge_soc': json['target_charge_soc'] == null ? undefined : json['target_charge_soc'],
         'enabled': json['enabled'],
         'fire_at_utc': (new Date(json['fire_at_utc'])),
-        'id': json['id'],
-        'label': json['label'] == null ? undefined : json['label'],
-        'lead_minutes': json['lead_minutes'],
-        'target_charge_soc': json['target_charge_soc'] == null ? undefined : json['target_charge_soc'],
+        'created_at': json['created_at'] == null ? undefined : (new Date(json['created_at'])),
         'updated_at': json['updated_at'] == null ? undefined : (new Date(json['updated_at'])),
-        'vehicle_id': json['vehicle_id'] == null ? undefined : json['vehicle_id'],
     };
 }
 
@@ -127,16 +127,16 @@ export function ScheduledDepartureResponseToJSONTyped(value?: ScheduledDeparture
 
     return {
         
-        'created_at': value['created_at'] == null ? value['created_at'] : value['created_at'].toISOString(),
+        'id': value['id'],
         'departure_at_utc': value['departure_at_utc'].toISOString(),
+        'lead_minutes': value['lead_minutes'],
+        'label': value['label'],
+        'vehicle_id': value['vehicle_id'],
+        'target_charge_soc': value['target_charge_soc'],
         'enabled': value['enabled'],
         'fire_at_utc': value['fire_at_utc'].toISOString(),
-        'id': value['id'],
-        'label': value['label'],
-        'lead_minutes': value['lead_minutes'],
-        'target_charge_soc': value['target_charge_soc'],
+        'created_at': value['created_at'] == null ? value['created_at'] : value['created_at'].toISOString(),
         'updated_at': value['updated_at'] == null ? value['updated_at'] : value['updated_at'].toISOString(),
-        'vehicle_id': value['vehicle_id'],
     };
 }
 

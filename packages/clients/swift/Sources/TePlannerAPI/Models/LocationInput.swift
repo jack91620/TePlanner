@@ -13,32 +13,32 @@ import AnyCodable
 /** Location input model. */
 public struct LocationInput: Codable, JSONEncodable, Hashable {
 
-    /** Address (optional) */
-    public var address: String?
     /** Latitude */
     public var latitude: Double
     /** Longitude */
     public var longitude: Double
+    /** Address (optional) */
+    public var address: String?
 
-    public init(address: String? = nil, latitude: Double, longitude: Double) {
-        self.address = address
+    public init(latitude: Double, longitude: Double, address: String? = nil) {
         self.latitude = latitude
         self.longitude = longitude
+        self.address = address
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case address
         case latitude
         case longitude
+        case address
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(address, forKey: .address)
         try container.encode(latitude, forKey: .latitude)
         try container.encode(longitude, forKey: .longitude)
+        try container.encodeIfPresent(address, forKey: .address)
     }
 }
 

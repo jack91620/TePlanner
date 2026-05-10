@@ -12,33 +12,33 @@ import AnyCodable
 
 public struct SnoozeResponse: Codable, JSONEncodable, Hashable {
 
-    public var createdAt: Date
-    public var reason: String?
     public var ruleId: String
     public var snoozedUntilUtc: Date
+    public var reason: String?
+    public var createdAt: Date
 
-    public init(createdAt: Date, reason: String? = nil, ruleId: String, snoozedUntilUtc: Date) {
-        self.createdAt = createdAt
-        self.reason = reason
+    public init(ruleId: String, snoozedUntilUtc: Date, reason: String? = nil, createdAt: Date) {
         self.ruleId = ruleId
         self.snoozedUntilUtc = snoozedUntilUtc
+        self.reason = reason
+        self.createdAt = createdAt
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case createdAt = "created_at"
-        case reason
         case ruleId = "rule_id"
         case snoozedUntilUtc = "snoozed_until_utc"
+        case reason
+        case createdAt = "created_at"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(createdAt, forKey: .createdAt)
-        try container.encodeIfPresent(reason, forKey: .reason)
         try container.encode(ruleId, forKey: .ruleId)
         try container.encode(snoozedUntilUtc, forKey: .snoozedUntilUtc)
+        try container.encodeIfPresent(reason, forKey: .reason)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 }
 

@@ -30,7 +30,7 @@ export interface EmailAuthResponse {
      * @type {string}
      * @memberof EmailAuthResponse
      */
-    email: string;
+    token_type?: string;
     /**
      * 
      * @type {number}
@@ -39,10 +39,16 @@ export interface EmailAuthResponse {
     expires_in: number;
     /**
      * 
-     * @type {boolean}
+     * @type {number}
      * @memberof EmailAuthResponse
      */
-    has_tesla_linked?: boolean;
+    user_id: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof EmailAuthResponse
+     */
+    email: string;
     /**
      * 
      * @type {string}
@@ -51,16 +57,10 @@ export interface EmailAuthResponse {
     nickname?: string | null;
     /**
      * 
-     * @type {string}
+     * @type {boolean}
      * @memberof EmailAuthResponse
      */
-    token_type?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof EmailAuthResponse
-     */
-    user_id: number;
+    has_tesla_linked?: boolean;
 }
 
 /**
@@ -68,9 +68,9 @@ export interface EmailAuthResponse {
  */
 export function instanceOfEmailAuthResponse(value: object): value is EmailAuthResponse {
     if (!('access_token' in value) || value['access_token'] === undefined) return false;
-    if (!('email' in value) || value['email'] === undefined) return false;
     if (!('expires_in' in value) || value['expires_in'] === undefined) return false;
     if (!('user_id' in value) || value['user_id'] === undefined) return false;
+    if (!('email' in value) || value['email'] === undefined) return false;
     return true;
 }
 
@@ -85,12 +85,12 @@ export function EmailAuthResponseFromJSONTyped(json: any, ignoreDiscriminator: b
     return {
         
         'access_token': json['access_token'],
-        'email': json['email'],
-        'expires_in': json['expires_in'],
-        'has_tesla_linked': json['has_tesla_linked'] == null ? undefined : json['has_tesla_linked'],
-        'nickname': json['nickname'] == null ? undefined : json['nickname'],
         'token_type': json['token_type'] == null ? undefined : json['token_type'],
+        'expires_in': json['expires_in'],
         'user_id': json['user_id'],
+        'email': json['email'],
+        'nickname': json['nickname'] == null ? undefined : json['nickname'],
+        'has_tesla_linked': json['has_tesla_linked'] == null ? undefined : json['has_tesla_linked'],
     };
 }
 
@@ -106,12 +106,12 @@ export function EmailAuthResponseToJSONTyped(value?: EmailAuthResponse | null, i
     return {
         
         'access_token': value['access_token'],
-        'email': value['email'],
-        'expires_in': value['expires_in'],
-        'has_tesla_linked': value['has_tesla_linked'],
-        'nickname': value['nickname'],
         'token_type': value['token_type'],
+        'expires_in': value['expires_in'],
         'user_id': value['user_id'],
+        'email': value['email'],
+        'nickname': value['nickname'],
+        'has_tesla_linked': value['has_tesla_linked'],
     };
 }
 

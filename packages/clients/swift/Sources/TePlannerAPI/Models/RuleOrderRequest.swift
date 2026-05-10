@@ -12,26 +12,26 @@ import AnyCodable
 
 public struct RuleOrderRequest: Codable, JSONEncodable, Hashable {
 
-    public var clear: Bool? = false
     /** Ordered list of rule ids. Position in the list becomes display_order (0 = first). Rules NOT in the list keep their existing display_order; pass an empty list combined with `clear=true` to reset all overrides. */
     public var ruleIds: [String]
+    public var clear: Bool? = false
 
-    public init(clear: Bool? = false, ruleIds: [String]) {
-        self.clear = clear
+    public init(ruleIds: [String], clear: Bool? = false) {
         self.ruleIds = ruleIds
+        self.clear = clear
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case clear
         case ruleIds = "rule_ids"
+        case clear
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(clear, forKey: .clear)
         try container.encode(ruleIds, forKey: .ruleIds)
+        try container.encodeIfPresent(clear, forKey: .clear)
     }
 }
 

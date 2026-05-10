@@ -7,11 +7,11 @@ Candidate POI for the charging-plan endpoint. Shape mirrors AMapRoutePOI (iOS SD
 
 Name | Type
 ------------ | -------------
-`address` | string
 `id` | string
+`name` | string
 `latitude` | number
 `longitude` | number
-`name` | string
+`address` | string
 
 ## Example
 
@@ -20,11 +20,11 @@ import type { POIInput } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "address": null,
   "id": null,
+  "name": null,
   "latitude": null,
   "longitude": null,
-  "name": null,
+  "address": null,
 } satisfies POIInput
 
 console.log(example)

@@ -12,25 +12,25 @@ import AnyCodable
 
 public struct TestPushRequest: Codable, JSONEncodable, Hashable {
 
-    public var body: String? = "如果你看到这条通知，APNs 已打通。"
     public var title: String? = "TePlanner 测试推送"
+    public var body: String? = "如果你看到这条通知，APNs 已打通。"
 
-    public init(body: String? = "如果你看到这条通知，APNs 已打通。", title: String? = "TePlanner 测试推送") {
-        self.body = body
+    public init(title: String? = "TePlanner 测试推送", body: String? = "如果你看到这条通知，APNs 已打通。") {
         self.title = title
+        self.body = body
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case body
         case title
+        case body
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(body, forKey: .body)
         try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(body, forKey: .body)
     }
 }
 

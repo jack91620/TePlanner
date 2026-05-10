@@ -4,16 +4,16 @@
 ## Properties
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
-| **capability** | **kotlin.String** |  |  |
-| **dispatchPolicy** | **kotlin.String** |  |  |
 | **id** | **kotlin.Int** |  |  |
+| **capability** | **kotlin.String** |  |  |
 | **params** | [**kotlin.Any**](.md) |  |  |
+| **dispatchPolicy** | **kotlin.String** |  |  |
 | **queuedAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  |
-| **status** | **kotlin.String** |  |  |
 | **ttlSeconds** | **kotlin.Int** |  |  |
+| **status** | **kotlin.String** |  |  |
+| **sentAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
 | **droppedAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
 | **error** | **kotlin.String** |  |  [optional] |
-| **sentAt** | [**java.time.OffsetDateTime**](java.time.OffsetDateTime.md) |  |  [optional] |
 
 
 

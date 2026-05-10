@@ -34,18 +34,6 @@ class ChargingPlanResponseTest : ShouldSpec() {
         // uncomment below to create an instance of ChargingPlanResponse
         //val modelInstance = ChargingPlanResponse()
 
-        // to test the property `arrivalSoc`
-        should("test arrivalSoc") {
-            // uncomment below to test the property
-            //modelInstance.arrivalSoc shouldBe ("TODO")
-        }
-
-        // to test the property `chargingDurationMinutes`
-        should("test chargingDurationMinutes") {
-            // uncomment below to test the property
-            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
-        }
-
         // to test the property `chargingStops`
         should("test chargingStops") {
             // uncomment below to test the property
@@ -56,6 +44,18 @@ class ChargingPlanResponseTest : ShouldSpec() {
         should("test numChargingStops") {
             // uncomment below to test the property
             //modelInstance.numChargingStops shouldBe ("TODO")
+        }
+
+        // to test the property `chargingDurationMinutes`
+        should("test chargingDurationMinutes") {
+            // uncomment below to test the property
+            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
+        }
+
+        // to test the property `arrivalSoc`
+        should("test arrivalSoc") {
+            // uncomment below to test the property
+            //modelInstance.arrivalSoc shouldBe ("TODO")
         }
 
         // to test the property `warnings`

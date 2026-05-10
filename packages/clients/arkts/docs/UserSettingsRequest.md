@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`replace_all` | boolean
 `settings` | object
+`replace_all` | boolean
 
 ## Example
 
@@ -16,8 +16,8 @@ import type { UserSettingsRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "replace_all": null,
   "settings": null,
+  "replace_all": null,
 } satisfies UserSettingsRequest
 
 console.log(example)

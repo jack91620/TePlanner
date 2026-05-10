@@ -189,7 +189,7 @@ export class DevicesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Send a debug push to all of this user\'s registered devices. Useful while wiring up — flip APNs creds, hit this endpoint, see if a notification lands on the phone.
+     * Send a debug push to all of this user\'s registered devices. Phase E — routes through PushDispatcher so APNs / JPush / Huawei Push Kit all receive it according to each token\'s platform field.
      * Test Push
      */
     async testPushApiV1DevicesTestPushPostRaw(requestParameters: TestPushApiV1DevicesTestPushPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -200,7 +200,7 @@ export class DevicesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Send a debug push to all of this user\'s registered devices. Useful while wiring up — flip APNs creds, hit this endpoint, see if a notification lands on the phone.
+     * Send a debug push to all of this user\'s registered devices. Phase E — routes through PushDispatcher so APNs / JPush / Huawei Push Kit all receive it according to each token\'s platform field.
      * Test Push
      */
     async testPushApiV1DevicesTestPushPost(requestParameters: TestPushApiV1DevicesTestPushPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {

@@ -20,12 +20,6 @@ import { mapValues } from '../runtime';
  */
 export interface LocationInput {
     /**
-     * Address (optional)
-     * @type {string}
-     * @memberof LocationInput
-     */
-    address?: string | null;
-    /**
      * Latitude
      * @type {number}
      * @memberof LocationInput
@@ -37,6 +31,12 @@ export interface LocationInput {
      * @memberof LocationInput
      */
     longitude: number;
+    /**
+     * Address (optional)
+     * @type {string}
+     * @memberof LocationInput
+     */
+    address?: string | null;
 }
 
 /**
@@ -58,9 +58,9 @@ export function LocationInputFromJSONTyped(json: any, ignoreDiscriminator: boole
     }
     return {
         
-        'address': json['address'] == null ? undefined : json['address'],
         'latitude': json['latitude'],
         'longitude': json['longitude'],
+        'address': json['address'] == null ? undefined : json['address'],
     };
 }
 
@@ -75,9 +75,9 @@ export function LocationInputToJSONTyped(value?: LocationInput | null, ignoreDis
 
     return {
         
-        'address': value['address'],
         'latitude': value['latitude'],
         'longitude': value['longitude'],
+        'address': value['address'],
     };
 }
 

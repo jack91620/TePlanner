@@ -13,55 +13,55 @@ import AnyCodable
 /** Charging station model. */
 public struct ChargingStation: Codable, JSONEncodable, Hashable {
 
-    public var address: String
-    public var availablePorts: Int?
-    public var category: String?
-    public var distanceKm: Double?
     public var id: String
+    public var name: String
+    public var address: String
     public var latitude: Double
     public var longitude: Double
-    public var name: String
-    public var openHours: String?
+    public var distanceKm: Double?
     public var _operator: String?
-    public var powerKw: Int?
-    public var pricePerKwh: Double?
     public var tel: String?
+    public var powerKw: Int?
+    public var availablePorts: Int?
     public var totalPorts: Int?
+    public var pricePerKwh: Double?
+    public var openHours: String?
+    public var category: String?
     public var type: String?
 
-    public init(address: String, availablePorts: Int? = nil, category: String? = nil, distanceKm: Double? = nil, id: String, latitude: Double, longitude: Double, name: String, openHours: String? = nil, _operator: String? = nil, powerKw: Int? = nil, pricePerKwh: Double? = nil, tel: String? = nil, totalPorts: Int? = nil, type: String? = nil) {
-        self.address = address
-        self.availablePorts = availablePorts
-        self.category = category
-        self.distanceKm = distanceKm
+    public init(id: String, name: String, address: String, latitude: Double, longitude: Double, distanceKm: Double? = nil, _operator: String? = nil, tel: String? = nil, powerKw: Int? = nil, availablePorts: Int? = nil, totalPorts: Int? = nil, pricePerKwh: Double? = nil, openHours: String? = nil, category: String? = nil, type: String? = nil) {
         self.id = id
+        self.name = name
+        self.address = address
         self.latitude = latitude
         self.longitude = longitude
-        self.name = name
-        self.openHours = openHours
+        self.distanceKm = distanceKm
         self._operator = _operator
-        self.powerKw = powerKw
-        self.pricePerKwh = pricePerKwh
         self.tel = tel
+        self.powerKw = powerKw
+        self.availablePorts = availablePorts
         self.totalPorts = totalPorts
+        self.pricePerKwh = pricePerKwh
+        self.openHours = openHours
+        self.category = category
         self.type = type
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case address
-        case availablePorts = "available_ports"
-        case category
-        case distanceKm = "distance_km"
         case id
+        case name
+        case address
         case latitude
         case longitude
-        case name
-        case openHours = "open_hours"
+        case distanceKm = "distance_km"
         case _operator = "operator"
-        case powerKw = "power_kw"
-        case pricePerKwh = "price_per_kwh"
         case tel
+        case powerKw = "power_kw"
+        case availablePorts = "available_ports"
         case totalPorts = "total_ports"
+        case pricePerKwh = "price_per_kwh"
+        case openHours = "open_hours"
+        case category
         case type
     }
 
@@ -69,20 +69,20 @@ public struct ChargingStation: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(address, forKey: .address)
-        try container.encodeIfPresent(availablePorts, forKey: .availablePorts)
-        try container.encodeIfPresent(category, forKey: .category)
-        try container.encodeIfPresent(distanceKm, forKey: .distanceKm)
         try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(address, forKey: .address)
         try container.encode(latitude, forKey: .latitude)
         try container.encode(longitude, forKey: .longitude)
-        try container.encode(name, forKey: .name)
-        try container.encodeIfPresent(openHours, forKey: .openHours)
+        try container.encodeIfPresent(distanceKm, forKey: .distanceKm)
         try container.encodeIfPresent(_operator, forKey: ._operator)
-        try container.encodeIfPresent(powerKw, forKey: .powerKw)
-        try container.encodeIfPresent(pricePerKwh, forKey: .pricePerKwh)
         try container.encodeIfPresent(tel, forKey: .tel)
+        try container.encodeIfPresent(powerKw, forKey: .powerKw)
+        try container.encodeIfPresent(availablePorts, forKey: .availablePorts)
         try container.encodeIfPresent(totalPorts, forKey: .totalPorts)
+        try container.encodeIfPresent(pricePerKwh, forKey: .pricePerKwh)
+        try container.encodeIfPresent(openHours, forKey: .openHours)
+        try container.encodeIfPresent(category, forKey: .category)
         try container.encodeIfPresent(type, forKey: .type)
     }
 }

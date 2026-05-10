@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`device_id` | number
 `success` | boolean
+`device_id` | number
 
 ## Example
 
@@ -16,8 +16,8 @@ import type { RegisterDeviceResponse } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "device_id": null,
   "success": null,
+  "device_id": null,
 } satisfies RegisterDeviceResponse
 
 console.log(example)

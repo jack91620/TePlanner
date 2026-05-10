@@ -23,7 +23,7 @@ Upsert (user_id, token). Re-registering an existing token just bumps last_seen_a
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let registerDeviceRequest = RegisterDeviceRequest(bundleId: "bundleId_example", token: "token_example") // RegisterDeviceRequest | 
+let registerDeviceRequest = RegisterDeviceRequest(token: "token_example", bundleId: "bundleId_example", platform: "platform_example", providerToken: "providerToken_example") // RegisterDeviceRequest | 
 
 // Register Device
 DevicesAPI.registerDeviceApiV1DevicesRegisterPost(registerDeviceRequest: registerDeviceRequest) { (response, error) in
@@ -112,14 +112,14 @@ This endpoint does not need any parameter.
 
 Test Push
 
-Send a debug push to all of this user's registered devices. Useful while wiring up — flip APNs creds, hit this endpoint, see if a notification lands on the phone.
+Send a debug push to all of this user's registered devices. Phase E — routes through PushDispatcher so APNs / JPush / Huawei Push Kit all receive it according to each token's platform field.
 
 ### Example
 ```swift
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import TePlannerAPI
 
-let testPushRequest = TestPushRequest(body: "body_example", title: "title_example") // TestPushRequest | 
+let testPushRequest = TestPushRequest(title: "title_example", body: "body_example") // TestPushRequest | 
 
 // Test Push
 DevicesAPI.testPushApiV1DevicesTestPushPost(testPushRequest: testPushRequest) { (response, error) in

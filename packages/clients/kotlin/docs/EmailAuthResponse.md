@@ -5,12 +5,12 @@
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
 | **accessToken** | **kotlin.String** |  |  |
-| **email** | **kotlin.String** |  |  |
 | **expiresIn** | **kotlin.Int** |  |  |
 | **userId** | **kotlin.Int** |  |  |
-| **hasTeslaLinked** | **kotlin.Boolean** |  |  [optional] |
-| **nickname** | **kotlin.String** |  |  [optional] |
+| **email** | **kotlin.String** |  |  |
 | **tokenType** | **kotlin.String** |  |  [optional] |
+| **nickname** | **kotlin.String** |  |  [optional] |
+| **hasTeslaLinked** | **kotlin.Boolean** |  |  [optional] |
 
 
 

@@ -34,52 +34,16 @@ class RoutePlanResponseTest : ShouldSpec() {
         // uncomment below to create an instance of RoutePlanResponse
         //val modelInstance = RoutePlanResponse()
 
-        // to test the property `arrivalSoc`
-        should("test arrivalSoc") {
+        // to test the property `origin`
+        should("test origin") {
             // uncomment below to test the property
-            //modelInstance.arrivalSoc shouldBe ("TODO")
-        }
-
-        // to test the property `chargingDurationMinutes`
-        should("test chargingDurationMinutes") {
-            // uncomment below to test the property
-            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
-        }
-
-        // to test the property `chargingStops`
-        should("test chargingStops") {
-            // uncomment below to test the property
-            //modelInstance.chargingStops shouldBe ("TODO")
+            //modelInstance.origin shouldBe ("TODO")
         }
 
         // to test the property `destination`
         should("test destination") {
             // uncomment below to test the property
             //modelInstance.destination shouldBe ("TODO")
-        }
-
-        // to test the property `drivingDurationMinutes`
-        should("test drivingDurationMinutes") {
-            // uncomment below to test the property
-            //modelInstance.drivingDurationMinutes shouldBe ("TODO")
-        }
-
-        // to test the property `initialSoc`
-        should("test initialSoc") {
-            // uncomment below to test the property
-            //modelInstance.initialSoc shouldBe ("TODO")
-        }
-
-        // to test the property `numChargingStops`
-        should("test numChargingStops") {
-            // uncomment below to test the property
-            //modelInstance.numChargingStops shouldBe ("TODO")
-        }
-
-        // to test the property `origin`
-        should("test origin") {
-            // uncomment below to test the property
-            //modelInstance.origin shouldBe ("TODO")
         }
 
         // to test the property `totalDistanceKm`
@@ -94,16 +58,52 @@ class RoutePlanResponseTest : ShouldSpec() {
             //modelInstance.totalDurationMinutes shouldBe ("TODO")
         }
 
-        // to test the property `polyline`
-        should("test polyline") {
+        // to test the property `drivingDurationMinutes`
+        should("test drivingDurationMinutes") {
             // uncomment below to test the property
-            //modelInstance.polyline shouldBe ("TODO")
+            //modelInstance.drivingDurationMinutes shouldBe ("TODO")
+        }
+
+        // to test the property `chargingDurationMinutes`
+        should("test chargingDurationMinutes") {
+            // uncomment below to test the property
+            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
+        }
+
+        // to test the property `chargingStops`
+        should("test chargingStops") {
+            // uncomment below to test the property
+            //modelInstance.chargingStops shouldBe ("TODO")
+        }
+
+        // to test the property `numChargingStops`
+        should("test numChargingStops") {
+            // uncomment below to test the property
+            //modelInstance.numChargingStops shouldBe ("TODO")
+        }
+
+        // to test the property `initialSoc`
+        should("test initialSoc") {
+            // uncomment below to test the property
+            //modelInstance.initialSoc shouldBe ("TODO")
+        }
+
+        // to test the property `arrivalSoc`
+        should("test arrivalSoc") {
+            // uncomment below to test the property
+            //modelInstance.arrivalSoc shouldBe ("TODO")
         }
 
         // to test the property `routeId`
         should("test routeId") {
             // uncomment below to test the property
             //modelInstance.routeId shouldBe ("TODO")
+        }
+
+        // to test the property `polyline`
+        should("test polyline") {
+            // uncomment below to test the property
+            //modelInstance.polyline shouldBe ("TODO")
         }
 
         // to test the property `warnings`

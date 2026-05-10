@@ -12,53 +12,61 @@ import AnyCodable
 
 public struct RuleResponse: Codable, JSONEncodable, Hashable {
 
-    public var displayOrder: Int?
-    public var enabled: Bool
     public var id: String
-    public var lastFiredAt: Date?
-    public var name: String
     public var presetId: String?
+    public var name: String
+    public var enabled: Bool
     public var spec: AnyCodable
-    public var updatedAt: Date?
     public var version: Int
+    public var updatedAt: Date?
+    public var lastFiredAt: Date?
+    public var displayOrder: Int?
+    public var isFiring: Bool? = false
+    public var firingSince: Date?
 
-    public init(displayOrder: Int? = nil, enabled: Bool, id: String, lastFiredAt: Date? = nil, name: String, presetId: String?, spec: AnyCodable, updatedAt: Date? = nil, version: Int) {
-        self.displayOrder = displayOrder
-        self.enabled = enabled
+    public init(id: String, presetId: String?, name: String, enabled: Bool, spec: AnyCodable, version: Int, updatedAt: Date? = nil, lastFiredAt: Date? = nil, displayOrder: Int? = nil, isFiring: Bool? = false, firingSince: Date? = nil) {
         self.id = id
-        self.lastFiredAt = lastFiredAt
-        self.name = name
         self.presetId = presetId
+        self.name = name
+        self.enabled = enabled
         self.spec = spec
-        self.updatedAt = updatedAt
         self.version = version
+        self.updatedAt = updatedAt
+        self.lastFiredAt = lastFiredAt
+        self.displayOrder = displayOrder
+        self.isFiring = isFiring
+        self.firingSince = firingSince
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case displayOrder = "display_order"
-        case enabled
         case id
-        case lastFiredAt = "last_fired_at"
-        case name
         case presetId = "preset_id"
+        case name
+        case enabled
         case spec
-        case updatedAt = "updated_at"
         case version
+        case updatedAt = "updated_at"
+        case lastFiredAt = "last_fired_at"
+        case displayOrder = "display_order"
+        case isFiring = "is_firing"
+        case firingSince = "firing_since"
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(displayOrder, forKey: .displayOrder)
-        try container.encode(enabled, forKey: .enabled)
         try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(lastFiredAt, forKey: .lastFiredAt)
-        try container.encode(name, forKey: .name)
         try container.encode(presetId, forKey: .presetId)
+        try container.encode(name, forKey: .name)
+        try container.encode(enabled, forKey: .enabled)
         try container.encode(spec, forKey: .spec)
-        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encode(version, forKey: .version)
+        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(lastFiredAt, forKey: .lastFiredAt)
+        try container.encodeIfPresent(displayOrder, forKey: .displayOrder)
+        try container.encodeIfPresent(isFiring, forKey: .isFiring)
+        try container.encodeIfPresent(firingSince, forKey: .firingSince)
     }
 }
 

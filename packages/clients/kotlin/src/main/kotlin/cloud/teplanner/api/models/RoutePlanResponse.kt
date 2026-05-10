@@ -31,47 +31,29 @@ import com.squareup.moshi.JsonClass
 /**
  * Route planning response.
  *
- * @param arrivalSoc 
- * @param chargingDurationMinutes 
- * @param chargingStops 
- * @param destination 
- * @param drivingDurationMinutes 
- * @param initialSoc 
- * @param numChargingStops 
  * @param origin 
+ * @param destination 
  * @param totalDistanceKm 
  * @param totalDurationMinutes 
- * @param polyline 
+ * @param drivingDurationMinutes 
+ * @param chargingDurationMinutes 
+ * @param chargingStops 
+ * @param numChargingStops 
+ * @param initialSoc 
+ * @param arrivalSoc 
  * @param routeId 
+ * @param polyline 
  * @param warnings 
  */
 
 
 data class RoutePlanResponse (
 
-    @Json(name = "arrival_soc")
-    val arrivalSoc: kotlin.Int,
-
-    @Json(name = "charging_duration_minutes")
-    val chargingDurationMinutes: kotlin.Int,
-
-    @Json(name = "charging_stops")
-    val chargingStops: kotlin.collections.List<ChargingStopResponse>,
+    @Json(name = "origin")
+    val origin: kotlin.Any,
 
     @Json(name = "destination")
     val destination: kotlin.Any,
-
-    @Json(name = "driving_duration_minutes")
-    val drivingDurationMinutes: kotlin.Int,
-
-    @Json(name = "initial_soc")
-    val initialSoc: kotlin.Int,
-
-    @Json(name = "num_charging_stops")
-    val numChargingStops: kotlin.Int,
-
-    @Json(name = "origin")
-    val origin: kotlin.Any,
 
     @Json(name = "total_distance_km")
     val totalDistanceKm: java.math.BigDecimal,
@@ -79,11 +61,29 @@ data class RoutePlanResponse (
     @Json(name = "total_duration_minutes")
     val totalDurationMinutes: kotlin.Int,
 
-    @Json(name = "polyline")
-    val polyline: kotlin.collections.List<kotlin.Any>? = null,
+    @Json(name = "driving_duration_minutes")
+    val drivingDurationMinutes: kotlin.Int,
+
+    @Json(name = "charging_duration_minutes")
+    val chargingDurationMinutes: kotlin.Int,
+
+    @Json(name = "charging_stops")
+    val chargingStops: kotlin.collections.List<ChargingStopResponse>,
+
+    @Json(name = "num_charging_stops")
+    val numChargingStops: kotlin.Int,
+
+    @Json(name = "initial_soc")
+    val initialSoc: kotlin.Int,
+
+    @Json(name = "arrival_soc")
+    val arrivalSoc: kotlin.Int,
 
     @Json(name = "route_id")
     val routeId: kotlin.Int? = null,
+
+    @Json(name = "polyline")
+    val polyline: kotlin.collections.List<kotlin.Any>? = null,
 
     @Json(name = "warnings")
     val warnings: kotlin.collections.List<kotlin.String>? = null

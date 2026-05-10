@@ -31,18 +31,18 @@ import com.squareup.moshi.JsonClass
 /**
  * Phase 8.2: route metadata only (no charging plan).  Used by the iOS client to get the polyline first, then run AMap SDK along-route POI search locally, then post the candidate POIs back via /charging-plan to compute the greedy charging stops.
  *
- * @param destination 
  * @param origin 
+ * @param destination 
  */
 
 
 data class RouteOnlyRequest (
 
-    @Json(name = "destination")
-    val destination: LocationInput,
-
     @Json(name = "origin")
-    val origin: LocationInput
+    val origin: LocationInput,
+
+    @Json(name = "destination")
+    val destination: LocationInput
 
 ) {
 

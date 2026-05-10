@@ -8,8 +8,8 @@ Email registration request.
 Name | Type
 ------------ | -------------
 `email` | string
-`nickname` | string
 `password` | string
+`nickname` | string
 
 ## Example
 
@@ -19,8 +19,8 @@ import type { EmailRegisterRequest } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "email": null,
-  "nickname": null,
   "password": null,
+  "nickname": null,
 } satisfies EmailRegisterRequest
 
 console.log(example)

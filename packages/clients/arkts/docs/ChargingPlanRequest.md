@@ -7,12 +7,12 @@ Phase 8.2: greedy charging-stop selection over client-provided POIs. The iOS cli
 
 Name | Type
 ------------ | -------------
-`candidate_pois` | [Array&lt;POIInput&gt;](POIInput.md)
-`car_type` | string
-`initial_soc` | number
-`min_arrival_soc` | number
 `polyline` | Array&lt;Array&lt;number&gt;&gt;
 `total_distance_km` | number
+`candidate_pois` | [Array&lt;POIInput&gt;](POIInput.md)
+`initial_soc` | number
+`car_type` | string
+`min_arrival_soc` | number
 `vehicle_range_km` | number
 
 ## Example
@@ -22,12 +22,12 @@ import type { ChargingPlanRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "candidate_pois": null,
-  "car_type": null,
-  "initial_soc": null,
-  "min_arrival_soc": null,
   "polyline": null,
   "total_distance_km": null,
+  "candidate_pois": null,
+  "initial_soc": null,
+  "car_type": null,
+  "min_arrival_soc": null,
   "vehicle_range_km": null,
 } satisfies ChargingPlanRequest
 

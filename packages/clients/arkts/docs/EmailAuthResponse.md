@@ -8,12 +8,12 @@ Email auth response.
 Name | Type
 ------------ | -------------
 `access_token` | string
-`email` | string
-`expires_in` | number
-`has_tesla_linked` | boolean
-`nickname` | string
 `token_type` | string
+`expires_in` | number
 `user_id` | number
+`email` | string
+`nickname` | string
+`has_tesla_linked` | boolean
 
 ## Example
 
@@ -23,12 +23,12 @@ import type { EmailAuthResponse } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "access_token": null,
-  "email": null,
-  "expires_in": null,
-  "has_tesla_linked": null,
-  "nickname": null,
   "token_type": null,
+  "expires_in": null,
   "user_id": null,
+  "email": null,
+  "nickname": null,
+  "has_tesla_linked": null,
 } satisfies EmailAuthResponse
 
 console.log(example)

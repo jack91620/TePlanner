@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`body` | string
 `title` | string
+`body` | string
 
 ## Example
 
@@ -16,8 +16,8 @@ import type { TestPushRequest } from '@teplanner/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "body": null,
   "title": null,
+  "body": null,
 } satisfies TestPushRequest
 
 console.log(example)

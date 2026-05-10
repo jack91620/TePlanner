@@ -8,8 +8,8 @@ One ``tel:<entity>:since`` + value pair from automation_state.
 Name | Type
 ------------ | -------------
 `entity` | string
-`since` | Date
 `value` | [](.md)
+`since` | Date
 
 ## Example
 
@@ -19,8 +19,8 @@ import type { TelemetryStateEntry } from '@teplanner/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "entity": null,
-  "since": null,
   "value": null,
+  "since": null,
 } satisfies TelemetryStateEntry
 
 console.log(example)

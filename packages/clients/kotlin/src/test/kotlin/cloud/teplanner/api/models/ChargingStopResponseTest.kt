@@ -33,28 +33,16 @@ class ChargingStopResponseTest : ShouldSpec() {
         // uncomment below to create an instance of ChargingStopResponse
         //val modelInstance = ChargingStopResponse()
 
-        // to test the property `arrivalSoc`
-        should("test arrivalSoc") {
+        // to test the property `stationId`
+        should("test stationId") {
             // uncomment below to test the property
-            //modelInstance.arrivalSoc shouldBe ("TODO")
+            //modelInstance.stationId shouldBe ("TODO")
         }
 
-        // to test the property `chargingDurationMinutes`
-        should("test chargingDurationMinutes") {
+        // to test the property `name`
+        should("test name") {
             // uncomment below to test the property
-            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
-        }
-
-        // to test the property `departureSoc`
-        should("test departureSoc") {
-            // uncomment below to test the property
-            //modelInstance.departureSoc shouldBe ("TODO")
-        }
-
-        // to test the property `distanceFromStartKm`
-        should("test distanceFromStartKm") {
-            // uncomment below to test the property
-            //modelInstance.distanceFromStartKm shouldBe ("TODO")
+            //modelInstance.name shouldBe ("TODO")
         }
 
         // to test the property `latitude`
@@ -69,16 +57,28 @@ class ChargingStopResponseTest : ShouldSpec() {
             //modelInstance.longitude shouldBe ("TODO")
         }
 
-        // to test the property `name`
-        should("test name") {
+        // to test the property `distanceFromStartKm`
+        should("test distanceFromStartKm") {
             // uncomment below to test the property
-            //modelInstance.name shouldBe ("TODO")
+            //modelInstance.distanceFromStartKm shouldBe ("TODO")
         }
 
-        // to test the property `stationId`
-        should("test stationId") {
+        // to test the property `arrivalSoc`
+        should("test arrivalSoc") {
             // uncomment below to test the property
-            //modelInstance.stationId shouldBe ("TODO")
+            //modelInstance.arrivalSoc shouldBe ("TODO")
+        }
+
+        // to test the property `departureSoc`
+        should("test departureSoc") {
+            // uncomment below to test the property
+            //modelInstance.departureSoc shouldBe ("TODO")
+        }
+
+        // to test the property `chargingDurationMinutes`
+        should("test chargingDurationMinutes") {
+            // uncomment below to test the property
+            //modelInstance.chargingDurationMinutes shouldBe ("TODO")
         }
 
         // to test the property `address`

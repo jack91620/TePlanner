@@ -33,16 +33,22 @@ class ChargingStationTest : ShouldSpec() {
         // uncomment below to create an instance of ChargingStation
         //val modelInstance = ChargingStation()
 
-        // to test the property `address`
-        should("test address") {
-            // uncomment below to test the property
-            //modelInstance.address shouldBe ("TODO")
-        }
-
         // to test the property `id`
         should("test id") {
             // uncomment below to test the property
             //modelInstance.id shouldBe ("TODO")
+        }
+
+        // to test the property `name`
+        should("test name") {
+            // uncomment below to test the property
+            //modelInstance.name shouldBe ("TODO")
+        }
+
+        // to test the property `address`
+        should("test address") {
+            // uncomment below to test the property
+            //modelInstance.address shouldBe ("TODO")
         }
 
         // to test the property `latitude`
@@ -57,34 +63,10 @@ class ChargingStationTest : ShouldSpec() {
             //modelInstance.longitude shouldBe ("TODO")
         }
 
-        // to test the property `name`
-        should("test name") {
-            // uncomment below to test the property
-            //modelInstance.name shouldBe ("TODO")
-        }
-
-        // to test the property `availablePorts`
-        should("test availablePorts") {
-            // uncomment below to test the property
-            //modelInstance.availablePorts shouldBe ("TODO")
-        }
-
-        // to test the property `category`
-        should("test category") {
-            // uncomment below to test the property
-            //modelInstance.category shouldBe ("TODO")
-        }
-
         // to test the property `distanceKm`
         should("test distanceKm") {
             // uncomment below to test the property
             //modelInstance.distanceKm shouldBe ("TODO")
-        }
-
-        // to test the property `openHours`
-        should("test openHours") {
-            // uncomment below to test the property
-            //modelInstance.openHours shouldBe ("TODO")
         }
 
         // to test the property ``operator``
@@ -93,10 +75,28 @@ class ChargingStationTest : ShouldSpec() {
             //modelInstance.`operator` shouldBe ("TODO")
         }
 
+        // to test the property `tel`
+        should("test tel") {
+            // uncomment below to test the property
+            //modelInstance.tel shouldBe ("TODO")
+        }
+
         // to test the property `powerKw`
         should("test powerKw") {
             // uncomment below to test the property
             //modelInstance.powerKw shouldBe ("TODO")
+        }
+
+        // to test the property `availablePorts`
+        should("test availablePorts") {
+            // uncomment below to test the property
+            //modelInstance.availablePorts shouldBe ("TODO")
+        }
+
+        // to test the property `totalPorts`
+        should("test totalPorts") {
+            // uncomment below to test the property
+            //modelInstance.totalPorts shouldBe ("TODO")
         }
 
         // to test the property `pricePerKwh`
@@ -105,16 +105,16 @@ class ChargingStationTest : ShouldSpec() {
             //modelInstance.pricePerKwh shouldBe ("TODO")
         }
 
-        // to test the property `tel`
-        should("test tel") {
+        // to test the property `openHours`
+        should("test openHours") {
             // uncomment below to test the property
-            //modelInstance.tel shouldBe ("TODO")
+            //modelInstance.openHours shouldBe ("TODO")
         }
 
-        // to test the property `totalPorts`
-        should("test totalPorts") {
+        // to test the property `category`
+        should("test category") {
             // uncomment below to test the property
-            //modelInstance.totalPorts shouldBe ("TODO")
+            //modelInstance.category shouldBe ("TODO")
         }
 
         // to test the property `type`

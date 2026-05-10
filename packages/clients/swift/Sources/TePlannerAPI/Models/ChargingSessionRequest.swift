@@ -13,53 +13,53 @@ import AnyCodable
 public struct ChargingSessionRequest: Codable, JSONEncodable, Hashable {
 
     public static let clientSessionIdRule = StringRule(minLength: nil, maxLength: 64, pattern: nil)
-    public static let endRangeKmRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
+    public static let startSocRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
     public static let endSocRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
+    public static let startRangeKmRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
+    public static let endRangeKmRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     public static let energyAddedKwhRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     public static let locationNameRule = StringRule(minLength: nil, maxLength: 128, pattern: nil)
-    public static let startRangeKmRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
-    public static let startSocRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: 100, exclusiveMaximum: false, multipleOf: nil)
     public var clientSessionId: String?
-    public var endRangeKm: Double?
-    public var endSoc: Int?
-    public var endedAsComplete: Bool?
+    public var startedAt: Date
     public var endedAt: Date?
+    public var startSoc: Int?
+    public var endSoc: Int?
+    public var startRangeKm: Double?
+    public var endRangeKm: Double?
     public var energyAddedKwh: Double?
+    public var locationName: String?
     public var lat: Double?
     public var lng: Double?
-    public var locationName: String?
-    public var startRangeKm: Double?
-    public var startSoc: Int?
-    public var startedAt: Date
+    public var endedAsComplete: Bool?
 
-    public init(clientSessionId: String? = nil, endRangeKm: Double? = nil, endSoc: Int? = nil, endedAsComplete: Bool? = nil, endedAt: Date? = nil, energyAddedKwh: Double? = nil, lat: Double? = nil, lng: Double? = nil, locationName: String? = nil, startRangeKm: Double? = nil, startSoc: Int? = nil, startedAt: Date) {
+    public init(clientSessionId: String? = nil, startedAt: Date, endedAt: Date? = nil, startSoc: Int? = nil, endSoc: Int? = nil, startRangeKm: Double? = nil, endRangeKm: Double? = nil, energyAddedKwh: Double? = nil, locationName: String? = nil, lat: Double? = nil, lng: Double? = nil, endedAsComplete: Bool? = nil) {
         self.clientSessionId = clientSessionId
-        self.endRangeKm = endRangeKm
-        self.endSoc = endSoc
-        self.endedAsComplete = endedAsComplete
+        self.startedAt = startedAt
         self.endedAt = endedAt
+        self.startSoc = startSoc
+        self.endSoc = endSoc
+        self.startRangeKm = startRangeKm
+        self.endRangeKm = endRangeKm
         self.energyAddedKwh = energyAddedKwh
+        self.locationName = locationName
         self.lat = lat
         self.lng = lng
-        self.locationName = locationName
-        self.startRangeKm = startRangeKm
-        self.startSoc = startSoc
-        self.startedAt = startedAt
+        self.endedAsComplete = endedAsComplete
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case clientSessionId = "client_session_id"
-        case endRangeKm = "end_range_km"
-        case endSoc = "end_soc"
-        case endedAsComplete = "ended_as_complete"
+        case startedAt = "started_at"
         case endedAt = "ended_at"
+        case startSoc = "start_soc"
+        case endSoc = "end_soc"
+        case startRangeKm = "start_range_km"
+        case endRangeKm = "end_range_km"
         case energyAddedKwh = "energy_added_kwh"
+        case locationName = "location_name"
         case lat
         case lng
-        case locationName = "location_name"
-        case startRangeKm = "start_range_km"
-        case startSoc = "start_soc"
-        case startedAt = "started_at"
+        case endedAsComplete = "ended_as_complete"
     }
 
     // Encodable protocol methods
@@ -67,17 +67,17 @@ public struct ChargingSessionRequest: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(clientSessionId, forKey: .clientSessionId)
-        try container.encodeIfPresent(endRangeKm, forKey: .endRangeKm)
-        try container.encodeIfPresent(endSoc, forKey: .endSoc)
-        try container.encodeIfPresent(endedAsComplete, forKey: .endedAsComplete)
+        try container.encode(startedAt, forKey: .startedAt)
         try container.encodeIfPresent(endedAt, forKey: .endedAt)
+        try container.encodeIfPresent(startSoc, forKey: .startSoc)
+        try container.encodeIfPresent(endSoc, forKey: .endSoc)
+        try container.encodeIfPresent(startRangeKm, forKey: .startRangeKm)
+        try container.encodeIfPresent(endRangeKm, forKey: .endRangeKm)
         try container.encodeIfPresent(energyAddedKwh, forKey: .energyAddedKwh)
+        try container.encodeIfPresent(locationName, forKey: .locationName)
         try container.encodeIfPresent(lat, forKey: .lat)
         try container.encodeIfPresent(lng, forKey: .lng)
-        try container.encodeIfPresent(locationName, forKey: .locationName)
-        try container.encodeIfPresent(startRangeKm, forKey: .startRangeKm)
-        try container.encodeIfPresent(startSoc, forKey: .startSoc)
-        try container.encode(startedAt, forKey: .startedAt)
+        try container.encodeIfPresent(endedAsComplete, forKey: .endedAsComplete)
     }
 }
 

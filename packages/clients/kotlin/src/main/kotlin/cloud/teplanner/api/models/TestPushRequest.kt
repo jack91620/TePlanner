@@ -30,18 +30,18 @@ import com.squareup.moshi.JsonClass
 /**
  * 
  *
- * @param body 
  * @param title 
+ * @param body 
  */
 
 
 data class TestPushRequest (
 
-    @Json(name = "body")
-    val body: kotlin.String? = "如果你看到这条通知，APNs 已打通。",
-
     @Json(name = "title")
-    val title: kotlin.String? = "TePlanner 测试推送"
+    val title: kotlin.String? = "TePlanner 测试推送",
+
+    @Json(name = "body")
+    val body: kotlin.String? = "如果你看到这条通知，APNs 已打通。"
 
 ) {
 
