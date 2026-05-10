@@ -195,12 +195,21 @@ class TelemetryStateWriter:
         vehicle_id: str,
         entity: str,
     ) -> Any:
-        stmt = select(AutomationState).where(
-            AutomationState.user_id == user_id,
-            AutomationState.vehicle_id == vehicle_id,
-            AutomationState.key == telemetry_value_key(entity),
+        stmt = (
+            select(AutomationState)
+            .where(
+                AutomationState.user_id == user_id,
+                AutomationState.vehicle_id == vehicle_id,
+                AutomationState.key == telemetry_value_key(entity),
+            )
+            .order_by(AutomationState.id.desc())
+            .limit(1)
         )
-        row = (await db.execute(stmt)).scalar_one_or_none()
+        # 2026-05-10 — was scalar_one_or_none(); same MultipleResultsFound
+        # crash class as the upsert path. Take the latest row by id.
+        # _upsert_state() handles purging the duplicates whenever they
+        # next get touched.
+        row = (await db.execute(stmt)).scalars().first()
         if row is None or row.value is None:
             return None
         try:
