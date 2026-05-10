@@ -154,7 +154,7 @@ ANDROID_DIR := apps/android
 ANDROID_SDK := $(HOME)/Library/Android/sdk
 ADB         := $(ANDROID_SDK)/platform-tools/adb
 EMULATOR    := $(ANDROID_SDK)/emulator/emulator
-ANDROID_PKG := com.teplanner.android.debug
+ANDROID_PKG := com.teplanner.android
 ANDROID_ACT := cloud.teplanner.android.MainActivity
 # Android Studio bundles its own JDK 21 — use it so the build doesn't
 # pick up a stale system JDK (the one /usr/bin/java prompts to install).

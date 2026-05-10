@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,6 +53,7 @@ import cloud.teplanner.android.core.network.VehicleStateResponse
 fun HubScreen(
     onLoggedOut: () -> Unit,
     onAutomations: () -> Unit,
+    onMap: () -> Unit,
     auth: AuthSession = hiltViewModel(),
     hub: HubViewModel = hiltViewModel(),
 ) {
@@ -85,6 +87,12 @@ fun HubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             VehicleStatusCard(state = state)
+            EntryCard(
+                title = "充电规划",
+                subtitle = "附近充电桩 · 路线规划",
+                icon = Icons.Filled.EvStation,
+                onClick = onMap,
+            )
             EntryCard(
                 title = "自动化提醒",
                 subtitle = "管理预设规则与自定义触发",

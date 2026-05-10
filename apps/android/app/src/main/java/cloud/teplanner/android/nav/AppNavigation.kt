@@ -14,6 +14,8 @@ import cloud.teplanner.android.auth.LoginScreen
 import cloud.teplanner.android.automations.AutomationsListScreen
 import cloud.teplanner.android.automations.RuleDetailScreen
 import cloud.teplanner.android.hub.HubScreen
+import cloud.teplanner.android.map.MapScreen
+import cloud.teplanner.android.map.RoutePreviewScreen
 
 /**
  * Phase F.2 navigation graph:
@@ -28,6 +30,8 @@ object Routes {
     const val HUB = "hub"
     const val AUTOMATIONS = "automations"
     const val RULE_DETAIL_PATTERN = "rules/{id}"
+    const val MAP = "map"
+    const val ROUTE_PREVIEW = "route-preview"
     fun ruleDetail(id: String) = "rules/$id"
 }
 
@@ -40,6 +44,23 @@ fun AppNavGraph() {
         hub(nav)
         automations(nav)
         ruleDetail(nav)
+        map(nav)
+        routePreview(nav)
+    }
+}
+
+private fun NavGraphBuilder.map(nav: NavHostController) {
+    composable(Routes.MAP) {
+        MapScreen(
+            onBack = { nav.popBackStack() },
+            onPlanRoute = { nav.navigate(Routes.ROUTE_PREVIEW) },
+        )
+    }
+}
+
+private fun NavGraphBuilder.routePreview(nav: NavHostController) {
+    composable(Routes.ROUTE_PREVIEW) {
+        RoutePreviewScreen(onBack = { nav.popBackStack() })
     }
 }
 
@@ -76,6 +97,7 @@ private fun NavGraphBuilder.hub(nav: NavHostController) {
                 }
             },
             onAutomations = { nav.navigate(Routes.AUTOMATIONS) },
+            onMap = { nav.navigate(Routes.MAP) },
         )
     }
 }

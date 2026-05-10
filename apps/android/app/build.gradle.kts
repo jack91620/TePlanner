@@ -62,7 +62,11 @@ android {
         }
         debug {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            // No applicationIdSuffix — AMap key is bound to the
+            // base package name + signing-cert SHA1. A `.debug` suffix
+            // would force registering a second AMap key for dev. Cost
+            // of dropping it: debug + release builds can't coexist on
+            // a device. Acceptable for solo F.x dev.
         }
     }
 
@@ -131,11 +135,18 @@ dependencies {
     // 加密 SharedPreferences (auth token storage)
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha07")
 
-    // 高德地图 — Phase F.3 引入实际 SDK。F.0 不需要,
-    // 跳过避免 Maven 解析失败阻塞工具链验证。
-    // implementation("com.amap.api:3dmap:9.8.2")
-    // implementation("com.amap.api:location:6.4.7")
-    // implementation("com.amap.api:search:9.7.4")
+    // 高德地图 — Phase F.3。
+    // Maven coords publish as `.jar` (not `.aar`); JARs bundle native
+    // libs under `lib/<abi>/` — AGP packs them into the APK.
+    // 3dmap bundles a trimmed location subset (DPoint, UmidtokenInfo)
+    // and search bundles a utils-core subset that overlaps with the
+    // standalone location JAR — exclude location entirely + take the
+    // location bits 3dmap ships. Then add the standalone search JAR
+    // with the overlapping utils.core package excluded.
+    implementation("com.amap.api:3dmap:9.8.2")
+    implementation("com.amap.api:search:9.7.1") {
+        exclude(group = "com.amap.api", module = "location")
+    }
 
     // JPush — Phase F.4 推送注册时引入。同上,F.0 跳过。
     // implementation("cn.jiguang.sdk:jpush:5.6.1")

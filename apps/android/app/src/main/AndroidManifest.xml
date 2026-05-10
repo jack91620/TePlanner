@@ -43,10 +43,13 @@
             </intent-filter>
         </activity>
 
-        <!-- F.3 reintroduces AMap meta-data once SDK is wired; same
-             for JPush meta-data in F.4. The placeholders in
-             defaultConfig.manifestPlaceholders stay so the values are
-             ready as soon as the SDK lib is added back. -->
+        <!-- 高德地图 — F.3。Key 来自 local.properties via manifestPlaceholders. -->
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="${AMAP_API_KEY}" />
+        <service android:name="com.amap.api.location.APSService" />
+
+        <!-- JPush meta-data lands in F.4. -->
 
     </application>
 
