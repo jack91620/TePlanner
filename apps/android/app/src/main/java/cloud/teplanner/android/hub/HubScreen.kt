@@ -21,7 +21,11 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.DepartureBoard
 import androidx.compose.material.icons.filled.EvStation
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -81,6 +85,8 @@ fun HubScreen(
     val departureState by departure.state.collectAsState()
     val commandStatusState by commandStatus.state.collectAsState()
     var showDepartureSheet by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
 
     // Trigger converge poll after any chip command success — mirror
     // of iOS HubView.applyChipCommandResult kicking pollUntilSettled.
@@ -98,11 +104,35 @@ fun HubScreen(
                     IconButton(onClick = { hub.refresh() }) {
                         Icon(Icons.Filled.Refresh, contentDescription = "刷新")
                     }
-                    IconButton(onClick = {
-                        auth.logout()
-                        onLoggedOut()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "退出登录")
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.testTag("hub_menu_button"),
+                    ) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "更多")
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("配对车辆控制") },
+                            leadingIcon = { Icon(Icons.Filled.VpnKey, null) },
+                            onClick = {
+                                menuExpanded = false
+                                openVcpPairingUrl(ctx)
+                            },
+                            modifier = Modifier.testTag("hub_menu_pair_vehicle"),
+                        )
+                        DropdownMenuItem(
+                            text = { Text("退出登录") },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, null) },
+                            onClick = {
+                                menuExpanded = false
+                                auth.logout()
+                                onLoggedOut()
+                            },
+                            modifier = Modifier.testTag("hub_menu_logout"),
+                        )
                     }
                 },
             )
@@ -117,6 +147,7 @@ fun HubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             HubWelcomeBannerHosted()
+            VcpPairingPrompt(showWhenVehicleKnown = state.vehicle != null)
             VehicleStatusCard(state = state)
             PermissionBanner()
             CommandStatusBanner(state = commandStatusState)
