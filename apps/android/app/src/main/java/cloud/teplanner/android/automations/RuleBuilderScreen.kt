@@ -763,7 +763,7 @@ private fun formatMinutes(m: Int): String {
 
 /** Snapshot of all builder fields' values seeded from an initial rule.
  *  Defaults match iOS RuleBuilderView @State defaults. */
-private data class SeededFields(
+internal data class SeededFields(
     val triggerType: TriggerType,
     val entity: VehicleEntity,
     val compareInt: Int,
@@ -788,7 +788,7 @@ private data class SeededFields(
     val paramOverrides: JsonObject,
 )
 
-private fun decodeInitial(spec: JsonObject?): SeededFields {
+internal fun decodeInitial(spec: JsonObject?): SeededFields {
     val defaults = SeededFields(
         triggerType = TriggerType.STATE_DURATION,
         entity = VehicleEntity.CLIMATE_KEEPER,
@@ -895,7 +895,7 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
     }
 }
 
-private fun firstActionField(spec: JsonObject, key: String): String {
+internal fun firstActionField(spec: JsonObject, key: String): String {
     val candidates = listOf("actions", "actions_above", "actions_below")
     for (bucket in candidates) {
         val arr = spec[bucket] as? JsonArray ?: continue
@@ -905,7 +905,7 @@ private fun firstActionField(spec: JsonObject, key: String): String {
     return ""
 }
 
-private fun firstActionObject(spec: JsonObject): JsonObject? {
+internal fun firstActionObject(spec: JsonObject): JsonObject? {
     val candidates = listOf("actions", "actions_above", "actions_below")
     for (bucket in candidates) {
         val arr = spec[bucket] as? JsonArray ?: continue
@@ -914,20 +914,20 @@ private fun firstActionObject(spec: JsonObject): JsonObject? {
     return null
 }
 
-private fun firstActionSeverity(spec: JsonObject): AlertSeverity {
+internal fun firstActionSeverity(spec: JsonObject): AlertSeverity {
     val raw = firstActionField(spec, "severity")
     return AlertSeverity.entries.firstOrNull { it.raw == raw } ?: AlertSeverity.INFO
 }
 
-private fun firstActionType(spec: JsonObject): ActionType {
+internal fun firstActionType(spec: JsonObject): ActionType {
     val raw = firstActionField(spec, "type")
     return ActionType.entries.firstOrNull { it.raw == raw } ?: ActionType.NOTIFY
 }
 
-private fun firstActionPrimaryLabel(spec: JsonObject): String =
+internal fun firstActionPrimaryLabel(spec: JsonObject): String =
     firstActionField(spec, "primary_action_label")
 
-private fun firstActionCapability(spec: JsonObject): String {
+internal fun firstActionCapability(spec: JsonObject): String {
     val raw = firstActionField(spec, "capability")
     // The "fallthrough" capability for notify_and_offer with no real
     // command is "automation.dismiss" (see iOS buildSpec()). Treat
@@ -935,13 +935,13 @@ private fun firstActionCapability(spec: JsonObject): String {
     return if (raw == "automation.dismiss") "" else raw
 }
 
-private fun firstActionParams(spec: JsonObject): JsonObject {
+internal fun firstActionParams(spec: JsonObject): JsonObject {
     val first = firstActionObject(spec) ?: return JsonObject(emptyMap())
     return (first["params"] as? JsonObject) ?: JsonObject(emptyMap())
 }
 
 
-private fun inferKind(
+internal fun inferKind(
     triggerType: TriggerType,
     entity: VehicleEntity,
     geofenceEvent: GeofenceEvent = GeofenceEvent.ENTER,
@@ -966,7 +966,7 @@ private fun inferKind(
 }
 
 
-private fun cronExpression(hour: Int, minute: Int, weekdays: Set<Int>): String {
+internal fun cronExpression(hour: Int, minute: Int, weekdays: Set<Int>): String {
     val wPart = when {
         weekdays.size == 7 || weekdays.isEmpty() -> "*"
         else -> weekdays.sorted().joinToString(",")
@@ -979,7 +979,7 @@ private fun cronExpression(hour: Int, minute: Int, weekdays: Set<Int>): String {
  * Mirror of iOS buildSpec(). Emits the same JSON shape the backend
  * interpreter consumes; only the supported triggers are handled.
  */
-private fun buildSpec(
+internal fun buildSpec(
     triggerType: TriggerType,
     entity: VehicleEntity,
     compareInt: Int,
