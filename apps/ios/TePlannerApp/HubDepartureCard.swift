@@ -31,20 +31,18 @@ struct HubDepartureCard: View {
                     .foregroundStyle(.tint)
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 3) {
+                    // Hub cards are title-only by design (2026-05-11
+                    // copy pass) — the date is the title when set, or
+                    // a static "下次出行" prompt when not. Countdown /
+                    // "提前 X 分钟" lives one tap deeper in the sheet.
                     if let scheduled = scheduledDeparture {
                         Text(Self.formatDeparture(scheduled.departureAt))
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text(Self.subtitle(scheduled))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     } else {
                         Text("下次出行")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text("设置出发时间，出发前自动提醒预热")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
@@ -80,17 +78,6 @@ struct HubDepartureCard: View {
                 .labelStyle(.iconOnly)
                 .foregroundStyle(.red)
         }
-    }
-
-    private static func subtitle(_ departure: ScheduledDeparture) -> String {
-        let interval = departure.departureAt.timeIntervalSinceNow
-        if interval <= 0 { return "出发时间已到" }
-        let minutes = Int(interval / 60)
-        if minutes < 60 { return "还有 \(minutes) 分钟 · 提前 \(departure.leadTimeMinutes) 分钟提醒" }
-        let h = minutes / 60
-        let m = minutes % 60
-        let countdown = m == 0 ? "\(h) 小时" : "\(h) 小时 \(m) 分"
-        return "还有 \(countdown) · 提前 \(departure.leadTimeMinutes) 分钟提醒"
     }
 
     private static func formatDeparture(_ date: Date) -> String {

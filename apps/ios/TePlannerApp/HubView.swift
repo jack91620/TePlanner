@@ -773,8 +773,11 @@ struct HubView: View {
         switch viewModel.state {
         case .idle, .loading:
             ProgressView().controlSize(.small)
-        case .waking(let attempt, let max):
-            Label("唤醒中 \(attempt)/\(max)", systemImage: "moon.zzz")
+        case .waking:
+            // Tesla wake retry count was noisy to users — they just
+            // want to know "the app is talking to the car right now",
+            // not "we're on attempt 3 of 10". Hide the bookkeeping.
+            Label("连接中", systemImage: "moon.zzz")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.orange)
         case .ready:
@@ -950,7 +953,6 @@ struct HubView: View {
             HubEntryCard(
                 icon: "bolt.fill",
                 title: "充电规划",
-                subtitle: "搜目的地 / 沿途充电站 / 发送到车辆",
                 accessibilityId: "hub_entry_planning"
             )
         }
@@ -964,7 +966,6 @@ struct HubView: View {
             HubEntryCard(
                 icon: "bell.badge.fill",
                 title: "自动化",
-                subtitle: automationsSubtitle,
                 accessibilityId: "hub_entry_automations"
             )
         }
@@ -985,87 +986,16 @@ struct HubView: View {
             HubEntryCard(
                 icon: "battery.100.bolt",
                 title: "电池管理",
-                subtitle: batterySubtitle,
                 accessibilityId: "hub_entry_battery"
             )
         }
         .buttonStyle(PressableCardButtonStyle())
     }
 
-    private var batterySubtitle: String {
-        let state = viewModel.vehicleState?.chargingState
-        let limit = viewModel.vehicleState?.chargeLimitSoc
-        let level = viewModel.batteryLevel
-        switch state {
-        case "Charging":
-            if let l = limit { return "充电中 · 上限 \(l)%" }
-            return "充电中"
-        case "Complete":
-            if let l = limit { return "已充满 · 上限 \(l)%" }
-            return "已充满"
-        case "Disconnected", "NoPower":
-            if let lvl = level, let l = limit { return "电量 \(lvl)% · 上限 \(l)%" }
-            if let l = limit { return "未连接充电桩 · 上限 \(l)%" }
-            return "未连接充电桩"
-        default:
-            var parts: [String] = []
-            if let l = limit { parts.append("上限 \(l)%") }
-            if statsViewModel.hasAnyData {
-                parts.append("本月 \(statsViewModel.monthlyCount) 次")
-            }
-            return parts.isEmpty ? "充电限额 / 统计 / 历史" : parts.joined(separator: " · ")
-        }
-    }
-
-    /// Look up the rule name that produced this alert (alert.kind →
-    /// rule.spec.kind match). Falls back to the alert title if no
-    /// matching rule is found, so the auto card can always show
-    /// _something_ informative.
-    private func firingRuleName(for alert: VehicleAlert) -> String {
-        if let rule = rulesStore.rules.first(where: {
-            $0.spec.string("kind") == alert.kind.rawValue
-        }) {
-            return rule.name
-        }
-        return alert.title
-    }
-
-    /// Subtitle for the automation entry card. Goal: tell the user
-    /// what the rules actually do, not a counter that requires
-    /// drilling in to make sense of. Show 2 representative rule names
-    /// + count when collapsed; "已全部禁用" when none firing.
-    private var automationsSubtitle: String {
-        let rules = rulesStore.rules
-        let total = rules.count
-        let enabled = rules.filter(\.enabled)
-        if total == 0 { return "暂无规则" }
-        if enabled.isEmpty { return "全部已禁用，点击启用" }
-        // If any rule is actively firing right now, lead with that —
-        // it's the highest-signal info ("there's something to look at").
-        // Name the rule(s) so users don't have to guess which one. The
-        // top alert is also surfaced as the alert pill above; this row
-        // doubles as a shortcut to the matching rule.
-        let alerts = automationEngine.alerts
-        if !alerts.isEmpty {
-            let names = alerts.prefix(2).map { firingRuleName(for: $0) }.joined(separator: " · ")
-            if alerts.count > 2 {
-                return "⚠️ \(names) · 共 \(alerts.count) 条触发中"
-            }
-            return "⚠️ 触发中：\(names)"
-        }
-        // Snoozed count shown when no fires — gives the user a passive
-        // reminder that some rules are temporarily muted.
-        let snoozed = snoozeStore.activeUntil.count
-        if snoozed > 0 {
-            return "🔕 \(snoozed) 条静音中 · 共 \(enabled.count) 条启用"
-        }
-        // Otherwise show the 2 most representative names + count.
-        let preview = enabled.prefix(2).map(\.name).joined(separator: " · ")
-        if enabled.count > 2 {
-            return "\(preview) · 共 \(enabled.count) 条"
-        }
-        return preview
-    }
+    // batterySubtitle / automationsSubtitle / firingRuleName removed
+    // 2026-05-11 — hub entry cards now title-only, status visible
+    // on the inner pages (BatteryView / AutomationsHomeView) where
+    // it belongs.
 }
 
 /// Subtle scale + dim on press. Replaces `.buttonStyle(.plain)` which
@@ -1084,7 +1014,12 @@ struct PressableCardButtonStyle: ButtonStyle {
 private struct HubEntryCard: View {
     let icon: String
     let title: String
-    let subtitle: String
+    /// Optional. Removed from all hub entries 2026-05-11 — user
+    /// feedback was the subtitles were noise (例举规则名 / 计数 /
+    /// 兜底文案), the interesting state lives one tap deeper. Kept
+    /// optional so existing call sites in tests / other surfaces
+    /// can pass a subtitle if they truly need one later.
+    var subtitle: String? = nil
     let accessibilityId: String
 
     var body: some View {
@@ -1095,7 +1030,9 @@ private struct HubEntryCard: View {
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline).foregroundStyle(.primary)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Image(systemName: "chevron.right")
