@@ -1,6 +1,7 @@
 package cloud.teplanner.android.auth
 
 import android.content.Context
+import cloud.teplanner.android.core.network.AuthApi
 import cloud.teplanner.android.core.network.TokenStore
 import cloud.teplanner.android.push.PushRegistrar
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenStore: TokenStore,
+    private val authApi: AuthApi,
 ) {
     data class Account(
         val userId: Long,
@@ -50,6 +52,20 @@ class AuthRepository @Inject constructor(
     fun logout() {
         tokenStore.clear()
         _account.value = null
+    }
+
+    /** Server-side unbind. Mirror of iOS AuthSession.unbindTesla:
+     *  calls /auth/tesla/unbind, then drops local creds whatever the
+     *  outcome — next launch will go through Tesla OAuth again. */
+    suspend fun unbindTesla(): Result<Unit> {
+        val uid = tokenStore.userId
+        if (uid == null) {
+            logout()
+            return Result.success(Unit)
+        }
+        val result = runCatching { authApi.unbindTesla(uid) }
+        logout()
+        return result.map { }
     }
 
     private fun currentAccount(): Account? {

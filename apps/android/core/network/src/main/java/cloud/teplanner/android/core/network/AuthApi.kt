@@ -1,6 +1,7 @@
 package cloud.teplanner.android.core.network
 
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 /**
@@ -23,4 +24,12 @@ interface AuthApi {
     suspend fun authorizeTesla(
         @Query("user_id") userId: Long? = null,
     ): TeslaAuthUrlResponse
+
+    /** Server-side unbind. Revokes the Tesla token at the backend so
+     *  next login is a fresh OAuth, then iOS / Android clear their
+     *  local creds. Backend treats "no row" as a success no-op. */
+    @POST("api/v1/auth/tesla/unbind")
+    suspend fun unbindTesla(
+        @Query("user_id") userId: Long,
+    ): BaseResponse
 }

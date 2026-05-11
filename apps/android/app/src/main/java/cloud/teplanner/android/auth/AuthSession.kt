@@ -26,4 +26,6 @@ class AuthSession @Inject constructor(
         get() = repo.isAuthenticated
 
     fun logout() = repo.logout()
+
+    suspend fun unbindTesla(): Result<Unit> = repo.unbindTesla()
 }

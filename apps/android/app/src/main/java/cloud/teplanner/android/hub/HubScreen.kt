@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.DepartureBoard
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -49,6 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +61,7 @@ import cloud.teplanner.android.auth.AuthSession
 import cloud.teplanner.android.core.network.VehicleStateResponse
 import cloud.teplanner.android.departure.ScheduledDepartureSheet
 import cloud.teplanner.android.departure.ScheduledDepartureViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Phase F.2 — Hub. Mirrors iOS HubView in slimmer form:
@@ -86,7 +89,10 @@ fun HubScreen(
     val commandStatusState by commandStatus.state.collectAsState()
     var showDepartureSheet by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
+    var showUnbindConfirm by remember { mutableStateOf(false) }
+    var unbindError by remember { mutableStateOf<String?>(null) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val unbindScope = rememberCoroutineScope()
 
     // Trigger converge poll after any chip command success — mirror
     // of iOS HubView.applyChipCommandResult kicking pollUntilSettled.
@@ -132,6 +138,26 @@ fun HubScreen(
                                 onLoggedOut()
                             },
                             modifier = Modifier.testTag("hub_menu_logout"),
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "解绑 Tesla 账户",
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.LinkOff,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                showUnbindConfirm = true
+                            },
+                            modifier = Modifier.testTag("hub_menu_unbind"),
                         )
                     }
                 },
@@ -218,6 +244,45 @@ fun HubScreen(
                 },
                 onClear = { departure.clear() },
                 onDismiss = { showDepartureSheet = false },
+            )
+        }
+
+        if (showUnbindConfirm) {
+            AlertDialog(
+                onDismissRequest = { showUnbindConfirm = false },
+                title = { Text("解绑 Tesla 账户") },
+                text = {
+                    Text("将清除服务端授权与本地凭据，下次登录需要重新授权 Tesla。")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showUnbindConfirm = false
+                            unbindScope.launch {
+                                auth.unbindTesla().onFailure { err ->
+                                    unbindError = err.localizedMessage
+                                        ?: "解绑失败，请稍后重试"
+                                }
+                                onLoggedOut()
+                            }
+                        },
+                        modifier = Modifier.testTag("unbind_confirm_button"),
+                    ) { Text("确认解绑", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUnbindConfirm = false }) { Text("取消") }
+                },
+            )
+        }
+
+        unbindError?.let { msg ->
+            AlertDialog(
+                onDismissRequest = { unbindError = null },
+                title = { Text("解绑失败") },
+                text = { Text(msg) },
+                confirmButton = {
+                    TextButton(onClick = { unbindError = null }) { Text("好") }
+                },
             )
         }
     }
