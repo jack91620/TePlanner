@@ -311,8 +311,13 @@ struct BatteryView: View {
             HStack(spacing: 8) {
                 if let mins = s.durationMinutes { Text(formatMinutes(mins)) }
                 if let km = s.rangeAddedKm, km > 0 { Text("· +\(Int(km)) km") }
-                if let endedAsComplete = s.endedAsComplete {
-                    Text("· \(endedAsComplete ? "完成" : "中断")")
+                // 2026-05-11: collapse "完成"/"中断" → 统一显示「充电完成」。
+                // `ended_as_complete` 在实践中常不可靠（closer-handled session
+                // 看到的 telemetry 多半是 Disconnected 而非 Complete，
+                // 被打成 false 但其实是正常完成）。SOC delta / 续航增量
+                // 才是用户真正关心的信号——在详情页可见。
+                if s.endedAsComplete != nil {
+                    Text("· 充电完成")
                 }
                 if let location = s.locationName { Text("· \(location)").lineLimit(1) }
             }

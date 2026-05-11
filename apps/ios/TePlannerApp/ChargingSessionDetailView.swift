@@ -138,22 +138,19 @@ struct ChargingSessionDetailView: View {
         }
     }
 
+    // 2026-05-11: 「完成 / 中断」二分简化为「充电完成」。`ended_as_complete`
+    // 在 closer-handled session 上常被误打成 false（telemetry 已 stale），
+    // 反而误导用户。详情页的 SOC delta + 续航增量是更准的「完成度」信号。
     private var statusIcon: String {
-        if session.isOngoing { return "bolt.circle.fill" }
-        if session.endedAsComplete == true { return "checkmark.circle.fill" }
-        return "exclamationmark.circle.fill"
+        session.isOngoing ? "bolt.circle.fill" : "checkmark.circle.fill"
     }
 
     private var statusColor: Color {
-        if session.isOngoing { return .green }
-        if session.endedAsComplete == true { return .blue }
-        return .orange
+        session.isOngoing ? .green : .blue
     }
 
     private var statusTitle: String {
-        if session.isOngoing { return "进行中" }
-        if session.endedAsComplete == true { return "已完成" }
-        return "已中断"
+        session.isOngoing ? "进行中" : "充电完成"
     }
 
     private var statusSubtitle: String {
