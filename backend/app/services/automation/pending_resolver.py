@@ -149,7 +149,17 @@ async def write_pending(
 ) -> Optional[CommandPending]:
     """Insert a new pending row. No-op when ``expected`` is empty
     (capability has no observable telemetry — UI confirms on HTTP
-    2xx alone)."""
+    2xx alone).
+
+    iOS contract: any client UI that dispatches a capability with a
+    non-empty expected_state MUST also kick off
+    HubView.pollCommandStatusesUntilSettled() (or equivalent). Without
+    that, refreshCommandStatuses runs once on the next vehicleState
+    change, may catch the row mid-pending, and never re-polls — the
+    user sees CommandStatusBanner stuck at "等待车辆确认". See
+    commit f37a26f for the canonical fix; if you add a new expected_state
+    to a capability, check every iOS site that calls that capability.
+    """
     if not expected:
         return None
     if now is None:
