@@ -212,8 +212,18 @@ struct BatteryView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 statCard(icon: "bolt.fill", title: "充电次数", value: "\(statsVM.monthlyCount) 次")
                 statCard(icon: "clock.fill", title: "累计时长", value: formatMinutes(statsVM.monthlyDurationMinutes))
-                statCard(icon: "road.lanes", title: "新增续航", value: "\(Int(statsVM.monthlyRangeAddedKm)) km")
-                statCard(icon: "battery.100", title: "SOC 增量", value: "\(statsVM.monthlySocDelta)%")
+                statCard(
+                    icon: "road.lanes",
+                    title: "新增续航",
+                    value: "\(Int(statsVM.monthlyRangeAddedKm)) km",
+                    incomplete: statsVM.monthlyCount > 0 && !statsVM.hasMonthlyRangeData,
+                )
+                statCard(
+                    icon: "battery.100",
+                    title: "SOC 增量",
+                    value: "\(statsVM.monthlySocDelta)%",
+                    incomplete: statsVM.monthlyCount > 0 && !statsVM.hasMonthlySocData,
+                )
             }
         }
     }
@@ -250,13 +260,32 @@ struct BatteryView: View {
         .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func statCard(icon: String, title: String, value: String) -> some View {
+    private func statCard(
+        icon: String,
+        title: String,
+        value: String,
+        incomplete: Bool = false,
+    ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: icon).foregroundStyle(.tint)
                 Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if incomplete {
+                    Text("数据不全")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Tokens.colorWashWarning.opacity(Tokens.colorWashWarningAlpha),
+                            in: Capsule()
+                        )
+                        .foregroundStyle(Tokens.colorWashWarning)
+                }
             }
-            Text(value).font(.title3.weight(.semibold).monospacedDigit())
+            Text(incomplete ? "—" : value)
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(incomplete ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

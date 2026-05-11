@@ -61,6 +61,25 @@ public final class ChargingStatsViewModel: ObservableObject {
     /// `nil` ⇒ no data; UI uses this to drive the empty-state view.
     public var hasAnyData: Bool { !sessions.isEmpty }
 
+    // MARK: - data availability flags
+    //
+    // Server-side closer (charge_analysis/closer.py) often closes
+    // a session without end_soc / end_range_km because telemetry
+    // was stale at close time. The session is correctly marked as
+    // 中断 but the UI used to display "0 km" / "0%" which read as
+    // "I charged but added nothing." These flags let the cards
+    // distinguish "no data captured" from "true zero."
+
+    /// At least one finalized session this month has both start+end SOC.
+    public var hasMonthlySocData: Bool {
+        thisMonthSessions.contains { $0.socDelta != nil }
+    }
+
+    /// At least one finalized session this month has both start+end range.
+    public var hasMonthlyRangeData: Bool {
+        thisMonthSessions.contains { $0.rangeAddedKm != nil }
+    }
+
     // MARK: - private
 
     private var thisMonthSessions: [ChargingSession] {

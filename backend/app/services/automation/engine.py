@@ -268,6 +268,32 @@ def _sort_rules_canonically(rows: list[AutomationRule]) -> list[AutomationRule]:
     return sorted(rows, key=key)
 
 
+def _escalating_repush_gap(cycle_count: int) -> "timedelta":
+    """Exponential backoff for repushes within a cycle.
+
+    cycle_count is "how many pushes for this kind have happened in
+    the cycle window". The 0th and 1st pushes (no prior or one prior
+    in the window) are gated by the base 15-minute floor. After
+    that, each repush doubles the wait, capped at 240 minutes (4h):
+
+       0 or 1 prior →  15 min   (first repush after fresh / 1 push)
+       2 prior      →  30 min
+       3 prior      →  60 min
+       4 prior      → 120 min
+       5+ prior     → 240 min   (cap)
+
+    Net effect: after a kind has been firing 4 hours, the user gets
+    one push every 4 hours until the condition clears, instead of
+    one every 15 minutes (16/h vs 0.25/h).
+    """
+    from datetime import timedelta
+    if cycle_count <= 1:
+        return timedelta(minutes=15)
+    # cycle_count=2 → exp=1 (30min), 3 → 2 (60), 4 → 3 (120), 5+ → 4 (240)
+    exp = min(cycle_count - 1, 4)
+    return timedelta(minutes=15 * (2 ** exp))
+
+
 @dataclass
 class TickResult:
     alerts: List[Alert]
@@ -457,8 +483,27 @@ class AutomationEngine:
             #      INSERT in the other session), treat as "race lost,
             #      no push, but condition is active".
             from datetime import timedelta
-            REPUSH_GUARD = timedelta(minutes=15)
+            from sqlalchemy import func
             now_naive = utc_now().replace(tzinfo=None)
+            # 2026-05-11 (A1): escalating backoff. 97 campMode pushes
+            # in 24h (one every 15 min) was technically "as designed"
+            # but unusable in practice. Switch to 15min → 30 → 60 →
+            # 120 → 240 cap, scoped to a 4-hour cycle window. The
+            # cycle resets when no push for this kind has happened
+            # in the last 4 hours.
+            CYCLE_WINDOW = timedelta(hours=4)
+            cycle_cutoff = now_naive - CYCLE_WINDOW
+            cycle_count = (await db.execute(
+                select(func.count())
+                .select_from(PushedAlert)
+                .where(
+                    PushedAlert.user_id == user_id,
+                    PushedAlert.vehicle_id == vehicle_id,
+                    PushedAlert.kind == kind.value,
+                    PushedAlert.pushed_at >= cycle_cutoff,
+                )
+            )).scalar() or 0
+            REPUSH_GUARD = _escalating_repush_gap(cycle_count)
             cutoff = now_naive - REPUSH_GUARD
             recent = (await db.execute(
                 select(PushedAlert)
@@ -473,9 +518,9 @@ class AutomationEngine:
                 # In-window row exists; re-open instead of pushing.
                 recent.cleared_at = None
                 logger.info(
-                    "PushedAlert re-push suppressed (within %s window): "
+                    "PushedAlert re-push suppressed (cycle=%s, gap=%s): "
                     "user=%s vehicle=%s kind=%s",
-                    REPUSH_GUARD, user_id, vehicle_id, kind.value,
+                    cycle_count, REPUSH_GUARD, user_id, vehicle_id, kind.value,
                 )
                 return "noop"
             # No in-window row — try to insert. The partial unique
