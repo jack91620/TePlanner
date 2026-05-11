@@ -83,7 +83,7 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
         let allKinds: [VehicleAlert.Kind] = [
             .campMode, .sentryMode, .chargeComplete, .cabinOverheat,
             .leftUnlocked, .closureLeftOpen, .lowBattery, .weekdayPreheat,
-            .geofenceEnter, .geofenceExit,
+            .geofenceEnter, .geofenceExit, .connectivity, .waitResolved,
         ]
         let categories = allKinds.map { kind in
             UNNotificationCategory(

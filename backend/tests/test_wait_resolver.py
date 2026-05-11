@@ -103,10 +103,54 @@ async def test_predicate_match_resolves_and_emits_alert(user, db_session):
     assert a.title == "预热完成"
     assert "21.5" in a.detail
     assert a.severity == AlertSeverity.INFO
+    # No explicit kind in then-action → falls back to WAIT_RESOLVED
+    # (NOT chargeComplete — see #19 in tech-debt audit; CHARGE_COMPLETE
+    # was the prior placeholder which mis-fired iOS chargeComplete UI).
+    from app.services.automation.base import AlertKind
+    assert a.kind == AlertKind.WAIT_RESOLVED
 
     # Row marked resolved.
     rows = (await db_session.execute(select(PendingWait))).scalars().all()
     assert rows[0].resolved_at is not None
+
+
+async def test_explicit_kind_in_then_action_is_used(user, db_session):
+    """Rule designers can set then.kind to any AlertKind for routing."""
+    await enqueue_wait(
+        db_session,
+        user_id=user.id, vehicle_id=VIN, rule_id="r1",
+        predicate={"entity": "vehicle.inside_temp_c", "op": ">=", "value": 20},
+        then_action={
+            "type": "notify", "title": "预热完成", "body": "",
+            "kind": "weekdayPreheat",   # explicit override
+        },
+    )
+    await db_session.commit()
+    snap = VehicleStateSnapshot(inside_temp_c=21.5)
+    alerts = await check_and_resolve(
+        db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
+    )
+    from app.services.automation.base import AlertKind
+    assert alerts[0].kind == AlertKind.WEEKDAY_PREHEAT
+
+
+async def test_unknown_kind_in_then_action_falls_back(user, db_session):
+    await enqueue_wait(
+        db_session,
+        user_id=user.id, vehicle_id=VIN, rule_id="r1",
+        predicate={"entity": "vehicle.inside_temp_c", "op": ">=", "value": 20},
+        then_action={
+            "type": "notify", "title": "预热完成", "body": "",
+            "kind": "totallyMadeUpKind",
+        },
+    )
+    await db_session.commit()
+    snap = VehicleStateSnapshot(inside_temp_c=21.5)
+    alerts = await check_and_resolve(
+        db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
+    )
+    from app.services.automation.base import AlertKind
+    assert alerts[0].kind == AlertKind.WAIT_RESOLVED
 
 
 async def test_predicate_mismatch_within_deadline_stays_unresolved(user, db_session):

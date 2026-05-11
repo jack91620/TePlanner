@@ -14,6 +14,13 @@ public typealias RuleSpec = [String: JSONValue]
 
 /// One full rule entity from `GET /api/v1/automations`. Carries the
 /// row identity (id / preset_id / name / enabled) plus the spec body.
+///
+/// CANONICAL iOS type for rules. The OpenAPI codegen also emits
+/// `TePlannerAPI.RuleResponse` (Phase C), but it uses `AnyCodable`
+/// for the spec dict which would force every interpreter site to
+/// re-decode JSON instead of using `JSONValue.intValue` etc.
+/// Decision (#20): keep this type, contract-check parity in
+/// `RuleResponseParityTests.swift` to catch backend-schema drift.
 public struct RuleRecord: Equatable, Sendable, Codable, Identifiable {
     public let id: String
     public let presetId: String?

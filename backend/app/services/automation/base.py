@@ -37,6 +37,11 @@ class AlertKind(str, Enum):
     GEOFENCE_ENTER = "geofenceEnter"
     GEOFENCE_EXIT = "geofenceExit"
     CONNECTIVITY = "connectivity"
+    # Phase 11 — generic kind for wait_for_state then-action alerts
+    # whose rule designer didn't specify an explicit kind. Replaces the
+    # silent CHARGE_COMPLETE repurpose that would mis-fire as charge
+    # complete on the iOS pill / notification.
+    WAIT_RESOLVED = "waitResolved"
 
 
 class AlertSeverity(str, Enum):

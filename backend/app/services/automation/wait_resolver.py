@@ -173,10 +173,15 @@ def _format_then_alert(
     except ValueError:
         severity = AlertSeverity.INFO
 
-    # The kind is hardcoded as info-grade for v1; rule designers can
-    # add custom kinds in Phase 12 if needed.
+    kind_raw = then_action.get("kind")
+    try:
+        kind = AlertKind(kind_raw) if kind_raw else AlertKind.WAIT_RESOLVED
+    except ValueError:
+        logger.warning("wait_resolver: unknown then.kind=%r, using WAIT_RESOLVED", kind_raw)
+        kind = AlertKind.WAIT_RESOLVED
+
     return Alert(
-        kind=AlertKind.CHARGE_COMPLETE,  # repurpose as generic info kind for v1
+        kind=kind,
         title=title,
         detail=body,
         severity=severity,

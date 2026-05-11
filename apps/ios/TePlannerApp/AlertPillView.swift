@@ -92,6 +92,7 @@ struct AlertPillView: View {
         case .geofenceEnter: return "location.fill"
         case .geofenceExit: return "location.slash.fill"
         case .connectivity: return "antenna.radiowaves.left.and.right"
+        case .waitResolved: return "checkmark.circle.fill"
         }
     }
 

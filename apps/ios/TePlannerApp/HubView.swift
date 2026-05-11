@@ -164,9 +164,18 @@ struct HubView: View {
             // server's `is_firing` set so old banners (from a previous
             // app session, or pre-fix spam runs) get withdrawn from
             // the system tray when the rule is no longer firing.
-            let firing = Set(fetched.compactMap {
-                $0.isFiring ? $0.spec.string("kind") : nil
-            })
+            var firing: Set<String> = []
+            for rule in fetched where rule.isFiring {
+                if let k = rule.spec.string("kind") { firing.insert(k) }
+                // wait_for_state rules can fire a different alert kind
+                // (rule.spec.actions[0].then.kind, default "waitResolved")
+                // than the rule's primary spec.kind. Without this both
+                // kinds need to be considered "firing" for reconcile or
+                // the wait-resolved local notif gets removed immediately.
+                for thenKind in waitResolvedKinds(in: rule.spec) {
+                    firing.insert(thenKind)
+                }
+            }
             LocalNotificationScheduler.shared.reconcileDelivered(firingKinds: firing)
         }
         .onDisappear { viewModel.stopPolling() }
@@ -324,6 +333,23 @@ struct HubView: View {
     /// has any `tel:*:since` rows for this vehicle. Until it does, the
     /// hub surfaces a "等待车辆上线" placeholder explaining the empty
     /// automation state.
+    /// All AlertKinds a rule's wait_for_state then-action could fire.
+    /// Currently at most one (v1 wait_resolver), but returned as Set
+    /// so caller can union without special-casing the empty case.
+    private func waitResolvedKinds(in spec: RuleSpec) -> Set<String> {
+        var out: Set<String> = []
+        for bucket in ["actions", "actions_above", "actions_below"] {
+            guard let arr = spec[bucket]?.arrayValue else { continue }
+            for action in arr {
+                guard let obj = action.objectValue,
+                      obj.string("type") == "wait_for_state",
+                      let then = obj["then"]?.objectValue else { continue }
+                out.insert(then.string("kind") ?? "waitResolved")
+            }
+        }
+        return out
+    }
+
     private func refreshTelemetryState() async {
         switch await apiService.fetchAutomationState() {
         case .success(let resp):

@@ -2,15 +2,23 @@ import XCTest
 @testable import TePlannerKit
 import TePlannerAPI
 
-/// Phase C PoC — prove the OpenAPI-generated `TePlannerAPI.RuleResponse`
-/// decodes the same wire payload as the hand-written
-/// `TePlannerKit.RuleRecord`. If this test stays green over time, we
-/// can confidently migrate `APIService.swift` to consume the
-/// generated DTO directly and delete `RuleRecord`'s manual Codable
-/// boilerplate.
+/// Contract guard between the hand-written `TePlannerKit.RuleRecord`
+/// (canonical iOS type, used by interpreter / view models / tests)
+/// and the OpenAPI-generated `TePlannerAPI.RuleResponse` (drift
+/// detector against the backend's published schema).
 ///
-/// Today (2026-05-11) both representations co-exist; this is the
-/// behavioural contract for the migration.
+/// Decision (#20, 2026-05-11): we keep both, but only RuleRecord is
+/// used at runtime. Reason: RuleRecord uses `RuleSpec = [String:
+/// JSONValue]` for the spec dict — type-safe access via `.string("kind")`,
+/// `.int("for_minutes")`, etc. The generated DTO uses `AnyCodable`
+/// which loses static typing, would break the interpreter, and would
+/// require either a custom generator template or post-processing.
+///
+/// This test stays as a wire-shape contract check: if the backend's
+/// /openapi.json drifts (e.g. enabled becomes Optional, or a field
+/// is renamed), one of the assertions below fails BEFORE production
+/// users hit a decode error. To regenerate after a backend schema
+/// change: `make openapi-snapshot && make codegen`.
 final class RuleResponseParityTests: XCTestCase {
 
     /// Realistic payload mirroring `GET /api/v1/automations/`'s

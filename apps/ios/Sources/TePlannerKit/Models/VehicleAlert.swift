@@ -21,6 +21,8 @@ public struct VehicleAlert: Identifiable, Equatable {
         case geofenceEnter
         case geofenceExit
         case connectivity
+        // Phase 11 — generic wait_for_state then-action result.
+        case waitResolved
     }
 
     public enum Severity: String, Sendable {
