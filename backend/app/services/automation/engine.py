@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -438,46 +438,58 @@ class AutomationEngine:
         is_critical = alert is not None and alert.severity == AlertSeverity.CRITICAL
 
         if is_critical and active is None:
-            # P0 hot fix (2026-05-10): the engine flaps is_on true/false
-            # when polling vehicle_state has transient gaps, which
-            # historically created a NEW PushedAlert + push on every
-            # flap (50 pushes / 9 min observed for user 241). Even
-            # though the active row was cleared, recreating it within
-            # a short window is almost always the same condition
-            # re-firing. Suppress new rows when a recent (cleared or
-            # not) row exists for this kind.
+            # 2026-05-11: race condition observed — cron tick + telemetry
+            # consumer evaluated the same rule concurrently, both saw
+            # "no recent PushedAlert" and both INSERTed (136ms apart) →
+            # 2 identical "车辆未锁" pushes to the user. The previous
+            # SELECT-then-INSERT couldn't see the in-flight insert.
+            #
+            # Fix: do dedup as a single atomic INSERT...SELECT WHERE
+            # NOT EXISTS. SQLite serializes writes via WAL so the
+            # second INSERT sees the first row when its WHERE clause
+            # evaluates, skipping silently. Postgres equivalents work
+            # the same way without explicit locking.
+            #
+            # Window: 15 min. Same flap-protection contract as before.
             from datetime import timedelta
             REPUSH_GUARD = timedelta(minutes=15)
-            recent_stmt = (
-                select(PushedAlert)
-                .where(
-                    PushedAlert.user_id == user_id,
-                    PushedAlert.vehicle_id == vehicle_id,
-                    PushedAlert.kind == kind.value,
+            now_naive = utc_now().replace(tzinfo=None)
+            cutoff = now_naive - REPUSH_GUARD
+            insert_sql = text("""
+                INSERT INTO pushed_alerts (user_id, vehicle_id, kind, pushed_at)
+                SELECT :uid, :vid, :kind, :now
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM pushed_alerts
+                    WHERE user_id = :uid
+                      AND vehicle_id = :vid
+                      AND kind = :kind
+                      AND pushed_at >= :cutoff
                 )
-                .order_by(PushedAlert.pushed_at.desc())
-                .limit(1)
-            )
-            most_recent = (await db.execute(recent_stmt)).scalar_one_or_none()
-            if most_recent is not None and (
-                utc_now().replace(tzinfo=None) - most_recent.pushed_at
-            ) < REPUSH_GUARD:
-                # Re-open the existing row instead of creating + pushing.
-                # The condition is still considered active; we just
-                # don't spam APNs/JPush for the same kind within the
-                # guard window.
-                most_recent.cleared_at = None
+            """)
+            result = await db.execute(insert_sql, {
+                "uid": user_id, "vid": vehicle_id, "kind": kind.value,
+                "now": now_naive, "cutoff": cutoff,
+            })
+            if result.rowcount == 0:
+                # A row within the guard window already existed (either
+                # cleared or active). Re-open the most recent one so
+                # the alert pill UI keeps showing it; no push.
+                reopen = (await db.execute(
+                    select(PushedAlert)
+                    .where(PushedAlert.user_id == user_id)
+                    .where(PushedAlert.vehicle_id == vehicle_id)
+                    .where(PushedAlert.kind == kind.value)
+                    .order_by(PushedAlert.pushed_at.desc())
+                    .limit(1)
+                )).scalar_one_or_none()
+                if reopen is not None:
+                    reopen.cleared_at = None
                 logger.info(
                     "PushedAlert re-push suppressed (within %s window): "
                     "user=%s vehicle=%s kind=%s",
                     REPUSH_GUARD, user_id, vehicle_id, kind.value,
                 )
                 return "noop"
-            db.add(PushedAlert(
-                user_id=user_id,
-                vehicle_id=vehicle_id,
-                kind=kind.value,
-            ))
             return "newly_critical"
         if (not is_critical) and active is not None:
             active.cleared_at = utc_now().replace(tzinfo=None)
