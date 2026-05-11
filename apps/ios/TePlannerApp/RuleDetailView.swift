@@ -149,15 +149,15 @@ struct RuleDetailView: View {
                                 .font(.caption2.bold())
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.blue)
+                                .background(Tokens.colorBadgePresetBg.opacity(Tokens.colorBadgePresetBgAlpha), in: Capsule())
+                                .foregroundStyle(Tokens.colorBadgePresetFg)
                         } else {
                             Text("自定义")
                                 .font(.caption2.bold())
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.green.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.green)
+                                .background(Tokens.colorBadgeCustomBg.opacity(Tokens.colorBadgeCustomBgAlpha), in: Capsule())
+                                .foregroundStyle(Tokens.colorBadgeCustomFg)
                         }
                         Text(r.enabled ? "已启用" : "已停用")
                             .font(.caption)
@@ -443,7 +443,7 @@ struct RuleDetailView: View {
                 }
                 .foregroundStyle(.primary)
             }
-            .listRowBackground(Color.orange.opacity(0.1))
+            .listRowBackground(Tokens.colorWashSnooze.opacity(Tokens.colorWashSnoozeAlpha))
         }
     }
 

@@ -107,7 +107,7 @@ struct AutomationsHomeView: View {
                         .controlSize(.small)
                     }
                 }
-                .listRowBackground(Color.orange.opacity(0.08))
+                .listRowBackground(Tokens.colorWashSnooze.opacity(Tokens.colorWashSnoozeAlpha))
             }
             if !presetRules.isEmpty {
                 Section {

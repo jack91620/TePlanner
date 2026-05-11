@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import TePlannerKit
 
 /// Surfaced on Hub when the user denied notification permission.
 /// Without notifications the camp / sentry / cabin / charge alerts
@@ -58,7 +59,7 @@ struct PermissionBannerView: View {
                 Spacer(minLength: 0)
             }
             .padding(14)
-            .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+            .background(Tokens.colorWashPermission.opacity(Tokens.colorWashPermissionAlpha), in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
             .accessibilityIdentifier("permission_banner")
         }
     }

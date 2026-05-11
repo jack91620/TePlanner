@@ -220,7 +220,7 @@ private struct RouteSummaryDrawerContent: View {
             }
         }
         .padding(12)
-        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        .background(Tokens.colorWashWarning.opacity(Tokens.colorWashWarningAlpha), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var chargingStopsList: some View {
