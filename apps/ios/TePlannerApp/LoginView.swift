@@ -74,7 +74,7 @@ struct LoginView: View {
             VStack(spacing: 8) {
                 Text("Tautomation")
                     .font(.largeTitle.bold())
-                Text("让天下没有难用的特斯拉")
+                Text("你的特斯拉，更懂你")
                     .foregroundStyle(.secondary)
             }
 
