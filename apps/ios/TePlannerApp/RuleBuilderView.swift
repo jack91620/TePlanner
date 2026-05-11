@@ -245,6 +245,18 @@ struct RuleBuilderView: View {
         var label: String {
             self == .notify ? "仅通知" : "通知 + 操作按钮"
         }
+        var description: String {
+            switch self {
+            case .notify: return "仅推送一条信息，让用户自己决定怎么处理。"
+            case .notifyAndOffer: return "推送 + 在 Hub chip / 通知中提供一键操作（如关闭露营）。"
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .notify: return "bell.fill"
+            case .notifyAndOffer: return "hand.tap.fill"
+            }
+        }
     }
 
     enum AlertSeverityChoice: String, CaseIterable, Identifiable {
@@ -346,7 +358,7 @@ struct RuleBuilderView: View {
             Toggle("启用", isOn: $enabled)
         } header: {
             HStack(spacing: 4) {
-                Text("名称")
+                Text("① 名称")
                 Text("*").foregroundStyle(.red)
             }
         }
@@ -395,7 +407,7 @@ struct RuleBuilderView: View {
     }
 
     private var triggerSection: some View {
-        Section("当") {
+        Section("② 当") {
             triggerTypePicker
             switch triggerType {
             case .stateDuration:
@@ -625,13 +637,51 @@ struct RuleBuilderView: View {
         }
     }
 
+    /// Card-style action type picker — parity with triggerTypePicker.
+    /// Replaces a plain Picker so users can read each option's
+    /// description before committing, and so the affordance feels
+    /// consistent with the trigger step above.
+    @ViewBuilder
+    private var actionTypePicker: some View {
+        VStack(spacing: 8) {
+            ForEach(ActionType.allCases) { a in
+                Button {
+                    actionType = a
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.accentColor.opacity(actionType == a ? 0.25 : 0.10))
+                            Image(systemName: a.symbol)
+                                .foregroundStyle(.tint)
+                        }
+                        .frame(width: 32, height: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(a.label)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(a.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 4)
+                        if actionType == a {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private var actionSection: some View {
         Section {
-            Picker("类型", selection: $actionType) {
-                ForEach(ActionType.allCases) { a in
-                    Text(a.label).tag(a)
-                }
-            }
+            actionTypePicker
             HStack(spacing: 0) {
                 TextField("标题（如「车辆未锁」）", text: $actionTitle)
                     .accessibilityIdentifier("rule_action_title_field")
@@ -672,10 +722,25 @@ struct RuleBuilderView: View {
                     )
                 }
             }
+            Button {
+                LocalNotificationScheduler.shared.fireSample(
+                    title: actionTitle.isEmpty ? "（标题留空）" : actionTitle,
+                    body: bodyPreview.isEmpty
+                        ? (actionBody.isEmpty ? "（正文留空）" : actionBody)
+                        : bodyPreview,
+                    identifier: "rule_builder_preview"
+                )
+            } label: {
+                Label("试发通知预览", systemImage: "paperplane.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(actionTitle.isEmpty && actionBody.isEmpty)
+            .accessibilityIdentifier("rule_test_notify_button")
         } header: {
-            Text("那么")
+            Text("③ 那么")
         } footer: {
-            Text("可在正文里插入 {duration_human}（持续时长）或 {battery_level}（当前电量）等占位符，推送时会自动替换成真实值。")
+            Text("可在正文里插入 {duration_human}（持续时长）或 {battery_level}（当前电量）等占位符，推送时会自动替换成真实值。点「试发通知预览」会在 1 秒后弹出当前文案，方便保存前确认。")
                 .font(.caption2)
         }
     }
