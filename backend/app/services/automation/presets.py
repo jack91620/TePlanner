@@ -115,6 +115,42 @@ CABIN_OVERHEAT = PresetDefinition(
     },
 )
 
+
+SMART_CABIN_OVERHEAT = PresetDefinition(
+    preset_id="smart_cabin_overheat_protection",
+    name="智能过热保护（自定义温度）",
+    spec={
+        "kind": "cabinOverheat",
+        # Tesla 原生 COP 只支持 Low/Med/High 三档（30/35/40°C），且阈值
+        # 不可调。此预设走 telemetry 触发，通过 set_cabin_overheat
+        # capability 在用户自定义阈值上自动开启 fan-only 通风。
+        # 注意：车深度睡眠时 telemetry 停推，建议同时让 Tesla 原生
+        # COP 设到 Low (30°C) 兜底。
+        "trigger": {
+            "type": "state_duration",
+            "entity": "vehicle.inside_temp_c",
+            "op": ">=",
+            "value": 35,            # 用户在 Rule Builder 编辑此阈值
+            "for_minutes": 1,        # 1 分钟去抖；噪声跨 35 不会立刻触发
+            "state_key": "smartCop:startedAt",
+        },
+        "actions_below": [],
+        "actions_above": [
+            {
+                "type": "notify_and_offer",
+                "title": "舱内已达 {entity_value}°C",
+                "body": "需要现在开启过热保护通风（fan-only）吗？",
+                "severity": "critical",
+                "primary_action_label": "开启过热保护",
+                "capability": "tesla.climate.set_cabin_overheat",
+                # mode=2 即 fan-only 通风，比 mode=1（空调降温）省电；
+                # 用户在 Rule Builder 切换 capability 参数即可改成 mode=1。
+                "params": {"mode": 2},
+            }
+        ],
+    },
+)
+
 CHARGE_COMPLETE = PresetDefinition(
     preset_id="charge_complete_reminder",
     name="充电完成提醒",
@@ -346,6 +382,7 @@ ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
     CABIN_OVERHEAT,
+    SMART_CABIN_OVERHEAT,
     CHARGE_COMPLETE,
     LEFT_UNLOCKED,
     WINDOW_OR_BOX_LEFT_OPEN,

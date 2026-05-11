@@ -205,7 +205,20 @@ def _eval_state_duration(spec: dict, ctx: AutomationContext, kind: AlertKind) ->
         on_since = tel_since
 
     minutes = max(0, int((ctx.now - on_since).total_seconds() / 60))
-    facts = {"duration_human": _format_minutes(minutes), "duration_minutes": minutes}
+    # Expose the actual entity reading so notification templates can
+    # echo it back ("舱内已达 36°C"). Float values render with one
+    # decimal; ints / strings / bools pass through as-is.
+    if isinstance(actual, float):
+        entity_value_rendered: Any = f"{actual:.1f}"
+    elif actual is None:
+        entity_value_rendered = "?"
+    else:
+        entity_value_rendered = actual
+    facts = {
+        "duration_human": _format_minutes(minutes),
+        "duration_minutes": minutes,
+        "entity_value": entity_value_rendered,
+    }
 
     above = minutes >= threshold
     bucket = spec.get("actions_above" if above else "actions_below", [])
