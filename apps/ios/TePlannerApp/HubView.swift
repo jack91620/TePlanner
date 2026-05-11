@@ -55,6 +55,20 @@ struct HubView: View {
     @State private var notificationBannerHideUntil: Date? =
         UserDefaultsSettingsStore.shared.hideNotificationBannerUntil
     @ObservedObject private var notificationScheduler = LocalNotificationScheduler.shared
+
+    /// 2026-05-11 — chip → tap → confirm dialog state. Holds the
+    /// chip whose action is awaiting user confirmation. nil = no
+    /// dialog showing.
+    @State private var pendingChipAction: StatusChip?
+    @State private var chipCommandStatus: ChipCommandStatus = .idle
+
+    enum ChipCommandStatus: Equatable {
+        case idle
+        case sending(label: String)
+        case sent(label: String)
+        case failed(message: String)
+    }
+
     @Environment(\.openURL) private var openURL
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
@@ -92,25 +106,7 @@ struct HubView: View {
     // ChargeLimitStatus moved into HubChargeLimitCard.Status.
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                if showWelcomeBanner {
-                    HubWelcomeBanner {
-                        UserDefaultsSettingsStore.shared.hasSeenHubWelcome = true
-                        withAnimation { showWelcomeBanner = false }
-                    }
-                }
-                permissionBanner
-                statusCard
-                alertPill
-                departureCard
-                chargeLimitSuggestionCard
-                planningEntry
-                automationsEntry
-                batteryEntry
-            }
-            .padding(16)
-        }
+        scrollContent
         .navigationTitle("Tautomation")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -149,24 +145,11 @@ struct HubView: View {
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
             }
-            // Notification-center inline action: "关闭露营" / "关闭
-            // 哨兵" buttons forward through here so AutomationEngine
-            // can dispatch the rule's configured primary capability.
-            LocalNotificationScheduler.shared.onAlertPrimaryAction = { kindRaw in
-                Task { @MainActor in
-                    guard let kind = VehicleAlert.Kind(rawValue: kindRaw),
-                          let alert = automationEngine.alerts.first(where: { $0.kind == kind })
-                    else { return }
-                    let result = await automationEngine.performPrimaryAction(
-                        for: alert,
-                        vehicleId: viewModel.vehicle?.id
-                    )
-                    if case .failure(let err) = result {
-                        alertActionError = err.localizedDescription
-                    }
-                    await pollCommandStatusesUntilSettled()
-                }
-            }
+            // 2026-05-11 — `onAlertPrimaryAction` wiring removed.
+            // Car-control actions (关闭露营 / 关闭哨兵 / 锁车 / 立即
+            // 预热) live on Hub status chips now, behind a tap-to-
+            // confirm dialog with live state visible. Notification
+            // taps just open the app.
             viewModel.startPolling()
             promptVCPPairingIfNeeded()
         }
@@ -297,6 +280,23 @@ struct HubView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(apiService: apiService)
         }
+        .confirmationDialog(
+            pendingChipAction?.confirmTitle ?? "",
+            isPresented: Binding(
+                get: { pendingChipAction != nil },
+                set: { if !$0 { pendingChipAction = nil } }
+            ),
+            titleVisibility: .visible,
+        ) {
+            if let chip = pendingChipAction {
+                Button(chip.label.contains("锁") ? "锁车" : "确认", role: .destructive) {
+                    let action = chip.action
+                    pendingChipAction = nil
+                    Task { await action?() }
+                }
+                Button("取消", role: .cancel) { pendingChipAction = nil }
+            }
+        }
         .alert("配对车辆控制", isPresented: $showingPairingPrompt) {
             Button("立即配对") {
                 openVCPPairingURL()
@@ -425,17 +425,46 @@ struct HubView: View {
         showingPairingPrompt = true
     }
 
-    private var permissionBanner: some View {
-        let binding = Binding<Date?>(
+    /// Extracted from `body` so the type-checker stays under budget.
+    /// SwiftUI couldn't infer the opaque `some View` type with all
+    /// 8+ children + the conditional welcome banner inline.
+    @ViewBuilder
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                if showWelcomeBanner {
+                    HubWelcomeBanner {
+                        UserDefaultsSettingsStore.shared.hasSeenHubWelcome = true
+                        withAnimation { showWelcomeBanner = false }
+                    }
+                }
+                permissionBanner
+                statusCard
+                alertPill
+                departureCard
+                chargeLimitSuggestionCard
+                planningEntry
+                automationsEntry
+                batteryEntry
+            }
+            .padding(16)
+        }
+    }
+
+    private var notificationBannerHideUntilBinding: Binding<Date?> {
+        Binding(
             get: { notificationBannerHideUntil },
             set: { newValue in
                 notificationBannerHideUntil = newValue
                 UserDefaultsSettingsStore.shared.hideNotificationBannerUntil = newValue
             }
         )
-        return PermissionBannerView(
+    }
+
+    private var permissionBanner: PermissionBannerView {
+        PermissionBannerView(
             status: notificationScheduler.authStatus,
-            hideUntil: binding
+            hideUntil: notificationBannerHideUntilBinding,
         )
     }
 
@@ -469,18 +498,7 @@ struct HubView: View {
                 Spacer()
             }
 
-            // 2026-05-11 — 当前车况状态 chips. Independent of alert
-            // / rule firing — shows whatever the polled vehicleState
-            // currently reports. Lets user see "camp mode is on" /
-            // "sentry armed" / "charging" without waiting for a rule
-            // to trip.
-            if !currentStateChips.isEmpty {
-                FlowingHStack(spacing: 6) {
-                    ForEach(currentStateChips, id: \.label) { chip in
-                        statusChip(chip)
-                    }
-                }
-            }
+            chipsSection
 
             if let location = viewModel.locationName {
                 Label {
@@ -498,11 +516,7 @@ struct HubView: View {
         .accessibilityIdentifier("hub_status_card")
     }
 
-    private struct StatusChip {
-        let label: String
-        let icon: String
-        let color: Color
-    }
+    typealias StatusChip = HubStatusChip
 
     /// Minimal flow layout — wraps children to next row when width
     /// exceeds container. Used for the status chip row so 6 chips
@@ -548,45 +562,166 @@ struct HubView: View {
     }
 
     /// Derive the visible "current vehicle state" chips from the
-    /// polled `vehicleState`. Each one represents a transient state
-    /// the user wants to see at a glance even before any rule has
-    /// tripped. Empty means "nothing exciting on the car right now"
-    /// → row collapses.
+    /// polled `vehicleState`. Tappable chips also carry an action
+    /// closure that sends the corresponding VCP command after the
+    /// user confirms. Empty list → row collapses.
     private var currentStateChips: [StatusChip] {
         guard let s = viewModel.vehicleState else { return [] }
+        let vid = viewModel.vehicle?.id
         var chips: [StatusChip] = []
         if s.climateKeeperMode == 3 {
-            chips.append(StatusChip(label: "露营模式", icon: "tent.fill", color: .purple))
+            chips.append(StatusChip(
+                label: "露营模式", icon: "tent.fill", color: .purple,
+                confirmTitle: "关闭露营模式？",
+                action: { await sendClimateKeeperOff(vid) },
+            ))
         } else if s.climateKeeperMode == 2 {
-            chips.append(StatusChip(label: "宠物模式", icon: "pawprint.fill", color: .pink))
+            chips.append(StatusChip(
+                label: "宠物模式", icon: "pawprint.fill", color: .pink,
+                confirmTitle: "关闭宠物模式？",
+                action: { await sendClimateKeeperOff(vid) },
+            ))
         } else if s.climateKeeperMode == 1 {
-            chips.append(StatusChip(label: "保持空调", icon: "thermometer.medium", color: .blue))
+            chips.append(StatusChip(
+                label: "保持空调", icon: "thermometer.medium", color: .blue,
+                confirmTitle: "关闭保持空调？",
+                action: { await sendClimateKeeperOff(vid) },
+            ))
         }
         if s.sentryModeOn == true {
-            chips.append(StatusChip(label: "哨兵模式", icon: "shield.fill", color: .indigo))
+            chips.append(StatusChip(
+                label: "哨兵模式", icon: "shield.fill", color: .indigo,
+                confirmTitle: "关闭哨兵模式？",
+                action: { await sendSentryOff(vid) },
+            ))
         }
         if s.cabinOverheatProtectionOn == true {
-            chips.append(StatusChip(label: "座舱过热保护", icon: "thermometer.sun.fill", color: .orange))
+            // Tesla doesn't expose a Fleet API endpoint to disable
+            // cabin-overheat-protection. Display-only.
+            chips.append(StatusChip(
+                label: "座舱过热保护", icon: "thermometer.sun.fill", color: .orange,
+                confirmTitle: nil, action: nil,
+            ))
         }
         if let cs = s.chargingState, cs == "Charging" {
-            chips.append(StatusChip(label: "充电中", icon: "bolt.fill", color: .green))
+            chips.append(StatusChip(
+                label: "充电中", icon: "bolt.fill", color: .green,
+                confirmTitle: nil, action: nil,
+            ))
         }
         if s.locked == false {
-            chips.append(StatusChip(label: "未锁车", icon: "lock.open.fill", color: .red))
+            chips.append(StatusChip(
+                label: "未锁车", icon: "lock.open.fill", color: .red,
+                confirmTitle: "锁车？",
+                action: { await sendLock(vid) },
+            ))
         }
         return chips
     }
 
-    private func statusChip(_ chip: StatusChip) -> some View {
-        Label {
-            Text(chip.label).font(.caption2.weight(.medium))
-        } icon: {
-            Image(systemName: chip.icon).font(.caption2)
+    /// Extracted from `statusCard` body so the outer view tree stays
+    /// within the type-checker budget. Shows the chip row + a status
+    /// banner when a recently-tapped chip's command is in flight.
+    private var chipsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let chips = currentStateChips
+            if !chips.isEmpty {
+                FlowingHStack(spacing: 6) {
+                    ForEach(chips) { chip in
+                        statusChip(chip)
+                    }
+                }
+            }
+            chipStatusBanner
         }
-        .foregroundStyle(chip.color)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(chip.color.opacity(0.12), in: Capsule())
+    }
+
+    private func statusChip(_ chip: StatusChip) -> some View {
+        Button {
+            if chip.action != nil {
+                pendingChipAction = chip
+            }
+        } label: {
+            Label {
+                Text(chip.label).font(.caption2.weight(.medium))
+            } icon: {
+                Image(systemName: chip.icon).font(.caption2)
+            }
+            .foregroundStyle(chip.color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(chip.color.opacity(0.12), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!chip.isTappable)
+        .accessibilityIdentifier("hub_status_chip_\(chip.label)")
+    }
+
+    @ViewBuilder
+    private var chipStatusBanner: some View {
+        switch chipCommandStatus {
+        case .idle: EmptyView()
+        case .sending(let label):
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text(label).font(.caption)
+            }
+            .foregroundStyle(.secondary)
+        case .sent(let label):
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                Text(label).font(.caption)
+            }
+            .foregroundStyle(.green)
+        case .failed(let message):
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                Text(message).font(.caption)
+                Spacer()
+                Button("关闭") { chipCommandStatus = .idle }
+                    .font(.caption2)
+            }
+            .foregroundStyle(.orange)
+        }
+    }
+
+    // MARK: - Chip → VCP command dispatchers
+
+    private func sendClimateKeeperOff(_ vehicleId: String?) async {
+        guard let vid = vehicleId else { return }
+        chipCommandStatus = .sending(label: "关闭空调保持中…")
+        let result = await apiService.setClimateKeeperMode(vehicleId: vid, mode: 0)
+        applyChipCommandResult(result, successLabel: "已关闭空调保持")
+        await viewModel.refresh()
+    }
+
+    private func sendSentryOff(_ vehicleId: String?) async {
+        guard let vid = vehicleId else { return }
+        chipCommandStatus = .sending(label: "关闭哨兵模式…")
+        let result = await apiService.setSentryMode(vehicleId: vid, on: false)
+        applyChipCommandResult(result, successLabel: "已关闭哨兵模式")
+        await viewModel.refresh()
+    }
+
+    private func sendLock(_ vehicleId: String?) async {
+        // No dedicated `lock` endpoint in APIService today —
+        // surface a placeholder telling the user to use the Tesla
+        // app for now. (Adding a /vehicles/{id}/lock backend route
+        // is its own slice; covered in docs/features/.)
+        chipCommandStatus = .failed(message: "锁车命令尚未在后端实现，请用 Tesla 官方 app 锁车。")
+        _ = vehicleId
+    }
+
+    private func applyChipCommandResult<T>(_ result: Result<T, APIError>, successLabel: String) {
+        switch result {
+        case .success:
+            chipCommandStatus = .sent(label: successLabel)
+            Task { try? await Task.sleep(nanoseconds: 2_500_000_000)
+                if case .sent = chipCommandStatus { chipCommandStatus = .idle }
+            }
+        case .failure(let err):
+            chipCommandStatus = .failed(message: err.localizedDescription)
+        }
     }
 
     private var batteryRing: some View {

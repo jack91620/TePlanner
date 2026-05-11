@@ -48,24 +48,10 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
     /// preheat tap off to the right place. nil means "no listener" —
     /// notification is silently dropped.
     var onPreheatTapped: (() -> Void)?
-    /// Fired when the user taps a notification's primary action
-    /// button (e.g. "关闭露营") from the lock screen / notification
-    /// center. Receives the alert kind raw value so HubView can
-    /// route to AutomationEngine.performPrimaryAction(...).
-    /// Setting this clears any buffered tap that arrived before
-    /// the callback was wired (cold-launch case).
-    var onAlertPrimaryAction: ((String) -> Void)? {
-        didSet {
-            if let buffered = bufferedAlertCategoryId, let handler = onAlertPrimaryAction {
-                bufferedAlertCategoryId = nil
-                handler(buffered)
-            }
-        }
-    }
-    /// Set on cold launch when the user tapped a notification action
-    /// before HubView had wired `onAlertPrimaryAction`. Replayed when
-    /// the callback eventually shows up.
-    private var bufferedAlertCategoryId: String?
+    /// 2026-05-11 — `onAlertPrimaryAction` and the cold-launch
+    /// buffering for it have been removed. Car-control actions now
+    /// live on Hub status chips (tap-to-confirm), not on notification
+    /// inline buttons. HubView no longer wires this callback.
 
     func bootstrap() {
         UNUserNotificationCenter.current().delegate = self
@@ -73,115 +59,39 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
         requestPermissionIfNeeded()
     }
 
-    /// Wire up UNNotificationCategory actions so users can act
-    /// directly from the notification center / lock screen instead
-    /// of opening the app. Mirrors iOS Shortcuts inline-action UX.
-    /// Each category is keyed by VehicleAlert.Kind so the
-    /// scheduler's per-alert `categoryIdentifier = kind.rawValue`
-    /// lights up the right buttons.
+    /// 2026-05-11 — car-control actions ("关闭露营" / "关闭哨兵" /
+    /// "锁车" / "立即预热") have been REMOVED from notification
+    /// categories. The new UX: notification is informational only;
+    /// tapping it opens the app, where the Hub statusCard chips
+    /// surface the same controls behind a tap-to-confirm dialog.
+    ///
+    /// Why: control buttons on the lock screen sent commands without
+    /// the user seeing the live state first — and from a 1.5cm wide
+    /// button with no recovery path. With chips on Hub the user sees
+    /// the current state (露营 ON / 哨兵 ON / 未锁) first, taps the
+    /// chip, sees a confirmation dialog, then the command goes out.
+    /// Same controls work whether or not a notification ever fired.
+    ///
+    /// We still register categories so iOS keeps the notification
+    /// grouped under a thread, but each only carries a dismiss action.
     private func registerActionCategories() {
         let dismissAction = UNNotificationAction(
             identifier: "dismiss",
             title: "我知道了",
             options: []
         )
-        let closeCampAction = UNNotificationAction(
-            identifier: "primary",
-            title: "关闭露营",
-            options: [.authenticationRequired]
-        )
-        let closeSentryAction = UNNotificationAction(
-            identifier: "primary",
-            title: "关闭哨兵",
-            options: [.authenticationRequired]
-        )
-        let categories: [UNNotificationCategory] = [
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.campMode.rawValue,
-                actions: [closeCampAction, dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.sentryMode.rawValue,
-                actions: [closeSentryAction, dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.chargeComplete.rawValue,
-                actions: [dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.cabinOverheat.rawValue,
-                actions: [dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.leftUnlocked.rawValue,
-                actions: [
-                    UNNotificationAction(
-                        identifier: "primary",
-                        title: "锁车",
-                        options: [.authenticationRequired]
-                    ),
-                    dismissAction,
-                ],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.closureLeftOpen.rawValue,
-                actions: [dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.lowBattery.rawValue,
-                actions: [dismissAction],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.weekdayPreheat.rawValue,
-                actions: [
-                    UNNotificationAction(
-                        identifier: "primary",
-                        title: "立即预热",
-                        options: [.authenticationRequired]
-                    ),
-                    dismissAction,
-                ],
-                intentIdentifiers: [], options: [],
-            ),
-            // Geofence categories — capability is rule-defined (could
-            // be set_sentry on enter, door_lock on exit, etc.) so the
-            // category title is generic '执行操作'. The actual title
-            // shown on the lock screen is rule-spec's
-            // primary_action_label IF the notification is delivered as
-            // a remote APNs push (server can override per-message); for
-            // local-fired previews the user sees this generic label.
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.geofenceEnter.rawValue,
-                actions: [
-                    UNNotificationAction(
-                        identifier: "primary",
-                        title: "执行操作",
-                        options: [.authenticationRequired]
-                    ),
-                    dismissAction,
-                ],
-                intentIdentifiers: [], options: [],
-            ),
-            UNNotificationCategory(
-                identifier: VehicleAlert.Kind.geofenceExit.rawValue,
-                actions: [
-                    UNNotificationAction(
-                        identifier: "primary",
-                        title: "执行操作",
-                        options: [.authenticationRequired]
-                    ),
-                    dismissAction,
-                ],
-                intentIdentifiers: [], options: [],
-            ),
+        let allKinds: [VehicleAlert.Kind] = [
+            .campMode, .sentryMode, .chargeComplete, .cabinOverheat,
+            .leftUnlocked, .closureLeftOpen, .lowBattery, .weekdayPreheat,
+            .geofenceEnter, .geofenceExit,
         ]
+        let categories = allKinds.map { kind in
+            UNNotificationCategory(
+                identifier: kind.rawValue,
+                actions: [dismissAction],
+                intentIdentifiers: [], options: [],
+            )
+        }
         UNUserNotificationCenter.current().setNotificationCategories(Set(categories))
     }
 
@@ -388,26 +298,13 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
             }
             return
         }
-        if actionId == "primary" && !categoryId.isEmpty {
-            // User tapped the inline action button on a rule's
-            // notification (e.g. "关闭露营" / "关闭哨兵"). Forward to
-            // HubView so AutomationEngine can dispatch the rule's
-            // configured primary capability. Cold-launch case: if
-            // HubView hasn't wired its callback yet, buffer for
-            // replay (didSet on onAlertPrimaryAction handles drain).
-            Task { @MainActor in
-                let scheduler = LocalNotificationScheduler.shared
-                if let handler = scheduler.onAlertPrimaryAction {
-                    handler(categoryId)
-                } else {
-                    scheduler.bufferedAlertCategoryId = categoryId
-                }
-                completionHandler()
-            }
-            return
-        }
-        // Default tap (notification body) and "我知道了" both just
-        // open the app / dismiss; nothing else to do here.
+        // 2026-05-11 — primary actions removed from notification
+        // categories. All tap-paths fall through to "open the app";
+        // user takes any car-control action via the Hub status chips
+        // where they can confirm against the live state. The
+        // categoryId / actionId fields are kept in case future iOS
+        // versions add system-level handling we want to log.
+        _ = (actionId, categoryId)
         completionHandler()
     }
 }
