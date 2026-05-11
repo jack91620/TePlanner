@@ -332,6 +332,14 @@ different vehicle). The friendly message is in
   proxies git over `127.0.0.1:7890` (clash-meta running as systemd
   service); set via `git config http.https://github.com/.proxy ...`
   globally. See `feedback_*` memory.
+- **Android emulator DNS dies on corporate Wi-Fi.** Default AVD
+  forwards DNS via QEMU NAT → host resolver, and macOS corporate
+  resolvers (`192.168.4.x` etc.) refuse queries from QEMU. `make
+  android-boot` now launches with `-dns-server 8.8.8.8,114.114.114.114`
+  so `api.teplanner.cloud` resolves. If you boot the emulator from
+  Android Studio instead of make, you'll see `Unable to resolve
+  host` — restart via `make android-boot` or set the DNS in the
+  AVD's advanced settings.
 - If `swift build` fails with `PCH was compiled with module cache
   path '/Users/.../TePlanner/.build/...'` — the repo was previously
   at a different path. Run `make clean`.

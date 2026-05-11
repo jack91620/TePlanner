@@ -204,7 +204,7 @@ android-boot: ## Boot the first AVD (or pass ANDROID_AVD=Pixel_8 to pick one)
 	if [ -z "$$avd" ]; then echo "no AVD found — Android Studio → Tools → Device Manager → Create"; exit 1; fi; \
 	if $(ADB) devices | grep -q emulator; then echo "emulator already running"; exit 0; fi; \
 	echo "booting $$avd…"; \
-	nohup $(EMULATOR) -avd "$$avd" -no-snapshot -no-audio > /tmp/teplanner-emulator.log 2>&1 & \
+	nohup $(EMULATOR) -avd "$$avd" -dns-server 8.8.8.8,114.114.114.114 -no-snapshot -no-audio > /tmp/teplanner-emulator.log 2>&1 & \
 	echo "waiting for boot…"; \
 	$(ADB) wait-for-device; \
 	until [ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done; \
