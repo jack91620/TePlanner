@@ -448,7 +448,12 @@ struct HubView: View {
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Text(viewModel.displayName ?? "我的 Tesla")
+                // No fallback string. Tesla Fleet API returns the
+                // user-set vehicle name; if it's missing we'd rather
+                // show empty than pretend we know — surfaces the gap
+                // so it gets fixed (Tesla app side or backend side)
+                // instead of silently masking with "我的 Tesla".
+                Text(viewModel.displayName ?? "")
                     .font(.title3.weight(.semibold))
                 Spacer()
                 stateBadge

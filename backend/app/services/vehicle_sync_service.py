@@ -67,17 +67,21 @@ async def sync_vehicles(
                 user_id=user.id,
                 vehicle_id=vehicle_id,
                 vin=v.get("vin"),
-                display_name=v.get("display_name", "Tesla"),
+                display_name=v.get("display_name"),
                 model=_parse_model(v.get("vin", "")),
             ))
         else:
-            existing.display_name = v.get("display_name", existing.display_name)
+            # Tesla key absent → keep existing DB value (might be the
+            # legitimate name from a prior sync). Tesla key present
+            # but null → overwrite with null so iOS sees the truth.
+            if "display_name" in v:
+                existing.display_name = v["display_name"]
             existing.vin = v.get("vin", existing.vin)
 
         out.append({
             "id": vehicle_id,
             "vin": v.get("vin"),
-            "display_name": v.get("display_name", "Tesla"),
+            "display_name": v.get("display_name"),
             "model": _parse_model(v.get("vin", "")),
             "state": v.get("state", "unknown"),
             "is_primary": is_primary,

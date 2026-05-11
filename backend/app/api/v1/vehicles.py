@@ -39,7 +39,7 @@ class VehicleResponse(BaseModel):
 
     id: str
     vin: Optional[str] = None
-    display_name: str
+    display_name: Optional[str] = None
     model: Optional[str] = None
     state: str
     is_primary: bool = False
@@ -56,7 +56,7 @@ class VehicleStateResponse(BaseModel):
     """Vehicle state response."""
 
     vehicle_id: str
-    display_name: str
+    display_name: Optional[str] = None
     state: str  # online, asleep, offline
     battery_level: Optional[int] = None
     battery_range_km: Optional[float] = None
@@ -158,6 +158,18 @@ async def get_vehicle(
             response = await tesla_client.get_vehicle(vehicle_id)
             v = response.get("response", {})
 
+            # Visibility: did Tesla actually return the user's chosen
+            # vehicle name? Without this log we can't tell whether the
+            # iOS app shows nothing because of our bug or because Fleet
+            # API stripped the field.
+            name = v.get("display_name")
+            if not name:
+                logger.warning(
+                    "Tesla get_vehicle returned no display_name for "
+                    "user=%s vehicle=%s (key_present=%s)",
+                    user.id, vehicle_id, "display_name" in v,
+                )
+
             # Check if primary
             result = await db.execute(
                 select(Vehicle).where(
@@ -170,7 +182,7 @@ async def get_vehicle(
             return VehicleResponse(
                 id=str(v.get("id")),
                 vin=v.get("vin"),
-                display_name=v.get("display_name", "Tesla"),
+                display_name=name,
                 model=_parse_model(v.get("vin")),
                 state=v.get("state", "unknown"),
                 is_primary=db_vehicle.is_primary if db_vehicle else False,
@@ -217,9 +229,22 @@ async def get_vehicle_state(
             climate_state = v.get("climate_state", {})
             vehicle_state = v.get("vehicle_state", {})
 
+            # Same diagnostic as get_vehicle — Fleet API sometimes
+            # strips display_name on /vehicle_data but returns it on
+            # /vehicles. If iOS reads here, we want to know.
+            name = v.get("display_name") or vehicle_state.get("vehicle_name")
+            if not name:
+                logger.warning(
+                    "Tesla get_vehicle_data returned no display_name for "
+                    "user=%s vehicle=%s (top_level_key=%s vehicle_state_key=%s)",
+                    user.id, vehicle_id,
+                    "display_name" in v,
+                    "vehicle_name" in vehicle_state,
+                )
+
             return VehicleStateResponse(
                 vehicle_id=vehicle_id,
-                display_name=v.get("display_name", "Tesla"),
+                display_name=name,
                 state=v.get("state", "unknown"),
                 battery_level=charge_state.get("battery_level"),
                 battery_range_km=_miles_to_km(charge_state.get("battery_range")),
