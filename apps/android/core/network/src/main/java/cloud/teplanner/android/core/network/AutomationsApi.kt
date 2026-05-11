@@ -20,6 +20,9 @@ interface AutomationsApi {
     @GET("api/v1/automations/")
     suspend fun list(): RuleListResponse
 
+    @POST("api/v1/automations/")
+    suspend fun create(@Body body: RuleCreateRequest): RuleResponse
+
     @PUT("api/v1/automations/{id}")
     suspend fun update(@Path("id") id: String, @Body body: RuleUpdateRequest): RuleResponse
 

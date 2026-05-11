@@ -13,6 +13,7 @@ import cloud.teplanner.android.auth.AuthSession
 import cloud.teplanner.android.auth.LoginScreen
 import cloud.teplanner.android.automations.AutomationsListScreen
 import cloud.teplanner.android.automations.RecentFiresScreen
+import cloud.teplanner.android.automations.RuleBuilderScreen
 import cloud.teplanner.android.automations.RuleDetailScreen
 import cloud.teplanner.android.hub.HubScreen
 import cloud.teplanner.android.battery.BatteryView
@@ -36,7 +37,10 @@ object Routes {
     const val ROUTE_PREVIEW = "route-preview"
     const val BATTERY = "battery"
     const val ACTIVITY = "activity"
+    const val RULE_NEW = "rules/new"
+    const val RULE_EDIT_PATTERN = "rules/{id}/edit"
     fun ruleDetail(id: String) = "rules/$id"
+    fun ruleEdit(id: String) = "rules/$id/edit"
 }
 
 @Composable
@@ -48,10 +52,36 @@ fun AppNavGraph() {
         hub(nav)
         automations(nav)
         ruleDetail(nav)
+        ruleBuilderNew(nav)
+        ruleBuilderEdit(nav)
         map(nav)
         routePreview(nav)
         battery(nav)
         activity(nav)
+    }
+}
+
+private fun NavGraphBuilder.ruleBuilderNew(nav: NavHostController) {
+    composable(Routes.RULE_NEW) {
+        RuleBuilderScreen(
+            initialRuleId = null,
+            onBack = { nav.popBackStack() },
+            onSaved = { nav.popBackStack() },
+        )
+    }
+}
+
+private fun NavGraphBuilder.ruleBuilderEdit(nav: NavHostController) {
+    composable(
+        Routes.RULE_EDIT_PATTERN,
+        arguments = listOf(navArgument("id") { type = NavType.StringType }),
+    ) { entry ->
+        val id = entry.arguments?.getString("id").orEmpty()
+        RuleBuilderScreen(
+            initialRuleId = id,
+            onBack = { nav.popBackStack() },
+            onSaved = { nav.popBackStack() },
+        )
     }
 }
 
@@ -127,6 +157,7 @@ private fun NavGraphBuilder.automations(nav: NavHostController) {
             onBack = { nav.popBackStack() },
             onRule = { id -> nav.navigate(Routes.ruleDetail(id)) },
             onActivity = { nav.navigate(Routes.ACTIVITY) },
+            onCreateRule = { nav.navigate(Routes.RULE_NEW) },
         )
     }
 }
@@ -137,6 +168,10 @@ private fun NavGraphBuilder.ruleDetail(nav: NavHostController) {
         arguments = listOf(navArgument("id") { type = NavType.StringType }),
     ) { entry ->
         val id = entry.arguments?.getString("id").orEmpty()
-        RuleDetailScreen(ruleId = id, onBack = { nav.popBackStack() })
+        RuleDetailScreen(
+            ruleId = id,
+            onBack = { nav.popBackStack() },
+            onEdit = { nav.navigate(Routes.ruleEdit(it)) },
+        )
     }
 }

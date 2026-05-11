@@ -41,6 +41,13 @@ data class RuleUpdateRequest(
 )
 
 @Serializable
+data class RuleCreateRequest(
+    val name: String,
+    val enabled: Boolean = true,
+    val spec: JsonObject,
+)
+
+@Serializable
 data class SnoozeListResponse(
     val snoozes: List<SnoozeRecord>,
 )

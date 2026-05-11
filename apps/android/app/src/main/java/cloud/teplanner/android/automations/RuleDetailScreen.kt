@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.serialization.json.Json
@@ -44,6 +45,7 @@ import kotlinx.serialization.json.Json
 fun RuleDetailScreen(
     ruleId: String,
     onBack: () -> Unit,
+    onEdit: (String) -> Unit = {},
     vm: AutomationsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -59,6 +61,14 @@ fun RuleDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    if (rule != null) {
+                        androidx.compose.material3.TextButton(
+                            onClick = { onEdit(rule.id) },
+                            modifier = Modifier.testTag("rule_edit_button"),
+                        ) { Text("编辑") }
                     }
                 },
             )

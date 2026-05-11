@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.teplanner.android.core.network.AutomationsApi
 import cloud.teplanner.android.core.network.ReorderRequest
+import cloud.teplanner.android.core.network.RuleCreateRequest
 import cloud.teplanner.android.core.network.RuleResponse
 import cloud.teplanner.android.core.network.RuleUpdateRequest
+import kotlinx.serialization.json.JsonObject
 import cloud.teplanner.android.core.network.SnoozeRecord
 import cloud.teplanner.android.core.network.SnoozeRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -133,6 +135,40 @@ class AutomationsViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    /** Mirror of iOS AutomationRulesStore.create. Returns new id on success. */
+    suspend fun create(name: String, enabled: Boolean, spec: JsonObject): String? {
+        return runCatching {
+            api.create(RuleCreateRequest(name = name, enabled = enabled, spec = spec))
+        }.fold(
+            onSuccess = { newRule ->
+                _state.update { it.copy(rules = it.rules + newRule) }
+                newRule.id
+            },
+            onFailure = { err ->
+                _state.update { it.copy(error = "创建失败：${err.message}") }
+                null
+            },
+        )
+    }
+
+    /** Spec-only update (full spec replace). Returns true on success. */
+    suspend fun updateSpec(ruleId: String, name: String, enabled: Boolean, spec: JsonObject): Boolean {
+        return runCatching {
+            api.update(ruleId, RuleUpdateRequest(name = name, enabled = enabled, spec = spec))
+        }.fold(
+            onSuccess = { updated ->
+                _state.update { s ->
+                    s.copy(rules = s.rules.map { if (it.id == ruleId) updated else it })
+                }
+                true
+            },
+            onFailure = { err ->
+                _state.update { it.copy(error = "更新失败：${err.message}") }
+                false
+            },
+        )
     }
 
     fun acknowledgeError() {

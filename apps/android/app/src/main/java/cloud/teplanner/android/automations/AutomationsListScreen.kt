@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -77,6 +78,7 @@ fun AutomationsListScreen(
     onBack: () -> Unit,
     onRule: (String) -> Unit,
     onActivity: () -> Unit = {},
+    onCreateRule: () -> Unit = {},
     vm: AutomationsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -105,6 +107,15 @@ fun AutomationsListScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onCreateRule,
+                        modifier = Modifier.testTag("automations_create_button"),
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = "新建自动化",
+                        )
+                    }
                     // 「活动」— recent fires timeline. iOS reaches it
                     // from the Hub menu; on Android we hang it off
                     // the automations top bar since "what fired" is
