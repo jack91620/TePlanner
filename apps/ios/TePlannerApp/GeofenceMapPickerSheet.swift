@@ -225,11 +225,18 @@ struct GeofenceMapPickerSheet: View {
     /// last region-change emission. Cancels any in-flight task on
     /// subsequent stable-events so we never race two requests.
     private func scheduleReverseGeocode(lat: Double, lng: Double) {
+        // Center is in GCJ-02 (AMap display coords). Project convention:
+        // iOS sends WGS-84 to backend; backend converts to GCJ-02
+        // internally before talking to AMap Web. Convert at the boundary.
+        let wgs = CoordConverter.gcj02ToWgs84(
+            CLLocationCoordinate2D(latitude: lat, longitude: lng))
         debouncedReverseTask?.cancel()
         debouncedReverseTask = Task {
             try? await Task.sleep(nanoseconds: 400 * 1_000_000)
             if Task.isCancelled { return }
-            switch await apiService.reverseGeocode(latitude: lat, longitude: lng) {
+            switch await apiService.reverseGeocode(
+                latitude: wgs.latitude, longitude: wgs.longitude,
+            ) {
             case .success(let resp):
                 if let label = resp.displayName {
                     await MainActor.run { addressLabel = label }

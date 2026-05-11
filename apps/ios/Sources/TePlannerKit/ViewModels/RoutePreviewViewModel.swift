@@ -73,9 +73,19 @@ public final class RoutePreviewViewModel: ObservableObject {
     public func load() async {
         state = .loading
         Log.search.notice("plan route to \(self.destination.name, privacy: .public) (lat=\(self.destination.latitude, privacy: .public), lng=\(self.destination.longitude, privacy: .public))")
+        // Destination came from AMap POI search → GCJ-02. Project
+        // convention: iOS sends WGS-84 to backend; backend converts
+        // to GCJ-02 internally before calling AMap Web for routing.
+        // Convert at the boundary so the route polyline starts from
+        // the correct origin pin, not one offset by ~100 m.
+        let destWGS = CoordConverter.gcj02ToWgs84(
+            CLLocationCoordinate2D(
+                latitude: destination.latitude,
+                longitude: destination.longitude,
+            ))
         let dest = LocationInput(
-            latitude: destination.latitude,
-            longitude: destination.longitude,
+            latitude: destWGS.latitude,
+            longitude: destWGS.longitude,
             address: destination.address.isEmpty ? destination.name : destination.address
         )
         guard let origin else {

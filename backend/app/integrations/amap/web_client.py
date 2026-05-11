@@ -23,6 +23,7 @@ from math import asin, cos, radians, sin, sqrt
 import httpx
 
 from app.config import settings
+from app.integrations.amap.coord import wgs84_to_gcj02
 
 
 class AmapWebClient:
@@ -92,8 +93,10 @@ class AmapWebClient:
         latitude: float,
         longitude: float,
     ) -> Dict[str, Any]:
-        """coordinates → address. Returns Tencent-shape dict with
-        `address` + `formatted_addresses.recommend` etc."""
+        """coordinates → address. Input is WGS-84 (project convention);
+        converted to GCJ-02 internally for AMap. Returns Tencent-shape
+        dict with `address` + `formatted_addresses.recommend` etc."""
+        latitude, longitude = wgs84_to_gcj02(latitude, longitude)
         data = await self._request(
             "/v3/geocode/regeo",
             {"location": f"{longitude},{latitude}"},
@@ -186,7 +189,9 @@ class AmapWebClient:
         page_size: int = 20,
         page_index: int = 1,
     ) -> List[Dict[str, Any]]:
-        """周边搜索 — POI around (lat, lng) within `radius` meters."""
+        """周边搜索 — POI around (lat, lng) within `radius` meters.
+        Input lat/lng is WGS-84; converted to GCJ-02 for AMap query."""
+        latitude, longitude = wgs84_to_gcj02(latitude, longitude)
         # AMap: GET /v3/place/around
         data = await self._request(
             "/v3/place/around",
@@ -216,14 +221,21 @@ class AmapWebClient:
         get_polyline: bool = True,
     ) -> Dict[str, Any]:
         """AMap returns paths with per-step polylines; we concatenate
-        and decode to (lat,lng) tuples to match the Tencent shape."""
+        and decode to (lat,lng) tuples to match the Tencent shape.
+        Input origin/destination/waypoints are WGS-84 (project convention);
+        converted to GCJ-02 for the AMap request. The returned polyline
+        stays GCJ-02 — callers (iOS) display directly on AMap canvas
+        which is GCJ-02 too, so no re-conversion needed there."""
+        o_lat, o_lng = wgs84_to_gcj02(origin[0], origin[1])
+        d_lat, d_lng = wgs84_to_gcj02(destination[0], destination[1])
         params = {
-            "origin": f"{origin[1]},{origin[0]}",       # AMap: lng,lat
-            "destination": f"{destination[1]},{destination[0]}",
+            "origin": f"{o_lng},{o_lat}",       # AMap: lng,lat
+            "destination": f"{d_lng},{d_lat}",
             "extensions": "all" if get_polyline else "base",
         }
         if waypoints:
-            wp = ";".join(f"{lng},{lat}" for lat, lng in waypoints)
+            wp_gcj = [wgs84_to_gcj02(lat, lng) for lat, lng in waypoints]
+            wp = ";".join(f"{lng},{lat}" for lat, lng in wp_gcj)
             params["waypoints"] = wp
 
         data = await self._request("/v3/direction/driving", params)
