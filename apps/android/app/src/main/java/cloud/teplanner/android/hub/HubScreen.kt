@@ -162,7 +162,7 @@ fun HubScreen(
 @Composable
 private fun VehicleStatusCard(state: HubViewModel.State) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("hub_status_card"),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),

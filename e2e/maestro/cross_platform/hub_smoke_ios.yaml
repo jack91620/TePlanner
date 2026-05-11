@@ -1,0 +1,8 @@
+# iOS wrapper for the shared Hub smoke flow.
+# Run: make e2e-ios FLOW=cross_platform/hub_smoke_ios.yaml
+
+appId: com.teplanner.ios
+---
+- runFlow: ../_helpers/ensure_logged_in.yaml
+- runFlow: ../_shared/hub_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_ios_hub

@@ -1,0 +1,22 @@
+# Cross-platform smoke: Hub renders status card + 3 navigation entries.
+#
+# Identifier contract (same string both platforms):
+#   hub_status_card        — top vehicle card (battery + range)
+#   hub_entry_planning     — 充电规划 nav card
+#   hub_entry_automations  — 自动化提醒 nav card
+#   hub_entry_battery      — 电池管理 nav card
+#
+# Precondition: app launched + already at the Hub.
+---
+- assertVisible:
+    id: "hub_status_card"
+    timeout: 8000
+
+- assertVisible:
+    id: "hub_entry_planning"
+
+- assertVisible:
+    id: "hub_entry_automations"
+
+- assertVisible:
+    id: "hub_entry_battery"

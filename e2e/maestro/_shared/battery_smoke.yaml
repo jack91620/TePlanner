@@ -1,0 +1,25 @@
+# Cross-platform smoke: Hub → 电池管理 → BatteryView visible → back.
+#
+# Identifier contract:
+#   hub_entry_battery — Hub nav card
+#   battery_view      — BatteryView root container
+#
+# Asserts only on container visibility, not on inner content (charge
+# limit slider / preset cards / history list) — each platform's
+# stack of those varies a bit and we don't want this smoke flow to
+# fail on cosmetic reordering.
+#
+# Precondition: app at Hub.
+---
+- assertVisible:
+    id: "hub_entry_battery"
+    timeout: 8000
+
+- tapOn:
+    id: "hub_entry_battery"
+
+- assertVisible:
+    id: "battery_view"
+    timeout: 5000
+
+- back

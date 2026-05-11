@@ -5,10 +5,13 @@ two files:
 
 ```
 cross_platform/
-  automations_smoke_ios.yaml      # appId + iOS-specific login + runFlow
-  automations_smoke_android.yaml  # appId + Android-specific setup + runFlow
+  automations_smoke_{ios,android}.yaml  # automations list reachable
+  hub_smoke_{ios,android}.yaml          # status card + 3 nav cards visible
+  battery_smoke_{ios,android}.yaml      # Hub → 电池管理 → BatteryView visible
 _shared/
-  automations_smoke.yaml          # the actual asserts (no appId)
+  automations_smoke.yaml
+  hub_smoke.yaml
+  battery_smoke.yaml
 ```
 
 The shared file uses Maestro selectors keyed on the **same string**
@@ -16,7 +19,11 @@ across platforms:
 
 | Element | iOS | Android |
 |---|---|---|
+| Hub status card | `accessibilityIdentifier("hub_status_card")` | `Modifier.testTag("hub_status_card")` |
 | Hub automations entry card | `accessibilityIdentifier("hub_entry_automations")` | `Modifier.testTag("hub_entry_automations")` |
+| Hub planning entry card | `accessibilityIdentifier("hub_entry_planning")` | `Modifier.testTag("hub_entry_planning")` |
+| Hub battery entry card | `accessibilityIdentifier("hub_entry_battery")` | `Modifier.testTag("hub_entry_battery")` |
+| BatteryView root | `accessibilityIdentifier("battery_view")` | `Modifier.testTag("battery_view")` |
 | Per-rule list row | `accessibilityIdentifier("automation_row_<id>")` | `Modifier.testTag("automation_row_<id>")` |
 
 Maestro's `id:` selector resolves both via the OS accessibility tree.

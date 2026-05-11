@@ -1,0 +1,11 @@
+# Android wrapper for the shared Battery smoke flow.
+# Run: make e2e-android FLOW=cross_platform/battery_smoke_android.yaml
+#
+# Precondition: a logged-in account exists on the emulator.
+
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/battery_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_battery
