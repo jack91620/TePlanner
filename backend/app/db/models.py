@@ -403,3 +403,28 @@ class RoutePlan(Base):
     status = Column(String(20), default="pending")  # pending, completed, sent_to_car
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OAuthState(Base):
+    """Tesla OAuth pending state. Lives between GET /auth/tesla/authorize
+    and the callback redirect. Previously kept in a module-level dict
+    `_oauth_states` — that broke as soon as uvicorn forked >1 worker
+    (each worker has its own copy, so authorize-on-A + callback-on-B
+    failed with "Invalid or expired authorization" 100% of the time
+    that fork crossed worker boundaries).
+
+    Now stored in DB so all workers see the same state. The state
+    string is the OAuth CSRF token (URL-safe random) — Tesla returns
+    it on the callback so we can look up code_verifier + user_id.
+
+    Rows are popped on use (one-shot). A nightly job (TODO) sweeps
+    rows older than 10 minutes that were never claimed (Tesla
+    abandoned the auth flow).
+    """
+
+    __tablename__ = "oauth_state"
+
+    state = Column(String(128), primary_key=True)
+    code_verifier = Column(String(128), nullable=False)
+    user_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

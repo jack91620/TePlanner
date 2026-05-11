@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -21,7 +21,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
-from app.db.models import TeslaToken, User
+from app.db.models import OAuthState, TeslaToken, User
 from app.db.session import get_db
 from app.integrations.tesla import TeslaAuth
 from app.services.auth_service import (
@@ -41,8 +41,61 @@ from app.services.wechat import WeChatClient, WeChatAPIError
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
-# Temporary storage for OAuth state and code_verifier (use Redis in production)
-_oauth_states: dict = {}
+# OAuth state previously lived in a module-level dict — that broke
+# under uvicorn --workers >1 (fork() per worker => per-worker dict).
+# Now persisted via OAuthState table in DB; all workers see it.
+# Helpers below own the lookup/save/cleanup so handlers stay tidy.
+OAUTH_STATE_TTL_MINUTES = 10
+
+
+async def _save_oauth_state(
+    db: AsyncSession,
+    state: str,
+    code_verifier: str,
+    user_id: Optional[int],
+) -> None:
+    """Persist a pending OAuth state. Caller commits."""
+    db.add(OAuthState(
+        state=state,
+        code_verifier=code_verifier,
+        user_id=user_id,
+        created_at=datetime.utcnow(),
+    ))
+    await db.commit()
+
+
+async def _pop_oauth_state(
+    db: AsyncSession,
+    state: str,
+) -> Optional[dict]:
+    """Look up + delete the pending OAuth state. Returns None if
+    expired / missing / already used (one-shot)."""
+    row = (await db.execute(
+        select(OAuthState).where(OAuthState.state == state)
+    )).scalar_one_or_none()
+    if row is None:
+        return None
+
+    age = datetime.utcnow() - row.created_at
+    expired = age.total_seconds() > OAUTH_STATE_TTL_MINUTES * 60
+
+    data = {
+        "code_verifier": row.code_verifier,
+        "user_id": row.user_id,
+    }
+    # Delete unconditionally so a replay can't reuse, and so expired
+    # rows can't linger.
+    await db.execute(delete(OAuthState).where(OAuthState.state == state))
+    await db.commit()
+
+    if expired:
+        import logging
+        logging.getLogger(__name__).warning(
+            "OAuth state %s expired (age=%ds, TTL=%dm)",
+            state, int(age.total_seconds()), OAUTH_STATE_TTL_MINUTES,
+        )
+        return None
+    return data
 
 
 class WeChatLoginRequest(BaseModel):
@@ -380,11 +433,14 @@ async def tesla_authorize(
     auth = TeslaAuth()
     result = auth.get_authorization_url()
 
-    # Store state -> code_verifier mapping with user_id
-    _oauth_states[result["state"]] = {
-        "code_verifier": result["code_verifier"],
-        "user_id": created_user_id,
-    }
+    # Persist state -> code_verifier -> user_id in DB so all uvicorn
+    # workers can see it (was a per-worker module-level dict before).
+    await _save_oauth_state(
+        db=db,
+        state=result["state"],
+        code_verifier=result["code_verifier"],
+        user_id=created_user_id,
+    )
 
     return {
         "url": result["url"],
@@ -405,7 +461,7 @@ async def tesla_callback(
     + persist + JWT-mint logic now lives in
     `services/tesla_auth_service.exchange_and_store`.
     """
-    state_data = _oauth_states.pop(state, None)
+    state_data = await _pop_oauth_state(db, state)
     if not state_data:
         return HTMLResponse(
             content=_render_callback_page(
@@ -469,7 +525,7 @@ async def tesla_callback_post(
     the OAuth code as JSON. Same exchange + persist logic as the
     GET handler, but JSON response.
     """
-    state_data = _oauth_states.pop(request.state, None)
+    state_data = await _pop_oauth_state(db, request.state)
     if not state_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
