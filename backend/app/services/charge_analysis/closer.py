@@ -63,10 +63,21 @@ async def close_stale_sessions(
 
     cutoff = now - timedelta(minutes=GRACE_MINUTES)
 
+    # NOTE: we intentionally don't filter by vehicle_id here. The
+    # `vehicle_id` field on ChargingSession is whatever iOS sent at
+    # plug-in time — currently the Tesla numeric vehicle_id
+    # (e.g. "366691338664104"), while the cron tick caller passes
+    # the VIN ("LRWYGCFS0NC517553"). They wouldn't match. Filtering
+    # by user_id is correct for the single-vehicle reality today;
+    # for multi-vehicle a future change can plumb the per-vehicle
+    # snapshot dict and match more precisely. Either way, a session
+    # is "stale" purely on the basis of (open + age > grace +
+    # telemetry says not charging) — the per-vehicle distinction
+    # only matters for multi-car edge cases.
+    _ = vehicle_id  # kept for logging context
     rows = (await db.execute(
         select(ChargingSession).where(
             ChargingSession.user_id == user_id,
-            ChargingSession.vehicle_id == vehicle_id,
             ChargingSession.ended_at.is_(None),
             ChargingSession.started_at <= cutoff,
         )
