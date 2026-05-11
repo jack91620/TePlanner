@@ -120,9 +120,12 @@ test-backend: ## Run backend pytest suite locally (needs conda env)
 	  echo "skipping test-backend (no python in PATH locally — runs on server CI)"; \
 	fi
 
-precommit: test test-backend e2e-api ## Pre-commit gate: iOS unit + backend unit + Hurl contract (~5s)
+precommit: audit-entity-parity test test-backend e2e-api ## Pre-commit gate: iOS unit + backend unit + Hurl contract (~5s)
 	@echo ""
 	@echo "✓ precommit OK — safe to commit"
+
+audit-entity-parity: ## Verify backend _ENTITY_MAP and iOS RuleDisplay.entityName stay in sync
+	@python3 scripts/audit_entity_parity.py
 
 # --- E2E -----------------------------------------------------------------
 
