@@ -7,7 +7,7 @@ engine sees.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -187,3 +187,52 @@ async def test_malformed_value_decodes_gracefully(user, db_session):
     await db_session.commit()
     snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
     assert snap.battery_level is None  # silently absent, no crash
+
+
+# ---------- 2026-05-11 sticky-vs-volatile staleness gate ----------
+
+async def test_sticky_entity_locked_survives_30min_staleness(user, db_session):
+    """vehicle.locked has the 24h sticky TTL — a value written 2h ago
+    must still be returned (car can't silently lock/unlock itself
+    while sleeping). Pre-fix, this returned None at 30+ min."""
+    old = datetime.utcnow() - timedelta(hours=2)
+    row = AutomationState(
+        user_id=user.id, vehicle_id=VIN,
+        key="tel:vehicle.locked:value",
+        value=json.dumps(False),
+        updated_at=old,
+    )
+    db_session.add(row)
+    await db_session.commit()
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.locked is False  # still trusted
+
+
+async def test_volatile_entity_battery_drops_after_30min(user, db_session):
+    """battery_level is volatile — drops to None after the 30-min gate."""
+    old = datetime.utcnow() - timedelta(minutes=45)
+    row = AutomationState(
+        user_id=user.id, vehicle_id=VIN,
+        key="tel:vehicle.battery_level:value",
+        value=json.dumps(72),
+        updated_at=old,
+    )
+    db_session.add(row)
+    await db_session.commit()
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.battery_level is None
+
+
+async def test_sticky_entity_drops_at_24h_ceiling(user, db_session):
+    """Sticky cap is 24h — beyond that we admit we don't know."""
+    old = datetime.utcnow() - timedelta(hours=25)
+    row = AutomationState(
+        user_id=user.id, vehicle_id=VIN,
+        key="tel:vehicle.locked:value",
+        value=json.dumps(False),
+        updated_at=old,
+    )
+    db_session.add(row)
+    await db_session.commit()
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.locked is None

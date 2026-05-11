@@ -156,19 +156,21 @@ LEFT_UNLOCKED = PresetDefinition(
     name="停车后忘锁车提醒",
     spec={
         "kind": "leftUnlocked",
+        # 2026-05-11: switched from state_duration to user_departure
+        # so the rule fires the moment we observe "you got out + car
+        # is still unlocked" — no more dependency on the car staying
+        # awake long enough to count for_minutes. Tesla's own app
+        # uses the same departure-edge model.
         "trigger": {
-            "type": "state_duration",
-            "entity": "vehicle.parked_unlocked",
-            "equals": True,
-            "for_minutes": 5,
-            "state_key": "leftUnlocked:startedAt",
+            "type": "user_departure",
+            "check": {"entity": "vehicle.locked", "op": "==", "value": False},
+            "last_eval_key": "leftUnlocked:lastEval",
         },
-        "actions_below": [],
         "actions_above": [
             {
                 "type": "notify_and_offer",
-                "title": "车辆未锁",
-                "body": "停车 {duration_human}，车门仍处于未锁状态",
+                "title": "你刚下车但未上锁",
+                "body": "现在远程锁车？",
                 "severity": "critical",
                 "primary_action_label": "锁车",
                 "capability": "tesla.security.door_lock",
@@ -182,25 +184,104 @@ WINDOW_OR_BOX_LEFT_OPEN = PresetDefinition(
     name="车窗 / 后备箱忘关提醒",
     spec={
         "kind": "closureLeftOpen",
+        # Same departure-edge pattern as LEFT_UNLOCKED. Watches the
+        # window_open aggregate (any of 4 windows). Door / trunk
+        # variants live as separate presets so users can opt in/out
+        # independently.
         "trigger": {
-            "type": "state_duration",
-            # Use the most-likely-actionable signal: window open while
-            # parked. Door / trunk variants land as separate user-
-            # authored rules until we add multi-condition support.
-            "entity": "vehicle.parked_with_window_open",
-            "equals": True,
-            "for_minutes": 5,
-            "state_key": "closureLeftOpen:startedAt",
+            "type": "user_departure",
+            "check": {"entity": "vehicle.window_open", "op": "==", "value": True},
+            "last_eval_key": "closureLeftOpen:lastEval",
         },
-        "actions_below": [],
+        "actions_above": [
+            {
+                "type": "notify",
+                "title": "你刚下车但有车窗未关",
+                "body": "建议回去手动关窗或打开 Tesla 官方 app 远程关窗",
+                "severity": "critical",
+            }
+        ],
+    },
+)
+
+
+LEAVE_WITHOUT_SENTRY = PresetDefinition(
+    preset_id="leave_without_sentry",
+    name="离家忘开哨兵",
+    spec={
+        "kind": "sentryMode",
+        # 下车那一刻如果哨兵没开，提醒一键开启。跟 LEFT_UNLOCKED 同款
+        # departure-edge 触发，事件型，不依赖车醒着。
+        "trigger": {
+            "type": "user_departure",
+            "check": {
+                "entity": "vehicle.sentry_mode_on",
+                "op": "==",
+                "value": False,
+            },
+            "last_eval_key": "leaveWithoutSentry:lastEval",
+        },
         "actions_above": [
             {
                 "type": "notify_and_offer",
-                "title": "车窗未关闭",
-                "body": "已停车 {duration_human}，仍有车窗处于打开状态",
+                "title": "你刚下车但哨兵未开",
+                "body": "现在打开哨兵模式？",
+                "severity": "info",
+                "primary_action_label": "打开哨兵",
+                "capability": "tesla.security.set_sentry",
+                "params": {"on": True},
+            }
+        ],
+    },
+)
+
+
+LEAVE_WITH_TRUNK_OPEN = PresetDefinition(
+    preset_id="leave_with_trunk_open",
+    name="离家时后备箱未关",
+    spec={
+        "kind": "closureLeftOpen",
+        "trigger": {
+            "type": "user_departure",
+            "check": {
+                "entity": "vehicle.trunk_open",
+                "op": "==",
+                "value": True,
+            },
+            "last_eval_key": "leaveWithTrunkOpen:lastEval",
+        },
+        "actions_above": [
+            {
+                "type": "notify",
+                "title": "你刚下车但后备箱未关",
+                "body": "回去关一下，或在 Tesla 官方 app 远程关闭",
                 "severity": "critical",
-                "primary_action_label": "我知道了",
-                "capability": "automation.dismiss",
+            }
+        ],
+    },
+)
+
+
+LEAVE_WITH_FRUNK_OPEN = PresetDefinition(
+    preset_id="leave_with_frunk_open",
+    name="离家时前备箱未关",
+    spec={
+        "kind": "closureLeftOpen",
+        "trigger": {
+            "type": "user_departure",
+            "check": {
+                "entity": "vehicle.frunk_open",
+                "op": "==",
+                "value": True,
+            },
+            "last_eval_key": "leaveWithFrunkOpen:lastEval",
+        },
+        "actions_above": [
+            {
+                "type": "notify",
+                "title": "你刚下车但前备箱未关",
+                "body": "前备箱无法远程关闭，需要手动关上",
+                "severity": "critical",
             }
         ],
     },
@@ -341,6 +422,9 @@ ALL_PRESETS: list[PresetDefinition] = [
     CHARGE_COMPLETE,
     LEFT_UNLOCKED,
     WINDOW_OR_BOX_LEFT_OPEN,
+    LEAVE_WITHOUT_SENTRY,
+    LEAVE_WITH_TRUNK_OPEN,
+    LEAVE_WITH_FRUNK_OPEN,
     WEEKDAY_PREHEAT,
     GEOFENCE_ARRIVE_HOME,
     GEOFENCE_LEAVE_HOME_SENTRY,

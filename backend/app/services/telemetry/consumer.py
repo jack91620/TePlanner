@@ -34,6 +34,7 @@ from app.services.telemetry.mapping import (
     map_v_payload,
 )
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
+from app.services.telemetry.departure_detector import DepartureDetector
 from app.services.telemetry.state_writer import TelemetryStateWriter
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ async def _process_v_record(
     payload: dict,
     engine: Optional[AutomationEngine] = None,
     debounce_until: Optional[dict] = None,
+    departure_detector: Optional[DepartureDetector] = None,
 ) -> None:
     vin = _vin_for_payload(payload)
     if not vin:
@@ -116,7 +118,9 @@ async def _process_v_record(
                 logger.debug("telemetry: no user mapped for VIN %s", vin)
                 return
             transitions = 0
+            frame_entities: dict = {}
             for entity, value in map_v_payload(data):
+                frame_entities[entity] = value
                 changed = await writer.record(
                     db,
                     user_id=user_id,
@@ -127,7 +131,22 @@ async def _process_v_record(
                 )
                 if changed:
                     transitions += 1
-            if transitions:
+            # Detect "user got out" moment from this frame's entity
+            # snapshot. Runs in the same DB session so the event-row
+            # write commits atomically with the underlying state.
+            departed = False
+            if departure_detector is not None:
+                try:
+                    departed = await departure_detector.observe(
+                        db, user_id=user_id, vehicle_id=vin,
+                        frame_entities=frame_entities,
+                        observed_at=observed_at,
+                    )
+                except Exception:
+                    logger.exception(
+                        "departure detector failed (vin=%s)", vin,
+                    )
+            if transitions or departed:
                 await db.commit()
             else:
                 await db.rollback()
@@ -139,7 +158,10 @@ async def _process_v_record(
         # Phase 6: drive the engine on every transition. We rebuild the
         # snapshot from telemetry rows (single source of truth post-
         # polling) and let the engine evaluate rules + fire APNs.
-        if not transitions or engine is None:
+        # 2026-05-11: also drive the engine when a departure event
+        # was just emitted, even if no underlying entity changed
+        # (the door_open transition itself is the trigger).
+        if (not transitions and not departed) or engine is None:
             return
 
         if debounce_until is not None:
@@ -312,6 +334,7 @@ async def consume(stop_event: asyncio.Event) -> None:
     writer = TelemetryStateWriter()
     engine = AutomationEngine()
     debounce_until: dict = {}
+    departure_detector = DepartureDetector()
 
     try:
         while not stop_event.is_set():
@@ -338,6 +361,7 @@ async def consume(stop_event: asyncio.Event) -> None:
                     await _process_v_record(
                         writer, payload,
                         engine=engine, debounce_until=debounce_until,
+                        departure_detector=departure_detector,
                     )
                 except Exception:
                     # Never let a single bad record kill the loop —

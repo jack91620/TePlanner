@@ -45,6 +45,39 @@ logger = logging.getLogger(__name__)
 # still true, and the next telemetry post-wake re-establishes it.
 MAX_TELEMETRY_AGE_MINUTES = 30
 
+# 2026-05-11 — sticky vs volatile classification.
+#
+# The 30-min staleness gate above is too conservative for entities
+# whose value can ONLY change via an active vehicle command (lock,
+# door, sentry, COP). When the car sleeps, Tesla doesn't silently
+# unlock or open doors — the last state we observed is still true.
+# Treating it as None here breaks LEFT_UNLOCKED / WINDOW_OPEN /
+# SENTRY rules that should fire after car-sleep windows.
+#
+# Sticky entities get a 24h cap (caught-by-cron-restart upper bound;
+# beyond that we'd want a wake/poll, not stale belief).
+# Everything else keeps the conservative 30-min cap.
+STICKY_ENTITIES: frozenset[str] = frozenset({
+    "vehicle.locked",
+    "vehicle.sentry_mode_on",
+    "vehicle.cabin_overheat_protection_on",
+    "vehicle.climate.keeper_mode",
+    "vehicle.door_open",
+    "vehicle.window_open",
+    "vehicle.frunk_open",
+    "vehicle.trunk_open",
+    "vehicle.shift_state",
+    # Derived parked_* entities depend on shift_state + locked/door/etc;
+    # they're computed in build_snapshot_from_telemetry so adding their
+    # base entities here is sufficient.
+})
+
+STICKY_AGE_MINUTES = 24 * 60   # 24h ceiling; beyond that we treat as unknown
+
+
+def _max_age_minutes_for(entity: str) -> int:
+    return STICKY_AGE_MINUTES if entity in STICKY_ENTITIES else MAX_TELEMETRY_AGE_MINUTES
+
 
 def _decode(raw: Optional[str]) -> Any:
     if raw is None:
@@ -77,11 +110,12 @@ async def _read_value(
     if row.updated_at is None:
         return _decode(row.value)
     age = datetime.utcnow() - row.updated_at
-    if age > timedelta(minutes=MAX_TELEMETRY_AGE_MINUTES):
+    max_age = _max_age_minutes_for(entity)
+    if age > timedelta(minutes=max_age):
         logger.debug(
             "telemetry value stale (age=%.1fmin > %dmin) — treating as None: "
             "user=%s vehicle=%s entity=%s",
-            age.total_seconds() / 60, MAX_TELEMETRY_AGE_MINUTES,
+            age.total_seconds() / 60, max_age,
             user_id, vehicle_id, entity,
         )
         return None

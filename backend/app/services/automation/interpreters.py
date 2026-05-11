@@ -415,6 +415,81 @@ def _eval_geofence(spec: dict, ctx: AutomationContext, kind: AlertKind) -> Optio
     return _emit_action(actions[0], kind, facts)
 
 
+_USER_DEPARTURE_EVENT_KEY = "event:user_departure:at"
+
+
+def _eval_user_departure(
+    spec: dict, ctx: AutomationContext, kind: AlertKind,
+) -> Optional[Alert]:
+    """Trigger that fires once per "user got out of car" event.
+
+    Schema:
+        {"trigger": {
+            "type": "user_departure",
+            "check": {"entity": "vehicle.locked", "op": "==", "value": false},
+            "last_eval_key": "leftUnlocked:lastEval"
+         },
+         "actions_above": [{"type": "notify_and_offer", ...}]}
+
+    Source-of-truth event timestamp is at AutomationState key
+    ``event:user_departure:at`` written by telemetry.departure_detector
+    when shift_state==P + door_open True→False edge fires. The rule
+    fires when (departure_at > last_eval_for_this_rule) AND the
+    `check` predicate evaluates true against the current snapshot.
+
+    The snapshot at evaluation time is whatever telemetry has on file
+    — sticky entities (locked / door / window / sentry / ...) are
+    trustworthy after the sticky-staleness fix even if car is now
+    sleeping, because their value can only change via active command.
+    """
+    trigger = spec["trigger"]
+    check = trigger.get("check")
+    if not isinstance(check, dict):
+        return None
+
+    departure_at = ctx.memory.get(_USER_DEPARTURE_EVENT_KEY)
+    if departure_at is None:
+        return None
+
+    last_eval_key = trigger.get("last_eval_key")
+    if not last_eval_key:
+        # Defensive: rule designer must give a key so the fire is
+        # idempotent across cron ticks. Without it we'd refire forever.
+        return None
+
+    last_eval = ctx.memory.get(last_eval_key)
+    # Compare ignoring tz; departure_at is naive UTC from the detector,
+    # last_eval is whatever we previously wrote (also naive).
+    if last_eval is not None and last_eval >= departure_at:
+        return None
+
+    # Evaluate the check predicate against current snapshot.
+    entity = check.get("entity")
+    op = check.get("op", "==")
+    target = check.get("value")
+    actual = _read_entity(ctx.vehicle_state, entity)
+    matches = _matches(actual, op, {"equals": target, "value": target})
+    if not matches:
+        # Mark this departure as evaluated so we don't keep checking
+        # it on every cron tick.
+        ctx.memory.set(last_eval_key, departure_at)
+        return None
+
+    # Fire. Mark evaluated.
+    ctx.memory.set(last_eval_key, departure_at)
+    facts = {
+        "entity_value": str(actual) if actual is not None else "?",
+    }
+    actions = (
+        spec.get("actions_above")
+        or spec.get("actions")
+        or []
+    )
+    if not actions:
+        return None
+    return _emit_action(actions[0], kind, facts)
+
+
 # ---------------------------------------------------------------------------
 # Top-level: evaluate one declarative rule.
 
@@ -435,4 +510,6 @@ def evaluate_rule(spec: dict, ctx: AutomationContext) -> Optional[Alert]:
         return _eval_cron(spec, ctx, kind)
     if trigger_type == "geofence":
         return _eval_geofence(spec, ctx, kind)
+    if trigger_type == "user_departure":
+        return _eval_user_departure(spec, ctx, kind)
     return None

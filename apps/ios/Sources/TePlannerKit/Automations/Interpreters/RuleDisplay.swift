@@ -31,6 +31,7 @@ public enum RuleDisplay {
         case "state_transition": return "状态变化"
         case "cron": return "定时"
         case "geofence": return "地理围栏"
+        case "user_departure": return "下车瞬间"
         default: return type
         }
     }
@@ -296,6 +297,7 @@ public enum RuleDisplay {
         switch type {
         case "cron":              return "clock.fill"
         case "geofence":          return "location.fill"
+        case "user_departure":    return "figure.walk.departure"
         case "state_transition":  return "arrow.right.arrow.left.circle.fill"
         case "state_duration":
             // Sub-classify by the entity to pick a meaningful glyph,
@@ -416,6 +418,17 @@ public enum RuleDisplay {
                 return "\(verb)某个区域 · \(radius)m（待选择地点）"
             }
             return "\(verb)区域 \(radius)m 范围"
+        case "user_departure":
+            // Sentence reads "下车后 + 「条件」". The check sub-dict
+            // mirrors a tiny predicate spec so we can reuse describeValue
+            // for whatever entity the user picked.
+            guard let check = trigger["check"]?.objectValue else {
+                return "下车后"
+            }
+            let entityRaw = check.string("entity") ?? ""
+            let entity = entityName(entityRaw)
+            let value = check["value"].flatMap { describeValue($0, entity: entityRaw) } ?? "?"
+            return "下车后「\(entity)」=「\(value)」"
         default:
             return type
         }
