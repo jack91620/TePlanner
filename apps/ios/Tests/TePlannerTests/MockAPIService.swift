@@ -199,6 +199,46 @@ final class MockAPIService: APIServiceProtocol {
         return mockSetChargeLimitResponse ?? .success(BaseResponse(success: true, message: "ok"))
     }
 
+    var mockInvokeCapabilityResponse: Result<BaseResponse, APIError>?
+    var invokeCapabilityCallCount = 0
+    /// Captures every invocation in order — multi-step actions emit
+    /// multiple calls per run, so a single "last args" tuple would
+    /// hide the sequence. Tests can assert the full list.
+    var invokeCapabilityCalls: [(vehicleId: String, capability: String, params: [String: JSONValue])] = []
+    func invokeCapability(
+        vehicleId: String,
+        capability: String,
+        params: [String: JSONValue]
+    ) async -> Result<BaseResponse, APIError> {
+        invokeCapabilityCallCount += 1
+        invokeCapabilityCalls.append((vehicleId, capability, params))
+        return mockInvokeCapabilityResponse ?? .success(BaseResponse(success: true, message: "ok"))
+    }
+
+    var mockUserSettings: [String: JSONValue] = [:]
+    var getUserSettingsCallCount = 0
+    func getUserSettings() async -> Result<[String: JSONValue], APIError> {
+        getUserSettingsCallCount += 1
+        return .success(mockUserSettings)
+    }
+    var lastPutUserSettings: (settings: [String: JSONValue], replaceAll: Bool)?
+    func putUserSettings(
+        _ settings: [String: JSONValue],
+        replaceAll: Bool
+    ) async -> Result<[String: JSONValue], APIError> {
+        lastPutUserSettings = (settings, replaceAll)
+        // Merge into the mock store so consecutive get→put→get round-trips
+        // mimic the real backend's merge-on-PUT behavior.
+        if replaceAll {
+            mockUserSettings = settings
+        } else {
+            for (k, v) in settings {
+                mockUserSettings[k] = v
+            }
+        }
+        return .success(mockUserSettings)
+    }
+
     func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError> {
         nearbyStationsCallCount += 1
         lastNearbyStationsArgs = (latitude, longitude, radiusKm, type)

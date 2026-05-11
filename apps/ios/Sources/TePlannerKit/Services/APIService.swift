@@ -167,6 +167,49 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/vehicles/\(vehicleId)/charge-limit", body: Body(percent: percent))
     }
 
+    public func invokeCapability(
+        vehicleId: String,
+        capability: String,
+        params: [String: JSONValue]
+    ) async -> Result<BaseResponse, APIError> {
+        struct Body: Encodable {
+            let capability: String
+            let params: [String: JSONValue]
+        }
+        return await postJSON(
+            path: "/vehicles/\(vehicleId)/invoke",
+            body: Body(capability: capability, params: params),
+        )
+    }
+
+    // MARK: - User settings
+
+    public func getUserSettings() async -> Result<[String: JSONValue], APIError> {
+        struct Resp: Decodable {
+            let settings: [String: JSONValue]
+        }
+        let result: Result<Resp, APIError> = await get(path: "/user/settings", query: [])
+        return result.map { $0.settings }
+    }
+
+    public func putUserSettings(
+        _ settings: [String: JSONValue],
+        replaceAll: Bool = false
+    ) async -> Result<[String: JSONValue], APIError> {
+        struct Body: Encodable {
+            let settings: [String: JSONValue]
+            let replace_all: Bool
+        }
+        struct Resp: Decodable {
+            let settings: [String: JSONValue]
+        }
+        let result: Result<Resp, APIError> = await putJSON(
+            path: "/user/settings",
+            body: Body(settings: settings, replace_all: replaceAll),
+        )
+        return result.map { $0.settings }
+    }
+
     // MARK: - Charging stations
 
     public func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int = 50, type: String? = nil) async -> Result<[ChargingStation], APIError> {

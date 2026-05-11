@@ -20,6 +20,7 @@ struct HubView: View {
     @StateObject private var departureStore: BackendScheduledDepartureStore
     @StateObject private var chargingSessionStore: BackendChargingSessionStore
     @StateObject private var commandStatusStore: CommandStatusStore
+    @StateObject private var quickActionsStore: HubActionsStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -94,6 +95,7 @@ struct HubView: View {
         let chargingSessionStore = BackendChargingSessionStore(apiService: apiService)
         _chargingSessionStore = StateObject(wrappedValue: chargingSessionStore)
         _commandStatusStore = StateObject(wrappedValue: CommandStatusStore(apiService: apiService))
+        _quickActionsStore = StateObject(wrappedValue: HubActionsStore(apiService: apiService))
         _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel(store: chargingSessionStore))
         _departureStore = StateObject(wrappedValue: BackendScheduledDepartureStore(apiService: apiService))
         self.chargingTracker = ChargingSessionTracker(store: chargingSessionStore)
@@ -142,6 +144,7 @@ struct HubView: View {
             await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id)
             await departureStore.refresh()
             scheduledDeparture = departureStore.current()
+            await quickActionsStore.load()
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
             }
@@ -423,6 +426,11 @@ struct HubView: View {
                 planningEntry
                 automationsEntry
                 batteryEntry
+                HubQuickActionsSection(
+                    store: quickActionsStore,
+                    vehicleId: viewModel.vehicle?.id,
+                    commandStatusStore: commandStatusStore,
+                )
             }
             .padding(16)
         }

@@ -3,7 +3,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -114,6 +114,22 @@ class NavigationAddressRequest(BaseModel):
 
     address: str
     locale: str = "zh-CN"
+
+
+class InvokeCapabilityRequest(BaseModel):
+    """Generic capability invocation. Used by Hub Quick Actions
+    which let users build buttons referencing any capability in
+    the registry — there are 30+ caps, hand-rolling typed endpoints
+    for each (lock / sentry / preheat / set-limit / …) bottles up.
+
+    `capability` must be a registered id (validated server-side via
+    `get_capability()` inside vehicle_commands.invoke_capability).
+    `params` must match the capability's params_schema; the registry
+    enforces required keys / value bounds.
+    """
+
+    capability: str
+    params: Dict[str, Any] = {}
 
 
 class WakeResponse(BaseModel):
@@ -484,6 +500,41 @@ async def navigate_vehicle_address(
             status_code=e.status_code or 500,
             detail=f"Tesla API error: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Generic capability invocation — used by Hub Quick Actions on iOS /
+# Android. A single endpoint that dispatches any registered capability
+# with arbitrary params, so clients don't need 30+ typed endpoints to
+# build a "custom button" that calls e.g. `tesla.attention.flash_lights`
+# or `tesla.comfort.set_seat_heater`. Validation lives in the registry
+# (`get_capability`) + the dispatch policy on each Capability subclass.
+
+@router.post("/{vehicle_id}/invoke")
+async def invoke_capability_generic(
+    vehicle_id: str,
+    request: InvokeCapabilityRequest,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """Dispatch any registered capability for a vehicle. Unknown
+    capability ids surface as 400 from the registry; offline / queue
+    paths surface 503 / queued response identical to typed endpoints.
+
+    Why: Hub Quick Actions on iOS / Android lets users assemble
+    custom action buttons (single capability or multi-step macro)
+    that reference any of the 30+ capabilities in the registry.
+    Hand-rolling a typed endpoint per capability would explode this
+    file; the registry is already the source of truth for params
+    schema, so one generic handler is the right shape.
+    """
+    return await _invoke_capability(
+        request.capability,
+        vehicle_id,
+        request.params,
+        user, tesla_client, db,
+    )
 
 
 # ---------------------------------------------------------------------------

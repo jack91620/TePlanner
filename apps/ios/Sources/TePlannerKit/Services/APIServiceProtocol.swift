@@ -71,6 +71,29 @@ public protocol APIServiceProtocol {
     func unlockVehicle(vehicleId: String) async -> Result<BaseResponse, APIError>
     func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError>
 
+    /// Generic capability dispatch. Used by Hub Quick Actions which
+    /// let users build a button that invokes any registered Tesla
+    /// capability with arbitrary params. Backend `/vehicles/{id}/invoke`
+    /// validates against the capability registry; unknown ids surface
+    /// as APIError.
+    func invokeCapability(
+        vehicleId: String,
+        capability: String,
+        params: [String: JSONValue]
+    ) async -> Result<BaseResponse, APIError>
+
+    // User settings (Phase A.5) — single JSON-blob bag keyed per user.
+    // Hub Quick Actions ride on this (keys `hub.actions` + `hub.slots`),
+    // as will route-planning preferences once they migrate off the
+    // legacy iOS-only UserDefaults path.
+    func getUserSettings() async -> Result<[String: JSONValue], APIError>
+    /// PUT merges supplied keys into the user's settings bag. Pass
+    /// `replaceAll: true` to wipe + re-seed (used by sign-out cleanup).
+    func putUserSettings(
+        _ settings: [String: JSONValue],
+        replaceAll: Bool
+    ) async -> Result<[String: JSONValue], APIError>
+
     // Charging stations
     func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError>
 

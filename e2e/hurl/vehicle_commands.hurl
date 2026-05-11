@@ -68,6 +68,15 @@ HTTP 401
 jsonpath "$.detail" exists
 
 
+# --- generic invoke: Hub Quick Actions dispatch any registered capability ---
+POST {{base_url}}/api/v1/vehicles/anyvin/invoke
+Content-Type: application/json
+{ "capability": "tesla.security.door_lock", "params": {} }
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists
+
+
 # # Body validation guards run AFTER auth on these routes (FastAPI
 # resolves dependencies before parsing the body), so an
 # unauthenticated bad-body request returns 401 not 422. That's
