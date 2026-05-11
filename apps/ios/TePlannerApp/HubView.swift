@@ -445,6 +445,19 @@ struct HubView: View {
                 Spacer()
             }
 
+            // 2026-05-11 — 当前车况状态 chips. Independent of alert
+            // / rule firing — shows whatever the polled vehicleState
+            // currently reports. Lets user see "camp mode is on" /
+            // "sentry armed" / "charging" without waiting for a rule
+            // to trip.
+            if !currentStateChips.isEmpty {
+                FlowingHStack(spacing: 6) {
+                    ForEach(currentStateChips, id: \.label) { chip in
+                        statusChip(chip)
+                    }
+                }
+            }
+
             if let location = viewModel.locationName {
                 Label {
                     Text(location).lineLimit(2)
@@ -459,6 +472,97 @@ struct HubView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .accessibilityIdentifier("hub_status_card")
+    }
+
+    private struct StatusChip {
+        let label: String
+        let icon: String
+        let color: Color
+    }
+
+    /// Minimal flow layout — wraps children to next row when width
+    /// exceeds container. Used for the status chip row so 6 chips
+    /// don't overflow on narrow iPhones (SE / mini).
+    private struct FlowingHStack: Layout {
+        let spacing: CGFloat
+        init(spacing: CGFloat = 8) { self.spacing = spacing }
+        func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews,
+                          cache: inout ()) -> CGSize {
+            let maxWidth = proposal.width ?? .infinity
+            var x: CGFloat = 0
+            var y: CGFloat = 0
+            var rowHeight: CGFloat = 0
+            for sub in subviews {
+                let size = sub.sizeThatFits(.unspecified)
+                if x + size.width > maxWidth, x > 0 {
+                    x = 0
+                    y += rowHeight + spacing
+                    rowHeight = 0
+                }
+                x += size.width + spacing
+                rowHeight = max(rowHeight, size.height)
+            }
+            return CGSize(width: maxWidth, height: y + rowHeight)
+        }
+        func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
+                           subviews: Subviews, cache: inout ()) {
+            var x = bounds.minX
+            var y = bounds.minY
+            var rowHeight: CGFloat = 0
+            for sub in subviews {
+                let size = sub.sizeThatFits(.unspecified)
+                if x + size.width > bounds.maxX, x > bounds.minX {
+                    x = bounds.minX
+                    y += rowHeight + spacing
+                    rowHeight = 0
+                }
+                sub.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+                x += size.width + spacing
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+    }
+
+    /// Derive the visible "current vehicle state" chips from the
+    /// polled `vehicleState`. Each one represents a transient state
+    /// the user wants to see at a glance even before any rule has
+    /// tripped. Empty means "nothing exciting on the car right now"
+    /// → row collapses.
+    private var currentStateChips: [StatusChip] {
+        guard let s = viewModel.vehicleState else { return [] }
+        var chips: [StatusChip] = []
+        if s.climateKeeperMode == 3 {
+            chips.append(StatusChip(label: "露营模式", icon: "tent.fill", color: .purple))
+        } else if s.climateKeeperMode == 2 {
+            chips.append(StatusChip(label: "宠物模式", icon: "pawprint.fill", color: .pink))
+        } else if s.climateKeeperMode == 1 {
+            chips.append(StatusChip(label: "保持空调", icon: "thermometer.medium", color: .blue))
+        }
+        if s.sentryModeOn == true {
+            chips.append(StatusChip(label: "哨兵模式", icon: "shield.fill", color: .indigo))
+        }
+        if s.cabinOverheatProtectionOn == true {
+            chips.append(StatusChip(label: "座舱过热保护", icon: "thermometer.sun.fill", color: .orange))
+        }
+        if let cs = s.chargingState, cs == "Charging" {
+            chips.append(StatusChip(label: "充电中", icon: "bolt.fill", color: .green))
+        }
+        if s.locked == false {
+            chips.append(StatusChip(label: "未锁车", icon: "lock.open.fill", color: .red))
+        }
+        return chips
+    }
+
+    private func statusChip(_ chip: StatusChip) -> some View {
+        Label {
+            Text(chip.label).font(.caption2.weight(.medium))
+        } icon: {
+            Image(systemName: chip.icon).font(.caption2)
+        }
+        .foregroundStyle(chip.color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(chip.color.opacity(0.12), in: Capsule())
     }
 
     private var batteryRing: some View {
