@@ -57,6 +57,10 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
         UNUserNotificationCenter.current().delegate = self
         registerActionCategories()
         requestPermissionIfNeeded()
+        // Cold-start: drop notifs older than the staleness cap so
+        // the user doesn't open the app to a wall of yesterday's
+        // banners while we wait for the rules fetch + reconcile.
+        sweepStaleDelivered()
     }
 
     /// 2026-05-11 — car-control actions ("关闭露营" / "关闭哨兵" /
@@ -305,6 +309,38 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
         // categoryId / actionId fields are kept in case future iOS
         // versions add system-level handling we want to log.
         _ = (actionId, categoryId)
+
+        // The user explicitly engaged with this notification — drop
+        // it from the system tray. iOS otherwise leaves the banner
+        // delivered until the user manually swipes, so a tap-to-open
+        // looks like the notif is "stuck" alongside Hub's own (now
+        // up-to-date) state. Idempotent: removeDelivered is a no-op
+        // on the dismiss action that already removes the notif.
+        center.removeDeliveredNotifications(withIdentifiers: [request.identifier])
+
         completionHandler()
+    }
+
+    /// Hard sweep of any local notifs older than `maxAge`. Called from
+    /// `bootstrap()` to avoid the cold-start window where stale
+    /// session-N notifs sit on the lock screen until session-N+1's
+    /// first rules fetch returns (~3s) and the per-rule reconcile
+    /// in HubView runs. We don't know the firing set here yet, so
+    /// we use a simple age cap — anything older than 12h is almost
+    /// certainly stale (server's REPUSH_GUARD is 15min).
+    private static let staleAgeSweep: TimeInterval = 12 * 60 * 60
+
+    func sweepStaleDelivered(maxAge: TimeInterval = staleAgeSweep) {
+        UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
+            let cutoff = Date().addingTimeInterval(-maxAge)
+            let stale = delivered
+                .filter { $0.date < cutoff }
+                .map { $0.request.identifier }
+            guard !stale.isEmpty else { return }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(
+                withIdentifiers: stale
+            )
+            Log.app.notice("swept \(stale.count, privacy: .public) stale local-notif(s) older than \(Int(maxAge / 3600), privacy: .public)h")
+        }
     }
 }
