@@ -57,11 +57,19 @@ _ENTITY_MAP = {
     # Use the parked_* virtual entities so rules naturally filter
     # out the "I'm sitting in the car with door open" false positives.
     "vehicle.locked": "locked",
+    "vehicle.shift_state": "shift_state",
     "vehicle.parked_unlocked": "parked_unlocked",
     "vehicle.parked_with_door_open": "parked_with_door_open",
     "vehicle.parked_with_window_open": "parked_with_window_open",
     "vehicle.parked_with_frunk_open": "parked_with_frunk_open",
     "vehicle.parked_with_trunk_open": "parked_with_trunk_open",
+    # Raw closure entities — needed by user_departure trigger which
+    # checks state at the moment of departure (no need to gate on
+    # parked-state since the trigger itself requires shift_state==P).
+    "vehicle.door_open": "door_open",
+    "vehicle.window_open": "window_open",
+    "vehicle.frunk_open": "frunk_open",
+    "vehicle.trunk_open": "trunk_open",
     # Phase 7 — physical-state entities for richer rules.
     "vehicle.location.latitude": "latitude",
     "vehicle.location.longitude": "longitude",
