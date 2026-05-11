@@ -95,13 +95,26 @@ struct RuleBuilderView: View {
         case stateTransition = "state_transition"
         case cron = "cron"
         case geofence = "geofence"
+        // 2026-05-11: enum case exists so existing user_departure
+        // presets (left_unlocked / closure_left_open / leave_without_*)
+        // hydrate without falling through to .stateDuration and silently
+        // overwriting the trigger on save. Full custom-build UI is
+        // a follow-up; for now opening such a rule shows a "通过预设
+        // 创建/编辑" placeholder + disables save.
+        case userDeparture = "user_departure"
         var id: String { rawValue }
+        // CaseIterable picker only shows the user-creatable types;
+        // userDeparture is system-reserved (only seeded via presets).
+        static var creatableCases: [TriggerType] {
+            [.stateDuration, .stateTransition, .cron, .geofence]
+        }
         var label: String {
             switch self {
             case .stateDuration:   return "持续状态"
             case .stateTransition: return "状态变化"
             case .cron:            return "定时"
             case .geofence:        return "进出区域"
+            case .userDeparture:   return "下车瞬间"
             }
         }
         var symbol: String {
@@ -110,6 +123,7 @@ struct RuleBuilderView: View {
             case .stateTransition: return "arrow.right.arrow.left.circle.fill"
             case .cron:            return "clock.fill"
             case .geofence:        return "location.fill"
+            case .userDeparture:   return "figure.walk.departure"
             }
         }
         var description: String {
@@ -122,6 +136,8 @@ struct RuleBuilderView: View {
                 return "按时间触发（每个工作日 7:30、每天晚上…）"
             case .geofence:
                 return "车辆进入或离开某个区域（到家、离开公司…）"
+            case .userDeparture:
+                return "下车那一刻触发（用预设创建：忘锁车 / 忘开哨兵…）"
             }
         }
         var accent: Color {
@@ -130,6 +146,7 @@ struct RuleBuilderView: View {
             case .stateTransition: return .purple
             case .cron:            return .blue
             case .geofence:        return .green
+            case .userDeparture:   return .orange
             }
         }
     }
@@ -386,7 +403,10 @@ struct RuleBuilderView: View {
     @ViewBuilder
     private var triggerTypePicker: some View {
         VStack(spacing: 8) {
-            ForEach(TriggerType.allCases) { t in
+            // userDeparture is system-reserved (preset-only); hide
+            // from picker but keep it as a valid current value if
+            // the user opened a preset that uses it.
+            ForEach(TriggerType.creatableCases) { t in
                 Button {
                     triggerType = t
                 } label: {
@@ -451,6 +471,18 @@ struct RuleBuilderView: View {
                 cronEditor
             case .geofence:
                 geofenceEditor
+            case .userDeparture:
+                // System-reserved trigger; full custom-build UI is a
+                // follow-up. Show a placeholder so user understands
+                // why fields are missing + explicitly call out that
+                // saving would lose the trigger (we disable save below
+                // when this state is reached).
+                Label(
+                    "「下车瞬间」触发由内置预设管理。如需此类规则，请从右上角「+」按钮选「从预设」创建。",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -1061,6 +1093,13 @@ struct RuleBuilderView: View {
             let originalStateKey = originalTrigger?.string("state_key")
             let suffix = (initial?.spec.string("kind") ?? "geofence_user").replacingOccurrences(of: ".", with: "_")
             trigger["state_key"] = .string(originalStateKey ?? "geo:\(suffix)")
+        case .userDeparture:
+            // System-reserved type — save is gated by isValid so we
+            // never reach this. Round-trip the original trigger dict
+            // intact (defensive: avoid trigger-type rebuild loss).
+            if let original = initial?.spec["trigger"]?.objectValue {
+                return original
+            }
         }
         return trigger
     }
@@ -1101,6 +1140,10 @@ struct RuleBuilderView: View {
     }
 
     private var isValid: Bool {
+        // userDeparture has no custom-build form yet; disable save so
+        // the user can't accidentally rebuild it as state_duration on
+        // the next save (which would lose the trigger).
+        if triggerType == .userDeparture { return false }
         if name.trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if actionTitle.trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if actionBody.trimmingCharacters(in: .whitespaces).isEmpty { return false }
@@ -1335,6 +1378,11 @@ struct RuleBuilderView: View {
             trigger["radius_m"] = .int(geofenceRadiusM)
             trigger["event"] = .string(geofenceEvent.rawValue)
             trigger["state_key"] = .string("user:geo:\(kindString)")
+        case .userDeparture:
+            // isValid blocks save on userDeparture so this branch is
+            // unreachable in practice; fall through with an empty
+            // shell rather than crashing if someone bypasses the guard.
+            trigger.removeValue(forKey: "entity")
         }
 
         var action: [String: JSONValue] = [
@@ -1365,6 +1413,8 @@ struct RuleBuilderView: View {
             spec["actions_below"] = .array([])
         case .stateTransition, .cron, .geofence:
             spec["actions"] = .array([.object(action)])
+        case .userDeparture:
+            spec["actions_above"] = .array([.object(action)])
         }
         return spec
     }

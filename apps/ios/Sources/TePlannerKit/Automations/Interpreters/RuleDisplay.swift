@@ -437,16 +437,27 @@ public enum RuleDisplay {
             }
             return "\(verb)区域 \(radius)m 范围"
         case "user_departure":
-            // Sentence reads "下车后 + 「条件」". The check sub-dict
-            // mirrors a tiny predicate spec so we can reuse describeValue
-            // for whatever entity the user picked.
+            // Sentence reads "下车后 + [optional gate] + 「条件」".
             guard let check = trigger["check"]?.objectValue else {
                 return "下车后"
             }
             let entityRaw = check.string("entity") ?? ""
             let entity = entityName(entityRaw)
             let value = check["value"].flatMap { describeValue($0, entity: entityRaw) } ?? "?"
-            return "下车后「\(entity)」=「\(value)」"
+
+            // Optional geofence gate prefix.
+            var gate = ""
+            if let geo = trigger["at_geofence"]?.objectValue {
+                let lat = geo.double("lat") ?? 0
+                let lng = geo.double("lng") ?? 0
+                let radius = geo.int("radius_m") ?? 0
+                if abs(lat) < 0.0001 && abs(lng) < 0.0001 {
+                    gate = "在指定地点附近 \(radius)m（待选择）："
+                } else {
+                    gate = "在指定地点 \(radius)m 范围内："
+                }
+            }
+            return "\(gate)下车后「\(entity)」=「\(value)」"
         default:
             return type
         }

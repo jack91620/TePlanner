@@ -435,15 +435,20 @@ def _eval_user_departure(
         {"trigger": {
             "type": "user_departure",
             "check": {"entity": "vehicle.locked", "op": "==", "value": false},
-            "last_eval_key": "leftUnlocked:lastEval"
+            "last_eval_key": "leftUnlocked:lastEval",
+            "at_geofence": {"lat": 39.9, "lng": 116.4, "radius_m": 200}  // optional
          },
          "actions_above": [{"type": "notify_and_offer", ...}]}
 
     Source-of-truth event timestamp is at AutomationState key
     ``event:user_departure:at`` written by telemetry.departure_detector
     when shift_state==P + door_open True→False edge fires. The rule
-    fires when (departure_at > last_eval_for_this_rule) AND the
-    `check` predicate evaluates true against the current snapshot.
+    fires when ALL of:
+      - departure_at > last_eval_for_this_rule
+      - the `check` predicate evaluates true against the current snapshot
+      - if `at_geofence` is set: vehicle.location is within radius_m of
+        (lat, lng) at evaluation time. Lets the user say "only at home"
+        for "忘开哨兵" so they don't get nagged when parking at work.
 
     The snapshot at evaluation time is whatever telemetry has on file
     — sticky entities (locked / door / window / sentry / ...) are
@@ -470,6 +475,29 @@ def _eval_user_departure(
     # last_eval is whatever we previously wrote (also naive).
     if last_eval is not None and last_eval >= departure_at:
         return None
+
+    # Optional geofence gate. Skip the rule (without marking
+    # last_eval) if the vehicle isn't in the configured area at
+    # departure-evaluation time. Skipping without marking means
+    # we'll re-evaluate on the next tick — fine since the gate
+    # answer rarely flips between ticks.
+    geo = trigger.get("at_geofence")
+    if isinstance(geo, dict):
+        g_lat = geo.get("lat")
+        g_lng = geo.get("lng")
+        radius = geo.get("radius_m") or 200
+        actual_lat = _read_entity(ctx.vehicle_state, "vehicle.location.latitude")
+        actual_lng = _read_entity(ctx.vehicle_state, "vehicle.location.longitude")
+        if (g_lat is None or g_lng is None or
+            actual_lat is None or actual_lng is None):
+            # Not enough data to gate — for safety, treat as "out of
+            # zone" so we don't fire rules at unexpected places. The
+            # 0,0 placeholder presets ship with also fall through here
+            # until the user picks a real location.
+            return None
+        if _haversine_meters(float(actual_lat), float(actual_lng),
+                             float(g_lat), float(g_lng)) > float(radius):
+            return None
 
     # Evaluate the check predicate against current snapshot.
     entity = check.get("entity")
