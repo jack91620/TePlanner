@@ -128,6 +128,14 @@ enum class AlertSeverity(val raw: String, val label: String) {
     INFO("info", "信息"), CRITICAL("critical", "严重"),
 }
 
+enum class ActionType(val raw: String, val label: String, val description: String) {
+    NOTIFY("notify", "仅通知", "仅推送一条信息，让用户自己决定怎么处理。"),
+    NOTIFY_AND_OFFER(
+        "notify_and_offer", "通知 + 操作按钮",
+        "推送 + 在 Hub chip / 通知中提供一键操作（如关闭露营）。",
+    ),
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,9 +175,15 @@ fun RuleBuilderScreen(
     var showingGeofencePicker by remember { mutableStateOf(false) }
 
     // ---- Action ----
+    var actionType by remember { mutableStateOf(seeded.actionType) }
     var actionTitle by remember { mutableStateOf(seeded.actionTitle) }
     var actionBody by remember { mutableStateOf(seeded.actionBody) }
     var actionSeverity by remember { mutableStateOf(seeded.actionSeverity) }
+    var primaryActionLabel by remember { mutableStateOf(seeded.primaryActionLabel) }
+    var selectedCapabilityId by remember { mutableStateOf(seeded.selectedCapabilityId) }
+    var paramOverrides by remember { mutableStateOf(seeded.paramOverrides) }
+    val capabilitiesVm: CapabilitiesViewModel = hiltViewModel()
+    val capabilitiesState by capabilitiesVm.state.collectAsState()
 
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -225,9 +239,13 @@ fun RuleBuilderScreen(
                                     geofenceLng = geofenceLng,
                                     geofenceRadiusM = geofenceRadiusM,
                                     geofenceEvent = geofenceEvent,
+                                    actionType = actionType,
                                     actionTitle = actionTitle,
                                     actionBody = actionBody,
                                     actionSeverity = actionSeverity,
+                                    primaryActionLabel = primaryActionLabel,
+                                    selectedCapabilityId = selectedCapabilityId,
+                                    paramOverrides = paramOverrides,
                                 )
                                 val ok = if (isEditing && initial != null) {
                                     vm.updateSpec(initial.id, name, enabled, spec)
@@ -408,7 +426,32 @@ fun RuleBuilderScreen(
                 }
             }
 
-            // ACTION
+            // ACTION TYPE — notify vs notify_and_offer
+            Section("通知类型") {
+                ActionType.entries.forEach { t ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("action_type_${t.raw}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = actionType == t,
+                            onClick = { actionType = t },
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(t.label, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                t.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // NOTIFICATION CONTENT — title + body + severity
             Section("通知内容") {
                 OutlinedTextField(
                     value = actionTitle,
@@ -436,10 +479,115 @@ fun RuleBuilderScreen(
                 }
             }
 
+            // CAPABILITY PICKER + param editor — only for notify_and_offer
+            if (actionType == ActionType.NOTIFY_AND_OFFER) {
+                Section("操作按钮") {
+                    OutlinedTextField(
+                        value = primaryActionLabel,
+                        onValueChange = { primaryActionLabel = it },
+                        label = { Text("按钮文字") },
+                        placeholder = { Text("如：关闭露营") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("action_label_field"),
+                    )
+                    CapabilityPicker(
+                        capabilitiesState = capabilitiesState,
+                        selectedId = selectedCapabilityId,
+                        onSelect = { newId ->
+                            selectedCapabilityId = newId
+                            // Seed defaults from CapabilityDefaults — match
+                            // iOS onChange-selectedCapabilityId branch.
+                            paramOverrides = CapabilityDefaults.params[newId]
+                                ?: kotlinx.serialization.json.JsonObject(emptyMap())
+                            if (primaryActionLabel.isBlank()) {
+                                CapabilityDefaults.buttonLabel[newId]?.let {
+                                    primaryActionLabel = it
+                                }
+                            }
+                        },
+                    )
+                    if (selectedCapabilityId.isNotEmpty()) {
+                        CapabilityParamEditor(
+                            capabilityId = selectedCapabilityId,
+                            params = paramOverrides,
+                            onChange = { paramOverrides = it },
+                        )
+                    }
+                }
+            }
+
             saveError?.let { msg ->
                 Text(msg, color = MaterialTheme.colorScheme.error)
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+
+@Composable
+private fun CapabilityPicker(
+    capabilitiesState: CapabilitiesViewModel.State,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = if (selectedId.isEmpty()) "仅关闭提醒"
+        else RuleDisplay.capabilityName(selectedId)
+
+    Column(modifier = Modifier.fillMaxWidth().testTag("capability_picker")) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("点击按钮后执行", modifier = Modifier.weight(1f))
+            Text(
+                if (capabilitiesState.isLoading && capabilitiesState.capabilities.isEmpty())
+                    "加载中…" else label,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.92f),
+        ) {
+            DropdownMenuItem(
+                text = { Text("仅关闭提醒") },
+                onClick = { onSelect(""); expanded = false },
+            )
+            HorizontalDivider()
+            // Group capabilities by category — same layout as iOS
+            // sectioned Menu picker. Sections with no caps drop out.
+            val grouped = capabilitiesState.capabilities
+                .groupBy { RuleDisplay.capabilityCategory(it.id) }
+            RuleDisplay.CapabilityCategory.entries.forEach { cat ->
+                val list = grouped[cat] ?: return@forEach
+                if (list.isEmpty()) return@forEach
+                Text(
+                    "  ${cat.label}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                list.sortedBy { RuleDisplay.capabilityName(it.id) }.forEach { cap ->
+                    DropdownMenuItem(
+                        text = { Text(RuleDisplay.capabilityName(cap.id)) },
+                        onClick = { onSelect(cap.id); expanded = false },
+                        modifier = Modifier.testTag("capability_option_${cap.id}"),
+                    )
+                }
+            }
+            if (capabilitiesState.capabilities.isEmpty() && !capabilitiesState.isLoading) {
+                Text(
+                    capabilitiesState.error ?: "无可用能力",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(12.dp),
+                )
+            }
         }
     }
 }
@@ -631,9 +779,13 @@ private data class SeededFields(
     val geofenceLng: Double?,
     val geofenceRadiusM: Int,
     val geofenceEvent: GeofenceEvent,
+    val actionType: ActionType,
     val actionTitle: String,
     val actionBody: String,
     val actionSeverity: AlertSeverity,
+    val primaryActionLabel: String,
+    val selectedCapabilityId: String,
+    val paramOverrides: JsonObject,
 )
 
 private fun decodeInitial(spec: JsonObject?): SeededFields {
@@ -653,9 +805,13 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
         geofenceLng = null,
         geofenceRadiusM = 200,
         geofenceEvent = GeofenceEvent.ENTER,
+        actionType = ActionType.NOTIFY,
         actionTitle = "",
         actionBody = "",
         actionSeverity = AlertSeverity.INFO,
+        primaryActionLabel = "",
+        selectedCapabilityId = "",
+        paramOverrides = JsonObject(emptyMap()),
     )
     if (spec == null) return defaults
     val trigger = (spec["trigger"] as? JsonObject) ?: return defaults
@@ -679,15 +835,23 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
                 ?: defaults.numericValue,
             forMinutes = (trigger["for_minutes"] as? JsonPrimitive)?.content?.toIntOrNull()
                 ?: defaults.forMinutes,
+            actionType = firstActionType(spec),
             actionTitle = firstActionField(spec, "title"),
             actionBody = firstActionField(spec, "body"),
             actionSeverity = firstActionSeverity(spec),
+            primaryActionLabel = firstActionPrimaryLabel(spec),
+            selectedCapabilityId = firstActionCapability(spec),
+            paramOverrides = firstActionParams(spec),
         )
         TriggerType.STATE_TRANSITION -> seeded.copy(
             toString_ = (trigger["to"] as? JsonPrimitive)?.content ?: defaults.toString_,
+            actionType = firstActionType(spec),
             actionTitle = firstActionField(spec, "title"),
             actionBody = firstActionField(spec, "body"),
             actionSeverity = firstActionSeverity(spec),
+            primaryActionLabel = firstActionPrimaryLabel(spec),
+            selectedCapabilityId = firstActionCapability(spec),
+            paramOverrides = firstActionParams(spec),
         )
         TriggerType.CRON -> {
             val parts = ((trigger["expr"] as? JsonPrimitive)?.content ?: "30 7 * * 1,2,3,4,5")
@@ -700,9 +864,13 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
             } ?: defaults.cronWeekdays
             seeded.copy(
                 cronHour = hour, cronMinute = min, cronWeekdays = dows,
+                actionType = firstActionType(spec),
                 actionTitle = firstActionField(spec, "title"),
                 actionBody = firstActionField(spec, "body"),
                 actionSeverity = firstActionSeverity(spec),
+                primaryActionLabel = firstActionPrimaryLabel(spec),
+                selectedCapabilityId = firstActionCapability(spec),
+                paramOverrides = firstActionParams(spec),
             )
         }
         TriggerType.GEOFENCE -> {
@@ -715,9 +883,13 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
             seeded.copy(
                 geofenceLat = lat, geofenceLng = lng,
                 geofenceRadiusM = r, geofenceEvent = ev,
+                actionType = firstActionType(spec),
                 actionTitle = firstActionField(spec, "title"),
                 actionBody = firstActionField(spec, "body"),
                 actionSeverity = firstActionSeverity(spec),
+                primaryActionLabel = firstActionPrimaryLabel(spec),
+                selectedCapabilityId = firstActionCapability(spec),
+                paramOverrides = firstActionParams(spec),
             )
         }
     }
@@ -733,9 +905,39 @@ private fun firstActionField(spec: JsonObject, key: String): String {
     return ""
 }
 
+private fun firstActionObject(spec: JsonObject): JsonObject? {
+    val candidates = listOf("actions", "actions_above", "actions_below")
+    for (bucket in candidates) {
+        val arr = spec[bucket] as? JsonArray ?: continue
+        return arr.firstOrNull() as? JsonObject ?: continue
+    }
+    return null
+}
+
 private fun firstActionSeverity(spec: JsonObject): AlertSeverity {
     val raw = firstActionField(spec, "severity")
     return AlertSeverity.entries.firstOrNull { it.raw == raw } ?: AlertSeverity.INFO
+}
+
+private fun firstActionType(spec: JsonObject): ActionType {
+    val raw = firstActionField(spec, "type")
+    return ActionType.entries.firstOrNull { it.raw == raw } ?: ActionType.NOTIFY
+}
+
+private fun firstActionPrimaryLabel(spec: JsonObject): String =
+    firstActionField(spec, "primary_action_label")
+
+private fun firstActionCapability(spec: JsonObject): String {
+    val raw = firstActionField(spec, "capability")
+    // The "fallthrough" capability for notify_and_offer with no real
+    // command is "automation.dismiss" (see iOS buildSpec()). Treat
+    // that as "no selection" in the picker.
+    return if (raw == "automation.dismiss") "" else raw
+}
+
+private fun firstActionParams(spec: JsonObject): JsonObject {
+    val first = firstActionObject(spec) ?: return JsonObject(emptyMap())
+    return (first["params"] as? JsonObject) ?: JsonObject(emptyMap())
 }
 
 
@@ -793,9 +995,13 @@ private fun buildSpec(
     geofenceLng: Double?,
     geofenceRadiusM: Int,
     geofenceEvent: GeofenceEvent,
+    actionType: ActionType,
     actionTitle: String,
     actionBody: String,
     actionSeverity: AlertSeverity,
+    primaryActionLabel: String,
+    selectedCapabilityId: String,
+    paramOverrides: JsonObject,
 ): JsonObject {
     val kind = inferKind(triggerType, entity, geofenceEvent)
     val trigger = buildJsonObject {
@@ -841,10 +1047,23 @@ private fun buildSpec(
     }
 
     val action = buildJsonObject {
-        put("type", JsonPrimitive("notify"))
+        put("type", JsonPrimitive(actionType.raw))
         put("title", JsonPrimitive(actionTitle))
         put("body", JsonPrimitive(actionBody))
         put("severity", JsonPrimitive(actionSeverity.raw))
+        if (actionType == ActionType.NOTIFY_AND_OFFER) {
+            put("primary_action_label", JsonPrimitive(primaryActionLabel))
+            if (selectedCapabilityId.isNotEmpty()) {
+                put("capability", JsonPrimitive(selectedCapabilityId))
+                if (paramOverrides.isNotEmpty()) {
+                    put("params", paramOverrides)
+                }
+            } else {
+                // No capability → server-side "automation.dismiss" sentinel
+                // (just closes the alert when the user taps the button).
+                put("capability", JsonPrimitive("automation.dismiss"))
+            }
+        }
     }
 
     return buildJsonObject {

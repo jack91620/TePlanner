@@ -78,3 +78,18 @@ data class ReorderRequest(
     @SerialName("rule_ids") val ruleIds: List<String>,
     val clear: Boolean = false,
 )
+
+@Serializable
+data class CapabilityInfo(
+    val id: String,
+    val brand: String,
+    @SerialName("safety_class") val safetyClass: String,
+    @SerialName("requires_user_confirm") val requiresUserConfirm: Boolean = false,
+    @SerialName("cost_units") val costUnits: Int = 0,
+    @SerialName("params_schema") val paramsSchema: JsonObject? = null,
+)
+
+@Serializable
+data class CapabilityListResponse(
+    val capabilities: List<CapabilityInfo>,
+)

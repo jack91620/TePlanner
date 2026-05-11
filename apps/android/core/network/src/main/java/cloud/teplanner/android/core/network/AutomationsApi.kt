@@ -44,6 +44,12 @@ interface AutomationsApi {
     /// 触发历史 — recent rule-fire timeline. Backend caps `limit`.
     @GET("api/v1/automations/recent-fires")
     suspend fun recentFires(@Query("limit") limit: Int = 50): RecentFiresResponse
+
+    /// Capability registry introspection. RuleBuilder calls once per
+    /// app launch to populate the action-block picker for the
+    /// notify_and_offer action type.
+    @GET("api/v1/automations/capabilities")
+    suspend fun capabilities(): CapabilityListResponse
 }
 
 @Serializable
