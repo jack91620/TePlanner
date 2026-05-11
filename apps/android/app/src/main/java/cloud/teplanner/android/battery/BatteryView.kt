@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,10 +25,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -108,6 +114,10 @@ fun BatteryView(
 
 @Composable
 private fun Content(state: ChargingStatsViewModel.State) {
+    // 2026-05-11 B4: tap-to-detail mirror of iOS ChargingSessionDetailView.
+    // Holds the session whose detail dialog is currently open; null = none.
+    var detailSession by remember { mutableStateOf<ChargingSessionResponse?>(null) }
+
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -144,10 +154,24 @@ private fun Content(state: ChargingStatsViewModel.State) {
             }
         } else {
             items(state.sessions, key = { it.id }) { s ->
-                Card { SessionRow(s) }
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { detailSession = s }
+                        .testTag("session_row_${s.id}"),
+                ) {
+                    SessionRow(s)
+                }
                 HorizontalDivider()
             }
         }
+    }
+
+    detailSession?.let { session ->
+        ChargingSessionDetailDialog(
+            session = session,
+            onDismiss = { detailSession = null },
+        )
     }
 }
 
@@ -186,11 +210,103 @@ private fun SessionRow(s: ChargingSessionResponse) {
                 }
                 s.durationMinutes?.let { append(" · ${it} 分钟") }
                 s.locationName?.let { append(" · $it") }
+                // 2026-05-11: parity with iOS — finalized session
+                // always shows "充电完成" (true/false collapsed; the
+                // boolean is unreliable across closer-handled rows).
+                if (s.endedAsComplete != null) append(" · 充电完成")
             }.ifBlank { s.source },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+
+/**
+ * Tap-to-open detail dialog — Android mirror of iOS
+ * ChargingSessionDetailView. AlertDialog instead of full sheet so
+ * the user stays in BatteryView context.
+ */
+@Composable
+private fun ChargingSessionDetailDialog(
+    session: ChargingSessionResponse,
+    onDismiss: () -> Unit,
+) {
+    val isOngoing = session.endedAt == null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("session_detail_view"),
+        title = {
+            Text(
+                if (isOngoing) "充电中" else "充电完成",
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DetailKV("开始", formatDate(session.startedAt))
+                session.endedAt?.let { DetailKV("结束", formatDate(it)) }
+                session.durationMinutes?.let {
+                    DetailKV("时长", formatMinutes(it))
+                }
+                HorizontalDivider()
+                if (session.startSoc != null) DetailKV("起始 SOC", "${session.startSoc}%")
+                if (session.endSoc != null) DetailKV("结束 SOC", "${session.endSoc}%")
+                session.socDelta?.let {
+                    if (it != 0) DetailKV("电量增加", "+$it%", emphasize = true)
+                }
+                session.rangeAddedKm?.let { range ->
+                    if (range > 0) {
+                        HorizontalDivider()
+                        DetailKV("新增续航", "+${range.toInt()} km", emphasize = true)
+                    }
+                }
+                session.energyAddedKwh?.let { kwh ->
+                    DetailKV("充入电量", "%.1f kWh".format(kwh))
+                }
+                session.locationName?.let {
+                    HorizontalDivider()
+                    DetailKV("地点", it)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("session_detail_close"),
+            ) { Text("完成") }
+        },
+    )
+}
+
+
+@Composable
+private fun DetailKV(key: String, value: String, emphasize: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            key,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            value,
+            style = if (emphasize) MaterialTheme.typography.titleSmall
+                    else MaterialTheme.typography.bodyMedium,
+            fontWeight = if (emphasize) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (emphasize) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+
+private fun formatMinutes(minutes: Int): String {
+    if (minutes == 0) return "—"
+    if (minutes < 60) return "$minutes 分钟"
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (m == 0) "$h 小时" else "$h 小时 $m 分"
 }
 
 private fun formatDate(iso: String): String =
