@@ -1,0 +1,63 @@
+# 下次出行 sheet → 设置时间 + 提前时长 → 保存 → 卡片更新.
+#
+# Departure card 是 Hub 主页常驻入口，所以非 conditional：登录后直接走。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Hub 上的 "下次出行" 卡片。
+- extendedWaitUntil:
+    visible:
+      id: "hub_departure_card"
+    timeout: 8000
+- takeScreenshot: tmp/screenshots/maestro_departure_card_initial
+
+# 点卡片打开 sheet。
+- tapOn:
+    id: "hub_departure_card"
+
+# Sheet 显示 picker + 提前时长 slider + 保存按钮。
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_departure_sheet_opened
+
+# 输入一个 label 让 sheet 状态有变化（保存按钮才确实点得动）。
+- runFlow:
+    when:
+      visible:
+        id: "departure_label_field"
+    commands:
+      - tapOn:
+          id: "departure_label_field"
+      - inputText: "通勤"
+
+# 保存。
+- tapOn:
+    id: "departure_save_button"
+
+# Sheet 关闭，card 显示更新后的时间。Departure card 内的 "通勤" label
+# 应该可见（如果支持）。
+- extendedWaitUntil:
+    notVisible:
+      id: "departure_save_button"
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_departure_card_after_save
+
+# Cleanup：删掉刚保存的 departure。
+- tapOn:
+    id: "hub_departure_card"
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+- runFlow:
+    when:
+      visible:
+        id: "departure_clear_button"
+    commands:
+      - tapOn:
+          id: "departure_clear_button"
+      - takeScreenshot: tmp/screenshots/maestro_departure_cleared

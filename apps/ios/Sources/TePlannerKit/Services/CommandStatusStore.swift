@@ -79,7 +79,14 @@ public final class CommandStatusStore: ObservableObject {
     // MARK: - Internal helpers
 
     private func applyPending(_ result: Result<PendingCommandListResponse, APIError>) {
-        guard case .success(let resp) = result, let latest = resp.pending.first else {
+        // Transient network failures must not erase a known-good
+        // banner — that would cause "正在关闭…" to flicker off + on
+        // every time the poll loop hits a 502. Only act on
+        // authoritative success responses.
+        guard case .success(let resp) = result else { return }
+
+        guard let latest = resp.pending.first else {
+            // Authoritative empty — backend has nothing; clear.
             activePending = nil
             pendingResolvedAt = nil
             return
@@ -99,6 +106,8 @@ public final class CommandStatusStore: ObservableObject {
     }
 
     private func applyQueued(_ result: Result<QueuedCommandListResponse, APIError>) {
+        // Same network-blip rule as pending. Only authoritative
+        // success can clear / set the banner.
         guard case .success(let resp) = result else { return }
         let row = resp.queued.first { row in
             if row.status == "queued" { return true }

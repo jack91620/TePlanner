@@ -17,6 +17,12 @@ from typing import Optional
 
 import pytest
 
+# Hits live tesla-http-proxy at 127.0.0.1:4443 with a fake OAuth
+# token → every test returns 403. Excluded from default pytest run
+# (see pyproject.toml addopts `-m "not integration"`). Opt in with:
+#   cd backend && pytest -m integration tests/tesla/
+pytestmark = pytest.mark.integration
+
 sys.path.insert(0, "/home/dongxinbo/SourceCode/TePlanner/backend")
 
 from app.integrations.tesla.client import TeslaClient

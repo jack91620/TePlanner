@@ -1,0 +1,41 @@
+# AlertPill primary action 触发 → 命令 → pill 消失.
+#
+# Pill 只在 critical alert 当下显示——多半场景跑不到。conditional：
+# 看见 alert_pill_* 才走完整路径，否则截屏说明跳过。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- runFlow:
+    when:
+      visible:
+        id: "alert_pill_.*"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_alert_pill_visible
+      # primary_action 按钮 id 形如 alert_primary_action_<kind>
+      - runFlow:
+          when:
+            visible:
+              id: "alert_primary_action_.*"
+          commands:
+            - tapOn:
+                id: "alert_primary_action_.*"
+            # 按钮立即变 "执行中"。
+            - extendedWaitUntil:
+                visible: "执行中"
+                timeout: 3000
+            - takeScreenshot: tmp/screenshots/maestro_alert_pill_firing
+            # pill 应该在命令 confirmed 后消失（约 12s 内）。
+            - extendedWaitUntil:
+                notVisible:
+                  id: "alert_pill_.*"
+                timeout: 15000
+            - takeScreenshot: tmp/screenshots/maestro_alert_pill_cleared
+
+- runFlow:
+    when:
+      notVisible:
+        id: "alert_pill_.*"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_alert_pill_skipped

@@ -1,0 +1,52 @@
+# 电池管理 → 历史记录 → 点击一条 session → 详情对话框 → 关闭.
+# Phase 9 (ChargingSessionDetailView) — added 2026-05-11.
+#
+# Conditional：跳过场景是车辆从未充过电（user 没有 session 历史）。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_battery"
+
+- extendedWaitUntil:
+    visible:
+      id: "battery_view"
+    timeout: 8000
+
+# 滚动到底部找到历史记录区域。
+- scrollUntilVisible:
+    element: "历史记录"
+    direction: DOWN
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/maestro_battery_history
+
+# 历史记录里第一条 session row。Identifier 是 session_row_<uuid>，
+# 用 regex 匹配。
+- runFlow:
+    when:
+      visible:
+        id: "session_row_.*"
+    commands:
+      - tapOn:
+          id: "session_row_.*"
+      - extendedWaitUntil:
+          visible:
+            id: "session_detail_view"
+          timeout: 5000
+      - takeScreenshot: tmp/screenshots/maestro_session_detail
+      - tapOn:
+          id: "session_detail_close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "session_detail_view"
+          timeout: 5000
+      - takeScreenshot: tmp/screenshots/maestro_session_detail_dismissed
+
+- runFlow:
+    when:
+      notVisible:
+        id: "session_row_.*"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_session_detail_skipped

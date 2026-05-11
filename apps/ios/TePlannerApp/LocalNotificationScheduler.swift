@@ -210,18 +210,25 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
     /// Call from HubView on each rules refresh.
     func reconcileDelivered(firingKinds: Set<String>) {
         UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
-            let categoriesToDrop: [String] = delivered.compactMap { notif in
-                let category = notif.request.content.categoryIdentifier
-                guard !category.isEmpty,
-                      category != Self.preheatNotificationId,
-                      !category.hasPrefix("sample.") else { return nil }
-                return firingKinds.contains(category) ? nil : notif.request.identifier
+            // Decision logic lives in TePlannerKit so it's unit-testable
+            // without UN APIs (the same call site that uncovered the
+            // "vehicle.trunk_open" entity leak — we don't want this
+            // logic flying blind in the app target).
+            let items = delivered.map {
+                NotificationReconcilePolicy.DeliveredItem(
+                    identifier: $0.request.identifier,
+                    categoryIdentifier: $0.request.content.categoryIdentifier,
+                    date: $0.date,
+                )
             }
-            guard !categoriesToDrop.isEmpty else { return }
-            UNUserNotificationCenter.current().removeDeliveredNotifications(
-                withIdentifiers: categoriesToDrop
+            let toRemove = NotificationReconcilePolicy.reconcile(
+                delivered: items, firingKinds: firingKinds,
             )
-            Log.app.notice("reconciled \(categoriesToDrop.count, privacy: .public) stale local-notif(s) — kinds no longer firing")
+            guard !toRemove.isEmpty else { return }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(
+                withIdentifiers: toRemove
+            )
+            Log.app.notice("reconciled \(toRemove.count, privacy: .public) stale local-notif(s) — kinds no longer firing")
         }
     }
 
@@ -328,14 +335,20 @@ final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotifi
     /// in HubView runs. We don't know the firing set here yet, so
     /// we use a simple age cap — anything older than 12h is almost
     /// certainly stale (server's REPUSH_GUARD is 15min).
-    private static let staleAgeSweep: TimeInterval = 12 * 60 * 60
-
-    func sweepStaleDelivered(maxAge: TimeInterval = staleAgeSweep) {
+    func sweepStaleDelivered(
+        maxAge: TimeInterval = NotificationReconcilePolicy.defaultStaleAgeSeconds,
+    ) {
         UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
-            let cutoff = Date().addingTimeInterval(-maxAge)
-            let stale = delivered
-                .filter { $0.date < cutoff }
-                .map { $0.request.identifier }
+            let items = delivered.map {
+                NotificationReconcilePolicy.DeliveredItem(
+                    identifier: $0.request.identifier,
+                    categoryIdentifier: $0.request.content.categoryIdentifier,
+                    date: $0.date,
+                )
+            }
+            let stale = NotificationReconcilePolicy.sweepStale(
+                delivered: items, now: Date(), maxAgeSeconds: maxAge,
+            )
             guard !stale.isEmpty else { return }
             UNUserNotificationCenter.current().removeDeliveredNotifications(
                 withIdentifiers: stale

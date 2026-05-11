@@ -18,6 +18,10 @@ from typing import Any, Dict, Optional
 
 import pytest
 
+# Tesla Fleet API integration — needs live OAuth token. Excluded
+# from default pytest run; opt in with `pytest -m integration`.
+pytestmark = pytest.mark.integration
+
 # Add project root to path for standalone execution
 sys.path.insert(0, "/home/dongxinbo/SourceCode/TePlanner/backend")
 

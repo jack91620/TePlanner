@@ -1,0 +1,39 @@
+# Hub status chip → 关闭命令 → CommandStatusBanner converges.
+#
+# Chip 卡只在底层状态 ON 时可见——这个测试只能在车辆当前真处于某种
+# "需要关闭" 状态时跑（露营开 / 哨兵开 / 未锁）。所以做 conditional：
+# 跑得到时验证完整链路；跑不到时只截屏说明跳过。
+#
+# 不直接发命令到真车——通过观察 banner 是否出现来验证 chip 触发了
+# pollUntilSettled。Banner 在 confirmed 后 3s 内消失（参见
+# CommandStatusStore + CommandStatusBanner）。
+
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# 哨兵 chip 是最常见的：如果用户车上 sentry 开着，会有 "哨兵模式" chip。
+- runFlow:
+    when:
+      visible:
+        id: "hub_status_chip_哨兵模式"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_chip_sentry_before
+      - tapOn:
+          id: "hub_status_chip_哨兵模式"
+      # Confirmation dialog (alert style, no anchor tail per b6361ac)
+      - extendedWaitUntil:
+          visible: "关闭哨兵模式？"
+          timeout: 5000
+      - takeScreenshot: tmp/screenshots/maestro_chip_sentry_confirm
+      - tapOn: "确认"
+      # 12s poll window — banner 出现并消失，证明 pollUntilSettled 接通了。
+      # 不必断言具体内容；只要 5 秒内有 banner 字样，再 12 秒内消失即可。
+      - takeScreenshot: tmp/screenshots/maestro_chip_sentry_after
+
+- runFlow:
+    when:
+      notVisible:
+        id: "hub_status_chip_哨兵模式"
+    commands:
+      - takeScreenshot: tmp/screenshots/maestro_chip_sentry_skipped

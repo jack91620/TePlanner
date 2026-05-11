@@ -74,9 +74,15 @@ exclude = ["migrations", "tests"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=app --cov-report=term-missing"
+# `-m "not integration"` excludes by default the tests that hit live
+# Tesla / tesla-http-proxy with real OAuth tokens. Run them
+# explicitly with `pytest -m integration`.
+addopts = '-ra -q --cov=app --cov-report=term-missing -m "not integration"'
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: tests that require live external services (real Tesla proxy / OAuth token / signed cert). Excluded from default pytest run; opt-in via `-m integration`.",
+]
 
 [tool.coverage.run]
 source = ["app"]
