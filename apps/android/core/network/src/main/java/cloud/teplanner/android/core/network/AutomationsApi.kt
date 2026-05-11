@@ -1,11 +1,14 @@
 package cloud.teplanner.android.core.network
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Phase F.2 — backend automation surface (mirrors iOS APIService
@@ -34,4 +37,18 @@ interface AutomationsApi {
 
     @PUT("api/v1/automations/order")
     suspend fun reorder(@Body body: ReorderRequest): RuleListResponse
+
+    /// 触发历史 — recent rule-fire timeline. Backend caps `limit`.
+    @GET("api/v1/automations/recent-fires")
+    suspend fun recentFires(@Query("limit") limit: Int = 50): RecentFiresResponse
 }
+
+@Serializable
+data class RecentFireEntry(
+    val kind: String,
+    @SerialName("pushed_at") val pushedAt: String,
+    @SerialName("cleared_at") val clearedAt: String? = null,
+)
+
+@Serializable
+data class RecentFiresResponse(val fires: List<RecentFireEntry> = emptyList())

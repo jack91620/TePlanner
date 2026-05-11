@@ -76,6 +76,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun AutomationsListScreen(
     onBack: () -> Unit,
     onRule: (String) -> Unit,
+    onActivity: () -> Unit = {},
     vm: AutomationsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -101,6 +102,21 @@ fun AutomationsListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    // 「活动」— recent fires timeline. iOS reaches it
+                    // from the Hub menu; on Android we hang it off
+                    // the automations top bar since "what fired" is
+                    // a question users ask in that context.
+                    IconButton(
+                        onClick = onActivity,
+                        modifier = Modifier.testTag("automations_activity_button"),
+                    ) {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Filled.Notifications,
+                            contentDescription = "活动 / 触发历史",
+                        )
                     }
                 },
             )

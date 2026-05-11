@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import cloud.teplanner.android.auth.AuthSession
 import cloud.teplanner.android.auth.LoginScreen
 import cloud.teplanner.android.automations.AutomationsListScreen
+import cloud.teplanner.android.automations.RecentFiresScreen
 import cloud.teplanner.android.automations.RuleDetailScreen
 import cloud.teplanner.android.hub.HubScreen
 import cloud.teplanner.android.battery.BatteryView
@@ -34,6 +35,7 @@ object Routes {
     const val MAP = "map"
     const val ROUTE_PREVIEW = "route-preview"
     const val BATTERY = "battery"
+    const val ACTIVITY = "activity"
     fun ruleDetail(id: String) = "rules/$id"
 }
 
@@ -49,6 +51,13 @@ fun AppNavGraph() {
         map(nav)
         routePreview(nav)
         battery(nav)
+        activity(nav)
+    }
+}
+
+private fun NavGraphBuilder.activity(nav: NavHostController) {
+    composable(Routes.ACTIVITY) {
+        RecentFiresScreen(onBack = { nav.popBackStack() })
     }
 }
 
@@ -117,6 +126,7 @@ private fun NavGraphBuilder.automations(nav: NavHostController) {
         AutomationsListScreen(
             onBack = { nav.popBackStack() },
             onRule = { id -> nav.navigate(Routes.ruleDetail(id)) },
+            onActivity = { nav.navigate(Routes.ACTIVITY) },
         )
     }
 }
