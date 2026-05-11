@@ -704,12 +704,11 @@ struct HubView: View {
     }
 
     private func sendLock(_ vehicleId: String?) async {
-        // No dedicated `lock` endpoint in APIService today —
-        // surface a placeholder telling the user to use the Tesla
-        // app for now. (Adding a /vehicles/{id}/lock backend route
-        // is its own slice; covered in docs/features/.)
-        chipCommandStatus = .failed(message: "锁车命令尚未在后端实现，请用 Tesla 官方 app 锁车。")
-        _ = vehicleId
+        guard let vid = vehicleId else { return }
+        chipCommandStatus = .sending(label: "锁车中…")
+        let result = await apiService.lockVehicle(vehicleId: vid)
+        applyChipCommandResult(result, successLabel: "已锁车")
+        await viewModel.refresh()
     }
 
     private func applyChipCommandResult<T>(_ result: Result<T, APIError>, successLabel: String) {

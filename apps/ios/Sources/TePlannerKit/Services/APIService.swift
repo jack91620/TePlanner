@@ -154,6 +154,14 @@ public final class APIService: APIServiceProtocol {
         return await post(path: "/vehicles/\(vehicleId)/preheat")
     }
 
+    public func lockVehicle(vehicleId: String) async -> Result<BaseResponse, APIError> {
+        return await post(path: "/vehicles/\(vehicleId)/lock")
+    }
+
+    public func unlockVehicle(vehicleId: String) async -> Result<BaseResponse, APIError> {
+        return await post(path: "/vehicles/\(vehicleId)/unlock")
+    }
+
     public func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError> {
         struct Body: Encodable { let percent: Int }
         return await postJSON(path: "/vehicles/\(vehicleId)/charge-limit", body: Body(percent: percent))

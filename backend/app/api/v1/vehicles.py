@@ -326,6 +326,38 @@ async def set_sentry_mode(
     )
 
 
+@router.post("/{vehicle_id}/lock")
+async def lock_vehicle(
+    vehicle_id: str,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lock the vehicle doors. Dispatches through capability registry."""
+    return await _invoke_capability(
+        "tesla.security.door_lock",
+        vehicle_id,
+        {},
+        user, tesla_client, db,
+    )
+
+
+@router.post("/{vehicle_id}/unlock")
+async def unlock_vehicle(
+    vehicle_id: str,
+    user: User = Depends(get_current_user),
+    tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unlock the vehicle doors. Dispatches through capability registry."""
+    return await _invoke_capability(
+        "tesla.security.door_unlock",
+        vehicle_id,
+        {},
+        user, tesla_client, db,
+    )
+
+
 @router.post("/{vehicle_id}/charge-limit")
 async def set_charge_limit(
     vehicle_id: str,
