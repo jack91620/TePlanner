@@ -49,7 +49,6 @@ async def test_closes_when_telemetry_says_disconnected(db_session):
     snap = VehicleStateSnapshot(
         charging_state="Disconnected",
         battery_level=72,
-        battery_range=320.0,
     )
     closed = await close_stale_sessions(
         db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
@@ -62,7 +61,7 @@ async def test_closes_when_telemetry_says_disconnected(db_session):
     )).scalar_one()
     assert refreshed.ended_at is not None
     assert refreshed.end_soc == 72
-    assert refreshed.end_range_km == 320.0
+    assert refreshed.end_range_km is None  # not in telemetry
     assert refreshed.ended_as_complete is False  # disconnected ≠ Complete
 
 
@@ -76,7 +75,6 @@ async def test_marks_complete_when_telemetry_says_complete(db_session):
     snap = VehicleStateSnapshot(
         charging_state="Complete",
         battery_level=90,
-        battery_range=400.0,
     )
     closed = await close_stale_sessions(
         db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
@@ -97,7 +95,7 @@ async def test_noop_while_still_charging(db_session):
     await db_session.commit()
 
     snap = VehicleStateSnapshot(
-        charging_state="Charging", battery_level=55, battery_range=240.0,
+        charging_state="Charging", battery_level=55,
     )
     closed = await close_stale_sessions(
         db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
@@ -113,7 +111,7 @@ async def test_grace_window_holds_off_immediate_close(db_session):
     await db_session.commit()
 
     snap = VehicleStateSnapshot(
-        charging_state="Disconnected", battery_level=70, battery_range=300.0,
+        charging_state="Disconnected", battery_level=70,
     )
     closed = await close_stale_sessions(
         db_session, user_id=user.id, vehicle_id=VIN, snap=snap,
@@ -143,7 +141,7 @@ async def test_does_not_overwrite_existing_end_values(db_session):
     await db_session.commit()
 
     snap = VehicleStateSnapshot(
-        charging_state="Disconnected", battery_level=65, battery_range=260.0,
+        charging_state="Disconnected", battery_level=65,
     )
     await close_stale_sessions(
         db_session, user_id=user.id, vehicle_id=VIN, snap=snap,

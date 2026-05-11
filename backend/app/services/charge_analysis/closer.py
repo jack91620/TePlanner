@@ -80,8 +80,9 @@ async def close_stale_sessions(
         row.ended_at = now
         if row.end_soc is None and snap.battery_level is not None:
             row.end_soc = snap.battery_level
-        if row.end_range_km is None and snap.battery_range is not None:
-            row.end_range_km = snap.battery_range
+        # battery_range isn't carried by Tesla Fleet Telemetry today,
+        # so end_range_km stays NULL for closer-handled rows. iOS
+        # detail view tolerates the gap (shows "—").
         if row.ended_as_complete is None:
             row.ended_as_complete = (snap.charging_state == "Complete")
         closed += 1
