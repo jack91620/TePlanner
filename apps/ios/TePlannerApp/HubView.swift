@@ -427,8 +427,14 @@ struct HubView: View {
         while Date() < deadline {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             await refreshCommandStatuses()
-            // Stop early once we've shown a terminal status.
-            if let p = activePending, p.status != "pending" { break }
+            // Stop only AFTER the banner has cleared (activePending
+            // back to nil). Previous version broke as soon as we saw
+            // status="confirmed" — but refreshCommandStatuses needs
+            // more polls AFTER that to honour the "show 已关闭 for
+            // 3s then dismiss" logic. Breaking early left the banner
+            // stuck at "已..." (or worse, "正在...等待车辆确认" if
+            // the first poll observed pending status).
+            if activePending == nil { break }
         }
     }
 
@@ -744,6 +750,15 @@ struct HubView: View {
             Task { try? await Task.sleep(nanoseconds: 2_500_000_000)
                 if case .sent = chipCommandStatus { chipCommandStatus = .idle }
             }
+            // 2026-05-11 bug fix: chip-dispatched commands also write a
+            // CommandPending row server-side. Without this, the next
+            // vehicleState change triggers refreshCommandStatuses ONCE,
+            // which may catch the pending state but never the confirmed
+            // state if no further telemetry change happens — the user
+            // sees "正在关闭...等待车辆确认" stuck forever. Mirror the
+            // AlertPill path: poll for up to 12 s so the CommandStatusBanner
+            // converges to "已..." → cleared just like AlertPill commands.
+            Task { await pollCommandStatusesUntilSettled() }
         case .failure(let err):
             chipCommandStatus = .failed(message: err.localizedDescription)
         }
