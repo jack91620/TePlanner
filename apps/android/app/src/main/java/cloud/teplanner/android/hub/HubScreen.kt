@@ -74,11 +74,21 @@ fun HubScreen(
     auth: AuthSession = hiltViewModel(),
     hub: HubViewModel = hiltViewModel(),
     departure: ScheduledDepartureViewModel = hiltViewModel(),
+    commandStatus: CommandStatusViewModel = hiltViewModel(),
 ) {
     val account by auth.account.collectAsState()
     val state by hub.state.collectAsState()
     val departureState by departure.state.collectAsState()
+    val commandStatusState by commandStatus.state.collectAsState()
     var showDepartureSheet by remember { mutableStateOf(false) }
+
+    // Trigger converge poll after any chip command success — mirror
+    // of iOS HubView.applyChipCommandResult kicking pollUntilSettled.
+    androidx.compose.runtime.LaunchedEffect(state.chipStatus) {
+        if (state.chipStatus is HubViewModel.ChipStatus.Sent) {
+            commandStatus.pollUntilSettled()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -107,6 +117,7 @@ fun HubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             VehicleStatusCard(state = state)
+            CommandStatusBanner(state = commandStatusState)
             HubStatusChips(
                 state = state.vehicleState,
                 chipStatus = state.chipStatus,
@@ -402,4 +413,73 @@ private fun chip(label: String, testTag: String, onTap: () -> Unit) {
         label = { Text(label) },
         modifier = Modifier.testTag(testTag),
     )
+}
+
+
+/**
+ * Banner that surfaces in-flight / recently-resolved VCP commands.
+ * Mirror of iOS CommandStatusBanner — only renders when there's an
+ * active pending or queued row to show.
+ */
+@Composable
+fun CommandStatusBanner(state: CommandStatusViewModel.State) {
+    val pending = state.activePending
+    val queued = state.activeQueued
+    if (pending == null && queued == null) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("command_status_banner"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            pending?.let { p ->
+                val (title, subtitle) = pendingText(p)
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            queued?.let { q ->
+                val (title, subtitle) = queuedText(q)
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+private fun pendingText(
+    p: cloud.teplanner.android.core.network.PendingCommandRow,
+): Pair<String, String> {
+    val verb = when (p.capability) {
+        "tesla.security.set_sentry" -> "切换哨兵"
+        "tesla.climate.set_keeper_mode" -> "切换空调保持"
+        "tesla.security.door_lock" -> "锁车"
+        "tesla.security.door_unlock" -> "解锁"
+        "tesla.climate.preheat" -> "预热"
+        "tesla.charging.set_limit" -> "调整充电限额"
+        else -> "执行命令"
+    }
+    return when (p.status) {
+        "confirmed" -> "已${verb}" to "车辆已确认，操作完成"
+        "timed_out" -> "${verb} — 未确认" to "60 秒内未收到车辆反馈"
+        else -> "正在${verb}…" to "等待车辆确认"
+    }
+}
+
+private fun queuedText(
+    q: cloud.teplanner.android.core.network.QueuedCommandRow,
+): Pair<String, String> {
+    return when (q.status) {
+        "sent" -> "命令已发送" to "车辆已上线"
+        "dropped" -> {
+            val tail = q.error?.let { ": $it" } ?: ""
+            "命令已超时" to "未在 TTL 内执行$tail"
+        }
+        else -> "等待车辆上线" to "下次上线时自动执行"
+    }
 }
