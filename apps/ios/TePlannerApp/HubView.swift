@@ -248,10 +248,9 @@ struct HubView: View {
                 }
             )
         }
-        .confirmationDialog(
+        .alert(
             "解绑 Tesla 账户",
-            isPresented: $showingUnbindConfirm,
-            titleVisibility: .visible
+            isPresented: $showingUnbindConfirm
         ) {
             // Destructive button text avoids the substring "解绑" alone
             // because the menu item that triggers this dialog is also
@@ -289,13 +288,12 @@ struct HubView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(apiService: apiService)
         }
-        .confirmationDialog(
+        .alert(
             pendingChipAction?.confirmTitle ?? "",
             isPresented: Binding(
                 get: { pendingChipAction != nil },
                 set: { if !$0 { pendingChipAction = nil } }
-            ),
-            titleVisibility: .visible,
+            )
         ) {
             if let chip = pendingChipAction {
                 Button(chip.label.contains("锁") ? "锁车" : "确认", role: .destructive) {

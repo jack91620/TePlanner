@@ -56,7 +56,7 @@ struct RuleDetailView: View {
                         )
                     }
                 }
-                .confirmationDialog("确定删除「\(r.name)」？", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
+                .alert("确定删除「\(r.name)」？", isPresented: $showingDeleteConfirm) {
                     Button("删除", role: .destructive) {
                         Task {
                             let ok = await rulesStore.delete(id: r.id)

@@ -201,13 +201,17 @@ struct AutomationsHomeView: View {
                 )
             }
         }
-        .confirmationDialog(
+        // 2026-05-11: binary destructive confirmations now use .alert
+        // so iOS doesn't render the popover-with-tail style when the
+        // trigger source is a List swipe action (anchor arrow). .alert
+        // is always a centered modal — rounded rectangle, no tail —
+        // matching the HIG for two-option destructive choices.
+        .alert(
             "确定删除「\(pendingDelete?.name ?? "")」？",
             isPresented: Binding(
                 get: { pendingDelete != nil },
                 set: { if !$0 { pendingDelete = nil } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
             Button("删除", role: .destructive) {
                 if let target = pendingDelete {

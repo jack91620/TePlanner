@@ -294,10 +294,9 @@ struct RuleBuilderView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "丢弃未保存的修改？",
-            isPresented: $showingDiscardConfirm,
-            titleVisibility: .visible
+            isPresented: $showingDiscardConfirm
         ) {
             Button("丢弃", role: .destructive) { dismiss() }
             Button("继续编辑", role: .cancel) {}
@@ -330,10 +329,9 @@ struct RuleBuilderView: View {
                 showingGeofencePicker = false
             }
         }
-        .confirmationDialog(
+        .alert(
             "确定删除「\(initial?.name ?? "")」？",
-            isPresented: $showingDeleteConfirm,
-            titleVisibility: .visible,
+            isPresented: $showingDeleteConfirm
         ) {
             Button("删除", role: .destructive) {
                 Task {
