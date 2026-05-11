@@ -117,6 +117,7 @@ fun HubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             VehicleStatusCard(state = state)
+            PermissionBanner()
             CommandStatusBanner(state = commandStatusState)
             HubChargeLimitCard(
                 suggestion = state.chargeLimitSuggestion,
