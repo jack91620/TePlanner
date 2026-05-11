@@ -118,6 +118,10 @@ fun HubScreen(
         ) {
             VehicleStatusCard(state = state)
             CommandStatusBanner(state = commandStatusState)
+            HubChargeLimitCard(
+                suggestion = state.chargeLimitSuggestion,
+                onApply = hub::applySuggestedChargeLimit,
+            )
             HubStatusChips(
                 state = state.vehicleState,
                 chipStatus = state.chipStatus,
@@ -481,5 +485,64 @@ private fun queuedText(
             "命令已超时" to "未在 TTL 内执行$tail"
         }
         else -> "等待车辆上线" to "下次上线时自动执行"
+    }
+}
+
+
+/**
+ * Hub-level "调高/调低充电限额到 N%" suggestion card — mirror of iOS
+ * HubChargeLimitCard.
+ *
+ * Server (`/suggest-charge-limit`) returns a recommended percent
+ * based on the user's daily/trip preferences + any upcoming
+ * ScheduledDeparture. Card renders only when `alreadyMatches`
+ * is false. Tap 应用 → dispatch set_charge_limit + converge poll
+ * (kicked off through the chip-status flow on HubViewModel).
+ */
+@Composable
+private fun HubChargeLimitCard(
+    suggestion: cloud.teplanner.android.core.network.SuggestChargeLimitResponse?,
+    onApply: (Int) -> Unit,
+) {
+    if (suggestion == null || suggestion.alreadyMatches) return
+    val current = suggestion.currentPercent ?: return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("hub_charge_limit_card"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Filled.BatteryFull,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                val verb = if (suggestion.recommendedPercent > current) "调高" else "调低"
+                Text(
+                    "建议${verb}充电限额到 ${suggestion.recommendedPercent}%",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    "当前 ${current}% · ${suggestion.reason}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = { onApply(suggestion.recommendedPercent) },
+                modifier = Modifier.testTag("hub_charge_limit_apply"),
+            ) {
+                Text("应用")
+            }
+        }
     }
 }

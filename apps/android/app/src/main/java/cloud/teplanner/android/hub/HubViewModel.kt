@@ -2,8 +2,11 @@ package cloud.teplanner.android.hub
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cloud.teplanner.android.core.network.SetChargeLimitRequest
 import cloud.teplanner.android.core.network.SetClimateKeeperRequest
 import cloud.teplanner.android.core.network.SetSentryRequest
+import cloud.teplanner.android.core.network.SuggestChargeLimitRequest
+import cloud.teplanner.android.core.network.SuggestChargeLimitResponse
 import cloud.teplanner.android.core.network.TokenStore
 import cloud.teplanner.android.core.network.VehicleResponse
 import cloud.teplanner.android.core.network.VehicleStateResponse
@@ -39,6 +42,10 @@ class HubViewModel @Inject constructor(
         val isLoading: Boolean = false,
         val error: String? = null,
         val chipStatus: ChipStatus = ChipStatus.Idle,
+        /// Smart charge-limit suggestion from /suggest-charge-limit.
+        /// null = not yet fetched or no recommendation differs from
+        /// current. Card renders only when non-null AND !alreadyMatches.
+        val chargeLimitSuggestion: SuggestChargeLimitResponse? = null,
     )
 
     /// Mirrors iOS HubView.ChipCommandStatus. Surfaced inline below
@@ -73,6 +80,10 @@ class HubViewModel @Inject constructor(
                         isLoading = false, error = null,
                     )
                 }
+                // Fire the suggestion fetch right after state lands;
+                // backend reads ScheduledDeparture + current limit to
+                // decide whether to recommend daily vs trip target.
+                fetchChargeLimitSuggestion(primary.id, vstate?.chargeLimitSoc)
             }.onFailure { err ->
                 _state.update { it.copy(isLoading = false, error = err.message) }
             }
@@ -98,6 +109,29 @@ class HubViewModel @Inject constructor(
     fun lock() {
         dispatchCommand("锁车中…", "已锁车") { id ->
             vehiclesApi.lockVehicle(id)
+        }
+    }
+
+    fun applySuggestedChargeLimit(percent: Int) {
+        dispatchCommand("调整充电限额到 $percent% …", "充电限额已调到 $percent%") { id ->
+            vehiclesApi.setChargeLimit(id, SetChargeLimitRequest(percent = percent))
+        }
+    }
+
+    private fun fetchChargeLimitSuggestion(vehicleId: String, currentLimit: Int?) {
+        viewModelScope.launch {
+            runCatching {
+                vehiclesApi.suggestChargeLimit(
+                    vehicleId,
+                    SuggestChargeLimitRequest(currentLimit = currentLimit),
+                )
+            }.onSuccess { resp ->
+                _state.update { it.copy(chargeLimitSuggestion = resp) }
+            }.onFailure {
+                // Don't surface to UI — suggestion is opt-in; failing
+                // quietly is the right move.
+                _state.update { it.copy(chargeLimitSuggestion = null) }
+            }
         }
     }
 

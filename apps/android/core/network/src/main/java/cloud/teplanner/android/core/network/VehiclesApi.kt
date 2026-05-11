@@ -54,6 +54,12 @@ interface VehiclesApi {
         @Body body: SetChargeLimitRequest,
     ): BaseResponse
 
+    @POST("api/v1/vehicles/{id}/suggest-charge-limit")
+    suspend fun suggestChargeLimit(
+        @Path("id") vehicleId: String,
+        @Body body: SuggestChargeLimitRequest,
+    ): SuggestChargeLimitResponse
+
     @POST("api/v1/vehicles/{id}/navigate")
     suspend fun sendNavigation(
         @Path("id") vehicleId: String,
@@ -83,6 +89,23 @@ data class NavigationRequest(
     val latitude: Double,
     val longitude: Double,
     val name: String? = null,
+)
+
+@Serializable
+data class SuggestChargeLimitRequest(
+    @kotlinx.serialization.SerialName("current_limit") val currentLimit: Int? = null,
+    @kotlinx.serialization.SerialName("daily_limit_soc") val dailyLimitSoc: Int = 80,
+    @kotlinx.serialization.SerialName("trip_limit_soc") val tripLimitSoc: Int = 100,
+    @kotlinx.serialization.SerialName("trip_window_hours") val tripWindowHours: Int = 12,
+)
+
+@Serializable
+data class SuggestChargeLimitResponse(
+    @kotlinx.serialization.SerialName("recommended_percent") val recommendedPercent: Int,
+    @kotlinx.serialization.SerialName("current_percent") val currentPercent: Int? = null,
+    val reason: String,
+    @kotlinx.serialization.SerialName("hours_away") val hoursAway: Int? = null,
+    @kotlinx.serialization.SerialName("already_matches") val alreadyMatches: Boolean,
 )
 
 @Serializable
