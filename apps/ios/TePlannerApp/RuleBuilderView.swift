@@ -273,6 +273,7 @@ struct RuleBuilderView: View {
             triggerSection
             actionSection
             unsafeSection
+            previewSection
             saveSection
         }
         .navigationTitle(initial == nil ? "新建自动化" : "编辑自动化")
@@ -355,6 +356,9 @@ struct RuleBuilderView: View {
         Section {
             TextField("起一个好记的名字", text: $name)
                 .accessibilityIdentifier("rule_name_field")
+            if name.trimmingCharacters(in: .whitespaces).isEmpty {
+                inlineRequiredHint("规则名称不能为空")
+            }
             Toggle("启用", isOn: $enabled)
         } header: {
             HStack(spacing: 4) {
@@ -362,6 +366,19 @@ struct RuleBuilderView: View {
                 Text("*").foregroundStyle(.red)
             }
         }
+    }
+
+    /// Inline orange warning row used in place of the cryptic `*`
+    /// markers and the bottom save-section hint. Lets the user
+    /// fix issues field-by-field instead of guessing what's missing
+    /// after hitting a disabled save button.
+    private func inlineRequiredHint(_ message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.caption)
+            .foregroundStyle(Tokens.colorWashWarning)
+            .listRowBackground(
+                Tokens.colorWashWarning.opacity(Tokens.colorWashWarningAlpha)
+            )
     }
 
     /// iOS 快捷指令-style trigger type selector: 3 cards in a row,
@@ -476,6 +493,9 @@ struct RuleBuilderView: View {
             .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
+        if !hasRealGeofenceLocation {
+            inlineRequiredHint("请在地图上选择中心位置")
+        }
         Stepper(value: $geofenceRadiusM, in: 50...2000, step: 50) {
             HStack {
                 Text("范围")
@@ -682,19 +702,15 @@ struct RuleBuilderView: View {
     private var actionSection: some View {
         Section {
             actionTypePicker
-            HStack(spacing: 0) {
-                TextField("标题（如「车辆未锁」）", text: $actionTitle)
-                    .accessibilityIdentifier("rule_action_title_field")
-                if actionTitle.isEmpty {
-                    Text("*").foregroundStyle(.red).font(.footnote)
-                }
+            TextField("标题（如「车辆未锁」）", text: $actionTitle)
+                .accessibilityIdentifier("rule_action_title_field")
+            if actionTitle.trimmingCharacters(in: .whitespaces).isEmpty {
+                inlineRequiredHint("通知标题不能为空")
             }
-            HStack(alignment: .top, spacing: 0) {
-                TextField("正文（如「停车 {duration_human}，请确认」）", text: $actionBody, axis: .vertical)
-                    .lineLimit(2...5)
-                if actionBody.isEmpty {
-                    Text("*").foregroundStyle(.red).font(.footnote)
-                }
+            TextField("正文（如「停车 {duration_human}，请确认」）", text: $actionBody, axis: .vertical)
+                .lineLimit(2...5)
+            if actionBody.trimmingCharacters(in: .whitespaces).isEmpty {
+                inlineRequiredHint("通知正文不能为空")
             }
             if !bodyPreview.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
@@ -714,6 +730,9 @@ struct RuleBuilderView: View {
             }
             if actionType == .notifyAndOffer {
                 TextField("按钮文字", text: $primaryActionLabel)
+                if primaryActionLabel.trimmingCharacters(in: .whitespaces).isEmpty {
+                    inlineRequiredHint("操作按钮需要一个文字标签")
+                }
                 capabilityPicker
                 if !selectedCapabilityId.isEmpty {
                     CapabilityParamEditor(
@@ -770,19 +789,122 @@ struct RuleBuilderView: View {
                     isOn: $unsafeAcknowledged
                 )
                 .tint(.orange)
+                if !unsafeAcknowledged {
+                    inlineRequiredHint("勾选确认后才能保存")
+                }
             }
         }
     }
 
+    /// Live mock of how this rule will appear in 自动化提醒 list +
+    /// in a notification banner. Updates as the user edits any
+    /// field. Reuses RuleDisplay.triggerSentence so the wording
+    /// matches what the running app will show post-save.
+    @ViewBuilder
+    private var previewSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                // Top: name + enabled badge — mirrors the row in
+                // AutomationsHomeView so users see exactly what they'll
+                // tap into after saving.
+                HStack(spacing: 8) {
+                    Image(systemName: previewTriggerSymbol)
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(.tint, in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name.isEmpty ? "（未命名规则）" : name)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(name.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                        Text(previewTriggerSentence)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                    Text(enabled ? "已启用" : "已停用")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            (enabled ? Tokens.colorBadgeCustomBg : Color.gray)
+                                .opacity(enabled ? Tokens.colorBadgeCustomBgAlpha : 0.15),
+                            in: Capsule()
+                        )
+                        .foregroundStyle(enabled ? Tokens.colorBadgeCustomFg : Color.secondary)
+                }
+                Divider()
+                // Notification banner mock — same shape as iOS lock
+                // screen banner, narrowed.
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "bell.fill")
+                        .font(.caption)
+                        .foregroundStyle(actionSeverity == .critical ? Tokens.colorAlertFiringBg : Color.accentColor)
+                        .padding(6)
+                        .background(
+                            (actionSeverity == .critical
+                                ? Tokens.colorAlertFiringBg
+                                : Color.accentColor).opacity(0.15),
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(actionTitle.isEmpty ? "（标题留空）" : actionTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(actionTitle.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                        let bodyText = bodyPreview.isEmpty
+                            ? (actionBody.isEmpty ? "（正文留空）" : actionBody)
+                            : bodyPreview
+                        Text(bodyText)
+                            .font(.caption2)
+                            .foregroundStyle(actionBody.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                            .lineLimit(3)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(8)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                if actionType == .notifyAndOffer && !primaryActionLabel.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text(primaryActionLabel)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(.tint.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.tint)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+            .accessibilityIdentifier("rule_builder_preview_card")
+        } header: {
+            Text("预览")
+        } footer: {
+            Text("跟保存后的实际表现一致；占位符用当前阈值代入。")
+                .font(.caption2)
+        }
+    }
+
+    private var previewTriggerSentence: String {
+        let snapshot = rebuiltSpec()
+        let sentence = RuleDisplay.triggerSentence(snapshot)
+        return sentence.isEmpty ? "（触发条件未填写）" : sentence
+    }
+
+    private var previewTriggerSymbol: String {
+        let snapshot = rebuiltSpec()
+        return RuleDisplay.triggerSymbol(snapshot)
+    }
+
     private var saveSection: some View {
         Section {
+            // Inline hints under each blank field replace the old
+            // bottom-of-form roll-up hint. We still surface server
+            // errors here since they're failure-on-save, not field-
+            // level validation.
             if let err = saveError {
                 Text(err).foregroundStyle(.red).font(.caption)
-            }
-            if !isValid && missingFieldsHint != nil {
-                Label(missingFieldsHint ?? "", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Button {
                 Task { await save() }
