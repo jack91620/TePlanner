@@ -35,7 +35,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import PendingWait
@@ -218,11 +218,34 @@ async def check_and_resolve(
             predicate = json.loads(row.predicate_json or "{}")
             then_action = json.loads(row.then_action_json or "{}")
         except (json.JSONDecodeError, TypeError):
+            # Bad serialization — single-session attribute set is fine
+            # since this is a permanent fail-state, not a race-prone
+            # transition. (Idempotent: any session converges to the
+            # same timed-out marker.)
             row.timed_out_at = now
             continue
 
         if snap is not None and _check_predicate(snap, predicate):
-            row.resolved_at = now
+            # 2026-05-11 race fix: SELECT-then-set-attribute let two
+            # concurrent sessions (cron tick + telemetry consumer)
+            # both find this row unresolved AND both emit the alert
+            # → 2 pushes. Atomic claim instead: UPDATE returns
+            # rowcount=0 if another session already resolved this row.
+            # SQLite WAL serializes writes; the loser sees the new
+            # resolved_at and skips.
+            claim = await db.execute(
+                update(PendingWait)
+                .where(PendingWait.id == row.id)
+                .where(PendingWait.resolved_at.is_(None))
+                .values(resolved_at=now)
+            )
+            if claim.rowcount == 0:
+                logger.info(
+                    "pending_wait race-lost (another session resolved): "
+                    "id=%s user=%s vin=%s",
+                    row.id, user_id, vehicle_id,
+                )
+                continue
             alert = _format_then_alert(then_action, snap, predicate)
             if alert is not None:
                 fired.append(alert)
@@ -233,7 +256,16 @@ async def check_and_resolve(
             continue
 
         if now >= row.deadline_at:
-            row.timed_out_at = now
+            # Same atomic-claim pattern for the timeout transition;
+            # cheaper since no alert is emitted on timeout, but still
+            # avoids racing the resolved-by-another-session path above.
+            await db.execute(
+                update(PendingWait)
+                .where(PendingWait.id == row.id)
+                .where(PendingWait.resolved_at.is_(None))
+                .where(PendingWait.timed_out_at.is_(None))
+                .values(timed_out_at=now)
+            )
             logger.info(
                 "pending_wait timed out user=%s vin=%s rule=%s",
                 user_id, vehicle_id, row.rule_id,
