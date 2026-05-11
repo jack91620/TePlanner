@@ -165,8 +165,9 @@ fun HubScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             account?.let { acc ->
+                val label = acc.email ?: "用户 ID：${acc.userId}"
                 Text(
-                    "登录账号：${acc.email}",
+                    "登录账号：$label",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -44,11 +44,13 @@ class TokenStore(context: Context) {
     val email: String?
         get() = prefs.getString(KEY_EMAIL, null)
 
-    fun save(token: String, userId: Long, email: String) {
+    fun save(token: String, userId: Long, email: String? = null) {
         prefs.edit()
             .putString(KEY_TOKEN, token)
             .putLong(KEY_USER_ID, userId)
-            .putString(KEY_EMAIL, email)
+            .apply {
+                if (email != null) putString(KEY_EMAIL, email) else remove(KEY_EMAIL)
+            }
             .apply()
     }
 

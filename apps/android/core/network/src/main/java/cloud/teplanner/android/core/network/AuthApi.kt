@@ -1,19 +1,26 @@
 package cloud.teplanner.android.core.network
 
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.GET
+import retrofit2.http.Query
 
 /**
- * Phase F.1 — auth Retrofit interface. The backend exposes 10 auth
- * endpoints (Email login/register, Tesla OAuth flow, WeChat); F.1
- * wires the email-login path only. Tesla pairing lands once the iOS
- * VCP flow is mirrored on Android (F.2 or later, gated on Tesla
- * Mobile App's Android availability).
+ * Auth Retrofit interface. Tesla OAuth is the only login path.
+ *
+ * Flow:
+ *   1. Client calls `authorizeTesla()` → backend returns
+ *      `{url, state, user_id}` (creates an anon user if none).
+ *   2. Client loads `url` in a WebView; user authenticates with
+ *      Tesla; Tesla redirects to backend `/auth/tesla/callback`.
+ *   3. Backend exchanges the code, mints a JWT, and renders an
+ *      HTML page with `<div id="auth-data">{token, user_id, ...}`.
+ *   4. Client's WebView scrapes the div and stores the JWT.
+ *
+ * The same redirect_uri is used by iOS + Android (server-rendered
+ * callback page, no per-platform deep link).
  */
 interface AuthApi {
-    @POST("api/v1/auth/login")
-    suspend fun login(@Body body: EmailLoginRequest): EmailAuthResponse
-
-    @POST("api/v1/auth/register")
-    suspend fun register(@Body body: EmailRegisterRequest): EmailAuthResponse
+    @GET("api/v1/auth/tesla/authorize")
+    suspend fun authorizeTesla(
+        @Query("user_id") userId: Long? = null,
+    ): TeslaAuthUrlResponse
 }
