@@ -121,6 +121,7 @@ final class InMemorySettingsStore: SettingsStore {
     var tripChargeLimitSoc: Int = 90
     var hasPromptedVCPPairing: Bool = false
     var hasSeenHubWelcome: Bool = false
+    var hideNotificationBannerUntil: Date? = nil
 
     func reset() {
         teslaLinked = false

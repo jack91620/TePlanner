@@ -1,0 +1,13 @@
+# Android wrapper for the shared automations smoke flow.
+# Run: make e2e-android FLOW=cross_platform/automations_smoke_android.yaml
+#
+# Precondition: a logged-in account exists on the emulator. If you
+# wipe data / use a fresh emulator, log in first — Maestro can't
+# drive Tesla OAuth WebView on Android reliably yet.
+
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/automations_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_automations

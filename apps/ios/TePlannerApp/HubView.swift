@@ -49,6 +49,12 @@ struct HubView: View {
     /// status. We track the timestamp so we don't keep them around
     /// after that window even if the server still returns the row.
     @State private var pendingResolvedAt: Date?
+    /// Set when the user dismisses the "通知未开启" banner — re-shown
+    /// after this date passes. Persisted across launches via the
+    /// `hideNotificationBannerUntil` UserDefaults key.
+    @State private var notificationBannerHideUntil: Date? =
+        UserDefaultsSettingsStore.shared.hideNotificationBannerUntil
+    @ObservedObject private var notificationScheduler = LocalNotificationScheduler.shared
     @Environment(\.openURL) private var openURL
 
     init(apiService: APIServiceProtocol, authSession: AuthSession) {
@@ -94,6 +100,7 @@ struct HubView: View {
                         withAnimation { showWelcomeBanner = false }
                     }
                 }
+                permissionBanner
                 statusCard
                 alertPill
                 departureCard
@@ -193,6 +200,9 @@ struct HubView: View {
                     await rulesStore.refresh()
                     await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id)
                 }
+                // Pick up notification permission changes the user
+                // made in iOS Settings while the app was background.
+                notificationScheduler.refreshAuthStatus()
             default: viewModel.stopPolling()
             }
         }
@@ -413,6 +423,20 @@ struct HubView: View {
         // before nagging — no point prompting before OAuth completes.
         guard viewModel.vehicle != nil else { return }
         showingPairingPrompt = true
+    }
+
+    private var permissionBanner: some View {
+        let binding = Binding<Date?>(
+            get: { notificationBannerHideUntil },
+            set: { newValue in
+                notificationBannerHideUntil = newValue
+                UserDefaultsSettingsStore.shared.hideNotificationBannerUntil = newValue
+            }
+        )
+        return PermissionBannerView(
+            status: notificationScheduler.authStatus,
+            hideUntil: binding
+        )
     }
 
     private var statusCard: some View {

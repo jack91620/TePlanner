@@ -3,6 +3,8 @@ package cloud.teplanner.android.hub
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+// testTag import added below in the platform group; placed inline to
+// keep the existing import sort stable.
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import cloud.teplanner.android.auth.AuthSession
@@ -105,24 +108,28 @@ fun HubScreen(
                 } ?: "未设置 — 点击安排出发时间",
                 icon = Icons.Filled.DepartureBoard,
                 onClick = { showDepartureSheet = true },
+                testTag = "hub_departure_card",
             )
             EntryCard(
                 title = "充电规划",
                 subtitle = "附近充电桩 · 路线规划",
                 icon = Icons.Filled.EvStation,
                 onClick = onMap,
+                testTag = "hub_entry_planning",
             )
             EntryCard(
                 title = "自动化提醒",
                 subtitle = "管理预设规则与自定义触发",
                 icon = Icons.Filled.AutoAwesome,
                 onClick = onAutomations,
+                testTag = "hub_entry_automations",
             )
             EntryCard(
                 title = "电池管理",
                 subtitle = "充电记录 · 月度统计",
                 icon = Icons.Filled.BatteryFull,
                 onClick = onBattery,
+                testTag = "hub_entry_battery",
             )
             Spacer(modifier = Modifier.height(8.dp))
             account?.let { acc ->
@@ -222,9 +229,13 @@ private fun EntryCard(
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
+    testTag: String? = null,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(testTag?.let { Modifier.testTag(it) } ?: Modifier)
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

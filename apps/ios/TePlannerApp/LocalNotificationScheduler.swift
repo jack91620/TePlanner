@@ -18,7 +18,7 @@ import TePlannerKit
 ///   (_:willPresent:)` because the pill is already showing the same
 ///   info; banner + pill is redundant.
 @MainActor
-final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
+final class LocalNotificationScheduler: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = LocalNotificationScheduler()
 
     /// Identifier reserved for the Phase 5.5 "时间到了，出发前预热"
@@ -28,6 +28,22 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
 
     private var lastSeenCriticalKinds: Set<VehicleAlert.Kind> = []
     private var permissionRequested = false
+
+    /// Published authorization status — UI subscribes to drive a
+    /// "通知未开启" re-prompt banner when it's `.denied`. Refreshed
+    /// from `getNotificationSettings` on scene-active so changes the
+    /// user makes in iOS Settings reflect immediately.
+    @Published private(set) var authStatus: UNAuthorizationStatus = .notDetermined
+
+    /// Refresh `authStatus` from the system. Cheap; safe to call on
+    /// every foreground tick.
+    func refreshAuthStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+            Task { @MainActor in
+                self?.authStatus = settings.authorizationStatus
+            }
+        }
+    }
     /// Set externally (HubView.task) so the delegate can hand the
     /// preheat tap off to the right place. nil means "no listener" —
     /// notification is silently dropped.
@@ -178,8 +194,9 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
             } else {
                 Log.app.notice("local-notif permission \(granted ? "granted" : "denied", privacy: .public)")
             }
-            if granted {
-                Task { @MainActor in
+            Task { @MainActor in
+                self.refreshAuthStatus()
+                if granted {
                     RemotePushRegistrar.shared.requestRegistration()
                 }
             }

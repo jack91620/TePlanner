@@ -25,6 +25,13 @@ public protocol SettingsStore: AnyObject {
     /// Whether the user has dismissed the first-launch welcome banner
     /// on the hub. Set true on first dismiss; banner never re-shows.
     var hasSeenHubWelcome: Bool { get set }
+
+    /// Suppress the "通知未开启" banner until this date. Nil = show
+    /// whenever auth is denied. Set by the banner's "今天先不" button
+    /// to (now + 24h). Cleared when the user tap-opens Settings (since
+    /// they're presumably about to grant permission).
+    var hideNotificationBannerUntil: Date? { get set }
+
     func reset()
 }
 
@@ -47,6 +54,7 @@ public enum SettingsKey {
     public static let tripChargeLimitSoc = "trip_charge_limit_soc"
     public static let hasPromptedVCPPairing = "has_prompted_vcp_pairing"
     public static let hasSeenHubWelcome = "has_seen_hub_welcome"
+    public static let hideNotificationBannerUntil = "hide_notification_banner_until"
 }
 
 public final class UserDefaultsSettingsStore: SettingsStore {
@@ -133,6 +141,17 @@ public final class UserDefaultsSettingsStore: SettingsStore {
     public var hasSeenHubWelcome: Bool {
         get { defaults.bool(forKey: SettingsKey.hasSeenHubWelcome) }
         set { defaults.set(newValue, forKey: SettingsKey.hasSeenHubWelcome) }
+    }
+
+    public var hideNotificationBannerUntil: Date? {
+        get { defaults.object(forKey: SettingsKey.hideNotificationBannerUntil) as? Date }
+        set {
+            if let v = newValue {
+                defaults.set(v, forKey: SettingsKey.hideNotificationBannerUntil)
+            } else {
+                defaults.removeObject(forKey: SettingsKey.hideNotificationBannerUntil)
+            }
+        }
     }
 
     public func reset() {

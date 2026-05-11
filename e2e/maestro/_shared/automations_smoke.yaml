@@ -1,0 +1,29 @@
+# Cross-platform smoke: Hub → 自动化提醒 entry → list visible.
+#
+# This file has NO `appId` block — it relies on the wrapper file
+# (cross_platform/automations_smoke_{ios,android}.yaml) to set the
+# appId before invoking via `runFlow:`.
+#
+# Identifier contract assumed:
+#   iOS:     accessibilityIdentifier("hub_entry_automations")
+#   Android: Modifier.testTag("hub_entry_automations")
+# Same string on both platforms — Maestro's `id:` selector matches
+# either via the standard accessibility tree.
+#
+# Precondition: app is launched + already at the Hub. Login is
+# platform-specific (Tesla OAuth WebView on iOS, anonymous-token
+# auto-login on Android e2e fixture) and intentionally NOT shared.
+---
+- assertVisible:
+    id: "hub_entry_automations"
+    timeout: 8000
+
+- tapOn:
+    id: "hub_entry_automations"
+
+# Either preset shows up = list rendered + at least one row visible.
+# Don't assert on a specific Chinese name beyond this so the test
+# survives rule rename / preset reorder.
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000

@@ -142,6 +142,18 @@ e2e-ios-flow: ## Run a single Maestro flow: make e2e-ios-flow FLOW=01_login
 	@set -a; . e2e/maestro/.env 2>/dev/null || true; set +a; \
 	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/$(FLOW).yaml
 
+e2e-android-flow: ## Run a Maestro flow on Android emulator: make e2e-android-flow FLOW=cross_platform/automations_smoke_android
+	@test -n "$(FLOW)" || { echo "Set FLOW=<name> (without .yaml)"; exit 1; }
+	@set -a; . e2e/maestro/.env 2>/dev/null || true; set +a; \
+	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/$(FLOW).yaml
+
+e2e-xplatform: ## Run the cross-platform automations smoke on both iOS + Android
+	@set -a; . e2e/maestro/.env 2>/dev/null || true; set +a; \
+	  echo "==> iOS"; \
+	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/cross_platform/automations_smoke_ios.yaml && \
+	  echo "==> Android"; \
+	  JAVA_HOME=$(JAVA_HOME) maestro test e2e/maestro/cross_platform/automations_smoke_android.yaml
+
 e2e: e2e-api e2e-ios ## API contract + iOS flows back-to-back
 
 # --- Android (Phase F) -------------------------------------------------------
