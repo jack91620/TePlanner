@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -28,8 +29,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -86,6 +89,7 @@ fun MapScreen(
         initialValue = SheetValue.PartiallyExpanded,
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
+    var showRouteSettings by remember { mutableStateOf(false) }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -96,6 +100,14 @@ fun MapScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { showRouteSettings = true },
+                        modifier = Modifier.testTag("map_settings_button"),
+                    ) {
+                        Icon(Icons.Filled.Tune, contentDescription = "路线规划设置")
                     }
                 },
             )
@@ -145,6 +157,10 @@ fun MapScreen(
                 }
             }
         }
+    }
+
+    if (showRouteSettings) {
+        RoutePlanningSettingsSheet(onDismiss = { showRouteSettings = false })
     }
 }
 
