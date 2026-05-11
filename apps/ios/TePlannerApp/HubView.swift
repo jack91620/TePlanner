@@ -19,6 +19,7 @@ struct HubView: View {
     @StateObject private var snoozeStore: BackendSnoozeStore
     @StateObject private var departureStore: BackendScheduledDepartureStore
     @StateObject private var chargingSessionStore: BackendChargingSessionStore
+    @StateObject private var commandStatusStore: CommandStatusStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -43,12 +44,10 @@ struct HubView: View {
     /// Phase 9 + 10 — the most recent pending / queued command we
     /// surface as a banner. Populated by `refreshCommandStatuses()`
     /// running on the same cadence as automation-state polling.
-    @State private var activePending: PendingCommand?
-    @State private var activeQueued: QueuedCommand?
-    /// Pending banners auto-dismiss ~3s after they reach a terminal
-    /// status. We track the timestamp so we don't keep them around
-    /// after that window even if the server still returns the row.
-    @State private var pendingResolvedAt: Date?
+    // 2026-05-11 B2: activePending / activeQueued / pendingResolvedAt
+    // moved to the shared CommandStatusStore so dispatchers in other
+    // views (BatteryView, HubChargeLimitCard, etc.) can also drive
+    // the converge poll without re-implementing the logic.
     /// Set when the user dismisses the "通知未开启" banner — re-shown
     /// after this date passes. Persisted across launches via the
     /// `hideNotificationBannerUntil` UserDefaults key.
@@ -94,6 +93,7 @@ struct HubView: View {
         ))
         let chargingSessionStore = BackendChargingSessionStore(apiService: apiService)
         _chargingSessionStore = StateObject(wrappedValue: chargingSessionStore)
+        _commandStatusStore = StateObject(wrappedValue: CommandStatusStore(apiService: apiService))
         _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel(store: chargingSessionStore))
         _departureStore = StateObject(wrappedValue: BackendScheduledDepartureStore(apiService: apiService))
         self.chargingTracker = ChargingSessionTracker(store: chargingSessionStore)
@@ -365,75 +365,22 @@ struct HubView: View {
     /// hub.  We pick the freshest row of each type to drive the
     /// banner. Pending banners auto-dismiss ~3 s after reaching a
     /// terminal state so the hub returns to its idle layout.
+    // 2026-05-11 B2: refresh + poll-until-settled now live on the
+    // shared CommandStatusStore; HubView observes via the @StateObject.
+    // Other dispatchers (BatteryView, HubChargeLimitCard, etc.) inject
+    // the same store and call store.pollUntilSettled() after their own
+    // VCP-commit calls — keeping the banner converging consistently
+    // regardless of which view dispatched.
     private func refreshCommandStatuses() async {
-        async let pendingResp = apiService.fetchPendingCommands()
-        async let queuedResp = apiService.fetchQueuedCommands()
-        let (p, q) = await (pendingResp, queuedResp)
+        await commandStatusStore.refresh()
+    }
 
-        await MainActor.run {
-            // -- Pending: show the most recently dispatched row.
-            if case .success(let resp) = p, let latest = resp.pending.first {
-                let isResolved = latest.status != "pending"
-                let resolvedAt = pendingResolvedAt
-                if isResolved && resolvedAt == nil {
-                    pendingResolvedAt = Date()
-                }
-                if isResolved, let ts = pendingResolvedAt,
-                   Date().timeIntervalSince(ts) > 3 {
-                    activePending = nil
-                    pendingResolvedAt = nil
-                } else {
-                    activePending = latest
-                    if !isResolved { pendingResolvedAt = nil }
-                }
-            } else {
-                activePending = nil
-                pendingResolvedAt = nil
-            }
-
-            // -- Queued: surface the most recent row that's actually
-            // worth showing (sent rows older than 30s vanish — the
-            // confirmation pill takes over from there).
-            if case .success(let resp) = q {
-                let row = resp.queued.first { row in
-                    if row.status == "queued" { return true }
-                    // brief afterglow on resolution so user sees it
-                    let resolvedAt = row.sentAt ?? row.droppedAt
-                    if let resolvedAt {
-                        return Date().timeIntervalSince(resolvedAt) < 5
-                    }
-                    return false
-                }
-                activeQueued = row
-            }
-        }
+    private func pollCommandStatusesUntilSettled() async {
+        await commandStatusStore.pollUntilSettled()
     }
 
     private func cancelQueued(_ id: Int) async {
-        _ = await apiService.cancelQueuedCommand(id: id)
-        await refreshCommandStatuses()
-    }
-
-    /// After dispatching a VCP command we want the banner to flip
-    /// "正在关闭…" → "已关闭" within a second of the car producing
-    /// confirming telemetry. Poll on a 1 s cadence for up to ~12 s
-    /// (roughly one debounce window past the resolver's 60 s timeout
-    /// is overkill; 12 s catches the realistic happy-path latency).
-    private func pollCommandStatusesUntilSettled() async {
-        let deadline = Date().addingTimeInterval(12)
-        await refreshCommandStatuses()
-        while Date() < deadline {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await refreshCommandStatuses()
-            // Stop only AFTER the banner has cleared (activePending
-            // back to nil). Previous version broke as soon as we saw
-            // status="confirmed" — but refreshCommandStatuses needs
-            // more polls AFTER that to honour the "show 已关闭 for
-            // 3s then dismiss" logic. Breaking early left the banner
-            // stuck at "已..." (or worse, "正在...等待车辆确认" if
-            // the first poll observed pending status).
-            if activePending == nil { break }
-        }
+        await commandStatusStore.cancelQueued(id: id)
     }
 
     private func openVCPPairingURL() {
@@ -858,6 +805,7 @@ struct HubView: View {
             currentLimit: viewModel.vehicleState?.chargeLimitSoc,
             vehicleId: viewModel.vehicle?.id,
             apiService: apiService,
+            commandStatusStore: commandStatusStore,
             onApplied: { Task { await viewModel.refresh() } },
             onError: { msg in alertActionError = msg },
         )
@@ -951,10 +899,10 @@ struct HubView: View {
     /// before).
     @ViewBuilder
     private var commandStatusBanner: some View {
-        if activePending != nil || activeQueued != nil {
+        if commandStatusStore.activePending != nil || commandStatusStore.activeQueued != nil {
             CommandStatusBanner(
-                pending: activePending,
-                queued: activeQueued,
+                pending: commandStatusStore.activePending,
+                queued: commandStatusStore.activeQueued,
                 onCancelQueued: { id in
                     Task { await cancelQueued(id) }
                 }
@@ -1024,6 +972,7 @@ struct HubView: View {
                 apiService: apiService,
                 vehicleId: viewModel.vehicle?.id,
                 currentChargeLimitSoc: viewModel.vehicleState?.chargeLimitSoc,
+                commandStatusStore: commandStatusStore,
                 onLimitApplied: { Task { await viewModel.refresh() } }
             )
         } label: {

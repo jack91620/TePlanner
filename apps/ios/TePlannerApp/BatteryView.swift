@@ -22,6 +22,7 @@ struct BatteryView: View {
     private let apiService: APIServiceProtocol?
     private let vehicleId: String?
     private let currentChargeLimitSoc: Int?
+    private let commandStatusStore: CommandStatusStore?
     private let onLimitApplied: (() -> Void)?
 
     init(
@@ -30,6 +31,7 @@ struct BatteryView: View {
         apiService: APIServiceProtocol? = nil,
         vehicleId: String? = nil,
         currentChargeLimitSoc: Int? = nil,
+        commandStatusStore: CommandStatusStore? = nil,
         onLimitApplied: (() -> Void)? = nil
     ) {
         _statsVM = StateObject(wrappedValue: ChargingStatsViewModel(store: sessionStore))
@@ -37,6 +39,7 @@ struct BatteryView: View {
         self.apiService = apiService
         self.vehicleId = vehicleId
         self.currentChargeLimitSoc = currentChargeLimitSoc
+        self.commandStatusStore = commandStatusStore
         self.onLimitApplied = onLimitApplied
         _dailyChargeLimitSoc = State(initialValue: Double(store.dailyChargeLimitSoc))
         _tripChargeLimitSoc = State(initialValue: Double(store.tripChargeLimitSoc))
@@ -157,6 +160,13 @@ struct BatteryView: View {
             case .success:
                 manualApplyStatus = .sent(percent)
                 onLimitApplied?()
+                // Defensive (B2): kick off the converge poll in case
+                // set_charge_limit ever gains expected_state. Today
+                // it doesn't, so this is a no-op; the day someone adds
+                // it the banner won't get stuck.
+                if let store = commandStatusStore {
+                    Task { await store.pollUntilSettled() }
+                }
                 try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
                 if case .sent = manualApplyStatus { manualApplyStatus = .idle }
             case .failure(let err):

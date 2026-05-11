@@ -14,6 +14,13 @@ struct HubChargeLimitCard: View {
     let currentLimit: Int?
     let vehicleId: String?
     let apiService: APIServiceProtocol
+    /// Optional shared store. When provided, dispatching the limit
+    /// kicks off the converge poll so the CommandStatusBanner flips
+    /// "正在调整…" → "已调整" → cleared. Without it the dispatch
+    /// still works (HTTP-level success); banner just won't update
+    /// until the next vehicleState change in HubView. Optional so
+    /// previews / tests don't have to wire a full store.
+    let commandStatusStore: CommandStatusStore?
     /// Called once after a successful `setChargeLimit` so HubView can
     /// refresh `viewModel` and pull the new `charge_limit_soc` back.
     let onApplied: () -> Void
@@ -151,6 +158,15 @@ struct HubChargeLimitCard: View {
                 status = .sent
                 Log.vehicle.notice("charge-limit set to \(percent, privacy: .public)%")
                 onApplied()
+                // Defensive (B2): if set_charge_limit ever gains an
+                // expected_state on the backend, this dispatch will
+                // start writing CommandPending rows. Trigger the
+                // converge poll preemptively so we don't hit the
+                // banner-stuck regression. No-op when capability
+                // remains observable-state-less (queue is empty).
+                if let store = commandStatusStore {
+                    Task { await store.pollUntilSettled() }
+                }
                 try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
                 if case .sent = status { status = .idle }
             case .failure(let err):
