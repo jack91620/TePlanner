@@ -21,6 +21,24 @@ public enum RuleDisplay {
         case "vehicle.parked_with_window_open": return "停车后车窗开"
         case "vehicle.parked_with_frunk_open": return "停车后前备箱开"
         case "vehicle.parked_with_trunk_open": return "停车后后备箱开"
+        // Raw closure entities — used by user_departure trigger
+        // (departure detector confirms we're parked, so 停车后 is
+        // implicit; bare name reads more naturally for the dialog
+        // "下车后 X = 开").
+        case "vehicle.door_open": return "车门"
+        case "vehicle.window_open": return "车窗"
+        case "vehicle.frunk_open": return "前备箱"
+        case "vehicle.trunk_open": return "后备箱"
+        case "vehicle.shift_state": return "挡位"
+        // Physical-state entities
+        case "vehicle.inside_temp_c": return "舱内温度"
+        case "vehicle.outside_temp_c": return "车外温度"
+        case "vehicle.speed_kmh": return "车速"
+        case "vehicle.charger_power_kw": return "充电功率"
+        case "vehicle.software_version": return "软件版本"
+        case "vehicle.location.latitude": return "纬度"
+        case "vehicle.location.longitude": return "经度"
+        case "vehicle.connectivity": return "网络连接"
         default: return entity
         }
     }
