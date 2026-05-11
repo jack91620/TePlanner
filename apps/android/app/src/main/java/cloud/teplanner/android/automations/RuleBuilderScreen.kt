@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -88,6 +89,11 @@ enum class TriggerType(val raw: String, val label: String) {
     STATE_DURATION("state_duration", "持续状态"),
     STATE_TRANSITION("state_transition", "状态变化"),
     CRON("cron", "定时"),
+    GEOFENCE("geofence", "进出区域"),
+}
+
+enum class GeofenceEvent(val raw: String, val label: String) {
+    ENTER("enter", "进入"), EXIT("exit", "离开"),
 }
 
 enum class VehicleEntity(
@@ -154,6 +160,12 @@ fun RuleBuilderScreen(
     var cronMinute by remember { mutableIntStateOf(seeded.cronMinute) }
     var cronWeekdays by remember { mutableStateOf(seeded.cronWeekdays) }
 
+    var geofenceLat by remember { mutableStateOf(seeded.geofenceLat) }
+    var geofenceLng by remember { mutableStateOf(seeded.geofenceLng) }
+    var geofenceRadiusM by remember { mutableIntStateOf(seeded.geofenceRadiusM) }
+    var geofenceEvent by remember { mutableStateOf(seeded.geofenceEvent) }
+    var showingGeofencePicker by remember { mutableStateOf(false) }
+
     // ---- Action ----
     var actionTitle by remember { mutableStateOf(seeded.actionTitle) }
     var actionBody by remember { mutableStateOf(seeded.actionBody) }
@@ -162,7 +174,25 @@ fun RuleBuilderScreen(
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
 
-    val canSave = name.isNotBlank() && actionTitle.isNotBlank() && !saving
+    val geofenceReady = triggerType != TriggerType.GEOFENCE ||
+        (geofenceLat != null && geofenceLng != null)
+    val canSave = name.isNotBlank() && actionTitle.isNotBlank() && geofenceReady && !saving
+
+    if (showingGeofencePicker) {
+        GeofencePickerScreen(
+            initialLat = geofenceLat,
+            initialLng = geofenceLng,
+            initialRadiusM = geofenceRadiusM,
+            onCancel = { showingGeofencePicker = false },
+            onConfirm = { lat, lng, r ->
+                geofenceLat = lat
+                geofenceLng = lng
+                geofenceRadiusM = r
+                showingGeofencePicker = false
+            },
+        )
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -191,6 +221,10 @@ fun RuleBuilderScreen(
                                     cronHour = cronHour,
                                     cronMinute = cronMinute,
                                     cronWeekdays = cronWeekdays,
+                                    geofenceLat = geofenceLat,
+                                    geofenceLng = geofenceLng,
+                                    geofenceRadiusM = geofenceRadiusM,
+                                    geofenceEvent = geofenceEvent,
                                     actionTitle = actionTitle,
                                     actionBody = actionBody,
                                     actionSeverity = actionSeverity,
@@ -296,6 +330,48 @@ fun RuleBuilderScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+
+                TriggerType.GEOFENCE -> Section("区域") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("事件类型", modifier = Modifier.weight(1f))
+                        GeofenceEvent.entries.forEach { e ->
+                            FilterChip(
+                                selected = geofenceEvent == e,
+                                onClick = { geofenceEvent = e },
+                                label = { Text(e.label) },
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .testTag("geofence_event_${e.raw}"),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    val coordLabel = if (geofenceLat != null && geofenceLng != null) {
+                        "%.5f, %.5f · 半径 ${geofenceRadiusM} m".format(geofenceLat, geofenceLng)
+                    } else "未选择 — 点击选择地点"
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("geofence_pick_card"),
+                        onClick = { showingGeofencePicker = true },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Filled.LocationOn,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                coordLabel,
+                                modifier = Modifier.padding(start = 8.dp).weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
                 }
 
                 TriggerType.CRON -> Section("什么时候") {
@@ -551,6 +627,10 @@ private data class SeededFields(
     val cronHour: Int,
     val cronMinute: Int,
     val cronWeekdays: Set<Int>,
+    val geofenceLat: Double?,
+    val geofenceLng: Double?,
+    val geofenceRadiusM: Int,
+    val geofenceEvent: GeofenceEvent,
     val actionTitle: String,
     val actionBody: String,
     val actionSeverity: AlertSeverity,
@@ -569,6 +649,10 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
         cronHour = 7,
         cronMinute = 30,
         cronWeekdays = setOf(1, 2, 3, 4, 5),
+        geofenceLat = null,
+        geofenceLng = null,
+        geofenceRadiusM = 200,
+        geofenceEvent = GeofenceEvent.ENTER,
         actionTitle = "",
         actionBody = "",
         actionSeverity = AlertSeverity.INFO,
@@ -621,6 +705,21 @@ private fun decodeInitial(spec: JsonObject?): SeededFields {
                 actionSeverity = firstActionSeverity(spec),
             )
         }
+        TriggerType.GEOFENCE -> {
+            val lat = (trigger["lat"] as? JsonPrimitive)?.content?.toDoubleOrNull()
+            val lng = (trigger["lng"] as? JsonPrimitive)?.content?.toDoubleOrNull()
+            val r = (trigger["radius_m"] as? JsonPrimitive)?.content?.toIntOrNull()
+                ?: defaults.geofenceRadiusM
+            val evRaw = (trigger["event"] as? JsonPrimitive)?.content
+            val ev = GeofenceEvent.entries.firstOrNull { it.raw == evRaw } ?: defaults.geofenceEvent
+            seeded.copy(
+                geofenceLat = lat, geofenceLng = lng,
+                geofenceRadiusM = r, geofenceEvent = ev,
+                actionTitle = firstActionField(spec, "title"),
+                actionBody = firstActionField(spec, "body"),
+                actionSeverity = firstActionSeverity(spec),
+            )
+        }
     }
 }
 
@@ -643,9 +742,12 @@ private fun firstActionSeverity(spec: JsonObject): AlertSeverity {
 private fun inferKind(
     triggerType: TriggerType,
     entity: VehicleEntity,
+    geofenceEvent: GeofenceEvent = GeofenceEvent.ENTER,
 ): String {
     return when (triggerType) {
         TriggerType.CRON -> "weekdayPreheat"
+        TriggerType.GEOFENCE ->
+            if (geofenceEvent == GeofenceEvent.ENTER) "geofenceEnter" else "geofenceExit"
         else -> when (entity) {
             VehicleEntity.CLIMATE_KEEPER -> "campMode"
             VehicleEntity.SENTRY -> "sentryMode"
@@ -687,11 +789,15 @@ private fun buildSpec(
     cronHour: Int,
     cronMinute: Int,
     cronWeekdays: Set<Int>,
+    geofenceLat: Double?,
+    geofenceLng: Double?,
+    geofenceRadiusM: Int,
+    geofenceEvent: GeofenceEvent,
     actionTitle: String,
     actionBody: String,
     actionSeverity: AlertSeverity,
 ): JsonObject {
-    val kind = inferKind(triggerType, entity)
+    val kind = inferKind(triggerType, entity, geofenceEvent)
     val trigger = buildJsonObject {
         put("type", JsonPrimitive(triggerType.raw))
         when (triggerType) {
@@ -723,6 +829,13 @@ private fun buildSpec(
                 put("expr", JsonPrimitive(cronExpression(cronHour, cronMinute, cronWeekdays)))
                 put("tz", JsonPrimitive("Asia/Shanghai"))
                 put("last_fired_key", JsonPrimitive("user:$kind:lastFiredAt"))
+            }
+            TriggerType.GEOFENCE -> {
+                geofenceLat?.let { put("lat", JsonPrimitive(it)) }
+                geofenceLng?.let { put("lng", JsonPrimitive(it)) }
+                put("radius_m", JsonPrimitive(geofenceRadiusM))
+                put("event", JsonPrimitive(geofenceEvent.raw))
+                put("state_key", JsonPrimitive("user:geo:$kind"))
             }
         }
     }
