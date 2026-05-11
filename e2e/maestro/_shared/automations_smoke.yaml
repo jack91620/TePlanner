@@ -13,6 +13,12 @@
 # Precondition: app is launched + already at the Hub. Login is
 # platform-specific (Tesla OAuth WebView on iOS, anonymous-token
 # auto-login on Android e2e fixture) and intentionally NOT shared.
+
+# Maestro 1.38+ requires every flow file to declare an appId.
+# Wrapper files (cross_platform/automations_smoke_{ios,android}.yaml)
+# launch the real app first; this appId here is just a parse-time
+# placeholder so the file is valid YAML-flow on its own.
+appId: com.placeholder.shared
 ---
 - assertVisible:
     id: "hub_entry_automations"

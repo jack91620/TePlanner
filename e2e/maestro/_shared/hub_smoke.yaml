@@ -7,9 +7,14 @@
 #   hub_entry_battery      — 电池管理 nav card
 #
 # Precondition: app launched + already at the Hub.
+
+# Maestro 1.38+ requires every flow file to declare an appId.
+# Wrapper files override at launchApp time; this is a placeholder.
+appId: com.placeholder.shared
 ---
-- assertVisible:
-    id: "hub_status_card"
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
     timeout: 8000
 
 - assertVisible:

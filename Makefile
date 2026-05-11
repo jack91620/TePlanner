@@ -129,7 +129,12 @@ audit-entity-parity: ## Verify backend _ENTITY_MAP and iOS RuleDisplay.entityNam
 
 # --- E2E -----------------------------------------------------------------
 
-JAVA_HOME ?= /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home
+# Pin to openjdk@21 explicitly. The bare `openjdk` symlink follows
+# whatever brew "the latest" is — that's how we ended up trying to
+# run gradle 8 on JDK 25 (which gradle doesn't support yet) and got
+# the cryptic "25.0.2" error. JDK 21 is the LTS that gradle 8 + AGP
+# 8.x + Android Studio Ladybug all support.
+JAVA_HOME ?= /opt/homebrew/opt/openjdk@21
 E2E_BACKEND_URL ?= https://api.teplanner.cloud
 
 e2e-api: ## Hurl HTTP contract tests against the deployed backend (override E2E_BACKEND_URL)

@@ -10,16 +10,22 @@
 # fail on cosmetic reordering.
 #
 # Precondition: app at Hub.
+
+# Maestro 1.38+ requires every flow file to declare an appId.
+# Wrapper files override at launchApp time; this is a placeholder.
+appId: com.placeholder.shared
 ---
-- assertVisible:
-    id: "hub_entry_battery"
+- extendedWaitUntil:
+    visible:
+      id: "hub_entry_battery"
     timeout: 8000
 
 - tapOn:
     id: "hub_entry_battery"
 
-- assertVisible:
-    id: "battery_view"
+- extendedWaitUntil:
+    visible:
+      id: "battery_view"
     timeout: 5000
 
 - back
