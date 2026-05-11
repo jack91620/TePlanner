@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -439,55 +440,61 @@ class AutomationEngine:
 
         if is_critical and active is None:
             # 2026-05-11: race condition observed — cron tick + telemetry
-            # consumer evaluated the same rule concurrently, both saw
-            # "no recent PushedAlert" and both INSERTed (136ms apart) →
-            # 2 identical "车辆未锁" pushes to the user. The previous
-            # SELECT-then-INSERT couldn't see the in-flight insert.
+            # consumer evaluated the same rule concurrently, each in
+            # its own session, both SELECTed before the other committed,
+            # both INSERTed (136ms apart) → 2 identical 车辆未锁 pushes.
             #
-            # Fix: do dedup as a single atomic INSERT...SELECT WHERE
-            # NOT EXISTS. SQLite serializes writes via WAL so the
-            # second INSERT sees the first row when its WHERE clause
-            # evaluates, skipping silently. Postgres equivalents work
-            # the same way without explicit locking.
-            #
-            # Window: 15 min. Same flap-protection contract as before.
+            # Defense layered now:
+            #   1. Migration 0008 added a partial UNIQUE index on
+            #      (user_id, vehicle_id, kind) WHERE cleared_at IS NULL.
+            #      DB enforces "at most 1 active alert per kind" so the
+            #      second concurrent INSERT raises IntegrityError.
+            #   2. App-level 15-min REPUSH_GUARD: if any (cleared or
+            #      not) row is within the window, skip the new INSERT
+            #      and re-open the existing one.
+            #   3. IntegrityError catch below: if (1) fires anyway
+            #      (e.g. the index races against a not-yet-committed
+            #      INSERT in the other session), treat as "race lost,
+            #      no push, but condition is active".
             from datetime import timedelta
             REPUSH_GUARD = timedelta(minutes=15)
             now_naive = utc_now().replace(tzinfo=None)
             cutoff = now_naive - REPUSH_GUARD
-            insert_sql = text("""
-                INSERT INTO pushed_alerts (user_id, vehicle_id, kind, pushed_at)
-                SELECT :uid, :vid, :kind, :now
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM pushed_alerts
-                    WHERE user_id = :uid
-                      AND vehicle_id = :vid
-                      AND kind = :kind
-                      AND pushed_at >= :cutoff
-                )
-            """)
-            result = await db.execute(insert_sql, {
-                "uid": user_id, "vid": vehicle_id, "kind": kind.value,
-                "now": now_naive, "cutoff": cutoff,
-            })
-            if result.rowcount == 0:
-                # A row within the guard window already existed (either
-                # cleared or active). Re-open the most recent one so
-                # the alert pill UI keeps showing it; no push.
-                reopen = (await db.execute(
-                    select(PushedAlert)
-                    .where(PushedAlert.user_id == user_id)
-                    .where(PushedAlert.vehicle_id == vehicle_id)
-                    .where(PushedAlert.kind == kind.value)
-                    .order_by(PushedAlert.pushed_at.desc())
-                    .limit(1)
-                )).scalar_one_or_none()
-                if reopen is not None:
-                    reopen.cleared_at = None
+            recent = (await db.execute(
+                select(PushedAlert)
+                .where(PushedAlert.user_id == user_id)
+                .where(PushedAlert.vehicle_id == vehicle_id)
+                .where(PushedAlert.kind == kind.value)
+                .where(PushedAlert.pushed_at >= cutoff)
+                .order_by(PushedAlert.pushed_at.desc())
+                .limit(1)
+            )).scalar_one_or_none()
+            if recent is not None:
+                # In-window row exists; re-open instead of pushing.
+                recent.cleared_at = None
                 logger.info(
                     "PushedAlert re-push suppressed (within %s window): "
                     "user=%s vehicle=%s kind=%s",
                     REPUSH_GUARD, user_id, vehicle_id, kind.value,
+                )
+                return "noop"
+            # No in-window row — try to insert. The partial unique
+            # index will reject if a concurrent session beat us.
+            # Wrap in a savepoint so an IntegrityError rolls back ONLY
+            # the failed insert, not any other writes in the parent
+            # transaction (e.g. memory.flush, AutomationState updates).
+            try:
+                async with db.begin_nested():
+                    db.add(PushedAlert(
+                        user_id=user_id,
+                        vehicle_id=vehicle_id,
+                        kind=kind.value,
+                    ))
+            except IntegrityError:
+                logger.info(
+                    "PushedAlert insert raced (IntegrityError on partial unique): "
+                    "user=%s vehicle=%s kind=%s — winning session pushed, we skip",
+                    user_id, vehicle_id, kind.value,
                 )
                 return "noop"
             return "newly_critical"
