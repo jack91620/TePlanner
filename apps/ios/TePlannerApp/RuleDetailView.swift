@@ -491,8 +491,6 @@ struct RuleDetailView: View {
             return "Tesla 在你下车后会按设置自动锁车，但偶尔会因为钥匙信号、网络等原因失败。这条规则在停车 N 分钟仍未锁车时提醒你确认。"
         case "closure_left_open_warning":
             return "车窗 / 后备箱忘关会让降雨、灰尘、虫子进入车内。这条规则在长时间未关闭时提醒。"
-        case "low_battery_warning":
-            return "电量过低会触发限速 / 关闭非关键功能；冬季低电量还可能造成无法解锁。本规则在你设定的阈值（默认 30%）时提醒及时充电。"
         case "weekday_preheat":
             return "出发前 10–20 分钟启动 HVAC 可让车舱达到舒适温度，冬天还能为电池预热提升续航。本规则按工作日的固定时间提醒你启动预热。"
         case "geofence_arrive_home":

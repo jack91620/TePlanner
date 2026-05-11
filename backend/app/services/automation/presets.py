@@ -116,40 +116,13 @@ CABIN_OVERHEAT = PresetDefinition(
 )
 
 
-SMART_CABIN_OVERHEAT = PresetDefinition(
-    preset_id="smart_cabin_overheat_protection",
-    name="智能过热保护（自定义温度）",
-    spec={
-        "kind": "cabinOverheat",
-        # Tesla 原生 COP 只支持 Low/Med/High 三档（30/35/40°C），且阈值
-        # 不可调。此预设走 telemetry 触发，通过 set_cabin_overheat
-        # capability 在用户自定义阈值上自动开启 fan-only 通风。
-        # 注意：车深度睡眠时 telemetry 停推，建议同时让 Tesla 原生
-        # COP 设到 Low (30°C) 兜底。
-        "trigger": {
-            "type": "state_duration",
-            "entity": "vehicle.inside_temp_c",
-            "op": ">=",
-            "value": 35,            # 用户在 Rule Builder 编辑此阈值
-            "for_minutes": 1,        # 1 分钟去抖；噪声跨 35 不会立刻触发
-            "state_key": "smartCop:startedAt",
-        },
-        "actions_below": [],
-        "actions_above": [
-            {
-                "type": "notify_and_offer",
-                "title": "舱内已达 {entity_value}°C",
-                "body": "需要现在开启过热保护通风（fan-only）吗？",
-                "severity": "critical",
-                "primary_action_label": "开启过热保护",
-                "capability": "tesla.climate.set_cabin_overheat",
-                # mode=2 即 fan-only 通风，比 mode=1（空调降温）省电；
-                # 用户在 Rule Builder 切换 capability 参数即可改成 mode=1。
-                "params": {"mode": 2},
-            }
-        ],
-    },
-)
+# SMART_CABIN_OVERHEAT (智能过热保护，自定义温度) 预设已移除 (2026-05-11)
+# 原因：inside_temp_c 是易变字段，车睡眠 30 分钟后 telemetry 停推
+# → staleness gate 把值视为 None → 触发器在车真正需要它的时候（停在
+# 烈日下半小时）正好不工作。Tesla 原生 COP 三档 (Low 30 / Med 35 /
+# High 40°C) 跑在车机本地，深度睡眠也兜底，是更可靠的选择。
+# 后续如果加 departure-event trigger 可以做「下车时车内已经超过 X°C」
+# 的一次性提醒，但「持续监控温度自动开 COP」用不了我们的架构。
 
 CHARGE_COMPLETE = PresetDefinition(
     preset_id="charge_complete_reminder",
@@ -234,32 +207,15 @@ WINDOW_OR_BOX_LEFT_OPEN = PresetDefinition(
 )
 
 
-LOW_BATTERY = PresetDefinition(
-    preset_id="low_battery_warning",
-    name="电量过低提醒",
-    spec={
-        "kind": "lowBattery",
-        "trigger": {
-            "type": "state_duration",
-            "entity": "vehicle.battery_level",
-            "op": "<",
-            "value": 30,
-            "for_minutes": 1,
-            "state_key": "lowBattery:startedAt",
-        },
-        "actions_below": [],
-        "actions_above": [
-            {
-                "type": "notify_and_offer",
-                "title": "电量较低",
-                "body": "电池电量已低于 30%，建议尽快充电",
-                "severity": "critical",
-                "primary_action_label": "我知道了",
-                "capability": "automation.dismiss",
-            }
-        ],
-    },
-)
+# LOW_BATTERY 预设已移除 (2026-05-11)
+# 原因：电量是易变字段（车 vampire drain 在睡眠中持续掉电），
+# 而 Tesla Fleet Telemetry 在车睡眠时不推送。这意味着「电量低于
+# X%」的触发器只在车醒着时有效，而真正需要预警的场景（停几天电
+# 慢慢掉）正好是车睡着的时候。给用户一个永远在他需要的时候不工作
+# 的功能比不给更糟糕。
+# 待 departure-event trigger 上线后会以「下车时电量 < X」的形式
+# 重新加回（一次性 snapshot，不依赖持续监控）。
+# AlertKind.LOW_BATTERY 仍保留供未来 / 自定义规则使用。
 
 
 WEEKDAY_PREHEAT = PresetDefinition(
@@ -382,11 +338,9 @@ ALL_PRESETS: list[PresetDefinition] = [
     CAMP_MODE,
     SENTRY_MODE,
     CABIN_OVERHEAT,
-    SMART_CABIN_OVERHEAT,
     CHARGE_COMPLETE,
     LEFT_UNLOCKED,
     WINDOW_OR_BOX_LEFT_OPEN,
-    LOW_BATTERY,
     WEEKDAY_PREHEAT,
     GEOFENCE_ARRIVE_HOME,
     GEOFENCE_LEAVE_HOME_SENTRY,
