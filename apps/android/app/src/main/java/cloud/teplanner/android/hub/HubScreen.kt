@@ -22,17 +22,24 @@ import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.DepartureBoard
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -100,6 +107,14 @@ fun HubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             VehicleStatusCard(state = state)
+            HubStatusChips(
+                state = state.vehicleState,
+                chipStatus = state.chipStatus,
+                onCloseClimateKeeper = hub::closeClimateKeeper,
+                onCloseSentry = hub::closeSentry,
+                onLock = hub::lock,
+                onDismissStatus = hub::dismissChipStatus,
+            )
             EntryCard(
                 title = "下次出行",
                 subtitle = departureState.current?.let { d ->
@@ -257,4 +272,134 @@ private fun EntryCard(
             }
         }
     }
+}
+
+
+/**
+ * Hub status chips — mirror of iOS HubView.statusChip + chipsSection.
+ *
+ * Show one chip per ON state (露营 / 哨兵 / 未锁 / 充电中 etc.) that
+ * the user might want to act on. Tap → confirmation alert → command
+ * dispatch via HubViewModel. Status feedback is inline (sending →
+ * sent → idle after 2.5s, or sent → failed with retry).
+ *
+ * Only chips with a tappable `action` show — read-only chips
+ * (cabin overheat, charging) are display-only with no confirm.
+ */
+@Composable
+private fun HubStatusChips(
+    state: VehicleStateResponse?,
+    chipStatus: HubViewModel.ChipStatus,
+    onCloseClimateKeeper: () -> Unit,
+    onCloseSentry: () -> Unit,
+    onLock: () -> Unit,
+    onDismissStatus: () -> Unit,
+) {
+    if (state == null) return
+    var pending: PendingChipAction? by remember { mutableStateOf(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 露营 / 宠物 / 保持空调 — all funnel to "关闭空调保持"
+            when (state.climateKeeperMode) {
+                1 -> chip("保持空调", testTag = "hub_chip_climate_keeper") {
+                    pending = PendingChipAction(
+                        title = "关闭保持空调？",
+                        run = onCloseClimateKeeper,
+                    )
+                }
+                2 -> chip("宠物模式", testTag = "hub_chip_pet_mode") {
+                    pending = PendingChipAction(
+                        title = "关闭宠物模式？",
+                        run = onCloseClimateKeeper,
+                    )
+                }
+                3 -> chip("露营模式", testTag = "hub_chip_camp_mode") {
+                    pending = PendingChipAction(
+                        title = "关闭露营模式？",
+                        run = onCloseClimateKeeper,
+                    )
+                }
+            }
+            if (state.sentryMode == true) {
+                chip("哨兵模式", testTag = "hub_chip_sentry") {
+                    pending = PendingChipAction(
+                        title = "关闭哨兵模式？",
+                        run = onCloseSentry,
+                    )
+                }
+            }
+            if (state.locked == false) {
+                chip("未锁车", testTag = "hub_chip_unlocked") {
+                    pending = PendingChipAction(
+                        title = "锁车？",
+                        run = onLock,
+                    )
+                }
+            }
+        }
+
+        // Inline status banner (mirror of iOS chipStatusBanner).
+        when (val cs = chipStatus) {
+            is HubViewModel.ChipStatus.Sending -> Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp)
+                Text(cs.label, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            is HubViewModel.ChipStatus.Sent -> Text(
+                "✓ ${cs.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF388E3C),
+            )
+            is HubViewModel.ChipStatus.Failed -> Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "⚠ ${cs.message}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismissStatus) { Text("关闭") }
+            }
+            HubViewModel.ChipStatus.Idle -> Unit
+        }
+    }
+
+    pending?.let { p ->
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text(p.title) },
+            confirmButton = {
+                TextButton(onClick = {
+                    p.run()
+                    pending = null
+                }) { Text("确认") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pending = null }) { Text("取消") }
+            },
+        )
+    }
+}
+
+private data class PendingChipAction(
+    val title: String,
+    val run: () -> Unit,
+)
+
+@Composable
+private fun chip(label: String, testTag: String, onTap: () -> Unit) {
+    androidx.compose.material3.AssistChip(
+        onClick = onTap,
+        label = { Text(label) },
+        modifier = Modifier.testTag(testTag),
+    )
 }
