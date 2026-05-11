@@ -116,6 +116,7 @@ fun HubScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            HubWelcomeBannerHosted()
             VehicleStatusCard(state = state)
             PermissionBanner()
             CommandStatusBanner(state = commandStatusState)
