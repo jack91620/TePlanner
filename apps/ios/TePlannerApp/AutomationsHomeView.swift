@@ -48,7 +48,7 @@ struct AutomationsHomeView: View {
     @ViewBuilder
     private func rowBackground(for record: RuleRecord) -> some View {
         if isFiring(record) {
-            Color.red.opacity(0.12)
+            Tokens.colorAlertFiringRowWash
         }
         // else: nil → SwiftUI default list row background
     }
@@ -69,10 +69,10 @@ struct AutomationsHomeView: View {
                 Section {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Tokens.colorAlertFiringFg)
                             .font(.title3)
                             .padding(8)
-                            .background(Color.red, in: Circle())
+                            .background(Tokens.colorAlertFiringBg, in: Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(firingRules.count) 条规则正在触发")
                                 .font(.subheadline.weight(.semibold))
@@ -84,7 +84,7 @@ struct AutomationsHomeView: View {
                         Spacer()
                     }
                 }
-                .listRowBackground(Color.red.opacity(0.10))
+                .listRowBackground(Tokens.colorAlertFiringRowWash)
             }
             if snoozedCount > 0 {
                 Section {
@@ -390,13 +390,13 @@ struct AutomationsHomeView: View {
             // the rule is currently firing on the server, swap the
             // tile to solid red and animate the icon.
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: Tokens.radiusTile)
                     .fill(firing
-                          ? AnyShapeStyle(Color.red)
+                          ? AnyShapeStyle(Tokens.colorAlertFiringBg)
                           : AnyShapeStyle(triggerAccent(for: record).opacity(record.enabled ? 0.18 : 0.08)))
                 Image(systemName: firing ? "exclamationmark.triangle.fill" : RuleDisplay.triggerSymbol(record.spec))
                     .foregroundStyle(firing
-                                     ? AnyShapeStyle(Color.white)
+                                     ? AnyShapeStyle(Tokens.colorAlertFiringFg)
                                      : (record.enabled ? AnyShapeStyle(triggerAccent(for: record)) : AnyShapeStyle(.secondary)))
                     .font(.subheadline)
                     .symbolEffect(.bounce, value: firing)
@@ -410,10 +410,10 @@ struct AutomationsHomeView: View {
                     if firing {
                         Text("正在触发")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Tokens.colorAlertFiringFg)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.red, in: Capsule())
+                            .background(Tokens.colorAlertFiringBg, in: Capsule())
                     }
                 }
                 // "When X happens, do Y" — the iOS Shortcuts pattern.
@@ -523,27 +523,22 @@ struct AutomationsHomeView: View {
     private func triggerAccent(for record: RuleRecord) -> Color {
         let triggerType = record.spec["trigger"]?.objectValue?.string("type") ?? ""
         switch triggerType {
-        case "cron":              return .blue        // time-based
-        case "geofence":          return .green       // location-based
-        case "state_transition":  return .indigo      // state event
+        case "cron":              return Tokens.colorTriggerAccentCron        // time-based
+        case "geofence":          return Tokens.colorTriggerAccentGeofence    // location-based
+        case "state_transition":  return Tokens.colorTriggerAccentStateTransition
         case "state_duration":
-            // Sub-tint by the action's intent: low_battery (red/orange),
-            // unlocked / closures (orange — security), camp/sentry/cabin
-            // (purple/pink — comfort).
+            // Sub-tint by the action's intent: battery / unlocked /
+            // closures (orange = state_duration default), sentry /
+            // cabin / climate (kept as semantic system colors —
+            // they're sub-categories not yet promoted to tokens).
             let entity = record.spec["trigger"]?.objectValue?.string("entity") ?? ""
             switch entity {
-            case "vehicle.battery_level":               return .orange
-            case "vehicle.parked_unlocked",
-                 "vehicle.parked_with_door_open",
-                 "vehicle.parked_with_window_open",
-                 "vehicle.parked_with_frunk_open",
-                 "vehicle.parked_with_trunk_open":      return .orange
             case "vehicle.sentry_mode_on":              return .purple
             case "vehicle.cabin_overheat_protection_on": return .red
             case "vehicle.climate.keeper_mode":         return .purple
-            default:                                    return .accentColor
+            default:                                    return Tokens.colorTriggerAccentStateDuration
             }
-        default:                  return .accentColor
+        default:                  return Tokens.colorTriggerAccentDefault
         }
     }
 

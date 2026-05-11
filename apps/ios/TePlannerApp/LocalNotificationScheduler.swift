@@ -264,6 +264,36 @@ final class LocalNotificationScheduler: NSObject, UNUserNotificationCenterDelega
         Log.app.notice("local-notif cancelled for \(kind.rawValue, privacy: .public)")
     }
 
+    /// Walk the system's delivered notifications and remove any whose
+    /// kind is no longer in the supplied "firing" set. Idempotent.
+    ///
+    /// 2026-05-11: needed because the engine.alerts pipe became dead
+    /// after D.6 (no `applyServerAlerts` wiring in production), so
+    /// the diff in `applyAlerts(_:)` never trips a cancel for old
+    /// banners. This reconciler is driven by `record.isFiring` from
+    /// the server's RuleResponse — single source of truth across
+    /// platforms — and strips any leftover notification whose rule
+    /// is no longer firing, including stale APNs banners from a
+    /// previous app session.
+    ///
+    /// Call from HubView on each rules refresh.
+    func reconcileDelivered(firingKinds: Set<String>) {
+        UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
+            let categoriesToDrop: [String] = delivered.compactMap { notif in
+                let category = notif.request.content.categoryIdentifier
+                guard !category.isEmpty,
+                      category != Self.preheatNotificationId,
+                      !category.hasPrefix("sample.") else { return nil }
+                return firingKinds.contains(category) ? nil : notif.request.identifier
+            }
+            guard !categoriesToDrop.isEmpty else { return }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(
+                withIdentifiers: categoriesToDrop
+            )
+            Log.app.notice("reconciled \(categoriesToDrop.count, privacy: .public) stale local-notif(s) — kinds no longer firing")
+        }
+    }
+
     // MARK: - Phase 5.5 scheduled-departure preheat
 
     /// (Re)schedule the preheat reminder for the given departure.

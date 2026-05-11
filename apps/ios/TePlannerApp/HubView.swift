@@ -170,6 +170,14 @@ struct HubView: View {
             if !fetched.isEmpty {
                 automationEngine.updateRegistry(fetched)
             }
+            // Reconcile delivered local notifications against the
+            // server's `is_firing` set so old banners (from a previous
+            // app session, or pre-fix spam runs) get withdrawn from
+            // the system tray when the rule is no longer firing.
+            let firing = Set(fetched.compactMap {
+                $0.isFiring ? $0.spec.string("kind") : nil
+            })
+            LocalNotificationScheduler.shared.reconcileDelivered(firingKinds: firing)
         }
         .onDisappear { viewModel.stopPolling() }
         .onChange(of: scenePhase) { _, newPhase in
