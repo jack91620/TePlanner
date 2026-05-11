@@ -47,6 +47,8 @@ struct BatteryView: View {
         case idle, sending, sent(Int), failed(String)
     }
 
+    @State private var detailSession: ChargingSession?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -67,6 +69,9 @@ struct BatteryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await statsVM.refresh(vehicleId: vehicleId) }
         .accessibilityIdentifier("battery_view")
+        .sheet(item: $detailSession) { session in
+            ChargingSessionDetailView(session: session)
+        }
     }
 
     // MARK: - 充电限额（手动）
@@ -218,7 +223,11 @@ struct BatteryView: View {
             Text("历史记录").font(.headline)
             LazyVStack(spacing: 8) {
                 ForEach(statsVM.sessions) { session in
-                    sessionRow(session)
+                    Button { detailSession = session } label: {
+                        sessionRow(session)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("session_row_\(session.id.uuidString)")
                 }
             }
         }
