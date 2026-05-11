@@ -31,6 +31,18 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
     public let open24h: Bool
     public let amenities: [String]?
     public let openHours: String?
+    /// Photos hosted on AMap CDN (store.is.autonavi.com). Empty when
+    /// the POI has none. Order is AMap's — first photo is usually
+    /// the most representative.
+    public let photos: [String]
+    /// AMap 0–5 rating (e.g. 4.4). nil when the POI has too few
+    /// reviews to score.
+    public let rating: Double?
+    /// Entrance pin coords if AMap returned `entr_location` — the
+    /// front door pin, not the polygon centroid that `latitude/
+    /// longitude` give. ~50–100m offset for roadside stations.
+    public let entranceLatitude: Double?
+    public let entranceLongitude: Double?
 
     public init(
         id: String,
@@ -48,7 +60,11 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         distanceFromRouteM: Int? = nil,
         open24h: Bool = false,
         amenities: [String]? = nil,
-        openHours: String? = nil
+        openHours: String? = nil,
+        photos: [String] = [],
+        rating: Double? = nil,
+        entranceLatitude: Double? = nil,
+        entranceLongitude: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -66,10 +82,14 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         self.open24h = open24h
         self.amenities = amenities
         self.openHours = openHours
+        self.photos = photos
+        self.rating = rating
+        self.entranceLatitude = entranceLatitude
+        self.entranceLongitude = entranceLongitude
     }
 
     public enum CodingKeys: String, CodingKey {
-        case id, name, address, latitude, longitude, type, tel, amenities
+        case id, name, address, latitude, longitude, type, tel, amenities, photos, rating
         // Backend `/charging/nearby` returns `available_ports`/`total_ports`;
         // older planner code used `available_stalls`/`total_stalls`. Accept both.
         case availableStalls = "available_stalls"
@@ -82,6 +102,8 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         case distanceFromRouteM = "distance_from_route_m"
         case open24h = "open_24h"
         case openHours = "open_hours"
+        case entranceLatitude = "entrance_latitude"
+        case entranceLongitude = "entrance_longitude"
     }
 
     public init(from decoder: Decoder) throws {
@@ -104,6 +126,10 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         open24h = try c.decodeIfPresent(Bool.self, forKey: .open24h) ?? false
         amenities = try c.decodeIfPresent([String].self, forKey: .amenities)
         openHours = try c.decodeIfPresent(String.self, forKey: .openHours)
+        photos = try c.decodeIfPresent([String].self, forKey: .photos) ?? []
+        rating = try c.decodeIfPresent(Double.self, forKey: .rating)
+        entranceLatitude = try c.decodeIfPresent(Double.self, forKey: .entranceLatitude)
+        entranceLongitude = try c.decodeIfPresent(Double.self, forKey: .entranceLongitude)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -124,6 +150,10 @@ public struct ChargingStation: Codable, Identifiable, Equatable {
         try c.encode(open24h, forKey: .open24h)
         try c.encodeIfPresent(amenities, forKey: .amenities)
         try c.encodeIfPresent(openHours, forKey: .openHours)
+        if !photos.isEmpty { try c.encode(photos, forKey: .photos) }
+        try c.encodeIfPresent(rating, forKey: .rating)
+        try c.encodeIfPresent(entranceLatitude, forKey: .entranceLatitude)
+        try c.encodeIfPresent(entranceLongitude, forKey: .entranceLongitude)
     }
 }
 

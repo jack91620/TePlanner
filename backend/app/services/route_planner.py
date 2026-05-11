@@ -25,6 +25,14 @@ class ChargingStop:
         charging_duration_minutes: int,
         operator: Optional[str] = None,
         address: Optional[str] = None,
+        # Extras from AMap so the route stop card can open the same
+        # ChargingStationDetailView as nearby stations. All optional —
+        # legacy callers / older POIs leave them None.
+        tel: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        rating: Optional[float] = None,
+        open_hours: Optional[str] = None,
+        open_24h: bool = False,
     ):
         self.station_id = station_id
         self.name = name
@@ -36,6 +44,11 @@ class ChargingStop:
         self.charging_duration_minutes = charging_duration_minutes
         self.operator = operator
         self.address = address
+        self.tel = tel
+        self.photos = photos or []
+        self.rating = rating
+        self.open_hours = open_hours
+        self.open_24h = open_24h
 
     def to_dict(self) -> dict:
         return {
@@ -49,6 +62,11 @@ class ChargingStop:
             "charging_duration_minutes": self.charging_duration_minutes,
             "operator": self.operator,
             "address": self.address,
+            "tel": self.tel,
+            "photos": self.photos,
+            "rating": self.rating,
+            "open_hours": self.open_hours,
+            "open_24h": self.open_24h,
         }
 
 
@@ -372,6 +390,12 @@ class RoutePlanner:
             energy_to_add = estimated_battery_kwh * (soc_to_add / 100)
             charging_minutes = int((energy_to_add / self.DEFAULT_CHARGING_POWER_KW) * 60)
 
+            # Carry AMap extras (photos / rating / hours) so the iOS
+            # along-route stop card can open the same detail sheet as
+            # the nearby tab. Extras come from web_client when
+            # `extensions=all` is set on the POI search.
+            area_extras = best_area.get("_extras") or {}
+            area_open_label = area_extras.get("open_time_label") or ""
             charging_stops.append(ChargingStop(
                 station_id=best_area.get("id", f"service_area_{len(charging_stops)}"),
                 name=best_area.get("title", "服务区充电站"),
@@ -383,6 +407,11 @@ class RoutePlanner:
                 charging_duration_minutes=charging_minutes,
                 operator=self._extract_operator(best_area.get("title", "")),
                 address=best_area.get("address", ""),
+                tel=best_area.get("tel"),
+                photos=area_extras.get("photos") or [],
+                rating=area_extras.get("rating"),
+                open_hours=area_extras.get("open_hours"),
+                open_24h="24小时" in area_open_label or "24h" in area_open_label.lower(),
             ))
 
             distance_traveled = station_distance

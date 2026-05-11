@@ -26,8 +26,16 @@ class ChargingStation(BaseModel):
     total_ports: Optional[int] = None
     price_per_kwh: Optional[float] = None
     open_hours: Optional[str] = None
+    open_24h: bool = False
     category: Optional[str] = None
     type: Optional[str] = None
+    # New 2026-05-11 — extras AMap returns on `extensions=all` that
+    # we used to drop. Field nullable so old clients ignore them and
+    # missing-data POIs degrade gracefully.
+    photos: List[str] = []
+    rating: Optional[float] = None
+    entrance_latitude: Optional[float] = None
+    entrance_longitude: Optional[float] = None
 
 
 class StationSearchResponse(BaseModel):
@@ -107,6 +115,15 @@ def _parse_station_from_poi(
     if isinstance(tel, str):
         tel = tel.split(";", 1)[0].strip() or None
 
+    # Charging-station extras (photos / rating / open hours / entrance).
+    # AMap returns them on `extensions=all`; web_client surfaces under
+    # `_extras`. Missing on legacy POI shapes — `.get(..., {})` keeps
+    # the parser working for older test fixtures.
+    extras = poi.get("_extras") or {}
+    entrance = extras.get("entrance") or {}
+    open_time_label = extras.get("open_time_label") or ""
+    is_24h = "24小时" in open_time_label or "24h" in open_time_label.lower()
+
     return ChargingStation(
         id=poi.get("id", ""),
         name=title,
@@ -118,6 +135,12 @@ def _parse_station_from_poi(
         tel=tel,
         category=poi.get("category", ""),
         type=station_type,
+        photos=extras.get("photos") or [],
+        rating=extras.get("rating"),
+        open_hours=extras.get("open_hours"),
+        open_24h=is_24h,
+        entrance_latitude=entrance.get("lat") if entrance else None,
+        entrance_longitude=entrance.get("lng") if entrance else None,
     )
 
 

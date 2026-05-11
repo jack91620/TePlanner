@@ -54,15 +54,101 @@ public struct ChargingStop: Codable, Identifiable {
     public let arrivalSoc: Int
     public let departureSoc: Int
     public let chargingDurationMinutes: Int
+    /// New 2026-05-11 — extras pulled through from AMap so the
+    /// along-route stop list can open the same detail sheet as
+    /// nearby stations. All optional / default-empty so old
+    /// fixtures + backends still decode.
+    public let tel: String?
+    public let photos: [String]
+    public let rating: Double?
+    public let openHours: String?
+    public let open24h: Bool
 
     public enum CodingKeys: String, CodingKey {
         case stationId = "station_id"
-        case name, latitude, longitude, address
+        case name, latitude, longitude, address, tel, photos, rating
         case operatorName = "operator"
         case distanceFromStartKm = "distance_from_start_km"
         case arrivalSoc = "arrival_soc"
         case departureSoc = "departure_soc"
         case chargingDurationMinutes = "charging_duration_minutes"
+        case openHours = "open_hours"
+        case open24h = "open_24h"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        stationId = try c.decode(String.self, forKey: .stationId)
+        name = try c.decode(String.self, forKey: .name)
+        latitude = try c.decode(Double.self, forKey: .latitude)
+        longitude = try c.decode(Double.self, forKey: .longitude)
+        address = try c.decodeIfPresent(String.self, forKey: .address)
+        operatorName = try c.decodeIfPresent(String.self, forKey: .operatorName)
+        distanceFromStartKm = try c.decode(Double.self, forKey: .distanceFromStartKm)
+        arrivalSoc = try c.decode(Int.self, forKey: .arrivalSoc)
+        departureSoc = try c.decode(Int.self, forKey: .departureSoc)
+        chargingDurationMinutes = try c.decode(Int.self, forKey: .chargingDurationMinutes)
+        tel = try c.decodeIfPresent(String.self, forKey: .tel)
+        photos = try c.decodeIfPresent([String].self, forKey: .photos) ?? []
+        rating = try c.decodeIfPresent(Double.self, forKey: .rating)
+        openHours = try c.decodeIfPresent(String.self, forKey: .openHours)
+        open24h = try c.decodeIfPresent(Bool.self, forKey: .open24h) ?? false
+    }
+
+    public init(
+        stationId: String,
+        name: String,
+        latitude: Double,
+        longitude: Double,
+        address: String? = nil,
+        operatorName: String? = nil,
+        distanceFromStartKm: Double,
+        arrivalSoc: Int,
+        departureSoc: Int,
+        chargingDurationMinutes: Int,
+        tel: String? = nil,
+        photos: [String] = [],
+        rating: Double? = nil,
+        openHours: String? = nil,
+        open24h: Bool = false
+    ) {
+        self.stationId = stationId
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.address = address
+        self.operatorName = operatorName
+        self.distanceFromStartKm = distanceFromStartKm
+        self.arrivalSoc = arrivalSoc
+        self.departureSoc = departureSoc
+        self.chargingDurationMinutes = chargingDurationMinutes
+        self.tel = tel
+        self.photos = photos
+        self.rating = rating
+        self.openHours = openHours
+        self.open24h = open24h
+    }
+
+    /// Adapter so the route stop can be shown in the shared
+    /// `ChargingStationDetailView`. Distance-along-route would be
+    /// the wrong "distance" to show on a detail page (it's an
+    /// answer to a different question), so we pass nil and let the
+    /// detail view's "距离" row hide.
+    public func toStation() -> ChargingStation {
+        ChargingStation(
+            id: stationId,
+            name: name,
+            address: address,
+            latitude: latitude,
+            longitude: longitude,
+            operatorName: operatorName,
+            tel: tel,
+            distanceKm: nil,
+            open24h: open24h,
+            openHours: openHours,
+            photos: photos,
+            rating: rating
+        )
     }
 }
 

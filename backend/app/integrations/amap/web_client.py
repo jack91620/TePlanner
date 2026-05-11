@@ -139,7 +139,24 @@ class AmapWebClient:
           tel         → tel
           address     → address
           id          → id
+
+        Plus charging-station-specific extras carried in `_extras` so
+        the caller (charging.py / route_planner) can hydrate richer
+        fields without changing the legacy shape this method emits:
+          photos[*].url           → _extras.photos (max 5)
+          biz_ext.opentime2       → _extras.open_hours
+          biz_ext.open_time       → _extras.open_time_label (e.g. "24小时营业")
+          biz_ext.rating          → _extras.rating (0–5 float)
+          entr_location           → _extras.entrance (lng,lat → {lat,lng})
+        AMap returns empty list `[]` for unset string fields (a JSON
+        type quirk on their side); we coerce to None.
         """
+        def _empty_to_none(v):
+            """AMap returns [] for unset string fields. Coerce to None."""
+            if v in (None, "", []):
+                return None
+            return v
+
         loc_str = poi.get("location") or "0,0"
         try:
             lng_s, lat_s = loc_str.split(",")
@@ -164,6 +181,35 @@ class AmapWebClient:
             tel_raw = ";".join(str(x) for x in tel_raw)
         tel_first = (tel_raw.split(";")[0] if tel_raw else "").strip() or None
 
+        # ---- Charging-station extras ----
+        photos: list = []
+        for p in (poi.get("photos") or [])[:5]:
+            url = p.get("url") if isinstance(p, dict) else None
+            if url:
+                # Some thumbnail URLs come over http; force https so
+                # iOS ATS doesn't block them.
+                photos.append(url.replace("http://", "https://"))
+
+        biz = poi.get("biz_ext") or {}
+        if not isinstance(biz, dict):
+            biz = {}
+        open_hours = _empty_to_none(biz.get("opentime2"))
+        open_time_label = _empty_to_none(biz.get("open_time"))
+        rating_raw = _empty_to_none(biz.get("rating"))
+        try:
+            rating = float(rating_raw) if rating_raw is not None else None
+        except (TypeError, ValueError):
+            rating = None
+
+        entrance = None
+        entr_str = poi.get("entr_location")
+        if isinstance(entr_str, str) and "," in entr_str:
+            try:
+                e_lng, e_lat = entr_str.split(",")
+                entrance = {"lat": float(e_lat), "lng": float(e_lng)}
+            except Exception:
+                entrance = None
+
         return {
             "id": poi.get("id", ""),
             "title": poi.get("name", ""),
@@ -177,6 +223,13 @@ class AmapWebClient:
                 "city": poi.get("cityname", ""),
                 "district": poi.get("adname", ""),
                 "adcode": poi.get("adcode", ""),
+            },
+            "_extras": {
+                "photos": photos,
+                "open_hours": open_hours,
+                "open_time_label": open_time_label,
+                "rating": rating,
+                "entrance": entrance,
             },
         }
 

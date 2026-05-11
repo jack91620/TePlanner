@@ -150,6 +150,7 @@ private struct RouteSummaryDrawerContent: View {
     let onClearRoute: () -> Void
 
     @State private var sendState: SendState = .idle
+    @State fileprivate var selectedRouteStop: ChargingStop? = nil
 
     enum SendState: Equatable {
         case idle, sending, sent, failed(String)
@@ -171,6 +172,18 @@ private struct RouteSummaryDrawerContent: View {
             .padding(16)
         }
         .accessibilityIdentifier("route_summary_drawer")
+        .sheet(item: $selectedRouteStop) { stop in
+            // Shared detail view for nearby + along-route stops. The
+            // adapter (ChargingStop.toStation) carries through photos /
+            // rating / hours that backend now hydrates from AMap; the
+            // "规划路线" action is a no-op here because the user is
+            // already inside the route plan — we map it to dismiss
+            // rather than re-plan.
+            ChargingStationDetailView(
+                station: stop.toStation(),
+                onPlanRoute: { _ in selectedRouteStop = nil }
+            )
+        }
     }
 
     private var header: some View {
@@ -233,27 +246,46 @@ private struct RouteSummaryDrawerContent: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("沿途充电站").font(.headline)
             ForEach(plan.chargingStops) { stop in
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "bolt.fill")
-                        .foregroundStyle(.tint)
-                        .padding(.top, 4)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.name).font(.body)
-                        if let address = stop.address, !address.isEmpty {
-                            Text(address).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                // Each row opens the same ChargingStationDetailView as
+                // the 附近 tab — single detail surface, less code, plus
+                // the user gets photos / rating / hours on route stops
+                // too once backend pulls the extras through (Phase 1
+                // 2026-05-11 enrichment).
+                Button {
+                    selectedRouteStop = stop
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "bolt.fill")
+                            .foregroundStyle(.tint)
+                            .padding(.top, 4)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stop.name)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                            if let address = stop.address, !address.isEmpty {
+                                Text(address)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            HStack(spacing: 12) {
+                                Text(formatDistance(stop.distanceFromStartKm))
+                                Text("\(stop.arrivalSoc)% → \(stop.departureSoc)%")
+                                Text(formatMinutes(stop.chargingDurationMinutes))
+                            }
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
                         }
-                        HStack(spacing: 12) {
-                            Text(formatDistance(stop.distanceFromStartKm))
-                            Text("\(stop.arrivalSoc)% → \(stop.departureSoc)%")
-                            Text(formatMinutes(stop.chargingDurationMinutes))
-                        }
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
-                    Spacer()
+                    .padding(10)
+                    .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
                 }
-                .padding(10)
-                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("route_stop_\(stop.stationId)")
             }
         }
     }

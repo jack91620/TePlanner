@@ -22,6 +22,9 @@ struct ChargingStationDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if !station.photos.isEmpty {
+                        photosCarousel
+                    }
                     header
                     if let address = station.address, !address.isEmpty {
                         infoRow(systemImage: "mappin.and.ellipse", text: address, primary: true)
@@ -41,6 +44,37 @@ struct ChargingStationDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var photosCarousel: some View {
+        // Horizontal scrolling band of AMap-hosted photos. AsyncImage
+        // streams them in; we cap visible at the first 5 since AMap
+        // rarely returns more useful frames beyond that.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(station.photos.prefix(5), id: \.self) { url in
+                    AsyncImage(url: URL(string: url)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .failure:
+                            Image(systemName: "photo.fill")
+                                .foregroundStyle(.tertiary)
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: 240, height: 140)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+        }
+        .frame(height: 140)
+        .accessibilityIdentifier("station_photos_carousel")
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(station.name)
@@ -53,6 +87,10 @@ struct ChargingStationDetailView: View {
                 badge(typeLabel, systemImage: typeIcon, color: typeColor)
                 if station.open24h {
                     badge("24h", systemImage: "clock.fill", color: .green)
+                }
+                if let rating = station.rating, rating > 0 {
+                    badge(String(format: "%.1f", rating),
+                          systemImage: "star.fill", color: .orange)
                 }
             }
         }
@@ -121,8 +159,11 @@ struct ChargingStationDetailView: View {
     }
 
     private func openInAMap() {
-        let lat = station.latitude
-        let lng = station.longitude
+        // Prefer the entrance pin AMap returned (front-door coords).
+        // Falls back to the POI centroid which can be 50–100m off the
+        // actual driveway entry for roadside stations.
+        let lat = station.entranceLatitude ?? station.latitude
+        let lng = station.entranceLongitude ?? station.longitude
         let name = station.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? station.name
         let amapScheme = "iosamap://path?sourceApplication=TePlanner&dlat=\(lat)&dlon=\(lng)&dname=\(name)&dev=0&t=0"
         let webFallback = "https://uri.amap.com/marker?position=\(lng),\(lat)&name=\(name)&src=teplanner"

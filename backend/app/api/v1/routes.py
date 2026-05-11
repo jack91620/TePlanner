@@ -44,6 +44,13 @@ class ChargingStopResponse(BaseModel):
     arrival_soc: int
     departure_soc: int
     charging_duration_minutes: int
+    # New 2026-05-11 — same enrichments as ChargingStation so iOS
+    # can open the unified detail sheet from the along-route list.
+    tel: Optional[str] = None
+    photos: List[str] = []
+    rating: Optional[float] = None
+    open_hours: Optional[str] = None
+    open_24h: bool = False
 
 
 class RoutePlanResponse(BaseModel):
