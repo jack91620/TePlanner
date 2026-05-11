@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 /// Drives the route preview sheet that appears after the user picks
@@ -157,9 +158,18 @@ public final class RoutePreviewViewModel: ObservableObject {
             return
         }
         sendState = .sending
+        // Destination came from AMap POI search → GCJ-02. Tesla's
+        // navigation_gps_request expects WGS-84. Convert at the
+        // outbound boundary; otherwise the car navigates to a pin
+        // ~200 m offset from where the user picked it on AMap.
+        let wgs = CoordConverter.gcj02ToWgs84(
+            CLLocationCoordinate2D(
+                latitude: destination.latitude,
+                longitude: destination.longitude,
+            ))
         let request = NavigationRequest(
-            latitude: destination.latitude,
-            longitude: destination.longitude,
+            latitude: wgs.latitude,
+            longitude: wgs.longitude,
             name: destination.name
         )
         let result = await apiService.sendNavigation(vehicleId: vehicleId, request: request)

@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 import TePlannerKit
 
 /// Bottom drawer over the AMap. Single source of truth for trip
@@ -304,7 +305,16 @@ private struct RouteSummaryDrawerContent: View {
             return
         }
         sendState = .sending
-        let request = NavigationRequest(latitude: lat, longitude: lng, name: plan.destination.name)
+        // Destination came from AMap POI search → GCJ-02. Tesla's
+        // navigation_gps_request expects WGS-84. Convert at the
+        // outbound boundary so the car navigates to the right pin
+        // (otherwise it'd land ~200 m off in mainland China).
+        let wgs = CoordConverter.gcj02ToWgs84(
+            CLLocationCoordinate2D(latitude: lat, longitude: lng))
+        let request = NavigationRequest(
+            latitude: wgs.latitude, longitude: wgs.longitude,
+            name: plan.destination.name,
+        )
         let result = await apiService.sendNavigation(vehicleId: vehicleId, request: request)
         switch result {
         case .success:

@@ -99,8 +99,15 @@ struct GeofenceMapPickerSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("使用此位置") {
+                        // center is in GCJ-02 (AMap display coords);
+                        // backend storage convention is WGS-84 so the
+                        // geofence interpreter can haversine against
+                        // Tesla's raw-GPS vehicle.location without
+                        // a 50-500 m systematic offset. Convert at
+                        // the boundary.
+                        let wgs = CoordConverter.gcj02ToWgs84(center)
                         onConfirm(
-                            center.latitude, center.longitude,
+                            wgs.latitude, wgs.longitude,
                             radiusM, addressLabel == "正在定位…" ? "" : addressLabel,
                         )
                     }
@@ -111,10 +118,16 @@ struct GeofenceMapPickerSheet: View {
             .onSubmit(of: .search) { Task { await runSearch() } }
             .onAppear {
                 radiusM = initialRadiusM
+                // Inputs are WGS-84 (backend storage); convert to
+                // GCJ-02 to seed the AMap camera at the right pixel.
                 if let lat = initialLat, let lng = initialLng {
-                    center = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                    let gcj = CoordConverter.wgs84ToGcj02(
+                        CLLocationCoordinate2D(latitude: lat, longitude: lng))
+                    center = gcj
                 } else if let lat = vehicleLat, let lng = vehicleLng {
-                    center = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                    let gcj = CoordConverter.wgs84ToGcj02(
+                        CLLocationCoordinate2D(latitude: lat, longitude: lng))
+                    center = gcj
                 }
                 scheduleReverseGeocode(lat: center.latitude, lng: center.longitude)
             }

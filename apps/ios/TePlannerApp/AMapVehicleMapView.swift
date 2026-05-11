@@ -75,12 +75,19 @@ struct AMapVehicleMapView: UIViewRepresentable {
     private func updateVehicleMarker(on mapView: MAMapView, coordinator: Coordinator) {
         guard let coordinate else { return }
 
+        // Tesla telemetry GPS is WGS-84 (raw GPS); AMap renders in
+        // GCJ-02. Feeding WGS-84 directly drifts the marker 50-500 m
+        // (depending on location — typically 100-200 m in mainland
+        // China). Convert at the boundary before placing the
+        // annotation OR centering the camera.
+        let onMap = CoordConverter.wgs84ToGcj02(coordinate)
+
         // Refresh the marker (subtitle reflects current battery).
         if let existing = coordinator.vehicleAnnotation {
             mapView.removeAnnotation(existing)
         }
         let annotation = MAPointAnnotation()
-        annotation.coordinate = coordinate
+        annotation.coordinate = onMap
         annotation.title = vehicleTitle
         if let battery = batteryLevel {
             annotation.subtitle = "电量 \(battery)%"
@@ -92,9 +99,9 @@ struct AMapVehicleMapView: UIViewRepresentable {
         // a route reframe handles its own camera fit.
         if route == nil,
            coordinator.lastCoordinate == nil ||
-           !approximatelyEqual(coordinator.lastCoordinate!, coordinate) {
-            mapView.setCenter(coordinate, animated: true)
-            coordinator.lastCoordinate = coordinate
+           !approximatelyEqual(coordinator.lastCoordinate!, onMap) {
+            mapView.setCenter(onMap, animated: true)
+            coordinator.lastCoordinate = onMap
         }
     }
 
