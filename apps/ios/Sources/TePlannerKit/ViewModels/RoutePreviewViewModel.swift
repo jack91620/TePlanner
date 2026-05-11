@@ -48,6 +48,7 @@ public final class RoutePreviewViewModel: ObservableObject {
     private let origin: LocationInput?
     private let currentSoc: Int?
     private let vehicleId: String?
+    private let commandStatusStore: CommandStatusStore?
     private let onPlanLoaded: ((RoutePlanResponse) -> Void)?
 
     public init(
@@ -57,6 +58,7 @@ public final class RoutePreviewViewModel: ObservableObject {
         origin: LocationInput?,
         currentSoc: Int?,
         vehicleId: String?,
+        commandStatusStore: CommandStatusStore? = nil,
         onPlanLoaded: ((RoutePlanResponse) -> Void)? = nil
     ) {
         self.apiService = apiService
@@ -65,6 +67,7 @@ public final class RoutePreviewViewModel: ObservableObject {
         self.origin = origin
         self.currentSoc = currentSoc
         self.vehicleId = vehicleId
+        self.commandStatusStore = commandStatusStore
         self.onPlanLoaded = onPlanLoaded
     }
 
@@ -187,6 +190,12 @@ public final class RoutePreviewViewModel: ObservableObject {
         case .success:
             Log.search.notice("nav sent to \(vehicleId, privacy: .public)")
             sendState = .sent
+            // Defensive (B2 completion): kick the converge poll so
+            // any future expected_state on the navigate capability
+            // can't leave the Hub banner stuck.
+            if let store = commandStatusStore {
+                Task { await store.pollUntilSettled() }
+            }
         case .failure(let error):
             Log.search.error("nav send failed: \(error.localizedDescription, privacy: .public)")
             sendState = .failed(error.localizedDescription)

@@ -33,7 +33,6 @@ struct GeofenceMapPickerSheet: View {
     @State private var searchText: String = ""
     @State private var searchResults: [POIResult] = []
     @State private var isSearching = false
-    @State private var reverseGeocoder = AMapReverseGeocoder()
     @State private var debouncedReverseTask: Task<Void, Never>?
 
     private let apiService: APIServiceProtocol
@@ -270,14 +269,6 @@ struct GeofenceMapPickerSheet: View {
             break
         }
     }
-}
-
-/// Reverse geocoder placeholder — backend's /routes/reverse-geocode
-/// already wraps AMap, so we just keep this struct around as a state
-/// holder. The actual call goes through APIService.reverseGeocode.
-private struct AMapReverseGeocoder {
-    var lastLat: Double = 0
-    var lastLng: Double = 0
 }
 
 // MARK: - UIViewRepresentable wrapping MAMapView with circle overlay.

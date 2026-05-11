@@ -36,12 +36,16 @@ struct MapHomeView: View {
         }
     }
 
+    private let commandStatusStore: CommandStatusStore?
+
     init(
         apiService: APIServiceProtocol,
-        viewModel: HomeViewModel
+        viewModel: HomeViewModel,
+        commandStatusStore: CommandStatusStore? = nil
     ) {
         self.apiService = apiService
         self.viewModel = viewModel
+        self.commandStatusStore = commandStatusStore
     }
 
     var body: some View {
@@ -162,6 +166,7 @@ struct MapHomeView: View {
                 apiService: apiService,
                 coordinate: viewModel.coordinate,
                 vehicleId: viewModel.vehicle?.id,
+                commandStatusStore: commandStatusStore,
                 onSelectStation: { station in
                     pendingStation = station
                 },
@@ -217,7 +222,8 @@ struct MapHomeView: View {
             destination: destination,
             origin: origin,
             currentSoc: viewModel.batteryLevel,
-            vehicleId: viewModel.vehicle?.id
+            vehicleId: viewModel.vehicle?.id,
+            commandStatusStore: commandStatusStore
         )
         await vm.load()
         // The user could have cleared / replaced the destination while

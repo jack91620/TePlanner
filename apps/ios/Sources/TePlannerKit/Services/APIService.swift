@@ -169,10 +169,6 @@ public final class APIService: APIServiceProtocol {
 
     // MARK: - Charging stations
 
-    public func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
-        return await get(path: "/charging/stations/\(stationId)")
-    }
-
     public func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int = 50, type: String? = nil) async -> Result<[ChargingStation], APIError> {
         var query = [
             URLQueryItem(name: "latitude", value: String(latitude)),

@@ -1,7 +1,10 @@
 """Authentication endpoints."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -566,6 +569,50 @@ async def tesla_link_status(
         "expires_at": token.expires_at.isoformat() if token.expires_at else None,
         "message": "Token expired, needs refresh" if is_expired else "Tesla account linked",
     }
+
+
+@router.post("/tesla/unbind")
+async def tesla_unbind(
+    user_id: int = Query(..., description="User ID whose Tesla binding to clear"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clear a user's Tesla OAuth binding.
+
+    Deletes the TeslaToken row + any cached partner-token / vehicle
+    rows. iOS calls this from AuthSession.unbindTesla when the user
+    taps "解绑 Tesla 账户" in the Hub menu, then clears local creds.
+    Before 2026-05-11 the endpoint didn't exist — iOS got 404 and
+    silently logged out anyway, leaving the binding row on the
+    server. Real long-term flow: clean DB so re-OAuth is a fresh
+    bind, not a re-binding under the old row.
+    """
+    from app.db.models import Vehicle
+
+    result = await db.execute(
+        select(TeslaToken).where(TeslaToken.user_id == user_id)
+    )
+    token = result.scalar_one_or_none()
+    if token is None:
+        # No-op when nothing to unbind — iOS still wants 200 so it
+        # can clear local creds without raising.
+        return {"success": True, "message": "Already unbound"}
+
+    await db.delete(token)
+    # Drop the user's vehicle rows too — they're only useful while
+    # Tesla auth is live. The user's stored automation rules /
+    # session history / push device-tokens stay (per-user, not
+    # per-Tesla-link).
+    vehicles = (await db.execute(
+        select(Vehicle).where(Vehicle.user_id == user_id)
+    )).scalars().all()
+    for v in vehicles:
+        await db.delete(v)
+    await db.commit()
+    logger.info(
+        "tesla unbind: cleared TeslaToken + %s Vehicle row(s) for user=%s",
+        len(vehicles), user_id,
+    )
+    return {"success": True, "message": "Tesla account unbound"}
 
 
 @router.get("/tesla/test")

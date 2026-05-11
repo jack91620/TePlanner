@@ -237,15 +237,12 @@ async def search_stations(
         raise HTTPException(status_code=500, detail=f"搜索充电站失败: {str(e)}")
 
 
-@router.get("/stations/{station_id}", response_model=ChargingStation)
-async def get_station(station_id: str):
-    """获取充电站详情.
-
-    Args:
-        station_id: 充电站ID
-    """
-    # TODO: Implement station detail lookup
-    # For now, return a placeholder
-    raise HTTPException(status_code=404, detail="充电站不存在")
+# 2026-05-11 audit: GET /charging/stations/{id} removed.
+# Was a stub that always returned 404. iOS NearbyChargersView already
+# has the full ChargingStation object from /charging/nearby (operator,
+# ports, hours, price, etc) — no need for a separate detail fetch.
+# `getStationDetail` removed from iOS APIService too. If a richer
+# detail page is needed later (e.g., realtime port availability),
+# rebuild this endpoint with a real AMap POI-detail backend.
 
 

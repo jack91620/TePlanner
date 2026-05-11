@@ -29,6 +29,7 @@ struct HomeBottomSheet: View {
     private let apiService: APIServiceProtocol
     private let coordinate: (latitude: Double, longitude: Double)?
     private let vehicleId: String?
+    private let commandStatusStore: CommandStatusStore?
     private let onSelectStation: (ChargingStation) -> Void
     private let onSelectTrip: (RecentRoute) -> Void
     private let onClearRoute: () -> Void
@@ -38,6 +39,7 @@ struct HomeBottomSheet: View {
         apiService: APIServiceProtocol,
         coordinate: (latitude: Double, longitude: Double)?,
         vehicleId: String?,
+        commandStatusStore: CommandStatusStore? = nil,
         onSelectStation: @escaping (ChargingStation) -> Void,
         onSelectTrip: @escaping (RecentRoute) -> Void,
         onClearRoute: @escaping () -> Void
@@ -46,6 +48,7 @@ struct HomeBottomSheet: View {
         self.apiService = apiService
         self.coordinate = coordinate
         self.vehicleId = vehicleId
+        self.commandStatusStore = commandStatusStore
         self.onSelectStation = onSelectStation
         self.onSelectTrip = onSelectTrip
         self.onClearRoute = onClearRoute
@@ -64,6 +67,7 @@ struct HomeBottomSheet: View {
                 plan: plan,
                 apiService: apiService,
                 vehicleId: vehicleId,
+                commandStatusStore: commandStatusStore,
                 onClearRoute: onClearRoute
             )
         }
@@ -142,6 +146,7 @@ private struct RouteSummaryDrawerContent: View {
     let plan: RoutePlanResponse
     let apiService: APIServiceProtocol
     let vehicleId: String?
+    let commandStatusStore: CommandStatusStore?
     let onClearRoute: () -> Void
 
     @State private var sendState: SendState = .idle
@@ -320,6 +325,13 @@ private struct RouteSummaryDrawerContent: View {
         case .success:
             Log.search.notice("nav sent from drawer to \(vehicleId, privacy: .public)")
             sendState = .sent
+            // Defensive (B2 completion): if Tesla nav ever gains an
+            // expected_state on the backend, this would start writing
+            // CommandPending rows; kick the converge poll preemptively
+            // so the Hub banner can't get stuck on "正在...等待".
+            if let store = commandStatusStore {
+                Task { await store.pollUntilSettled() }
+            }
         case .failure(let error):
             Log.search.error("drawer nav send failed: \(error.localizedDescription, privacy: .public)")
             sendState = .failed(error.localizedDescription)

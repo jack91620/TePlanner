@@ -939,7 +939,8 @@ struct HubView: View {
 
     private var planningEntry: some View {
         NavigationLink {
-            MapHomeView(apiService: apiService, viewModel: viewModel)
+            MapHomeView(apiService: apiService, viewModel: viewModel,
+                        commandStatusStore: commandStatusStore)
         } label: {
             HubEntryCard(
                 icon: "bolt.fill",

@@ -72,7 +72,6 @@ public protocol APIServiceProtocol {
     func setChargeLimit(vehicleId: String, percent: Int) async -> Result<BaseResponse, APIError>
 
     // Charging stations
-    func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError>
     func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError>
 
     // Saved routes (history)

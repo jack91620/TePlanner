@@ -29,7 +29,6 @@ final class MockAPIService: APIServiceProtocol {
     var mockSendNavigationResponse: Result<BaseResponse, APIError>!
 
     // Charging stations
-    var mockStationDetailResponse: Result<ChargingStation, APIError>!
     var mockNearbyStationsResponse: Result<[ChargingStation], APIError>!
     var mockRecentRoutesResponse: Result<RecentRoutesResponse, APIError>!
 
@@ -46,7 +45,6 @@ final class MockAPIService: APIServiceProtocol {
     var getVehicleStateCallCount = 0
     var wakeVehicleCallCount = 0
     var sendNavigationCallCount = 0
-    var stationDetailCallCount = 0
     var nearbyStationsCallCount = 0
     var recentRoutesCallCount = 0
 
@@ -199,11 +197,6 @@ final class MockAPIService: APIServiceProtocol {
         setChargeLimitCallCount += 1
         lastSetChargeLimitArgs = (vehicleId, percent)
         return mockSetChargeLimitResponse ?? .success(BaseResponse(success: true, message: "ok"))
-    }
-
-    func getStationDetail(stationId: String) async -> Result<ChargingStation, APIError> {
-        stationDetailCallCount += 1
-        return mockStationDetailResponse
     }
 
     func getNearbyStations(latitude: Double, longitude: Double, radiusKm: Int, type: String?) async -> Result<[ChargingStation], APIError> {
