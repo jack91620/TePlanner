@@ -19,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Warning
@@ -26,6 +28,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -151,14 +155,24 @@ fun AutomationsListScreen(
                         Text("加载失败：${state.error}", color = MaterialTheme.colorScheme.error)
                     }
                 }
-                else -> ReorderableList(
-                    rules = state.rules,
-                    snoozes = state.snoozes,
-                    onToggle = { id, on -> vm.toggleEnabled(id, on) },
-                    onClick = onRule,
-                    onDelete = { rule -> pendingDelete = rule },
-                    onReorder = { ordered -> vm.reorder(ordered) },
-                )
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    if (state.snoozes.isNotEmpty()) {
+                        SnoozeBanner(
+                            count = state.snoozes.size,
+                            onUnsnoozeAll = { vm.unsnoozeAll() },
+                        )
+                    }
+                    ReorderableList(
+                        rules = state.rules,
+                        snoozes = state.snoozes,
+                        onToggle = { id, on -> vm.toggleEnabled(id, on) },
+                        onClick = onRule,
+                        onDelete = { rule -> pendingDelete = rule },
+                        onSnooze = { id, hours -> vm.snooze(id, hours) },
+                        onUnsnooze = { id -> vm.unsnooze(id) },
+                        onReorder = { ordered -> vm.reorder(ordered) },
+                    )
+                }
             }
         }
     }
@@ -188,6 +202,8 @@ private fun ReorderableList(
     onToggle: (String, Boolean) -> Unit,
     onClick: (String) -> Unit,
     onDelete: (RuleResponse) -> Unit,
+    onSnooze: (String, Double) -> Unit,
+    onUnsnooze: (String) -> Unit,
     onReorder: (List<String>) -> Unit,
 ) {
     val lazyListState = rememberLazyListState()
@@ -219,6 +235,8 @@ private fun ReorderableList(
                     onToggle = { on -> onToggle(rule.id, on) },
                     onClick = { onClick(rule.id) },
                     onDelete = { onDelete(rule) },
+                    onSnooze = { hours -> onSnooze(rule.id, hours) },
+                    onUnsnooze = { onUnsnooze(rule.id) },
                 )
             }
         }
@@ -235,6 +253,8 @@ private fun SwipeableRow(
     onToggle: (Boolean) -> Unit,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onSnooze: (Double) -> Unit,
+    onUnsnooze: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -275,6 +295,8 @@ private fun SwipeableRow(
             dragHandle = dragHandle,
             onToggle = onToggle,
             onClick = onClick,
+            onSnooze = onSnooze,
+            onUnsnooze = onUnsnooze,
         )
     }
 }
@@ -287,8 +309,11 @@ private fun RuleRowCard(
     dragHandle: Modifier,
     onToggle: (Boolean) -> Unit,
     onClick: () -> Unit,
+    onSnooze: (Double) -> Unit,
+    onUnsnooze: () -> Unit,
 ) {
     val firing = rule.isFiring
+    var menuOpen by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,8 +384,101 @@ private fun RuleRowCard(
                          color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Spacer(modifier = Modifier.size(8.dp))
+            Spacer(modifier = Modifier.size(4.dp))
+            Box {
+                IconButton(
+                    onClick = { menuOpen = true },
+                    modifier = Modifier.testTag("rule_menu_${rule.id}"),
+                ) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "更多")
+                }
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                ) {
+                    if (snooze != null) {
+                        DropdownMenuItem(
+                            text = { Text("取消静音") },
+                            leadingIcon = { Icon(Icons.Filled.Notifications, null) },
+                            onClick = {
+                                menuOpen = false
+                                onUnsnooze()
+                            },
+                            modifier = Modifier.testTag("rule_menu_unsnooze_${rule.id}"),
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("静音 1 小时") },
+                            leadingIcon = { Icon(Icons.Filled.Bedtime, null) },
+                            onClick = {
+                                menuOpen = false
+                                onSnooze(1.0)
+                            },
+                            modifier = Modifier.testTag("rule_menu_snooze_1h_${rule.id}"),
+                        )
+                        DropdownMenuItem(
+                            text = { Text("静音 4 小时") },
+                            leadingIcon = { Icon(Icons.Filled.Bedtime, null) },
+                            onClick = {
+                                menuOpen = false
+                                onSnooze(4.0)
+                            },
+                            modifier = Modifier.testTag("rule_menu_snooze_4h_${rule.id}"),
+                        )
+                        DropdownMenuItem(
+                            text = { Text("静音 24 小时") },
+                            leadingIcon = { Icon(Icons.Filled.Bedtime, null) },
+                            onClick = {
+                                menuOpen = false
+                                onSnooze(24.0)
+                            },
+                            modifier = Modifier.testTag("rule_menu_snooze_24h_${rule.id}"),
+                        )
+                    }
+                }
+            }
             Switch(checked = rule.enabled, onCheckedChange = onToggle)
+        }
+    }
+}
+
+@Composable
+private fun SnoozeBanner(count: Int, onUnsnoozeAll: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("automations_snooze_banner"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Bedtime,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.size(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "$count 条规则当前静音中",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    "静音期间不会推送通知；点击规则可查看到期时间。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = onUnsnoozeAll,
+                modifier = Modifier.testTag("automations_unsnooze_all"),
+            ) { Text("全部恢复") }
         }
     }
 }

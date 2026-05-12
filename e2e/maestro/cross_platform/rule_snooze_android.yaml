@@ -1,0 +1,54 @@
+appId: com.teplanner.android
+---
+- runFlow: ../_helpers/ensure_logged_in_android.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Idempotency: if any rules are snoozed from a previous run, recover
+# them first via the banner's 全部恢复 button.
+- runFlow:
+    when:
+      visible:
+        id: "automations_snooze_banner"
+    commands:
+      - tapOn:
+          id: "automations_unsnooze_all"
+      - extendedWaitUntil:
+          notVisible:
+            id: "automations_snooze_banner"
+          timeout: 5000
+
+# Find the row for 露营模式超时提醒 and tap its trailing "⋮" menu.
+# Each rule's IconButton is tagged `rule_menu_<id>` but we don't
+# know the id here. Tap by content description — Maestro matches
+# Compose contentDescription on the icon child.
+- tapOn:
+    text: "更多"
+    index: 0  # first matching menu button = first rule in list
+
+- extendedWaitUntil:
+    visible: "静音 1 小时"
+    timeout: 3000
+- tapOn: "静音 1 小时"
+
+# Banner appears proving server-side snooze landed + state refresh.
+- extendedWaitUntil:
+    visible:
+      id: "automations_snooze_banner"
+    timeout: 8000
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_rule_snoozed
+
+# Unsnooze via the banner shortcut.
+- tapOn:
+    id: "automations_unsnooze_all"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "automations_snooze_banner"
+    timeout: 8000
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_rule_unsnoozed

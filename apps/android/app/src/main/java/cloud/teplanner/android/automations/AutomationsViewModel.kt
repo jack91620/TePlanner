@@ -102,6 +102,20 @@ class AutomationsViewModel @Inject constructor(
         }
     }
 
+    fun unsnoozeAll() {
+        val ids = _state.value.snoozes.keys.toList()
+        if (ids.isEmpty()) return
+        _state.update { it.copy(snoozes = emptyMap()) }
+        viewModelScope.launch {
+            ids.forEach { id ->
+                runCatching { api.unsnooze(id) }.onFailure { err ->
+                    _state.update { it.copy(error = "取消静音失败：${err.message}") }
+                }
+            }
+            refresh()
+        }
+    }
+
     fun delete(ruleId: String) {
         // Filter out optimistically; refresh on failure.
         val previous = _state.value.rules
