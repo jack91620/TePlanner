@@ -58,6 +58,7 @@ class ScheduledDepartureViewModel @Inject constructor(
         leadMinutes: Int,
         targetChargeSoc: Int?,
         vehicleId: String?,
+        label: String? = null,
     ) {
         val utcInstant = departureLocal.toInstant()
         val iso = DateTimeFormatter.ISO_INSTANT.format(utcInstant)
@@ -68,6 +69,7 @@ class ScheduledDepartureViewModel @Inject constructor(
                     ScheduledDepartureRequest(
                         departureAtUtc = iso,
                         leadMinutes = leadMinutes,
+                        label = label?.takeIf { it.isNotBlank() },
                         targetChargeSoc = targetChargeSoc,
                         vehicleId = vehicleId,
                         enabled = true,

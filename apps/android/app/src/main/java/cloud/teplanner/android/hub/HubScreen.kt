@@ -203,6 +203,12 @@ fun HubScreen(
                 suggestion = state.chargeLimitSuggestion,
                 onApply = hub::applySuggestedChargeLimit,
             )
+            AlertPill(
+                state = state.vehicleState,
+                onCloseClimateKeeper = hub::closeClimateKeeper,
+                onCloseSentry = hub::closeSentry,
+                onLock = hub::lock,
+            )
             HubStatusChips(
                 state = state.vehicleState,
                 chipStatus = state.chipStatus,
@@ -261,12 +267,13 @@ fun HubScreen(
         if (showDepartureSheet) {
             ScheduledDepartureSheet(
                 current = departureState.current,
-                onSave = { dt, lead, soc ->
+                onSave = { dt, lead, soc, label ->
                     departure.upsert(
                         departureLocal = dt,
                         leadMinutes = lead,
                         targetChargeSoc = soc,
                         vehicleId = state.vehicle?.id,
+                        label = label,
                     )
                 },
                 onClear = { departure.clear() },

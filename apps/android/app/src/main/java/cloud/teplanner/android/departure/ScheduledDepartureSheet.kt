@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,26 +21,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import cloud.teplanner.android.core.network.ScheduledDepartureResponse
-import java.time.LocalDate
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Phase F.4.1 — sheet to set "下次出行".
+ * Set "下次出行" — picks a future time + optional label + lead minutes
+ * + target SOC. Android port of iOS ScheduledDepartureSheet.
  *
- * Mirrors the iOS `ScheduledDepartureSheet` shape but compresses to
- * a list of relative-time presets ("明早 7:30", "今晚 22:00", "+1h"
- * etc.) since Compose doesn't have a great built-in date+time picker
- * and we want to keep the surface tight. Custom-time picker can land
- * in F.4 polish.
+ * Compose doesn't have a great built-in date+time picker, so we keep
+ * the relative-time presets ("明早 7:30", "今晚 22:00") which are
+ * cognitively faster anyway for the common case. Custom time picker
+ * can land later; iOS's DatePicker is also constrained to in:Date()...
+ * so the conceptual gap is just "tap a preset vs. spin a wheel."
+ *
+ * TestTags mirror iOS accessibilityIdentifiers so Maestro shared
+ * bodies can target the same surface on both platforms:
+ *   departure_picker — the time picker row (preset list)
+ *   departure_label_field — 备注 text field
+ *   departure_lead_slider — proactive heat-up minutes
+ *   departure_save_button — toolbar save
+ *   departure_clear_button — destructive delete (only when current != null)
  */
 @Composable
 fun ScheduledDepartureSheet(
     current: ScheduledDepartureResponse?,
-    onSave: (ZonedDateTime, leadMin: Int, targetSoc: Int?) -> Unit,
+    onSave: (ZonedDateTime, leadMin: Int, targetSoc: Int?, label: String?) -> Unit,
     onClear: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -54,7 +63,12 @@ fun ScheduledDepartureSheet(
             "今晚 22:00" to todayOrTomorrow(now, 22, 0),
         )
     }
-    var selected by remember { mutableStateOf<ZonedDateTime?>(null) }
+    // Default to a sensible "next morning 8am" so save button is
+    // always enabled — matches iOS DatePicker's initial-value behavior.
+    var selected by remember {
+        mutableStateOf<ZonedDateTime>(nextMorning(now, 8, 0))
+    }
+    var label by remember { mutableStateOf(current?.label ?: "") }
     var leadMin by remember { mutableIntStateOf(current?.leadMinutes ?: 15) }
     var targetSoc by remember { mutableIntStateOf(current?.targetChargeSoc ?: 80) }
 
@@ -74,34 +88,48 @@ fun ScheduledDepartureSheet(
                     Spacer(Modifier.height(8.dp))
                 }
                 Text("出发时间", style = MaterialTheme.typography.titleSmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("departure_picker"),
                 ) {
-                    presets.take(3).forEach { (label, dt) ->
-                        OutlinedButton(
-                            onClick = { selected = dt },
-                        ) { Text(label, style = MaterialTheme.typography.labelSmall) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        presets.take(3).forEach { (lbl, dt) ->
+                            OutlinedButton(onClick = { selected = dt }) {
+                                Text(lbl, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    presets.drop(3).forEach { (label, dt) ->
-                        OutlinedButton(
-                            onClick = { selected = dt },
-                        ) { Text(label, style = MaterialTheme.typography.labelSmall) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        presets.drop(3).forEach { (lbl, dt) ->
+                            OutlinedButton(onClick = { selected = dt }) {
+                                Text(lbl, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
-                }
-                selected?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "✓ ${DateTimeFormatter.ofPattern("MM-dd HH:mm").format(it)}",
+                        "✓ ${DateTimeFormatter.ofPattern("MM-dd HH:mm").format(selected)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    placeholder = { Text("备注（选填）") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("departure_label_field"),
+                )
                 Spacer(Modifier.height(12.dp))
                 Text("提前 $leadMin 分钟预热")
                 Slider(
@@ -109,6 +137,7 @@ fun ScheduledDepartureSheet(
                     onValueChange = { leadMin = it.toInt() },
                     valueRange = 5f..60f,
                     steps = 10,
+                    modifier = Modifier.testTag("departure_lead_slider"),
                 )
                 Spacer(Modifier.height(8.dp))
                 Text("目标电量 $targetSoc%")
@@ -123,16 +152,19 @@ fun ScheduledDepartureSheet(
         confirmButton = {
             TextButton(
                 onClick = {
-                    selected?.let { onSave(it, leadMin, targetSoc) }
+                    onSave(selected, leadMin, targetSoc, label.takeIf { it.isNotBlank() })
                     onDismiss()
                 },
-                enabled = selected != null,
+                modifier = Modifier.testTag("departure_save_button"),
             ) { Text("保存") }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (current != null) {
-                    TextButton(onClick = { onClear(); onDismiss() }) {
+                    TextButton(
+                        onClick = { onClear(); onDismiss() },
+                        modifier = Modifier.testTag("departure_clear_button"),
+                    ) {
                         Text("清除", color = MaterialTheme.colorScheme.error)
                     }
                 }

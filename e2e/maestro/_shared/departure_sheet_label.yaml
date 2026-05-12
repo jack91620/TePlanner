@@ -1,0 +1,73 @@
+# Cross-platform: Hub → 下次出行 card → set 备注 + save → card updates.
+#
+# Both platforms expose:
+#   hub_departure_card           — Hub entry card
+#   departure_picker             — time selector container
+#   departure_label_field        — 备注 (label) TextField
+#   departure_lead_slider        — 提前 minutes slider
+#   departure_save_button        — toolbar / confirm save
+#   departure_clear_button       — destructive remove (only when current != null)
+#
+# Time selection diverges (iOS DatePicker vs Android preset chips) so
+# the shared body skips it — both platforms default to a sensible
+# future time so save is enabled regardless. Label is the easy
+# shared affordance.
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_departure_card"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "hub_departure_card"
+
+# Sheet open — save button is the most reliable anchor.
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+
+# Enter a label (ASCII only — Maestro can't input Chinese on Android,
+# see mobile-dev-inc/maestro#146).
+- tapOn:
+    id: "departure_label_field"
+- inputText: "Demo"
+
+# Save.
+- tapOn:
+    id: "departure_save_button"
+
+# Sheet dismisses — save_button gone from hierarchy.
+- extendedWaitUntil:
+    notVisible:
+      id: "departure_save_button"
+    timeout: 5000
+
+# Hub card visible again (we returned to Hub root).
+- extendedWaitUntil:
+    visible:
+      id: "hub_departure_card"
+    timeout: 5000
+
+# Cleanup — re-open the sheet and tap 清除/取消下次出行 so the next
+# test run starts with a clean slate.
+- tapOn:
+    id: "hub_departure_card"
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+- runFlow:
+    when:
+      visible:
+        id: "departure_clear_button"
+    commands:
+      - tapOn:
+          id: "departure_clear_button"
+      - extendedWaitUntil:
+          notVisible:
+            id: "departure_save_button"
+          timeout: 5000
