@@ -103,6 +103,43 @@ data class PlaceResult(
     val longitude: Double get() = location.lng
 }
 
+// MARK: - POST /routes/save — write to "最近" history
+
+@Serializable
+data class SaveRoutePlanLocation(
+    val latitude: Double,
+    val longitude: Double,
+    val address: String? = null,
+)
+
+@Serializable
+data class SaveRoutePlanChargingStop(
+    @SerialName("station_id") val stationId: String? = null,
+    val name: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val address: String? = null,
+    @SerialName("arrival_soc") val arrivalSoc: Int? = null,
+    @SerialName("departure_soc") val departureSoc: Int? = null,
+    @SerialName("charging_duration_minutes") val chargingDurationMinutes: Int? = null,
+)
+
+@Serializable
+data class SaveRoutePlanRequest(
+    val origin: SaveRoutePlanLocation,
+    val destination: SaveRoutePlanLocation,
+    @SerialName("total_distance_km") val totalDistanceKm: Double? = null,
+    @SerialName("total_duration_minutes") val totalDurationMinutes: Int? = null,
+    @SerialName("polyline_points") val polylinePoints: List<List<Double>>? = null,
+    @SerialName("charging_stops") val chargingStops: List<SaveRoutePlanChargingStop> = emptyList(),
+)
+
+@Serializable
+data class SaveRoutePlanResponse(
+    val id: Int,
+    @SerialName("created_at") val createdAt: String,
+)
+
 @Serializable
 data class PlaceSearchResponse(
     val results: List<PlaceResult> = emptyList(),

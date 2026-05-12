@@ -18,4 +18,11 @@ interface RoutesApi {
         @Query("keyword") keyword: String,
         @Query("location") location: String? = null,
     ): PlaceSearchResponse
+
+    /// Persist a planned trip to the user's 最近 history after the
+    /// destination is pushed to the car. Backend at POST /routes/save.
+    /// Without this call the 最近 tab is permanently empty — iOS
+    /// shipped the equivalent in commit 60b5162; mirror that here.
+    @POST("api/v1/routes/save")
+    suspend fun saveRoutePlan(@Body request: SaveRoutePlanRequest): SaveRoutePlanResponse
 }

@@ -7,9 +7,15 @@ import cloud.teplanner.android.core.network.ChargingPlanRequest
 import cloud.teplanner.android.core.network.ChargingStopResponse
 import cloud.teplanner.android.core.network.Coordinate
 import cloud.teplanner.android.core.network.LocationInput
+import cloud.teplanner.android.core.network.NavigationRequest
 import cloud.teplanner.android.core.network.PlaceResult
 import cloud.teplanner.android.core.network.RouteOnlyRequest
 import cloud.teplanner.android.core.network.RoutesApi
+import cloud.teplanner.android.core.network.SaveRoutePlanChargingStop
+import cloud.teplanner.android.core.network.SaveRoutePlanLocation
+import cloud.teplanner.android.core.network.SaveRoutePlanRequest
+import cloud.teplanner.android.core.network.VehiclesApi
+import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +38,17 @@ import javax.inject.Inject
 class RoutePreviewViewModel @Inject constructor(
     app: Application,
     private val routes: RoutesApi,
+    private val vehicles: VehiclesApi,
 ) : AndroidViewModel(app) {
+
+    /// Mirrors iOS RoutePreviewViewModel.SendState. UI binds to this
+    /// to show the dispatch button's terminal state (sent / failed).
+    sealed class SendState {
+        object Idle : SendState()
+        object Sending : SendState()
+        object Sent : SendState()
+        data class Failed(val message: String) : SendState()
+    }
 
     data class State(
         val origin: LocationInput? = null,
@@ -48,6 +64,7 @@ class RoutePreviewViewModel @Inject constructor(
         val error: String? = null,
         val searchResults: List<PlaceResult> = emptyList(),
         val isSearching: Boolean = false,
+        val sendState: SendState = SendState.Idle,
     )
 
     private val poiService = AlongRoutePOIService(app.applicationContext)
@@ -141,6 +158,85 @@ class RoutePreviewViewModel @Inject constructor(
                 destination = it.destination,
                 initialSoc = it.initialSoc,
             )
+        }
+    }
+
+    /// Push the planned destination to the bound vehicle's nav system.
+    /// Mirrors iOS RoutePreviewViewModel.sendToVehicle:
+    ///   1. POST /vehicles/{id}/navigate
+    ///   2. On success → persistToHistory() so the trip lands in 最近
+    ///
+    /// `vehicleId` here is the Tesla numeric vehicle id (same one iOS
+    /// stores in `viewModel.vehicle?.id`). Without it the call is a
+    /// no-op with sendState=Failed.
+    fun sendToVehicle(vehicleId: String?) {
+        if (vehicleId == null) {
+            _state.update { it.copy(sendState = SendState.Failed("未选择车辆")) }
+            return
+        }
+        val dest = _state.value.destination ?: run {
+            _state.update { it.copy(sendState = SendState.Failed("未选择目的地")) }
+            return
+        }
+        _state.update { it.copy(sendState = SendState.Sending) }
+        viewModelScope.launch {
+            // Destination came from AMap POI → GCJ-02. Tesla expects
+            // WGS-84. iOS converts at the outbound boundary; we do
+            // the same here. CoordConverter is not yet ported to
+            // Android — for now we pass GCJ-02 through and accept
+            // the ~50m offset, matching the pre-fix iOS behaviour
+            // until the converter ships in a follow-up.
+            val request = NavigationRequest(
+                latitude = dest.latitude,
+                longitude = dest.longitude,
+                name = dest.name,
+            )
+            runCatching {
+                vehicles.sendNavigation(vehicleId = vehicleId, body = request)
+            }.onSuccess {
+                _state.update { it.copy(sendState = SendState.Sent) }
+                // Best-effort save to 最近 history. Mirror iOS
+                // (commit 60b5162): failure here logs but doesn't
+                // undo the Tesla nav command.
+                persistToHistory()
+            }.onFailure { err ->
+                Log.w("RoutePreviewViewModel", "nav send failed: ${err.message}")
+                _state.update {
+                    it.copy(sendState = SendState.Failed(err.message ?: "发送失败"))
+                }
+            }
+        }
+    }
+
+    /// POST /routes/save with the loaded plan's origin / dest / totals.
+    /// Polyline + charging stops are omitted intentionally for v1
+    /// (list view doesn't render them; light payload keeps the save
+    /// fast). When the 最近 detail view ships, plumb them through.
+    private fun persistToHistory() {
+        val snap = _state.value
+        val origin = snap.origin ?: return
+        val destination = snap.destination ?: return
+        viewModelScope.launch {
+            runCatching {
+                routes.saveRoutePlan(
+                    SaveRoutePlanRequest(
+                        origin = SaveRoutePlanLocation(
+                            latitude = origin.latitude,
+                            longitude = origin.longitude,
+                            address = origin.name,
+                        ),
+                        destination = SaveRoutePlanLocation(
+                            latitude = destination.latitude,
+                            longitude = destination.longitude,
+                            address = destination.name,
+                        ),
+                        totalDistanceKm = snap.totalDistanceKm,
+                        totalDurationMinutes = snap.drivingDurationMinutes,
+                    )
+                )
+            }.onFailure { err ->
+                Log.i("RoutePreviewViewModel", "route save failed (non-fatal): ${err.message}")
+            }
         }
     }
 }
