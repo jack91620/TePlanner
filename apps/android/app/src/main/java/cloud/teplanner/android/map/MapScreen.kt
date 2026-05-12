@@ -92,6 +92,9 @@ fun MapScreen(
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
     var showRouteSettings by remember { mutableStateOf(false) }
+    var selectedStation by remember {
+        mutableStateOf<cloud.teplanner.android.core.network.ChargingStation?>(null)
+    }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -144,6 +147,7 @@ fun MapScreen(
                                     LatLng(st.latitude, st.longitude), 16f
                                 )
                             )
+                            selectedStation = st
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -191,6 +195,25 @@ fun MapScreen(
                 }
             }
         }
+    }
+
+    selectedStation?.let { station ->
+        ChargingStationDetailSheet(
+            station = station,
+            onPlanRoute = { st ->
+                selectedStation = null
+                // F.3.x: hand off to host to plan route. For now we
+                // just dismiss + flag the user (route planning needs
+                // an origin which we don't have until they pick one).
+                onPlanRoute()
+                aMapRef.value?.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(st.latitude, st.longitude), 14f
+                    )
+                )
+            },
+            onDismiss = { selectedStation = null },
+        )
     }
 
     if (showRouteSettings) {
