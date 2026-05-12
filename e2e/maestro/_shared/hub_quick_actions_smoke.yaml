@@ -1,0 +1,46 @@
+# Cross-platform smoke: Hub Quick Actions section renders the 2×4
+# grid with 4 seeded system actions in row 1 and 4 empty slots
+# in row 2.
+#
+# Identifier contract (same string both platforms):
+#   hub_quick_actions_section  — section root
+#   hub_quick_actions_manage   — "管理" header button
+#   hub_quick_action_slot_<idx> — filled tile, idx 0..3 at start
+#   hub_quick_action_empty_<idx> — empty tile, idx 4..7 at start
+#
+# Precondition: app launched + already at Hub + user has the
+# default seeded actions (no prior hub.* overrides). The wrapper
+# scripts reset the per-user hub.* keys before invoking us.
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_section"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible:
+    id: "hub_quick_actions_section"
+- assertVisible:
+    id: "hub_quick_actions_manage"
+
+# Top row: 4 seeded system actions land in slots 0..3.
+- assertVisible:
+    id: "hub_quick_action_slot_0"
+- assertVisible:
+    id: "hub_quick_action_slot_1"
+- assertVisible:
+    id: "hub_quick_action_slot_2"
+- assertVisible:
+    id: "hub_quick_action_slot_3"
+
+# Bottom row: empty placeholders in slots 4..7.
+- assertVisible:
+    id: "hub_quick_action_empty_4"
+- assertVisible:
+    id: "hub_quick_action_empty_5"
+- assertVisible:
+    id: "hub_quick_action_empty_6"
+- assertVisible:
+    id: "hub_quick_action_empty_7"

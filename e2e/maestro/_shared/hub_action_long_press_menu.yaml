@@ -1,0 +1,39 @@
+# Cross-platform: long-press a filled tile (slot 0 = 锁车) → menu
+# appears with edit / clear / share / delete options.
+#
+# iOS surface: SwiftUI confirmationDialog action sheet.
+# Android surface: Material ModalBottomSheet.
+# Same testTag values, same outcomes.
+#
+# Identifier contract:
+#   hub_action_menu_edit
+#   hub_action_menu_share
+#   hub_action_menu_clear_slot
+#   hub_action_menu_delete  (only for non-system actions)
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_edit"
+    timeout: 5000
+
+- assertVisible:
+    id: "hub_action_menu_edit"
+- assertVisible:
+    id: "hub_action_menu_share"
+- assertVisible:
+    id: "hub_action_menu_clear_slot"
+
+# Slot 0 is a system action — delete is intentionally hidden.
+- assertNotVisible:
+    id: "hub_action_menu_delete"

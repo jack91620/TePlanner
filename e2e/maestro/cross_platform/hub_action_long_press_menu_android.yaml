@@ -1,0 +1,7 @@
+# Android wrapper for the shared long-press menu flow.
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/hub_action_long_press_menu.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_long_press

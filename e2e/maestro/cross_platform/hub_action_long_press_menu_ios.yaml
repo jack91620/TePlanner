@@ -1,0 +1,6 @@
+# iOS wrapper for the shared long-press menu flow.
+appId: com.teplanner.ios
+---
+- runFlow: ../_helpers/ensure_logged_in.yaml
+- runFlow: ../_shared/hub_action_long_press_menu.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_ios_long_press

@@ -1,0 +1,14 @@
+# iOS wrapper for the shared Hub Quick Actions smoke flow.
+# Run: make e2e-ios FLOW=cross_platform/hub_quick_actions_smoke_ios.yaml
+#
+# Reset backend state first so we know the user sees the seeded
+# defaults (otherwise a previous hub.* mutation would shift the
+# slot indices). Runs via run_hub_actions_all.sh-style reset
+# helper; if SSH password isn't available, the helper no-ops and
+# the test may fail on a non-default state.
+
+appId: com.teplanner.ios
+---
+- runFlow: ../_helpers/ensure_logged_in.yaml
+- runFlow: ../_shared/hub_quick_actions_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_ios_quick_actions

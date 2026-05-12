@@ -1,0 +1,48 @@
+# Cross-platform: Hub 管理 button opens HubActionsManageSheet with
+# the expected sections (槽位 + 我的动作 + 重置为默认 button).
+#
+# iOS uses a SwiftUI .sheet; Android uses a Material
+# ModalBottomSheet. Same testTags.
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "hub_quick_actions_manage"
+
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+# Slot 0 mini-tile + new-action + done button are above the fold.
+- assertVisible:
+    id: "hub_manage_slot_0"
+- assertVisible:
+    id: "hub_manage_new_action"
+- assertVisible:
+    id: "hub_manage_done_button"
+
+# Reset button lives at the bottom of the sheet — scroll down
+# inside the sheet to bring it on-screen.
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_reset_button"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "hub_manage_reset_button"
+
+# Dismiss cleanly — scroll the done button back into view first
+# (it bounced off-screen during the previous scroll).
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_done_button"
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_done_button"

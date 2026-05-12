@@ -1,0 +1,13 @@
+# Android wrapper for the shared Hub Quick Actions smoke flow.
+# Run: make e2e-android FLOW=cross_platform/hub_quick_actions_smoke_android.yaml
+#
+# Precondition: a logged-in account exists on the emulator and the
+# user has the seeded defaults (reset via the same SSH helper iOS
+# uses, or by signing in fresh).
+
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/hub_quick_actions_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_quick_actions
