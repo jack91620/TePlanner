@@ -1,0 +1,5 @@
+appId: com.teplanner.ios
+---
+- runFlow: ../_helpers/ensure_logged_in.yaml
+- runFlow: ../_shared/hub_action_editor_create.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_ios_editor_create

@@ -1,0 +1,67 @@
+# Cross-platform: empty tile tap → slot picker → "+ 新建动作" →
+# editor → input name + pick capability → save → tile appears in
+# the previously-empty slot.
+#
+# Same testTags both platforms; UI patterns differ (iOS .sheet vs
+# Android ModalBottomSheet) but the path through the testTag tree
+# is identical.
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "hub_quick_action_empty_4"
+
+# Slot picker opens; "+ 新建动作" is the first row.
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_picker_create"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_picker_create"
+
+# Editor opens.
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_name"
+# Maestro on Android can't input Chinese via inputText (mobile-dev-
+# inc/maestro#146), and both clients soft-cap the name at 6 chars
+# (tiles wrap badly above). Pick an ASCII string ≤6 chars.
+- inputText: "Demo"
+
+# Pick a capability for step 1. Scroll to the capability picker —
+# Android keyboards push it below the fold; iOS handles it too.
+- scrollUntilVisible:
+    element:
+      id: "hub_action_editor_capability_0"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+
+# Save. iOS save is in the toolbar (always visible at top of
+# the sheet); Android save is in a sticky bottom row that stays
+# visible no matter how deep the editor's LazyColumn is scrolled.
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Tile lands in slot 4 (was empty).
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_4"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Demo"

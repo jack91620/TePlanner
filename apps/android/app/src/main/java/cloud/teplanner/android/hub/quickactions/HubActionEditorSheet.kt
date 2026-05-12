@@ -107,10 +107,42 @@ fun HubActionEditorSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
+        // Pull out the save lambda so the top header + sticky bottom
+        // bar share it. iOS uses a top toolbar save; Android's
+        // ModalBottomSheet convention puts confirm actions in a
+        // sticky bottom row so the user doesn't have to scroll a
+        // long form back up.
+        val doSave: () -> Unit = {
+            scope.launch {
+                val validSteps = steps.filter { it.capability.isNotEmpty() }
+                val trimmed = name.trim()
+                if (editing == null) {
+                    viewModel.store.create(
+                        name = trimmed,
+                        icon = icon,
+                        tint = tint,
+                        steps = validSteps,
+                        confirmRequired = confirmRequired,
+                    )
+                } else {
+                    viewModel.store.update(
+                        id = editing.id,
+                        name = trimmed,
+                        icon = icon,
+                        tint = tint,
+                        steps = validSteps,
+                        confirmRequired = confirmRequired,
+                    )
+                }
+                onDismiss()
+            }
+        }
+
+        Column(modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }) {
         LazyColumn(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
-                .semantics { testTagsAsResourceId = true },
+                .weight(1f, fill = false),
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -120,38 +152,6 @@ fun HubActionEditorSheet(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("取消") }
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val validSteps = steps.filter { it.capability.isNotEmpty() }
-                                val trimmed = name.trim()
-                                if (editing == null) {
-                                    viewModel.store.create(
-                                        name = trimmed,
-                                        icon = icon,
-                                        tint = tint,
-                                        steps = validSteps,
-                                        confirmRequired = confirmRequired,
-                                    )
-                                } else {
-                                    viewModel.store.update(
-                                        id = editing.id,
-                                        name = trimmed,
-                                        icon = icon,
-                                        tint = tint,
-                                        steps = validSteps,
-                                        confirmRequired = confirmRequired,
-                                    )
-                                }
-                                onDismiss()
-                            }
-                        },
-                        enabled = isValid,
-                        modifier = Modifier.testTag("hub_action_editor_save"),
-                    ) {
-                        Text("保存")
-                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -321,6 +321,27 @@ fun HubActionEditorSheet(
                 item { Spacer(Modifier.height(24.dp)) }
             }
         }
+
+        // Sticky bottom row with 取消 + 保存. Stays in view even
+        // when the editor's LazyColumn is scrolled deep into the
+        // step cards — no need to scroll back up to commit.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            TextButton(onClick = onDismiss) { Text("取消") }
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = { doSave() },
+                enabled = isValid,
+                modifier = Modifier.testTag("hub_action_editor_save"),
+            ) {
+                Text("保存")
+            }
+        }
+        } // end outer Column
     }
 
     if (showingDeleteConfirm && editing != null) {
