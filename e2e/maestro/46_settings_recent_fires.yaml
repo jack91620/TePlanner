@@ -1,0 +1,39 @@
+# Hub 菜单 → 设置 → 活动 (RecentFiresView). Catches a broken
+# NavigationLink, an /automations/recent-fires endpoint regression,
+# or an iOS rendering crash on the recent-fires list. The view
+# was entirely untested at the e2e layer despite being the main
+# debugging surface for "did my rule fire today?".
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Hub menu → 设置.
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "设置"
+    timeout: 5000
+- tapOn:
+    text: "设置"
+
+# SettingsView opened — verify the 通知 + 自动化 sections render.
+- extendedWaitUntil:
+    visible: "通知"
+    timeout: 5000
+- assertVisible: "自动化"
+- assertVisible: "活动 (触发记录)"
+
+# Tap the 活动 NavigationLink. RecentFiresView pushes onto the
+# nav stack with the title "活动".
+- tapOn: "活动 (触发记录)"
+
+# Either the list loaded with rows (timeline section headers like
+# "今天" / dates) or the empty-state "还没有触发记录" renders.
+# Both are valid; we just need to assert we're not stuck on the
+# "加载触发记录…" spinner forever (which would surface a backend
+# /automations/recent-fires failure).
+- extendedWaitUntil:
+    visible: "还没有触发记录|今天|昨天|2026"
+    timeout: 10000
+
+- takeScreenshot: tmp/screenshots/settings_recent_fires
