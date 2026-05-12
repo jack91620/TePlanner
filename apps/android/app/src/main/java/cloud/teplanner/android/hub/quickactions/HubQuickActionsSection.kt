@@ -75,6 +75,9 @@ fun HubQuickActionsSection(
 
     var editingAction by remember { mutableStateOf<HubAction?>(null) }
     var creatingNew by remember { mutableStateOf(false) }
+    // Slot picker state: the slot index the user tapped to open the
+    // picker. Used to know where to assign the chosen action.
+    var assigningSlotIndex by remember { mutableStateOf<Int?>(null) }
     // Long-press menu state: the (action, slotIndex) pair the user
     // long-pressed. Drives the ModalBottomSheet rendering.
     var longPressTarget by remember { mutableStateOf<LongPressTarget?>(null) }
@@ -128,7 +131,7 @@ fun HubQuickActionsSection(
                             )
                         } else {
                             EmptyTile(
-                                onTap = { creatingNew = true },
+                                onTap = { assigningSlotIndex = idx },
                                 modifier = Modifier.testTag("hub_quick_action_empty_$idx"),
                             )
                         }
@@ -149,6 +152,21 @@ fun HubQuickActionsSection(
         HubActionEditorSheet(
             editing = null,
             onDismiss = { creatingNew = false },
+            viewModel = viewModel,
+        )
+    }
+    assigningSlotIndex?.let { idx ->
+        HubActionSlotPickerSheet(
+            slotIndex = idx,
+            onPick = { actionId ->
+                scope.launch { viewModel.store.assignSlot(idx, actionId) }
+                assigningSlotIndex = null
+            },
+            onCreateNew = {
+                assigningSlotIndex = null
+                creatingNew = true
+            },
+            onDismiss = { assigningSlotIndex = null },
             viewModel = viewModel,
         )
     }
