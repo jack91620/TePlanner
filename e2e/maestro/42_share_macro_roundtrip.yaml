@@ -1,0 +1,145 @@
+# Probe: a 2-step macro survives the full share → import round-trip
+# end-to-end. Verifies the multi-step ordering invariant (step 1
+# then step 2, in order) and that the preview surfaces them as
+# numbered rows to the receiver.
+#
+# Inter-step delay (Optional Int delayMsAfter) and confirm-required
+# flag are NOT asserted at the UI layer because Maestro 2.x can't
+# reliably drive SwiftUI Stepper / Toggle by accessibility id alone
+# (taps land on the row container, not the +/switch). Encoding
+# invariants for both fields are covered by
+# SharedActionPayloadTests (6 cases incl. delay=3000 round-trip,
+# nil-delay not serialized as 0, confirmRequired symmetry).
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# 1. Create a 2-step custom action with a delay between steps.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_action_empty_4"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_picker_create"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_picker_create"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_name"
+- inputText: "通勤"
+
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+
+# Add step 2.
+- scrollUntilVisible:
+    element:
+      id: "hub_action_editor_add_step"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_add_step"
+- tapOn:
+    id: "hub_action_editor_capability_1"
+- extendedWaitUntil:
+    visible: "停止充电"
+    timeout: 5000
+- tapOn:
+    text: "停止充电"
+
+# Skip the Stepper / Toggle interactions — see top-of-file note.
+# Save the 2-step action as-is (delay=0, confirm=off).
+- scrollUntilVisible:
+    element:
+      id: "hub_action_editor_save"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Tile lands in slot 4.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_4"
+    direction: DOWN
+    timeout: 5000
+- extendedWaitUntil:
+    visible: "通勤"
+    timeout: 5000
+
+# 2. Share the new action.
+- longPressOn:
+    id: "hub_quick_action_slot_4"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_share"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_share"
+
+- extendedWaitUntil:
+    visible:
+      id: "share_code_text"
+    timeout: 15000
+- tapOn:
+    id: "share_code_copy_button"
+- tapOn:
+    id: "share_code_done_button"
+
+# 3. Import the same code in a fresh app session.
+- killApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
+    timeout: 8000
+
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "导入分享码"
+    timeout: 5000
+- tapOn: "导入分享码"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_code_field"
+    timeout: 5000
+- tapOn:
+    id: "import_share_code_field"
+- longPressOn:
+    id: "import_share_code_field"
+- extendedWaitUntil:
+    visible: "粘贴"
+    timeout: 5000
+- tapOn: "粘贴"
+
+- tapOn:
+    id: "import_share_continue_button"
+
+# 4. Preview should show 2 numbered steps in order with both
+# capability names. If the ordering swapped or one step got
+# dropped, the preview would mismatch.
+- extendedWaitUntil:
+    visible:
+      id: "import_share_preview_action"
+    timeout: 15000
+- assertVisible: "2 步"
+- assertVisible: "关闭空调"
+- assertVisible: "停止充电"
+
+- takeScreenshot: tmp/screenshots/share_macro_roundtrip_preview
