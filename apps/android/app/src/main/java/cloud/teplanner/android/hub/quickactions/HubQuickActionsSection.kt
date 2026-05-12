@@ -78,6 +78,7 @@ fun HubQuickActionsSection(
     // Slot picker state: the slot index the user tapped to open the
     // picker. Used to know where to assign the chosen action.
     var assigningSlotIndex by remember { mutableStateOf<Int?>(null) }
+    var showingManageSheet by remember { mutableStateOf(false) }
     // Long-press menu state: the (action, slotIndex) pair the user
     // long-pressed. Drives the ModalBottomSheet rendering.
     var longPressTarget by remember { mutableStateOf<LongPressTarget?>(null) }
@@ -96,15 +97,17 @@ fun HubQuickActionsSection(
             )
             Spacer(modifier = Modifier.weight(1f))
             // 管理 button — mirrors iOS's section-header rename in
-            // commit 4ebe038. Tapping opens the manage sheet (Phase 2,
-            // not yet ported — caller's onManageTap is a no-op for now).
+            // commit 4ebe038. Opens HubActionsManageSheet (phase 2).
             Text(
                 "管理",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .testTag("hub_quick_actions_manage")
-                    .clickable { onManageTap() }
+                    .clickable {
+                        onManageTap()
+                        showingManageSheet = true
+                    }
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             )
         }
@@ -167,6 +170,12 @@ fun HubQuickActionsSection(
                 creatingNew = true
             },
             onDismiss = { assigningSlotIndex = null },
+            viewModel = viewModel,
+        )
+    }
+    if (showingManageSheet) {
+        HubActionsManageSheet(
+            onDismiss = { showingManageSheet = false },
             viewModel = viewModel,
         )
     }
