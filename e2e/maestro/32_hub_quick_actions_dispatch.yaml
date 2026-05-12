@@ -21,22 +21,23 @@ appId: com.teplanner.ios
 - tapOn:
     id: "hub_quick_action_slot_0"
 
-# CommandStatusBanner appears within a few seconds (cron-tick +
-# CommandStatusStore poll-until-settled converges in <15s).
-# Banner doesn't have a single stable accessibilityIdentifier
-# (each pending/queued state suffixes differently); match by the
-# pending-state heading copy "正在执行命令…" which is stable.
+# CommandStatusBanner appears within a few seconds. The banner's
+# title varies by capability ("正在锁车…" / "正在解锁…" / generic
+# "正在执行命令…" for capabilities without a humanName entry).
+# Match by the stable "等待车辆确认" detail line which appears on
+# every pending status regardless of verb.
 - extendedWaitUntil:
-    visible: "正在执行命令…"
+    visible: "等待车辆确认"
     timeout: 15000
 
 - takeScreenshot: tmp/screenshots/hub_quick_actions_dispatch_in_flight
 
-# Wait for the banner to dismiss (3s afterglow after terminal state)
-# or transition to "已执行命令". Either is fine — we want the
-# dispatch path to settle, not get stuck.
+# Wait for the banner to dismiss (3s afterglow after terminal state).
+# CommandStatusStore.pollUntilSettled polls up to 60s — VCP commands
+# on a partially-asleep car can take 30-50s. The test waits a bit
+# longer than that ceiling.
 - extendedWaitUntil:
-    notVisible: "正在执行命令…"
-    timeout: 60000
+    notVisible: "等待车辆确认"
+    timeout: 75000
 
 - takeScreenshot: tmp/screenshots/hub_quick_actions_dispatch_settled

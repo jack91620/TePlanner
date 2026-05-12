@@ -211,7 +211,7 @@ final class CommandStatusStoreTests: XCTestCase {
         let start = Date()
         await store.pollUntilSettled()
         let elapsed = Date().timeIntervalSince(start)
-        XCTAssertGreaterThanOrEqual(elapsed, 12, "should run the full 12s deadline")
-        XCTAssertLessThan(elapsed, 14, "shouldn't overshoot deadline meaningfully")
+        XCTAssertGreaterThanOrEqual(elapsed, 60, "should run the full 60s deadline")
+        XCTAssertLessThan(elapsed, 62, "shouldn't overshoot deadline meaningfully")
     }
 }

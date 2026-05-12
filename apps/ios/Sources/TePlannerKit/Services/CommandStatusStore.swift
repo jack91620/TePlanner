@@ -54,11 +54,16 @@ public final class CommandStatusStore: ObservableObject {
 
     /// After dispatching a VCP command, poll on a 1 s cadence until
     /// the banner flips back to nil (terminal status observed +
-    /// 3 s post-resolution flash elapsed) OR a 12 s deadline hits.
+    /// 3 s post-resolution flash elapsed) OR a 60 s deadline hits.
+    /// Matches the backend's pending-row timed_out threshold — if the
+    /// backend will still mutate the row up to 60 s, we keep watching
+    /// for that long. 12 s was too short for real-Tesla VCP commands
+    /// where the car is partially asleep; the banner got stuck at
+    /// "等待车辆确认" with no further refresh trigger.
     /// Caller fires-and-forgets in a Task; UI updates via
     /// @Published bindings.
     public func pollUntilSettled() async {
-        let deadline = Date().addingTimeInterval(12)
+        let deadline = Date().addingTimeInterval(60)
         await refresh()
         while Date() < deadline {
             try? await Task.sleep(nanoseconds: 1_000_000_000)

@@ -235,17 +235,12 @@ struct CommandStatusBanner: View {
         }
     }
 
-    /// Map capability id to the user-facing verb. Same vocabulary as
-    /// alert pills so users see consistent terminology between trigger
-    /// alerts and their command outcomes.
+    /// Delegate to the shared capability vocabulary so banner copy
+    /// stays in lockstep with rule cards / alert pills. Used to live
+    /// as a duplicate switch here, which silently drifted whenever
+    /// new capabilities were added (e.g. door_lock was missing for
+    /// months and showed as the generic "执行命令").
     private func capabilityHumanName(_ id: String) -> String {
-        switch id {
-        case "tesla.climate.set_keeper_mode": return "切换空调保持"
-        case "tesla.climate.preheat":          return "启动预热"
-        case "tesla.security.set_sentry":      return "切换哨兵"
-        case "tesla.charging.set_limit":       return "调整充电限额"
-        case "tesla.navigation.send":          return "发送导航"
-        default:                                return "执行命令"
-        }
+        RuleDisplay.capabilityName(id)
     }
 }
