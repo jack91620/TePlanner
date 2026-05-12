@@ -173,24 +173,41 @@ public final class HubActionsStore: ObservableObject {
     /// Imported actions are NEVER auto-assigned to a slot — the user
     /// explicitly chooses where it goes via the picker, the same as
     /// any other user-created action they didn't auto-fill.
+    ///
+    /// Name collision handling: if any existing action (system or
+    /// custom) shares this name, append " 副本" / " 副本 2" / ... so
+    /// the picker row stays distinguishable. Without this, importing
+    /// a shared "锁车" left the picker showing two rows labelled
+    /// "锁车" with only the trailing "系统" tag to tell them apart.
     public func importAction(_ action: HubAction) async {
-        // Defend against an id collision in the (vanishing) chance
-        // a previously-imported share is being re-imported and the
-        // caller passed back the same UUID. Re-mint silently.
-        var importing = action
-        if actions.contains(where: { $0.id == importing.id }) {
-            importing = HubAction(
-                id: UUID().uuidString,
-                name: importing.name,
-                icon: importing.icon,
-                tint: importing.tint,
-                steps: importing.steps,
-                confirmRequired: importing.confirmRequired,
-                isSystem: false,
-            )
-        }
+        let uniqueName = disambiguateImportedName(action.name)
+        let importing = HubAction(
+            id: actions.contains(where: { $0.id == action.id }) ? UUID().uuidString : action.id,
+            name: uniqueName,
+            icon: action.icon,
+            tint: action.tint,
+            steps: action.steps,
+            confirmRequired: action.confirmRequired,
+            isSystem: false,
+        )
         actions.append(importing)
         await persistAll()
+    }
+
+    /// Find a non-colliding name for an imported action. Strategy:
+    /// keep the base name if free, else append " 副本", " 副本 2", … .
+    /// Comparison is exact-string against every action already in
+    /// the library (system + custom).
+    func disambiguateImportedName(_ base: String) -> String {
+        let taken = Set(actions.map { $0.name })
+        guard taken.contains(base) else { return base }
+        var candidate = "\(base) 副本"
+        var counter = 2
+        while taken.contains(candidate) {
+            candidate = "\(base) 副本 \(counter)"
+            counter += 1
+        }
+        return candidate
     }
 
     /// Replace fields on an existing action. System actions can have

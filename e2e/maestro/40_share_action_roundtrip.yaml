@@ -90,3 +90,17 @@ appId: com.teplanner.ios
     timeout: 10000
 - tapOn:
     id: "import_share_close_button"
+
+# Open an empty slot's picker and verify the imported row is
+# distinguishable from the seeded system 锁车 — should read "锁车 副本".
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_action_empty_4"
+- extendedWaitUntil:
+    visible: "锁车 副本"
+    timeout: 5000
+- assertVisible: "锁车"

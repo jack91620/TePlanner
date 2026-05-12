@@ -267,4 +267,75 @@ final class HubActionsStoreTests: XCTestCase {
         }
         XCTAssertEqual(slotsArr.count, HubSlots.count)
     }
+
+    // MARK: - importAction disambiguation
+    //
+    // Caught in the e2e loop: sharing the seeded 锁车 and importing
+    // it back produced two picker rows both labelled "锁车" with
+    // only the trailing "系统" tag to tell them apart. The fix
+    // appends " 副本" on collision; second collision becomes
+    // " 副本 2", etc.
+
+    func testImportAction_appendsCopySuffix_whenNameCollides() async {
+        await store.load() // seeds the system actions including 锁车
+        let imported = HubAction(
+            name: "锁车", icon: "lock.fill", tint: .blue,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+        )
+        await store.importAction(imported)
+
+        let names = store.actions.map(\.name)
+        XCTAssertTrue(names.contains("锁车"), "system 锁车 still there")
+        XCTAssertTrue(names.contains("锁车 副本"), "imported renamed to 锁车 副本")
+        XCTAssertEqual(store.actions.count, 5)
+    }
+
+    func testImportAction_keepsName_whenNoCollision() async {
+        await store.load()
+        let imported = HubAction(
+            name: "通勤", icon: "house.fill", tint: .green,
+            steps: [HubActionStep(capability: "tesla.climate.preheat")],
+            confirmRequired: false,
+        )
+        await store.importAction(imported)
+        XCTAssertTrue(store.actions.contains { $0.name == "通勤" })
+    }
+
+    func testImportAction_secondCollisionGetsNumberedSuffix() async {
+        await store.load()
+        let first = HubAction(
+            name: "锁车", icon: "lock.fill", tint: .blue,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+        )
+        await store.importAction(first)
+        let second = HubAction(
+            name: "锁车", icon: "lock.fill", tint: .blue,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+        )
+        await store.importAction(second)
+
+        let names = Set(store.actions.map(\.name))
+        XCTAssertTrue(names.contains("锁车"))
+        XCTAssertTrue(names.contains("锁车 副本"))
+        XCTAssertTrue(names.contains("锁车 副本 2"))
+    }
+
+    func testImportAction_alwaysSetsIsSystemFalse() async {
+        await store.load()
+        // Even if the wire payload somehow claims isSystem=true
+        // (defense-in-depth), the imported row must be user-owned
+        // so the user can edit/delete it.
+        let imported = HubAction(
+            name: "Imported", icon: "lock.fill", tint: .blue,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+            isSystem: true,
+        )
+        await store.importAction(imported)
+        let row = store.actions.first { $0.name == "Imported" }
+        XCTAssertEqual(row?.isSystem, false)
+    }
 }
