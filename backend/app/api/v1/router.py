@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, automations, charging, devices, routes, user, vehicles
+from app.api.v1 import (
+    auth, automations, charging, devices, routes, shares, user, vehicles,
+)
 
 api_router = APIRouter()
 
@@ -13,3 +15,4 @@ api_router.include_router(charging.router, prefix="/charging", tags=["charging"]
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(automations.router, prefix="/automations", tags=["automations"])
 api_router.include_router(user.router, prefix="/user", tags=["user"])
+api_router.include_router(shares.router, prefix="/shares", tags=["shares"])

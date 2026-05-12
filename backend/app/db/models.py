@@ -428,3 +428,33 @@ class OAuthState(Base):
     code_verifier = Column(String(128), nullable=False)
     user_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class Share(Base):
+    """Cross-platform share code for a single automation rule or hub
+    quick action. Owner POSTs a payload + type, server returns a
+    6-char base32-friendly code; recipients GET by code to import.
+
+    Codes use the 32-char alphabet ABCDEFGHJKLMNPQRSTUVWXYZ23456789
+    (no 0/O/1/I/l). 6 chars = ~1.07B combinations; INSERT retries
+    on collision (birthday collision starts at ~32k codes).
+
+    Payload is JSON text — keep schema enforcement on the import-side
+    parsers so we can ship payload extensions without backend
+    migrations. The payload is stripped before storage: no user_id,
+    no vehicle_id, no source action_id (importer mints fresh ids).
+    """
+
+    __tablename__ = "shares"
+
+    code = Column(String(16), primary_key=True)
+    share_type = Column(String(16), nullable=False)
+    payload_json = Column(Text, nullable=False)
+    owner_user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, nullable=True)
+    view_count = Column(Integer, default=0, nullable=False)
+    min_app_version = Column(String(32), nullable=True)
