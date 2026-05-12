@@ -177,9 +177,14 @@ struct ImportShareSheet: View {
         if let decoded = decodeRule(payload) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(decoded.name).font(.title3.weight(.semibold))
-                Text(decoded.enabled ? "默认开启" : "默认关闭")
+                // Be honest about the post-import state, not the
+                // sharer's state. Imported rules ALWAYS land disabled
+                // (safety — receiver reviews spec before flipping on).
+                // Showing "默认开启" because the sharer had it on would
+                // confuse the receiver into expecting immediate fire.
+                Label("导入后默认关闭，需手动开启", systemImage: "info.circle")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.orange)
                 Text("Spec 字段：\(decoded.spec.keys.sorted().joined(separator: ", "))")
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)

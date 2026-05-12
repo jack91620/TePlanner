@@ -1,0 +1,103 @@
+# Share an automation rule + round-trip import. Mirrors flow 40 but
+# for the rule path (RuleSpec instead of HubActionStep array). Tests
+# a code branch not exercised by 38/39/40 — different store, different
+# decoder, different preview view.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+# Wait for the preset list to load.
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Swipe-left on the row to reveal trailing swipe actions
+# (删除 + 分享). The newly-added 分享 button is the blue tinted one.
+- swipe:
+    from: "露营模式超时提醒"
+    direction: LEFT
+
+- extendedWaitUntil:
+    visible: "分享"
+    timeout: 3000
+- tapOn:
+    text: "分享"
+
+# ShareCodeSheet from AutomationsHomeView.
+- extendedWaitUntil:
+    visible:
+      id: "share_code_text"
+    timeout: 15000
+
+- tapOn:
+    id: "share_code_copy_button"
+- tapOn:
+    id: "share_code_done_button"
+
+# Back to Hub via app relaunch. Maestro 2.x's `- back` is unreliable
+# on SwiftUI NavigationStack, and an edge-swipe-back gesture
+# routinely gets re-interpreted by iOS as a slow long-press on the
+# row underneath, popping the snooze menu instead. iOS clipboard
+# persists across app launches so the code we just copied is still
+# available when we open the import sheet.
+- killApp
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
+    timeout: 8000
+
+# Hub menu → 导入分享码
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "导入分享码"
+    timeout: 5000
+- tapOn: "导入分享码"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_code_field"
+    timeout: 5000
+- tapOn:
+    id: "import_share_code_field"
+
+# Paste from clipboard
+- longPressOn:
+    id: "import_share_code_field"
+- extendedWaitUntil:
+    visible: "粘贴"
+    timeout: 5000
+- tapOn: "粘贴"
+
+- tapOn:
+    id: "import_share_continue_button"
+
+# Rule preview renders — different view from action preview.
+- extendedWaitUntil:
+    visible:
+      id: "import_share_preview_rule"
+    timeout: 15000
+
+# Rule preview must announce the post-import disabled state so the
+# receiver doesn't expect immediate fire (caught when this assertion
+# was for the misleading "默认开启" reflecting the sharer's state).
+# The orange Label renders as one accessibility unit, so match the
+# full string rather than a prefix.
+- assertVisible: "导入后默认关闭，需手动开启"
+
+- takeScreenshot: tmp/screenshots/share_rule_roundtrip_preview
+
+- tapOn:
+    id: "import_share_confirm_button"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_close_button"
+    timeout: 10000
+- tapOn:
+    id: "import_share_close_button"
