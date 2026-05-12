@@ -27,6 +27,7 @@ import time
 import urllib.request
 import urllib.error
 from pathlib import Path
+from typing import Optional
 
 try:
     import jwt   # PyJWT
@@ -59,7 +60,7 @@ def mint_token(key_id: str, issuer: str, key_path: Path) -> str:
     )
 
 
-def api_call(method: str, path: str, token: str, body: dict | None = None) -> dict:
+def api_call(method: str, path: str, token: str, body: Optional[dict] = None) -> dict:
     """Thin urllib wrapper that raises on >=400 with the error JSON."""
     url = API + path
     data = json.dumps(body).encode() if body is not None else None
@@ -75,7 +76,7 @@ def api_call(method: str, path: str, token: str, body: dict | None = None) -> di
         raise SystemExit(f"ASC API {method} {path} → {e.code}: {body}")
 
 
-def find_build(app_id: str, build_version: str, token: str) -> str | None:
+def find_build(app_id: str, build_version: str, token: str) -> Optional[str]:
     """Look up the build's resource id by CFBundleVersion + app id.
     Returns None if not visible yet (Apple still processing)."""
     qs = (
@@ -92,7 +93,7 @@ def find_build(app_id: str, build_version: str, token: str) -> str | None:
     return rows[0]["id"]
 
 
-def find_localization(build_id: str, locale: str, token: str) -> str | None:
+def find_localization(build_id: str, locale: str, token: str) -> Optional[str]:
     """Return the localization id for this build+locale if it
     already exists, else None."""
     resp = api_call(

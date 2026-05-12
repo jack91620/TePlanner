@@ -3,10 +3,10 @@
 # and empty + tiles in row 2. Takes a screenshot for visual diff
 # / posterity in tmp/screenshots/.
 #
-# Run: make e2e-ios-flow FLOW=07_hub_quick_actions
+# Run: make e2e-ios-flow FLOW=21_hub_quick_actions
 #
 # Scope: just the section's existence and tile testIDs. The editor
-# / picker / dispatch flow is covered in 08_hub_quick_actions_editor.
+# / picker / dispatch flow is covered in 22_hub_quick_actions_editor.
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml

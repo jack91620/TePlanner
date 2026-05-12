@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ship gate for the Hub Quick Actions feature — runs every Maestro
-# flow 07..20 against the iOS sim with a real-Tesla session, resetting
+# flow 21..34 against the iOS sim with a real-Tesla session, resetting
 # user 241's hub.* settings between runs.
 #
 # Each flow logs PASS / FAIL with elapsed time; non-zero exit if any
@@ -36,20 +36,20 @@ echo "iOS sim UDID: $UDID"
 echo
 
 flows=(
-  07_hub_quick_actions
-  08_hub_quick_actions_editor
-  09_hub_quick_actions_long_press_edit
-  10_hub_quick_actions_delete
-  11_hub_quick_actions_confirm_dialog
-  12_hub_quick_actions_macro
-  13_hub_quick_actions_persistence
-  14_hub_quick_actions_picker_existing
-  15_hub_quick_actions_cancel_no_save
-  16_hub_quick_actions_manage_button
-  17_hub_quick_actions_save_validation
-  18_hub_quick_actions_dispatch
-  19_hub_quick_actions_step_limit
-  20_hub_quick_actions_edit_persistence
+  21_hub_quick_actions
+  22_hub_quick_actions_editor
+  23_hub_quick_actions_long_press_edit
+  24_hub_quick_actions_delete
+  25_hub_quick_actions_confirm_dialog
+  26_hub_quick_actions_macro
+  27_hub_quick_actions_persistence
+  28_hub_quick_actions_picker_existing
+  29_hub_quick_actions_cancel_no_save
+  30_hub_quick_actions_manage_button
+  31_hub_quick_actions_save_validation
+  32_hub_quick_actions_dispatch
+  33_hub_quick_actions_step_limit
+  34_hub_quick_actions_edit_persistence
 )
 
 declare -a results

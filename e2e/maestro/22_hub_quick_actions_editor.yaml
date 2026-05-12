@@ -2,7 +2,7 @@
 # → "+ 新建动作" → editor sheet → input name → save → tile appears
 # in the slot. Verifies the create-from-empty-slot path end to end.
 #
-# Run: make e2e-ios-flow FLOW=08_hub_quick_actions_editor
+# Run: make e2e-ios-flow FLOW=22_hub_quick_actions_editor
 #
 # Precondition: a user with already-logged-in state (helper handles
 # both fresh and warm logins). Backend's user_settings PUT must
