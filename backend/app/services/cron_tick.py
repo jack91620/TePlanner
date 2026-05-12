@@ -34,6 +34,7 @@ from app.services.automation.base import AutomationSettings
 from app.services.automation.engine import AutomationEngine
 from app.services.automation.pending_resolver import check_and_resolve
 from app.services.charge_analysis.closer import close_stale_sessions
+from app.services.charge_analysis.opener import open_session_if_charging
 from app.services.command_queue import drain_for_vehicle
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 
@@ -84,6 +85,13 @@ async def _tick_one_user(
     # "preheat at 7am" doesn't fire at noon. The connectivity-online
     # consumer path is the fast lane; this is the safety net.
     await drain_for_vehicle(db, user_id=user_id, vin=vin)
+    # Open a charging session if telemetry shows we're charging
+    # and no row exists yet — iOS only logs sessions while it's
+    # foregrounded, missing most overnight charges. Idempotent
+    # across ticks (existing open row → no-op).
+    await open_session_if_charging(
+        db, user_id=user_id, vehicle_id=vin, snap=snapshot,
+    )
     # Close any orphaned charging sessions iOS missed (app killed
     # mid-charge, etc.) so the user doesn't see stale "进行中" rows.
     await close_stale_sessions(
