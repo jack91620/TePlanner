@@ -81,6 +81,9 @@ fun HubQuickActionsSection(
     var pendingDeleteAction by remember { mutableStateOf<HubAction?>(null) }
     val scope = rememberCoroutineScope()
 
+    val shareVm: ShareViewModel = hiltViewModel()
+    val createState by shareVm.createState.collectAsState()
+
     Column(modifier = modifier.fillMaxWidth().testTag("hub_quick_actions_section")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -165,9 +168,11 @@ fun HubQuickActionsSection(
                 longPressTarget = null
             },
             onShare = {
-                // ShareCodeSheet ports in the next slice. For now log
-                // the intent so users see they tapped a real entry.
+                val a = longPressTarget?.action
                 longPressTarget = null
+                if (a != null) {
+                    shareVm.createShareForAction(a)
+                }
             },
             onRequestDelete = {
                 pendingDeleteAction = target.action
@@ -175,6 +180,25 @@ fun HubQuickActionsSection(
             },
         )
     }
+    // Render the share code sheet on success of the createShareForAction call.
+    (createState as? ShareViewModel.CreateState.Success)?.let { ok ->
+        ShareCodeSheet(
+            code = ok.detail.code,
+            expiresAt = ok.detail.expiresAt,
+            onDismiss = { shareVm.resetCreate() },
+        )
+    }
+    (createState as? ShareViewModel.CreateState.Failed)?.let { fail ->
+        AlertDialog(
+            onDismissRequest = { shareVm.resetCreate() },
+            title = { Text("分享失败") },
+            text = { Text(fail.message) },
+            confirmButton = {
+                TextButton(onClick = { shareVm.resetCreate() }) { Text("好") }
+            },
+        )
+    }
+
     pendingDeleteAction?.let { action ->
         AlertDialog(
             onDismissRequest = { pendingDeleteAction = null },

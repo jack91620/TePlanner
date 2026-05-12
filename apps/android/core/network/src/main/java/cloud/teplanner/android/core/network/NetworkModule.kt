@@ -107,6 +107,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideSharesApi(retrofit: Retrofit): SharesApi =
+        retrofit.create(SharesApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideSessionsApi(retrofit: Retrofit): SessionsApi =
         retrofit.create(SessionsApi::class.java)
 }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.DepartureBoard
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -90,6 +91,7 @@ fun HubScreen(
     var showDepartureSheet by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showUnbindConfirm by remember { mutableStateOf(false) }
+    var showingImportShare by remember { mutableStateOf(false) }
     var unbindError by remember { mutableStateOf<String?>(null) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val unbindScope = rememberCoroutineScope()
@@ -128,6 +130,15 @@ fun HubScreen(
                                 openVcpPairingUrl(ctx)
                             },
                             modifier = Modifier.testTag("hub_menu_pair_vehicle"),
+                        )
+                        DropdownMenuItem(
+                            text = { Text("导入分享码") },
+                            leadingIcon = { Icon(Icons.Filled.Download, null) },
+                            onClick = {
+                                menuExpanded = false
+                                showingImportShare = true
+                            },
+                            modifier = Modifier.testTag("hub_menu_import_share"),
                         )
                         DropdownMenuItem(
                             text = { Text("退出登录") },
@@ -249,6 +260,12 @@ fun HubScreen(
                 },
                 onClear = { departure.clear() },
                 onDismiss = { showDepartureSheet = false },
+            )
+        }
+
+        if (showingImportShare) {
+            cloud.teplanner.android.hub.quickactions.ImportShareSheet(
+                onDismiss = { showingImportShare = false },
             )
         }
 
