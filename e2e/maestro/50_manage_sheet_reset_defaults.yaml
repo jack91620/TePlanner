@@ -1,0 +1,66 @@
+# Manage sheet → 重置为默认 → confirm → wipes everything + re-seeds
+# the 4 system actions.
+#
+# Pre-conditions: create a custom action first so we can verify it
+# DISAPPEARS after reset.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# 1. Create a custom action to verify reset wipes it.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_actions_manage"
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+- tapOn:
+    id: "hub_manage_new_action"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_name"
+- inputText: "待重置"
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Back in manage sheet — verify the custom action is in the list.
+- extendedWaitUntil:
+    visible: "待重置"
+    timeout: 5000
+
+# 2. Tap 重置为默认 → confirm dialog → 重置.
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_reset_button"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_reset_button"
+
+- extendedWaitUntil:
+    visible: "重置为默认？"
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_reset_confirm"
+
+# 3. Custom action gone; 4 system defaults remain.
+- extendedWaitUntil:
+    notVisible: "待重置"
+    timeout: 5000
+
+- takeScreenshot: tmp/screenshots/manage_sheet_after_reset

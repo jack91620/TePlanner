@@ -31,6 +31,7 @@ struct HubQuickActionsSection: View {
     @State private var assigningSlotIndex: Int? = nil
     @State private var pendingConfirm: HubAction? = nil
     @State private var runErrorMessage: String? = nil
+    @State private var showingManageSheet: Bool = false
 
     /// Long-press menu state: (action, slot index) pair. Drives the
     /// confirmationDialog with 编辑 / 从槽位移除 / 分享 / 删除 options.
@@ -68,9 +69,9 @@ struct HubQuickActionsSection: View {
                     .accessibilityIdentifier("hub_quick_actions_section")
                 Spacer()
                 Button {
-                    creatingNew = true
+                    showingManageSheet = true
                 } label: {
-                    Label("新建", systemImage: "plus")
+                    Label("管理", systemImage: "square.grid.2x2")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
@@ -84,6 +85,12 @@ struct HubQuickActionsSection: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .sheet(isPresented: $showingManageSheet) {
+            HubActionsManageSheet(
+                store: store,
+                onDismiss: { showingManageSheet = false },
+            )
+        }
         .sheet(item: $editingAction) { action in
             HubActionEditorSheet(
                 store: store,

@@ -1,16 +1,11 @@
-# "+ 新建" button is the alternate entry to the action editor — for
-# users who want to author actions without first picking a slot.
-# Verifies the create-from-section-header path is wired (the in-app
-# entrypoint isn't otherwise covered). The button was previously
-# labelled "管理" but only created new — renamed to be honest.
+# "管理" button on the Hub quick actions section header opens the
+# manage sheet. Inside the sheet, tapping "新建动作" reaches the
+# editor; saving lands the new action in the library + (if a slot
+# is free) auto-assigns it.
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml
 
-# Scroll the section into view first. The "管理" button sits on the
-# section header row but Maestro's scrollUntilVisible sometimes
-# undershoots when the target is small/at-edge; scrolling to a
-# tile inside the section reliably gets us to the same screen.
 - scrollUntilVisible:
     element:
       id: "hub_quick_action_slot_0"
@@ -23,6 +18,15 @@ appId: com.teplanner.ios
     timeout: 5000
 - tapOn:
     id: "hub_quick_actions_manage"
+
+# Manage sheet opens.
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+# Tap "新建动作" inside the manage sheet to reach the editor.
+- tapOn:
+    id: "hub_manage_new_action"
 - extendedWaitUntil:
     visible:
       id: "hub_action_editor_name"
@@ -41,8 +45,15 @@ appId: com.teplanner.ios
 - tapOn:
     id: "hub_action_editor_save"
 
-# Action auto-assigned to first empty slot — slot 4 (off-viewport
-# on iPhone 17 once the keyboard closes). Scroll back to it.
+# Editor dismisses, manage sheet still up. Dismiss the manage sheet.
+- extendedWaitUntil:
+    visible:
+      id: "hub_manage_done_button"
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_done_button"
+
+# Back on Hub — new action lands in slot 4 (first empty slot).
 - scrollUntilVisible:
     element:
       id: "hub_quick_action_slot_4"

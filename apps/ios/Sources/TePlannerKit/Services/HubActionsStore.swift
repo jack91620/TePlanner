@@ -273,6 +273,17 @@ public final class HubActionsStore: ObservableObject {
         await persistSlots()
     }
 
+    /// Wipe all user-created actions + any custom slot assignments
+    /// and re-seed the four system defaults (锁车 / 解锁 / 预热 /
+    /// 后备箱) into slots 0..3. Destructive — the manage sheet's
+    /// "重置为默认" button gates it behind a confirm dialog.
+    public func resetToDefaults() async {
+        actions.removeAll()
+        slots = HubSlots()  // all-nil
+        seedDefaults()
+        await persistAll()
+    }
+
     // MARK: - Dispatch
 
     public enum RunError: Error, Equatable {
