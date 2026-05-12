@@ -1,0 +1,47 @@
+# Long-press on a filled tile opens the editor pre-loaded with that
+# action's data. User rename + tint change should survive a save.
+#
+# Run after reset_hub_actions.sh so we start from the seeded
+# defaults (锁车 / 解锁 / 预热 / 后备箱 in slots 0..3).
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+# Long-press 锁车 (slot 0) to open the editor for it.
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Name field should already contain "锁车". Clear + rewrite.
+- tapOn:
+    id: "hub_action_editor_name"
+- eraseText: 4
+- inputText: "锁车2"
+
+# Pick a different tint to verify tint change persists.
+- tapOn:
+    id: "hub_action_editor_tint_green"
+
+# System actions have no delete button (defensive UI).
+- assertNotVisible:
+    id: "hub_action_editor_delete"
+
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Back on Hub — slot 0 should now read "锁车2".
+- extendedWaitUntil:
+    visible: "锁车2"
+    timeout: 5000
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_renamed

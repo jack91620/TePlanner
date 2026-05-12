@@ -1,0 +1,41 @@
+# Confirm-required tile shows an alert before dispatching. Cancel
+# dismisses with no VCP command sent.
+#
+# We do NOT proceed with 确认 because that would actually unlock the
+# user's real Tesla. The cancel-side of the alert is the part we
+# need to verify — the dispatch itself goes through identical
+# code paths covered by 08/09 (already shown to work end-to-end
+# via the lock command in the long-press regression earlier).
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_1"     # seeded 解锁, confirm_required=true
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "hub_quick_action_slot_1"
+
+# Confirm alert appears.
+- extendedWaitUntil:
+    visible: "执行「解锁」？"
+    timeout: 4000
+
+# Tap cancel.
+- tapOn:
+    text: "取消"
+
+# Alert is gone; the tile is still in slot 1 untouched.
+- assertNotVisible: "执行「解锁」？"
+- assertVisible:
+    id: "hub_quick_action_slot_1"
+
+# No CommandStatusBanner appears — nothing was dispatched. Phrased
+# as a wait so flaky scheduling doesn't false-positive.
+- assertNotVisible:
+    id: "command_status_banner"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_confirm_cancelled

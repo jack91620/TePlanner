@@ -1,0 +1,60 @@
+# Hub Quick Actions smoke: log in, scroll to the new section,
+# verify the 2x4 grid renders with seeded system actions in row 1
+# and empty + tiles in row 2. Takes a screenshot for visual diff
+# / posterity in tmp/screenshots/.
+#
+# Run: make e2e-ios-flow FLOW=07_hub_quick_actions
+#
+# Scope: just the section's existence and tile testIDs. The editor
+# / picker / dispatch flow is covered in 08_hub_quick_actions_editor.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Hub renders title (without subtitle per the recent cleanup).
+- extendedWaitUntil:
+    visible:
+      id: "hub_quick_actions_section"
+    timeout: 15000
+
+# A CommandStatusBanner may be showing above the Quick Actions
+# section (3s afterglow on the last dispatched command), pushing
+# row 1 below the viewport. Scroll until slot 0 is on screen so
+# the assertion is robust whether or not the banner is up.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+# Row 1 — seeded system actions (slots 0..3) should be filled.
+- assertVisible:
+    id: "hub_quick_action_slot_0"
+- assertVisible:
+    id: "hub_quick_action_slot_1"
+- assertVisible:
+    id: "hub_quick_action_slot_2"
+- assertVisible:
+    id: "hub_quick_action_slot_3"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_row1
+
+# Row 2 lives below the viewport on iPhone 17 — scrollUntilVisible
+# brings the first empty slot into view, then we can assert the
+# remaining three are present too. Each empty slot is the dashed
+# "+" tile that the user taps to assign or create an action.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_7"
+    direction: DOWN
+    timeout: 4000
+- assertVisible:
+    id: "hub_quick_action_empty_4"
+- assertVisible:
+    id: "hub_quick_action_empty_5"
+- assertVisible:
+    id: "hub_quick_action_empty_6"
+- assertVisible:
+    id: "hub_quick_action_empty_7"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_row2

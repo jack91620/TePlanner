@@ -1,0 +1,67 @@
+# Hub Quick Actions editor smoke: tap an empty slot → picker opens
+# → "+ 新建动作" → editor sheet → input name → save → tile appears
+# in the slot. Verifies the create-from-empty-slot path end to end.
+#
+# Run: make e2e-ios-flow FLOW=08_hub_quick_actions_editor
+#
+# Precondition: a user with already-logged-in state (helper handles
+# both fresh and warm logins). Backend's user_settings PUT must
+# accept the new action JSON — failure here means the protocol /
+# auth chain is broken, not the UI.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Scroll Quick Actions into view; slot 4 (first empty) is below the
+# initial viewport on iPhone 17.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+
+# Tap the first empty slot — should open the slot picker sheet.
+- tapOn:
+    id: "hub_quick_action_empty_4"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_picker_create"
+    timeout: 5000
+
+# Tap "+ 新建动作" — should open the editor sheet.
+- tapOn:
+    id: "hub_action_picker_create"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Fill in name + verify a capability picker exists for step 1.
+- tapOn:
+    id: "hub_action_editor_name"
+- inputText: "关空调"
+
+# Pick a capability via the menu. "关闭空调" is `tesla.climate.stop`
+# in the very first section of the picker, so it's visible without
+# scrolling the popover (SwiftUI Menu popovers don't scroll well
+# inside Maestro automation).
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+
+# Save.
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Back on Hub — the new action should now occupy slot 4 (was empty,
+# editor's slotToFill flow assigns it there).
+- extendedWaitUntil:
+    visible:
+      id: "hub_quick_action_slot_4"
+    timeout: 8000
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_after_create

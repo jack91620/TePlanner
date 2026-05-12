@@ -37,9 +37,19 @@ struct HubQuickActionsSection: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 4)
 
     var body: some View {
+        // The outer container can't carry an accessibilityIdentifier
+        // because SwiftUI propagates that to every descendant view,
+        // overwriting child identifiers like "hub_quick_actions_manage"
+        // on the inner button — e2e 16 caught this when Maestro saw
+        // the manage button's id reported as "hub_quick_actions_section"
+        // and couldn't match. Use `.accessibilityElement(children: .contain)`
+        // to keep child IDs intact while still allowing the section as
+        // a queryable anchor.
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("快捷操作").font(.headline)
+                Text("快捷操作")
+                    .font(.headline)
+                    .accessibilityIdentifier("hub_quick_actions_section")
                 Spacer()
                 Button {
                     creatingNew = true
@@ -57,7 +67,7 @@ struct HubQuickActionsSection: View {
                 }
             }
         }
-        .accessibilityIdentifier("hub_quick_actions_section")
+        .accessibilityElement(children: .contain)
         .sheet(item: $editingAction) { action in
             HubActionEditorSheet(
                 store: store,
@@ -187,37 +197,64 @@ private struct FilledTile: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
+    @State private var isPressed: Bool = false
+
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 6) {
-                Image(systemName: action.icon)
-                    .font(.title3)
-                    .foregroundStyle(tintColor)
-                    .frame(width: 32, height: 32)
-                Text(action.name)
+        // We can't use a SwiftUI Button here: Button consumes taps
+        // and ignores .onLongPressGesture added later, which means
+        // a long-press fires the tap action instead of opening the
+        // editor (caught by Maestro 09 test — 长按 锁车 actually
+        // sent a lock VCP command). A bare VStack with both
+        // gestures wired explicitly disambiguates: tap completes
+        // on quick release, long-press fires after ~500ms even
+        // if the finger is still down.
+        VStack(spacing: 6) {
+            Image(systemName: action.icon)
+                .font(.title3)
+                .foregroundStyle(tintColor)
+                .frame(width: 32, height: 32)
+            Text(action.name)
+                .font(.caption2)
+                .lineLimit(1)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 64)
+        .padding(.vertical, 10)
+        .background(
+            tintColor.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
+        .overlay(alignment: .topTrailing) {
+            if action.confirmRequired {
+                Image(systemName: "exclamationmark.circle.fill")
                     .font(.caption2)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 64)
-            .padding(.vertical, 10)
-            .background(
-                tintColor.opacity(0.12),
-                in: RoundedRectangle(cornerRadius: 12)
-            )
-            .overlay(alignment: .topTrailing) {
-                if action.confirmRequired {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(tintColor)
-                        .padding(4)
-                }
+                    .foregroundStyle(tintColor)
+                    .padding(4)
             }
         }
-        .buttonStyle(PressableTileButtonStyle())
-        .disabled(disabled)
+        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .animation(.easeOut(duration: 0.12), value: isPressed)
         .opacity(disabled ? 0.4 : 1.0)
-        .onLongPressGesture { onLongPress() }
+        .contentShape(Rectangle())
+        .onLongPressGesture(
+            minimumDuration: 0.5,
+            maximumDistance: 20,
+            perform: {
+                if !disabled { onLongPress() }
+            },
+            onPressingChanged: { pressing in
+                isPressed = pressing
+            }
+        )
+        .simultaneousGesture(
+            // Short tap path. The 0.5s `minimumDuration: 0`
+            // long-press here is the SwiftUI idiom for catching
+            // tap-up reliably without colliding with the
+            // long-press handler above (which uses 0.5s).
+            TapGesture().onEnded {
+                if !disabled { onTap() }
+            }
+        )
     }
 
     private var tintColor: Color {

@@ -1,0 +1,51 @@
+# Slot picker — pick an existing action from the pool (not create
+# new). The action moves from its old slot to the new one (rule:
+# one action occupies at most one slot at a time).
+#
+# Setup: seeded defaults have 锁车 in slot 0. Tap empty slot 4 →
+# picker → pick 锁车. Verify slot 0 is now empty and slot 4 holds 锁车.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Confirm starting state: slot 0 has 锁车.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "锁车"
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_action_empty_4"
+
+# Picker open. Pick 锁车 (system_lock id).
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_picker_system_lock"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_picker_system_lock"
+
+# 锁车 should now appear in slot 4; slot 0 becomes empty.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_4"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "hub_quick_action_slot_4"
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_0"
+    direction: UP
+    timeout: 5000
+- assertVisible:
+    id: "hub_quick_action_empty_0"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_moved_existing

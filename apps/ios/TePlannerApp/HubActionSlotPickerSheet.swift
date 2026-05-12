@@ -32,12 +32,17 @@ struct HubActionSlotPickerSheet: View {
                             .font(.caption)
                     } else {
                         ForEach(store.actions) { action in
+                            // No `.buttonStyle(.plain)` here — SwiftUI
+                            // List+plain on Button caught e2e 14: Maestro
+                            // saw the row, sent a tap, the row didn't
+                            // fire onPick. Letting List apply its default
+                            // row-button style routes taps reliably to
+                            // the action.
                             Button {
                                 onPick(action.id)
                             } label: {
                                 actionRow(action)
                             }
-                            .buttonStyle(.plain)
                             .accessibilityIdentifier("hub_action_picker_\(action.id)")
                         }
                     }

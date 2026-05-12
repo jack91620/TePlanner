@@ -1,0 +1,40 @@
+# Editor "取消" must not persist changes. Open editor on system 锁车,
+# change name to gibberish, cancel. The original action stays
+# intact on Hub.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Pre-condition: name field currently shows 锁车.
+- assertVisible: "锁车"
+
+# Wipe + replace.
+- tapOn:
+    id: "hub_action_editor_name"
+- eraseText: 4
+- inputText: "ABC"
+
+# Cancel — no save call.
+- tapOn:
+    text: "取消"
+
+# Back on Hub. The tile still says 锁车, NOT "ABC".
+- extendedWaitUntil:
+    visible: "锁车"
+    timeout: 5000
+- assertNotVisible: "ABC"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_cancel_no_save

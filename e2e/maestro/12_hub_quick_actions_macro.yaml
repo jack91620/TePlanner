@@ -1,0 +1,69 @@
+# Multi-step macro: a single button executes 2 capabilities in
+# order. The "离家模式" use case ("lock the car, then stop the
+# climate keeper"). We don't actually fire the macro here — that
+# would send Tesla commands. We verify the editor saves a 2-step
+# action correctly and renders the tile.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_empty_4"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "hub_quick_action_empty_4"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_picker_create"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_picker_create"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Name + step 1 capability.
+- tapOn:
+    id: "hub_action_editor_name"
+- inputText: "组合"
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+
+# Add step 2.
+- scrollUntilVisible:
+    element:
+      id: "hub_action_editor_add_step"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_add_step"
+
+# Step 2 capability — pick something also in the first visible
+# section to avoid menu-scroll issues. "停止充电" (tesla.charging.
+# stop) is safe to leave defined; we won't actually fire it.
+- tapOn:
+    id: "hub_action_editor_capability_1"
+- extendedWaitUntil:
+    visible: "停止充电"
+    timeout: 5000
+- tapOn:
+    text: "停止充电"
+
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Tile appears.
+- extendedWaitUntil:
+    visible: "组合"
+    timeout: 5000
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_macro_saved
