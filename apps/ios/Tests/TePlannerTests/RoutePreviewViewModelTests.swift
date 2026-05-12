@@ -291,4 +291,64 @@ final class RoutePreviewViewModelTests: XCTestCase {
             XCTFail("expected .failed, got \(vm.sendState)")
         }
     }
+
+    // MARK: - Save-to-history on successful send
+    //
+    // Bug context: the 最近 tab was empty for every user because
+    // nothing wrote route_plans server-side. iOS now fires a save
+    // call right after sendNavigation succeeds. These tests pin
+    // that contract so a future refactor can't silently drop it.
+
+    func testSendSuccess_savesRouteToHistory() async {
+        let mock = MockAPIService()
+        wireMock(mock: mock)
+        mock.mockSendNavigationResponse = .success(BaseResponse(success: true, message: "ok"))
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            poiProvider: StubPOIProvider(),
+            destination: makePOI(),
+            origin: origin(),
+            currentSoc: 50,
+            vehicleId: "v1"
+        )
+        await vm.load()
+        await vm.sendToVehicle()
+
+        // The save runs in a fire-and-forget Task. Yield long enough
+        // for the awaited mock call to land.
+        for _ in 0..<10 where mock.lastSaveRoutePlanRequest == nil {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertNotNil(mock.lastSaveRoutePlanRequest, "save not called after successful send")
+
+        let saved = mock.lastSaveRoutePlanRequest!
+        XCTAssertEqual(saved.destination.address, "故宫")
+        // Origin lat/lng came from the loaded plan's origin block
+        // (filled by /routes/route response), NOT the bare origin
+        // input. Both should round to the mocked 39.9 / 116.3.
+        XCTAssertEqual(saved.origin.latitude, 39.9, accuracy: 0.01)
+        XCTAssertEqual(saved.origin.longitude, 116.3, accuracy: 0.01)
+        XCTAssertEqual(saved.totalDistanceKm ?? -1, 120, accuracy: 0.01)
+    }
+
+    func testSendFailure_doesNotSaveRoute() async {
+        let mock = MockAPIService()
+        wireMock(mock: mock)
+        mock.mockSendNavigationResponse = .failure(.serverError(statusCode: 503, message: "offline"))
+        let vm = RoutePreviewViewModel(
+            apiService: mock,
+            poiProvider: StubPOIProvider(),
+            destination: makePOI(),
+            origin: origin(),
+            currentSoc: 50,
+            vehicleId: "v1"
+        )
+        await vm.load()
+        await vm.sendToVehicle()
+
+        // Give any spurious save task a chance to surface.
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertNil(mock.lastSaveRoutePlanRequest,
+                     "save must not fire when the Tesla nav command itself failed — would leave a misleading row in 最近 that the car never actually navigated to")
+    }
 }

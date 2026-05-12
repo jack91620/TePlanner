@@ -1,0 +1,104 @@
+# End-to-end verification of the route-history feature:
+#   1. Plan a route via search (gugong → polyline + charging plan).
+#   2. Tap 发送到车辆 — iOS dispatches the nav command AND
+#      POSTs /routes/save, persisting the trip to the user's
+#      route_plans rows.
+#   3. Switch the bottom drawer to 最近 tab.
+#   4. Verify recent_trip_0 row appears with the saved destination.
+#   5. Tap the row — onSelectTrip kicks startRouteLoad which
+#      re-runs the 3-step plan flow for that destination.
+#   6. Verify 当前路线 appears again with totals visible.
+#
+# Bug context: before commit 60b5162 the route_plans table had no
+# INSERT site anywhere. This flow exists as the catch-net so a
+# future refactor that drops the save call doesn't silently
+# re-introduce the dead-feature bug.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
+
+# 1. Plan a trip via search.
+- tapOn:
+    id: "home_search_button"
+- assertVisible:
+    id: "search_field"
+- tapOn:
+    id: "search_field"
+# A short Beijing route ("gugong") routinely fails AMap's along-route
+# corridor search because the polyline is too short to fit the
+# minimum 2km search radius. Tianjin is ~130km, well above AMap's
+# corridor threshold, and consistently produces a multi-stop plan.
+- inputText: "tianjin"
+- extendedWaitUntil:
+    visible:
+      id: "search_result_0"
+    timeout: 8000
+- tapOn:
+    id: "search_result_0"
+
+# AMap's along-route POI search occasionally times out for longer
+# routes — surface the retry path automatically so flake from
+# the SDK side doesn't show up as a 44 failure.
+- runFlow:
+    when:
+      visible: "路线规划失败"
+    commands:
+      - tapOn: "重试"
+
+- extendedWaitUntil:
+    visible: "当前路线"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "路线规划失败"
+    commands:
+      - tapOn: "重试"
+      - extendedWaitUntil:
+          visible: "当前路线"
+          timeout: 30000
+
+# The drawer lands collapsed showing the totals row; the
+# send_to_vehicle_button is below the fold. Swipe the drawer up to
+# expose it before asserting.
+- scrollUntilVisible:
+    element:
+      id: "send_to_vehicle_button"
+    direction: UP
+    timeout: 5000
+
+- assertVisible:
+    id: "send_to_vehicle_button"
+
+# 2. Send → iOS fires sendNavigation AND a fire-and-forget
+# /routes/save which inserts the history row.
+- tapOn:
+    id: "send_to_vehicle_button"
+- extendedWaitUntil:
+    visible: "已发送|重新发送"
+    timeout: 30000
+
+# 3. Switch the drawer tab to 最近. The drawer is in route-loaded
+# mode showing 当前路线 — tap the chip-row "最近" tab.
+- tapOn: "最近"
+
+# 4. Recent_trip_0 appears (this run's send wrote it).
+- extendedWaitUntil:
+    visible:
+      id: "recent_trip_0"
+    timeout: 8000
+- takeScreenshot: tmp/screenshots/recent_trip_present
+
+# 5. Tap to re-plan.
+- tapOn:
+    id: "recent_trip_0"
+
+# 6. Drawer flips back to 当前路线 with totals.
+- extendedWaitUntil:
+    visible: "当前路线"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "总距离"
+    timeout: 30000
+
+- takeScreenshot: tmp/screenshots/recent_trip_replan_loaded
