@@ -1,0 +1,34 @@
+# Hub 菜单 → 退出登录 → 回到 splash. Distinct from 06_unbind_tesla
+# (which also revokes the server-side Tesla token); logout only
+# clears local credentials and the app immediately needs OAuth to
+# get back to Hub. Untested before this flow.
+#
+# Idempotent: ends by re-logging in so downstream flows that
+# inherit a "warm session" still work.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "退出登录"
+    timeout: 5000
+- tapOn: "退出登录"
+
+# RootView swaps to splash. Tautomation title + login_button reappear.
+- extendedWaitUntil:
+    visible:
+      id: "login_button"
+    timeout: 8000
+- assertVisible: "Tautomation"
+
+- takeScreenshot: tmp/screenshots/after_logout
+
+# Re-login so subsequent test runs don't have to deal with the
+# splash state — ensure_logged_in helper handles both paths.
+- runFlow: _helpers/ensure_logged_in.yaml
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
+    timeout: 60000
