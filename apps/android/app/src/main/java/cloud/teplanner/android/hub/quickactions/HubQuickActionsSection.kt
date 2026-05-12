@@ -21,6 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +59,9 @@ fun HubQuickActionsSection(
 ) {
     val actions by viewModel.store.actions.collectAsState()
     val slots by viewModel.store.slots.collectAsState()
+
+    var editingAction by remember { mutableStateOf<HubAction?>(null) }
+    var creatingNew by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth().testTag("hub_quick_actions_section")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -98,6 +104,7 @@ fun HubQuickActionsSection(
                             )
                         } else {
                             EmptyTile(
+                                onTap = { creatingNew = true },
                                 modifier = Modifier.testTag("hub_quick_action_empty_$idx"),
                             )
                         }
@@ -105,6 +112,21 @@ fun HubQuickActionsSection(
                 }
             }
         }
+    }
+
+    if (editingAction != null) {
+        HubActionEditorSheet(
+            editing = editingAction,
+            onDismiss = { editingAction = null },
+            viewModel = viewModel,
+        )
+    }
+    if (creatingNew) {
+        HubActionEditorSheet(
+            editing = null,
+            onDismiss = { creatingNew = false },
+            viewModel = viewModel,
+        )
     }
 }
 
@@ -143,7 +165,7 @@ private fun FilledTile(
 }
 
 @Composable
-private fun EmptyTile(modifier: Modifier = Modifier) {
+private fun EmptyTile(onTap: () -> Unit, modifier: Modifier = Modifier) {
     val outline = MaterialTheme.colorScheme.outline
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -154,6 +176,7 @@ private fun EmptyTile(modifier: Modifier = Modifier) {
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, outline.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+            .clickable { onTap() }
             .padding(vertical = 10.dp),
     ) {
         Icon(
