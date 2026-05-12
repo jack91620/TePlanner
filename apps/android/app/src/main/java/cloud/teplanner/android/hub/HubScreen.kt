@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.DropdownMenu
@@ -79,6 +80,7 @@ fun HubScreen(
     onAutomations: () -> Unit,
     onMap: () -> Unit,
     onBattery: () -> Unit,
+    onSettings: () -> Unit,
     auth: AuthSession = hiltViewModel(),
     hub: HubViewModel = hiltViewModel(),
     departure: ScheduledDepartureViewModel = hiltViewModel(),
@@ -122,6 +124,15 @@ fun HubScreen(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("设置") },
+                            leadingIcon = { Icon(Icons.Filled.Settings, null) },
+                            onClick = {
+                                menuExpanded = false
+                                onSettings()
+                            },
+                            modifier = Modifier.testTag("hub_menu_settings"),
+                        )
                         DropdownMenuItem(
                             text = { Text("配对车辆控制") },
                             leadingIcon = { Icon(Icons.Filled.VpnKey, null) },

@@ -34,6 +34,7 @@ struct RecentFiresView: View {
                 }
             }
         }
+        .accessibilityIdentifier("recent_fires_view")
         .navigationTitle("活动")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }

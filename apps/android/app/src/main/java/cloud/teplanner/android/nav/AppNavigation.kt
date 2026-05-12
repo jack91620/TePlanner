@@ -19,6 +19,7 @@ import cloud.teplanner.android.hub.HubScreen
 import cloud.teplanner.android.battery.BatteryView
 import cloud.teplanner.android.map.MapScreen
 import cloud.teplanner.android.map.RoutePreviewScreen
+import cloud.teplanner.android.settings.SettingsScreen
 
 /**
  * Phase F.2 navigation graph:
@@ -37,6 +38,7 @@ object Routes {
     const val ROUTE_PREVIEW = "route-preview"
     const val BATTERY = "battery"
     const val ACTIVITY = "activity"
+    const val SETTINGS = "settings"
     const val RULE_NEW = "rules/new"
     const val RULE_EDIT_PATTERN = "rules/{id}/edit"
     fun ruleDetail(id: String) = "rules/$id"
@@ -58,6 +60,16 @@ fun AppNavGraph() {
         routePreview(nav)
         battery(nav)
         activity(nav)
+        settings(nav)
+    }
+}
+
+private fun NavGraphBuilder.settings(nav: NavHostController) {
+    composable(Routes.SETTINGS) {
+        SettingsScreen(
+            onBack = { nav.popBackStack() },
+            onActivity = { nav.navigate(Routes.ACTIVITY) },
+        )
     }
 }
 
@@ -147,6 +159,7 @@ private fun NavGraphBuilder.hub(nav: NavHostController) {
             onAutomations = { nav.navigate(Routes.AUTOMATIONS) },
             onMap = { nav.navigate(Routes.MAP) },
             onBattery = { nav.navigate(Routes.BATTERY) },
+            onSettings = { nav.navigate(Routes.SETTINGS) },
         )
     }
 }

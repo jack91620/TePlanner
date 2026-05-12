@@ -1,0 +1,35 @@
+# Cross-platform: Hub menu → 设置 → 活动 (触发记录).
+#
+# Verifies both platforms expose Settings via the Hub menu and that
+# Activity (RecentFires) is reachable from inside Settings. The
+# Settings page on iOS is .sheet, on Android is a NavGraph route —
+# the user-visible flow is identical. Shared body asserts the forward
+# path only; dismissal mechanics differ enough between sheet and
+# NavGraph that platform wrappers handle teardown if needed.
+
+appId: com.placeholder.shared
+---
+- tapOn:
+    id: "hub_menu_button"
+- tapOn: "设置"
+
+- extendedWaitUntil:
+    visible: "推送权限"
+    timeout: 5000
+
+# Activity entry — iOS shows it as "活动 (触发记录)" NavigationLink;
+# Android uses the same exact label string in an ActionRow. Scroll
+# down inside Settings until it's on-screen (Android emulator + iOS
+# small phone simulators both clip the page below the fold).
+- scrollUntilVisible:
+    element: "活动 \\(触发记录\\)"
+    direction: DOWN
+    timeout: 5000
+- tapOn: "活动 \\(触发记录\\)"
+
+# RecentFires landing — both platforms tag the list container with
+# `recent_fires_view`.
+- extendedWaitUntil:
+    visible:
+      id: "recent_fires_view"
+    timeout: 8000

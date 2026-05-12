@@ -1,0 +1,5 @@
+appId: com.teplanner.android
+---
+- runFlow: ../_helpers/ensure_logged_in_android.yaml
+- runFlow: ../_shared/settings_to_activity.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_settings_to_activity
