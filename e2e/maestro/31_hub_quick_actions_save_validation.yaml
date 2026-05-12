@@ -4,7 +4,7 @@
 # Tapping "保存" while it's disabled does nothing.
 appId: com.teplanner.ios
 ---
-- runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/reset_hub_library.yaml
 
 - scrollUntilVisible:
     element:

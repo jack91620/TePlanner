@@ -12,7 +12,7 @@
 # nil-delay not serialized as 0, confirmRequired symmetry).
 appId: com.teplanner.ios
 ---
-- runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/reset_hub_library.yaml
 
 # 1. Create a 2-step custom action with a delay between steps.
 - scrollUntilVisible:

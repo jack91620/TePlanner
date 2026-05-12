@@ -1,0 +1,66 @@
+# Wipe the user's hub-action library + restore the 4 system seeds.
+#
+# Tests like 24_hub_quick_actions_delete / 31_*_save_validation /
+# 42_share_macro_roundtrip assume slot 4 is empty (== hub_quick_action_empty_4
+# present in the tree). After previous runs leave residue ("待删",
+# "保留我", etc.) in slots 4-7, those tests fail at scrollUntilVisible.
+#
+# This helper runs the manage sheet's "重置为默认" path which on both
+# iOS and Android wipes every custom action AND re-seeds the 4 system
+# actions into slots 0-3 (HubActionsStore.resetToDefaults). Idempotent:
+# safe to run before every test that touches slots 4-7.
+#
+# Usage from a wrapper:
+#   - runFlow: _helpers/reset_hub_library.yaml
+#
+# Default appId targets iOS; Android wrappers pass appId override.
+
+appId: com.teplanner.ios
+---
+- runFlow: ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_actions_manage"
+
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_reset_button"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_reset_button"
+
+- extendedWaitUntil:
+    visible: "重置为默认？"
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_reset_confirm"
+
+# Confirm dialog gone — resetToDefaults Task has at least started.
+- extendedWaitUntil:
+    notVisible: "重置为默认？"
+    timeout: 5000
+
+# Give the async persistAll() room to land before the caller proceeds
+# (PUT /user/settings + StateFlow refresh). Without this the next
+# Maestro step sometimes sees stale slot tiles.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Dismiss the manage sheet so subsequent steps work against the Hub
+# root, not the sheet.
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 92%"
+    duration: 400
+- extendedWaitUntil:
+    notVisible: "管理快捷操作"
+    timeout: 5000

@@ -132,6 +132,40 @@ final class HubActionsStoreTests: XCTestCase {
         XCTAssertEqual(store.actions.count, 4)
     }
 
+    func testResetToDefaultsWipesCustomAndReSeeds() async {
+        // Manage-sheet 重置 → resetToDefaults must remove every custom
+        // action and put the 4 system seeds back in slots 0..3.
+        // Test fixtures like 24/31/42 depend on slot 4 being empty
+        // after this call.
+        await store.load()
+        _ = await store.create(
+            name: "待删",
+            icon: "trash.fill",
+            tint: .red,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+        )
+        _ = await store.create(
+            name: "保留我",
+            icon: "heart.fill",
+            tint: .green,
+            steps: [HubActionStep(capability: "tesla.security.door_lock")],
+            confirmRequired: false,
+        )
+        XCTAssertEqual(store.actions.count, 6)
+        XCTAssertNotNil(store.slots.slots[4])
+        XCTAssertNotNil(store.slots.slots[5])
+
+        await store.resetToDefaults()
+
+        XCTAssertEqual(store.actions.count, 4, "custom actions wiped")
+        XCTAssertTrue(store.actions.allSatisfy { $0.isSystem },
+                      "only system seeds remain")
+        XCTAssertNil(store.slots.slots[4], "slot 4 empty after reset")
+        XCTAssertNil(store.slots.slots[5], "slot 5 empty after reset")
+        XCTAssertNil(store.actions.first(where: { $0.name == "待删" }))
+    }
+
     // MARK: - Slot assignment
 
     func testAssignSlotMovesActionAndClearsOldSlot() async {

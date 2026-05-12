@@ -1,11 +1,12 @@
 # Delete a custom action — verify the slot it occupied becomes
 # empty and the action is gone from the pool.
 #
-# Assumes a clean state (reset_hub_actions.sh) so slot 4 starts
-# empty. Creates a throwaway custom action there, then deletes it.
+# Slot 4 must start empty. The reset helper wipes the library and
+# re-seeds the 4 system defaults into slots 0-3, leaving slot 4
+# empty regardless of prior test residue.
 appId: com.teplanner.ios
 ---
-- runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/reset_hub_library.yaml
 
 - scrollUntilVisible:
     element:
@@ -42,9 +43,9 @@ appId: com.teplanner.ios
     visible: "待删"
     timeout: 5000
 
-# Long-press the new tile to reopen the editor with delete enabled.
-# slot 4 is below viewport on iPhone 17 once the keyboard closes;
-# scroll back into view before the gesture.
+# Long-press the new tile to open the context menu. Phase 1 added
+# this so long-press surfaces 编辑动作 / 分享 / 从槽位移除 / 删除动作
+# instead of going straight to the editor.
 - scrollUntilVisible:
     element:
       id: "hub_quick_action_slot_4"
@@ -54,12 +55,12 @@ appId: com.teplanner.ios
     id: "hub_quick_action_slot_4"
 - extendedWaitUntil:
     visible:
-      id: "hub_action_editor_delete"
+      id: "hub_action_menu_delete"
     timeout: 5000
 
 # Delete + confirm.
 - tapOn:
-    id: "hub_action_editor_delete"
+    id: "hub_action_menu_delete"
 - extendedWaitUntil:
     visible: "删除"
     timeout: 5000
