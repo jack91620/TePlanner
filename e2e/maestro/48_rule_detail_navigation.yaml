@@ -1,0 +1,37 @@
+# Tap a rule row → RuleDetailView opens with name as title +
+# 试发通知预览 button visible. Catches a broken NavigationLink, a
+# detail-view rendering crash, or a regression where the rule
+# spec doesn't decode for display.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Tap the rule row to push the detail view.
+- tapOn: "露营模式超时提醒"
+
+# Detail view rendered. Assert spec sections "当" (trigger) and
+# "那么" (action) are both visible above the fold — proves the
+# rule's RuleSpec decoded and rendered to natural language. A
+# half-broken render (title only, body crash) would miss these.
+- extendedWaitUntil:
+    visible: "当"
+    timeout: 8000
+- assertVisible: "那么"
+
+- takeScreenshot: tmp/screenshots/rule_detail_loaded
+
+# Scroll down + assert the test-fire button rendered too. Catches
+# a regression where the bottom of the form crashes despite the
+# top rendering.
+- scrollUntilVisible:
+    element:
+      id: "rule_test_fire_button"
+    direction: DOWN
+    timeout: 5000
