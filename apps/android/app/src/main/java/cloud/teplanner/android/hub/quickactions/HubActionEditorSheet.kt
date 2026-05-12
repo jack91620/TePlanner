@@ -56,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -74,7 +76,7 @@ import kotlinx.serialization.json.JsonElement
  * When a capability with params lands as a Quick Action target, the
  * CapabilityParamEditor port will plug into [stepCard] here.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun HubActionEditorSheet(
     editing: HubAction?,
@@ -106,7 +108,9 @@ fun HubActionEditorSheet(
         sheetState = sheetState,
     ) {
         LazyColumn(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .semantics { testTagsAsResourceId = true },
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {

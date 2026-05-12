@@ -7,7 +7,6 @@
 
 appId: com.teplanner.android
 ---
-- launchApp:
-    appId: com.teplanner.android
+- runFlow: ../_helpers/ensure_logged_in_android.yaml
 - runFlow: ../_shared/hub_quick_actions_smoke.yaml
 - takeScreenshot: tmp/screenshots/maestro_xplatform_android_quick_actions

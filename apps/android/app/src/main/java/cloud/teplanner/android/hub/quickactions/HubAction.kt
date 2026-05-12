@@ -58,7 +58,13 @@ data class HubAction(
     val steps: List<HubActionStep>,
     @SerialName("confirm_required") val confirmRequired: Boolean = false,
     @SerialName("is_system") val isSystem: Boolean = false,
-    @SerialName("created_at") val createdAt: String? = null,
+    // NOTE: iOS HubAction has a `createdAt` field for sort order in
+    // the manage sheet (Apple-epoch Double in the wire format —
+    // ~800268505.86 for early-2026 records). Android doesn't use
+    // it; the JSON config's ignoreUnknownKeys flag lets iOS's
+    // value pass through harmlessly. Adding a Kotlin field here
+    // would require a custom serializer to accept both number
+    // and string types (iOS's value type drifted over time).
 )
 
 /**

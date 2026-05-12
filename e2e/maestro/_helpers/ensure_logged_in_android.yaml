@@ -1,0 +1,55 @@
+# Android ensure-logged-in. Mirrors iOS _helpers/ensure_logged_in
+# but pointed at com.teplanner.android. Used by cross_platform/
+# Android wrappers so they don't have to assume a warm session.
+#
+# Idempotent — if Hub is already up, returns immediately. If the
+# login screen is up, fills the OAuth form and waits for Hub.
+
+appId: com.teplanner.android
+env:
+  TESLA_EMAIL: ${MAESTRO_TESLA_EMAIL}
+  TESLA_PASSWORD: ${MAESTRO_TESLA_PASSWORD}
+---
+- launchApp:
+    appId: com.teplanner.android
+
+- runFlow:
+    when:
+      visible:
+        id: "login_button"
+    commands:
+      - tapOn:
+          id: "login_button"
+      # Tesla OAuth's locale follows the device. The Android
+      # emulator typically defaults to en-US so the labels are
+      # English even though the iOS sim is zh-Hans. Match either.
+      - extendedWaitUntil:
+          visible: "电子邮箱地址或登录手机号码|Email or Phone Number"
+          timeout: 30000
+      - tapOn: "电子邮箱地址或登录手机号码|Email or Phone Number"
+      - inputText: ${TESLA_EMAIL}
+      - tapOn: "Next|下一步"
+      - extendedWaitUntil:
+          visible: "密码|Password"
+          timeout: 30000
+      - tapOn: "密码|Password"
+      - inputText: ${TESLA_PASSWORD}
+      - tapOn: "Sign In|登录|登入"
+
+# Wait for Hub. App title is the most stable marker since the VCP
+# pairing prompt may overlay status_card right after first login.
+- extendedWaitUntil:
+    visible: "Tautomation"
+    timeout: 60000
+
+# Dismiss VCP pairing prompt if it pops on first login.
+- runFlow:
+    when:
+      visible: "稍后再说"
+    commands:
+      - tapOn: "稍后再说"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
+    timeout: 10000

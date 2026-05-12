@@ -41,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -247,12 +249,36 @@ fun HubQuickActionsSection(
     }
 }
 
+@Composable
+private fun menuRow(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    testTag: String,
+    destructive: Boolean = false,
+) {
+    val color = if (destructive) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurface
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(testTag)
+            .clickable { onClick() }
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.size(16.dp))
+        Text(text, color = color, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
 private data class LongPressTarget(
     val action: HubAction,
     val slotIndex: Int,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun LongPressMenu(
     action: HubAction,
@@ -268,54 +294,54 @@ private fun LongPressMenu(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        // ModalBottomSheet renders content in a Dialog window which
+        // doesn't inherit MainActivity's testTagsAsResourceId opt-in.
+        // Set it here so Maestro's `id:` selector resolves the menu
+        // rows below. Mirrors the same opt-in for every Compose
+        // ModalBottomSheet body in the app.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .semantics { testTagsAsResourceId = true },
+        ) {
             Text(
                 "「${action.name}」",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
-            ListItem(
-                headlineContent = { Text("编辑动作") },
-                leadingContent = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                modifier = Modifier
-                    .clickable { onEdit() }
-                    .testTag("hub_action_menu_edit"),
+            // ListItem internally calls Modifier.semantics(mergeDescendants
+            // = true) which absorbs any outer testTag into its merged
+            // node — Maestro's findById then can't surface "the row".
+            // Use plain Row layouts so testTag stays a top-level
+            // accessibility element. Same iOS gesture-conflict pattern
+            // we hit on Hub tiles (commit d01bc45).
+            menuRow(
+                text = "编辑动作",
+                icon = Icons.Filled.Edit,
+                onClick = onEdit,
+                testTag = "hub_action_menu_edit",
             )
-            ListItem(
-                headlineContent = { Text("分享给好友") },
-                leadingContent = { Icon(Icons.Filled.Share, contentDescription = null) },
-                modifier = Modifier
-                    .clickable { onShare() }
-                    .testTag("hub_action_menu_share"),
+            menuRow(
+                text = "分享给好友",
+                icon = Icons.Filled.Share,
+                onClick = onShare,
+                testTag = "hub_action_menu_share",
             )
-            ListItem(
-                headlineContent = { Text("从槽位移除") },
-                leadingContent = {
-                    Icon(Icons.Filled.RemoveCircleOutline, contentDescription = null)
-                },
-                modifier = Modifier
-                    .clickable { onClearSlot() }
-                    .testTag("hub_action_menu_clear_slot"),
+            menuRow(
+                text = "从槽位移除",
+                icon = Icons.Filled.RemoveCircleOutline,
+                onClick = onClearSlot,
+                testTag = "hub_action_menu_clear_slot",
             )
             if (!action.isSystem) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            "删除动作",
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            Icons.Filled.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    modifier = Modifier
-                        .clickable { onRequestDelete() }
-                        .testTag("hub_action_menu_delete"),
+                menuRow(
+                    text = "删除动作",
+                    icon = Icons.Filled.Delete,
+                    onClick = onRequestDelete,
+                    testTag = "hub_action_menu_delete",
+                    destructive = true,
                 )
             }
         }

@@ -47,6 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -76,7 +78,7 @@ import kotlinx.coroutines.launch
  * testTag values match iOS exactly so cross_platform Maestro
  * flows can target both clients.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun HubActionsManageSheet(
     onDismiss: () -> Unit,
@@ -98,7 +100,15 @@ fun HubActionsManageSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        // ModalBottomSheet renders in a separate Dialog window which
+        // doesn't inherit MainActivity's testTagsAsResourceId opt-in.
+        // Set it here so Maestro `id:` selectors resolve.
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .semantics { testTagsAsResourceId = true },
+        ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(

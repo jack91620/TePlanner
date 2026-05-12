@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,7 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
  * iOS. The manage sheet (Phase 2) is the proper place for the
  * full library view with "在槽 N / 未分配" tags.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun HubActionSlotPickerSheet(
     slotIndex: Int,
@@ -68,7 +70,12 @@ fun HubActionSlotPickerSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .semantics { testTagsAsResourceId = true },
+        ) {
             Text(
                 "选择动作",
                 style = MaterialTheme.typography.titleMedium,

@@ -34,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -49,7 +51,7 @@ import kotlinx.serialization.json.Json
  * 3-phase: input → preview → imported. Mirrors iOS
  * ImportShareSheet.swift.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun ImportShareSheet(
     onDismiss: () -> Unit,
@@ -67,7 +69,12 @@ fun ImportShareSheet(
         },
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+                .semantics { testTagsAsResourceId = true },
+        ) {
             Text(
                 "导入分享码",
                 style = MaterialTheme.typography.titleLarge,
