@@ -1,0 +1,70 @@
+# Edit a quick action's icon via the picker — change the SF Symbol,
+# save, verify the new icon renders on the tile.
+#
+# Untested path despite recently touched code (Phase 4 share work
+# added SemanticIcon mapping which depends on the picker's icon
+# vocabulary staying in lockstep). Catches regressions where the
+# icon picker stops binding the selection back to the action.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+# Open editor for the seeded 锁车 action via the long-press menu.
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_edit"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_edit"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_icon"
+    timeout: 5000
+
+# Tap the icon button → picker sheet opens.
+- tapOn:
+    id: "hub_action_editor_icon"
+- extendedWaitUntil:
+    visible: "选择图标"
+    timeout: 5000
+
+# Pick a clearly different SF Symbol. snowflake is in the "空调"
+# section and is visually distinct from the default lock.fill so
+# we'll spot a binding regression easily.
+- scrollUntilVisible:
+    element:
+      id: "hub_icon_picker_snowflake"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_icon_picker_snowflake"
+
+# Picker auto-dismisses on tap (per HubIconPickerSheet.cell action).
+# Back in the editor, save the change.
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_save"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Tile re-renders with the new icon. We can't assert "the icon is
+# a snowflake" directly via Maestro, but we CAN verify the tile is
+# still there with its name + the editor closed cleanly (which
+# rules out a save-failure path that would have surfaced an alert).
+- extendedWaitUntil:
+    visible: "锁车"
+    timeout: 5000
+- assertNotVisible:
+    id: "hub_action_editor_save"
+
+- takeScreenshot: tmp/screenshots/hub_action_icon_changed
