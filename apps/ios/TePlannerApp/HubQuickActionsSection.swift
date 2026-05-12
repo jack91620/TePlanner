@@ -5,9 +5,12 @@ import TePlannerKit
 ///   - filled (assigned to a HubAction): icon + name + tap-to-run
 ///   - empty: dashed + plus icon, tap to assign / create
 ///
-/// Long-press on a filled tile opens the editor. Drag-to-reorder is
-/// supported on filled tiles (empty slots stay where they are
-/// visually; the swap is between two slot indices).
+/// Long-press on a filled tile opens a context menu: 编辑动作 /
+/// 从槽位移除 / 删除动作 (delete is hidden for system actions) /
+/// 取消. Slot reordering is intentionally not bound to a drag
+/// gesture on the tile — SwiftUI's `.draggable` competes with the
+/// long-press recognizer and one always loses. Reorder lives in
+/// the dedicated manage sheet instead (Phase 2).
 ///
 /// Confirm-required actions show a small "?" badge in the corner so
 /// the user knows the tap will surface a dialog before dispatch.
@@ -28,6 +31,12 @@ struct HubQuickActionsSection: View {
     @State private var assigningSlotIndex: Int? = nil
     @State private var pendingConfirm: HubAction? = nil
     @State private var runErrorMessage: String? = nil
+
+    /// Long-press menu state: (action, slot index) pair. Drives the
+    /// confirmationDialog with 编辑 / 从槽位移除 / 删除 options.
+    @State private var longPressTarget: LongPressTarget? = nil
+    /// Action pending deletion — drives the destructive confirm alert.
+    @State private var pendingDeleteAction: HubAction? = nil
 
     /// Tracked so the editor can find which slot to fill when the
     /// user creates a new action from a "+" tap. nil = the user is
@@ -54,7 +63,7 @@ struct HubQuickActionsSection: View {
                 Button {
                     creatingNew = true
                 } label: {
-                    Label("管理", systemImage: "square.grid.2x2")
+                    Label("新建", systemImage: "plus")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
@@ -134,6 +143,55 @@ struct HubQuickActionsSection: View {
         } message: {
             Text(runErrorMessage ?? "")
         }
+        .confirmationDialog(
+            longPressTarget.map { "「\($0.action.name)」" } ?? "",
+            isPresented: Binding(
+                get: { longPressTarget != nil },
+                set: { if !$0 { longPressTarget = nil } },
+            ),
+            titleVisibility: .visible,
+        ) {
+            Button("编辑动作") {
+                let action = longPressTarget?.action
+                longPressTarget = nil
+                editingAction = action
+            }
+            .accessibilityIdentifier("hub_action_menu_edit")
+            Button("从槽位移除") {
+                let slot = longPressTarget?.slotIndex
+                longPressTarget = nil
+                if let slot {
+                    Task { await store.assignSlot(index: slot, actionId: nil) }
+                }
+            }
+            .accessibilityIdentifier("hub_action_menu_clear_slot")
+            if longPressTarget?.action.isSystem == false {
+                Button("删除动作", role: .destructive) {
+                    let action = longPressTarget?.action
+                    longPressTarget = nil
+                    pendingDeleteAction = action
+                }
+                .accessibilityIdentifier("hub_action_menu_delete")
+            }
+            Button("取消", role: .cancel) { longPressTarget = nil }
+        }
+        .alert(
+            pendingDeleteAction.map { "删除「\($0.name)」？" } ?? "",
+            isPresented: Binding(
+                get: { pendingDeleteAction != nil },
+                set: { if !$0 { pendingDeleteAction = nil } },
+            ),
+        ) {
+            Button("取消", role: .cancel) { pendingDeleteAction = nil }
+            Button("删除", role: .destructive) {
+                let id = pendingDeleteAction?.id
+                pendingDeleteAction = nil
+                if let id { Task { await store.delete(id: id) } }
+            }
+            .accessibilityIdentifier("hub_action_delete_confirm")
+        } message: {
+            Text("此动作会被永久删除，已分配的槽位将清空。")
+        }
     }
 
     @ViewBuilder
@@ -145,7 +203,9 @@ struct HubQuickActionsSection: View {
                 onTap: {
                     Task { await runAction(action, skipConfirm: false) }
                 },
-                onLongPress: { editingAction = action },
+                onLongPress: {
+                    longPressTarget = LongPressTarget(action: action, slotIndex: index)
+                },
             )
             .accessibilityIdentifier("hub_quick_action_slot_\(index)")
         } else {
@@ -186,6 +246,14 @@ struct HubQuickActionsSection: View {
     private struct SlotIndexBox: Identifiable, Hashable {
         let value: Int
         var id: Int { value }
+    }
+
+    /// Pair captured when the user long-presses a filled tile.
+    /// Drives the confirmationDialog rendering — we need the action
+    /// for copy + system gating, and the slot index for "从槽位移除".
+    fileprivate struct LongPressTarget {
+        let action: HubAction
+        let slotIndex: Int
     }
 }
 

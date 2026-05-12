@@ -13,9 +13,17 @@ appId: com.teplanner.ios
     direction: DOWN
     timeout: 5000
 
-# Long-press 锁车 (slot 0) to open the editor for it.
+# Long-press 锁车 (slot 0) opens the long-press menu —
+# 编辑/从槽位移除/删除/取消. Tap 编辑 to reach the editor.
 - longPressOn:
     id: "hub_quick_action_slot_0"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_edit"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_edit"
 
 - extendedWaitUntil:
     visible:

@@ -1,7 +1,8 @@
-# "管理" button is the alternate entry to the action editor — for
+# "+ 新建" button is the alternate entry to the action editor — for
 # users who want to author actions without first picking a slot.
-# Verifies the create-from-manage path is wired (the in-app
-# entrypoint isn't otherwise covered).
+# Verifies the create-from-section-header path is wired (the in-app
+# entrypoint isn't otherwise covered). The button was previously
+# labelled "管理" but only created new — renamed to be honest.
 appId: com.teplanner.ios
 ---
 - runFlow: _helpers/ensure_logged_in.yaml

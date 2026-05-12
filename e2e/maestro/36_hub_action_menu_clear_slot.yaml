@@ -1,0 +1,43 @@
+# Long-press → "从槽位移除" clears slot 0 (锁车) without deleting
+# the underlying action. The empty tile placeholder should appear
+# in slot 0; the action itself is still in the library and can be
+# re-assigned via tapping an empty slot.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_clear_slot"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_clear_slot"
+
+# Slot 0 is now empty. The empty tile shows the dashed + placeholder.
+- extendedWaitUntil:
+    visible:
+      id: "hub_quick_action_empty_0"
+    timeout: 5000
+- assertNotVisible:
+    id: "hub_quick_action_slot_0"
+
+- takeScreenshot: tmp/screenshots/hub_action_menu_clear_slot
+
+# Re-assign: tap the empty slot → picker → 锁车 should still exist
+# in the library list. (We don't fully reassign to keep the test
+# focused, but verify the action is still there.)
+- tapOn:
+    id: "hub_quick_action_empty_0"
+- extendedWaitUntil:
+    visible: "锁车"
+    timeout: 5000
+- takeScreenshot: tmp/screenshots/hub_action_menu_clear_slot_picker
