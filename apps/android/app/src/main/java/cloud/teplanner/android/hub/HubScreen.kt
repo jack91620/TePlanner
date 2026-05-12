@@ -220,6 +220,11 @@ fun HubScreen(
                 onClick = onBattery,
                 testTag = "hub_entry_battery",
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            cloud.teplanner.android.hub.quickactions.HubQuickActionsSection(
+                vehicleId = state.vehicle?.id,
+                onManageTap = { /* Phase 2 manage sheet ports next */ },
+            )
             Spacer(modifier = Modifier.height(8.dp))
             account?.let { acc ->
                 val label = acc.email ?: "用户 ID：${acc.userId}"

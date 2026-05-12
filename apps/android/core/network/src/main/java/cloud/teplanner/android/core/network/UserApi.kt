@@ -17,4 +17,17 @@ interface UserApi {
 
     @DELETE("api/v1/user/scheduled-departure")
     suspend fun clearScheduledDeparture(): ClearResponse
+
+    /// Phase A.5 user-settings sync. iOS already consumes this for
+    /// hub.actions / hub.slots / charge-limit preferences; Android
+    /// now needs it for the Hub Quick Actions parity push.
+    /// Backend at /api/v1/user/settings: GET returns full settings
+    /// blob; PUT merges (or replaces, see replace_all flag).
+    @GET("api/v1/user/settings")
+    suspend fun getUserSettings(): UserSettingsResponse
+
+    @PUT("api/v1/user/settings")
+    suspend fun putUserSettings(
+        @Body request: UserSettingsRequest,
+    ): UserSettingsResponse
 }

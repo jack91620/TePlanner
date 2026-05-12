@@ -66,6 +66,17 @@ interface VehiclesApi {
         @Body body: NavigationRequest,
     ): BaseResponse
 
+    /// Generic capability dispatch. Mirrors iOS APIService.invokeCapability.
+    /// Used by Hub Quick Actions which let users build a tile that
+    /// invokes any registered Tesla capability with arbitrary params.
+    /// Backend `/vehicles/{id}/invoke` validates against the capability
+    /// registry; unknown ids surface as an error.
+    @POST("api/v1/vehicles/{id}/invoke")
+    suspend fun invokeCapability(
+        @Path("id") vehicleId: String,
+        @Body body: InvokeCapabilityRequest,
+    ): BaseResponse
+
     // -- Command status / queue (for the converge-poll banner).
 
     @GET("api/v1/vehicles/commands/pending")
@@ -83,6 +94,12 @@ data class SetClimateKeeperRequest(val mode: Int)
 
 @Serializable
 data class SetChargeLimitRequest(val percent: Int)
+
+@Serializable
+data class InvokeCapabilityRequest(
+    val capability: String,
+    val params: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap(),
+)
 
 @Serializable
 data class NavigationRequest(
