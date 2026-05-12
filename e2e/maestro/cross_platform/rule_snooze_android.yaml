@@ -2,6 +2,11 @@ appId: com.teplanner.android
 ---
 - runFlow: ../_helpers/ensure_logged_in_android.yaml
 
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_automations"
+    direction: DOWN
+    timeout: 5000
 - tapOn:
     id: "hub_entry_automations"
 

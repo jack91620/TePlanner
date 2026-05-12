@@ -20,8 +20,10 @@
 # placeholder so the file is valid YAML-flow on its own.
 appId: com.placeholder.shared
 ---
-- assertVisible:
-    id: "hub_entry_automations"
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_automations"
+    direction: DOWN
     timeout: 8000
 
 - tapOn:

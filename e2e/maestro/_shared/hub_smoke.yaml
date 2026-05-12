@@ -17,11 +17,23 @@ appId: com.placeholder.shared
       id: "hub_status_card"
     timeout: 8000
 
-- assertVisible:
-    id: "hub_entry_planning"
+# Hub grew taller as AlertPill / welcome banner / chips landed; small
+# emulator viewports clip the deeper entries. Scroll down to each so
+# the assertion passes regardless of screen size.
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_planning"
+    direction: DOWN
+    timeout: 5000
 
-- assertVisible:
-    id: "hub_entry_automations"
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_automations"
+    direction: DOWN
+    timeout: 5000
 
-- assertVisible:
-    id: "hub_entry_battery"
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_battery"
+    direction: DOWN
+    timeout: 5000

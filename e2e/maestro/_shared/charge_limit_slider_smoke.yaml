@@ -10,6 +10,12 @@
 
 appId: com.placeholder.shared
 ---
+- scrollUntilVisible:
+    element:
+      id: "hub_entry_battery"
+    direction: DOWN
+    timeout: 8000
+
 - tapOn:
     id: "hub_entry_battery"
 

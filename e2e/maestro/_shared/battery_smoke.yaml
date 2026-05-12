@@ -15,9 +15,10 @@
 # Wrapper files override at launchApp time; this is a placeholder.
 appId: com.placeholder.shared
 ---
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: "hub_entry_battery"
+    direction: DOWN
     timeout: 8000
 
 - tapOn:

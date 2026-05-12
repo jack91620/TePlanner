@@ -1,5 +1,54 @@
+# Android: Hub → 下次出行 sheet → enter 备注 → save → cleanup.
+#
+# iOS counterpart is at departure_sheet_label_ios.yaml. The two
+# diverge only on IME dismissal (Android needs hideKeyboard; iOS
+# tap-outside).
+
 appId: com.teplanner.android
 ---
 - runFlow: ../_helpers/ensure_logged_in_android.yaml
-- runFlow: ../_shared/departure_sheet_label.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_departure_card"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_departure_card"
+
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+
+- tapOn:
+    id: "departure_label_field"
+- inputText: "Demo"
+- hideKeyboard
+
+- tapOn:
+    id: "departure_save_button"
+- extendedWaitUntil:
+    notVisible:
+      id: "departure_save_button"
+    timeout: 5000
+
+- tapOn:
+    id: "hub_departure_card"
+- extendedWaitUntil:
+    visible:
+      id: "departure_save_button"
+    timeout: 5000
+- runFlow:
+    when:
+      visible:
+        id: "departure_clear_button"
+    commands:
+      - tapOn:
+          id: "departure_clear_button"
+      - extendedWaitUntil:
+          notVisible:
+            id: "departure_save_button"
+          timeout: 5000
+
 - takeScreenshot: tmp/screenshots/maestro_xplatform_android_departure_label
