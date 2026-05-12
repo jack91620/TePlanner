@@ -249,6 +249,47 @@ public final class APIService: APIServiceProtocol {
         let rules: [RuleRecord]
     }
 
+    // MARK: - Shares
+
+    public func createShare(
+        type: ShareType,
+        payload: [String: JSONValue],
+        expiresInDays: Int,
+        minAppVersion: String?,
+    ) async -> Result<ShareDetailResponse, APIError> {
+        struct Body: Encodable {
+            let share_type: String
+            let payload: [String: JSONValue]
+            let expires_in_days: Int
+            let min_app_version: String?
+        }
+        return await postJSON(
+            path: "/shares",
+            body: Body(
+                share_type: type.rawValue,
+                payload: payload,
+                expires_in_days: expiresInDays,
+                min_app_version: minAppVersion,
+            ),
+        )
+    }
+
+    public func lookupShare(code: String) async -> Result<ShareDetailResponse, APIError> {
+        // Server normalizes case + dashes; we still strip whitespace
+        // locally so the URL doesn't get %20-encoded gunk.
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        return await get(path: "/shares/\(trimmed)")
+    }
+
+    public func revokeShare(code: String) async -> Result<Void, APIError> {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        return await deleteVoid(path: "/shares/\(trimmed)")
+    }
+
+    public func listMyShares() async -> Result<ShareListResponse, APIError> {
+        return await get(path: "/shares/mine")
+    }
+
     public func listAutomations() async -> Result<[RuleRecord], APIError> {
         let result: Result<RuleListResponseDTO, APIError> = await get(path: "/automations/")
         switch result {
@@ -451,6 +492,56 @@ public final class APIService: APIServiceProtocol {
         var req = URLRequest(url: url)
         req.httpMethod = "DELETE"
         return await perform(req)
+    }
+
+    /// DELETE / 204 No Content variant — for endpoints whose success
+    /// response has an empty body. The generic `delete<T>` above
+    /// would 500 with a decoding error since there's no JSON to
+    /// parse. Shares' revoke endpoint is the first user; future
+    /// 204-returning endpoints should reuse this.
+    private func deleteVoid(path: String, query: [URLQueryItem] = []) async -> Result<Void, APIError> {
+        guard let url = makeURL(path: path, query: query) else { return .failure(.invalidURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        return await performVoid(req)
+    }
+
+    private func performVoid(_ request: URLRequest) async -> Result<Void, APIError> {
+        let method = request.httpMethod ?? "?"
+        let path = request.url?.path ?? "?"
+        let started = Date()
+        Log.api.debug("→ \(method, privacy: .public) \(path, privacy: .public)")
+
+        var authedRequest = request
+        if authedRequest.value(forHTTPHeaderField: "Authorization") == nil,
+           let token = tokenProvider(),
+           !token.isEmpty {
+            authedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await session.data(for: authedRequest)
+            let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
+            guard let http = response as? HTTPURLResponse else {
+                Log.api.error("← \(method, privacy: .public) \(path, privacy: .public) non-HTTP response")
+                return .failure(.invalidResponse)
+            }
+            Log.api.debug("← \(method, privacy: .public) \(path, privacy: .public) \(http.statusCode) in \(elapsedMs)ms (\(data.count) bytes)")
+
+            guard (200...299).contains(http.statusCode) else {
+                let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
+                Log.api.error("server error \(http.statusCode) on \(path, privacy: .public): \(bodyPreview, privacy: .public)")
+                if http.statusCode == 401 {
+                    NotificationCenter.default.post(name: APIService.unauthorizedNotification, object: nil)
+                }
+                let message = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                return .failure(.serverError(statusCode: http.statusCode, message: message))
+            }
+            return .success(())
+        } catch {
+            Log.api.error("request \(method, privacy: .public) \(path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            return .failure(.requestFailed(error))
+        }
     }
 
     private func makeURL(path: String, query: [URLQueryItem]) -> URL? {

@@ -33,10 +33,17 @@ struct HubQuickActionsSection: View {
     @State private var runErrorMessage: String? = nil
 
     /// Long-press menu state: (action, slot index) pair. Drives the
-    /// confirmationDialog with 编辑 / 从槽位移除 / 删除 options.
+    /// confirmationDialog with 编辑 / 从槽位移除 / 分享 / 删除 options.
     @State private var longPressTarget: LongPressTarget? = nil
     /// Action pending deletion — drives the destructive confirm alert.
     @State private var pendingDeleteAction: HubAction? = nil
+    /// In-flight share request — set when "分享" is tapped, cleared
+    /// once the result either presents ShareCodeSheet or fails.
+    @State private var sharingActionInFlight: Bool = false
+    /// Successful share result — presents ShareCodeSheet.
+    @State private var shareResult: ShareDetailResponse? = nil
+    /// Share API failure — presents an alert.
+    @State private var shareErrorMessage: String? = nil
 
     /// Tracked so the editor can find which slot to fill when the
     /// user creates a new action from a "+" tap. nil = the user is
@@ -157,6 +164,12 @@ struct HubQuickActionsSection: View {
                 editingAction = action
             }
             .accessibilityIdentifier("hub_action_menu_edit")
+            Button("分享给好友") {
+                let action = longPressTarget?.action
+                longPressTarget = nil
+                if let action { Task { await shareAction(action) } }
+            }
+            .accessibilityIdentifier("hub_action_menu_share")
             Button("从槽位移除") {
                 let slot = longPressTarget?.slotIndex
                 longPressTarget = nil
@@ -174,6 +187,24 @@ struct HubQuickActionsSection: View {
                 .accessibilityIdentifier("hub_action_menu_delete")
             }
             Button("取消", role: .cancel) { longPressTarget = nil }
+        }
+        .sheet(item: $shareResult) { detail in
+            ShareCodeSheet(
+                code: detail.code,
+                expiresAt: detail.expiresAt,
+                onDismiss: { shareResult = nil },
+            )
+        }
+        .alert(
+            "分享失败",
+            isPresented: Binding(
+                get: { shareErrorMessage != nil },
+                set: { if !$0 { shareErrorMessage = nil } },
+            )
+        ) {
+            Button("好") { shareErrorMessage = nil }
+        } message: {
+            Text(shareErrorMessage ?? "")
         }
         .alert(
             pendingDeleteAction.map { "删除「\($0.name)」？" } ?? "",
@@ -237,6 +268,32 @@ struct HubQuickActionsSection: View {
             case .unknownAction:
                 runErrorMessage = "动作已删除"
             }
+        }
+    }
+
+    /// Mint a share code for this action via the backend and show
+    /// ShareCodeSheet on success. Payload is the share wire format —
+    /// SF Symbol icon converts to a semantic ID so Android / Harmony
+    /// importers can resolve it to their native icon.
+    private func shareAction(_ action: HubAction) async {
+        sharingActionInFlight = true
+        defer { sharingActionInFlight = false }
+        let payload = SharedActionPayload.from(action)
+        guard let payloadDict = encodeShareablePayload(payload) else {
+            shareErrorMessage = "无法编码分享内容"
+            return
+        }
+        let result = await APIService.shared.createShare(
+            type: .action,
+            payload: payloadDict,
+            expiresInDays: 30,
+            minAppVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+        )
+        switch result {
+        case .success(let detail):
+            shareResult = detail
+        case .failure(let err):
+            shareErrorMessage = err.errorDescription ?? "网络错误"
         }
     }
 

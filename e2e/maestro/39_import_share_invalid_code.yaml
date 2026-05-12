@@ -1,0 +1,37 @@
+# Hub menu → 导入分享码 → input a code that doesn't exist → verify
+# the inline error message renders (the friendly 404 → "分享码不存在").
+# Exercises the import sheet end-to-end without depending on a live
+# share, so the test is deterministic.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# Open the Hub overflow menu, tap 导入分享码.
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "导入分享码"
+    timeout: 5000
+- tapOn: "导入分享码"
+
+# Import sheet opens with the code field focused.
+- extendedWaitUntil:
+    visible:
+      id: "import_share_code_field"
+    timeout: 5000
+
+# Type a definitely-non-existent code (6 chars from the alphabet).
+- tapOn:
+    id: "import_share_code_field"
+- inputText: "ZZZZZZ"
+
+- tapOn:
+    id: "import_share_continue_button"
+
+# Inline error renders. Server returns 404 → friendly message.
+- extendedWaitUntil:
+    visible:
+      id: "import_share_error"
+    timeout: 10000
+
+- takeScreenshot: tmp/screenshots/import_share_invalid_code

@@ -1,0 +1,48 @@
+# Hub long-press → 分享给好友 → backend mints a code → ShareCodeSheet
+# renders with the 6-char code + the system share button. Verifies the
+# happy path of the share-out side. Does not import (that's flow 39).
+#
+# Real-Tesla session (login + cron tick fine).
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+
+# 分享给好友 lives in the long-press confirmationDialog.
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_share"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_share"
+
+# ShareCodeSheet appears after POST /shares (~1-3s on prod).
+- extendedWaitUntil:
+    visible:
+      id: "share_code_text"
+    timeout: 15000
+
+# Verify the system share + copy buttons are wired.
+- assertVisible:
+    id: "share_code_send_button"
+- assertVisible:
+    id: "share_code_copy_button"
+
+- takeScreenshot: tmp/screenshots/hub_action_share_code
+
+# Dismiss; back to Hub.
+- tapOn:
+    id: "share_code_done_button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_quick_action_slot_0"
+    timeout: 5000

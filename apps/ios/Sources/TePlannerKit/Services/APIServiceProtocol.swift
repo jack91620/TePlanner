@@ -105,6 +105,26 @@ public protocol APIServiceProtocol {
     /// layer can deliver automation alerts when the app is closed.
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError>
 
+    // Shares — cross-platform 6-char code for one automation rule
+    // or one hub quick action. Backend at /api/v1/shares.
+    /// Mint a share code. Caller has already stripped user-scoped
+    /// fields from `payload` (no user_id, no vehicle_id, no internal
+    /// action_id). `minAppVersion` records the CFBundleVersion the
+    /// share was authored against — older importers will see 412.
+    func createShare(
+        type: ShareType,
+        payload: [String: JSONValue],
+        expiresInDays: Int,
+        minAppVersion: String?,
+    ) async -> Result<ShareDetailResponse, APIError>
+    /// Resolve a share code into the typed payload. Server normalizes
+    /// case + dashes + whitespace so the caller can pass user input
+    /// as-typed. Returns 404 / 410 / 412 via APIError as appropriate.
+    func lookupShare(code: String) async -> Result<ShareDetailResponse, APIError>
+    /// Owner-only revoke. 404 from server is mapped through.
+    func revokeShare(code: String) async -> Result<Void, APIError>
+    func listMyShares() async -> Result<ShareListResponse, APIError>
+
     // Automation rules
     func listAutomations() async -> Result<[RuleRecord], APIError>
     func createAutomation(name: String, enabled: Bool, spec: RuleSpec) async -> Result<RuleRecord, APIError>

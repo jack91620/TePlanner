@@ -255,6 +255,38 @@ final class MockAPIService: APIServiceProtocol {
         return .success(BaseResponse(success: true, message: "ok"))
     }
 
+    // MARK: - Shares
+    var lastCreateShareArgs: (type: ShareType, payload: [String: JSONValue], expiresInDays: Int, minAppVersion: String?)?
+    var mockCreateShareResponse: Result<ShareDetailResponse, APIError> = .failure(.invalidURL)
+    func createShare(
+        type: ShareType,
+        payload: [String: JSONValue],
+        expiresInDays: Int,
+        minAppVersion: String?,
+    ) async -> Result<ShareDetailResponse, APIError> {
+        lastCreateShareArgs = (type, payload, expiresInDays, minAppVersion)
+        return mockCreateShareResponse
+    }
+
+    var lastLookupShareCode: String?
+    var mockLookupShareResponse: Result<ShareDetailResponse, APIError> = .failure(.invalidURL)
+    func lookupShare(code: String) async -> Result<ShareDetailResponse, APIError> {
+        lastLookupShareCode = code
+        return mockLookupShareResponse
+    }
+
+    var lastRevokeShareCode: String?
+    var mockRevokeShareResponse: Result<Void, APIError> = .success(())
+    func revokeShare(code: String) async -> Result<Void, APIError> {
+        lastRevokeShareCode = code
+        return mockRevokeShareResponse
+    }
+
+    var mockListMySharesResponse: Result<ShareListResponse, APIError> = .success(ShareListResponse(shares: []))
+    func listMyShares() async -> Result<ShareListResponse, APIError> {
+        return mockListMySharesResponse
+    }
+
     var mockListAutomationsResponse: Result<[RuleRecord], APIError> = .success([])
     var listAutomationsCallCount = 0
     func listAutomations() async -> Result<[RuleRecord], APIError> {

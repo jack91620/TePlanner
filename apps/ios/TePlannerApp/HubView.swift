@@ -34,6 +34,7 @@ struct HubView: View {
     // chargeLimitStatus moved into HubChargeLimitCard's local @State.
     @State private var showingPairingPrompt = false
     @State private var showingSettings = false
+    @State private var showingImportShare = false
     /// First-launch welcome banner: shown until the user dismisses
     /// it the first time. Persisted in SettingsStore.hasSeenHubWelcome.
     @State private var showWelcomeBanner: Bool =
@@ -116,6 +117,9 @@ struct HubView: View {
                 Menu {
                     Button("配对车辆控制", systemImage: "key.fill") {
                         openVCPPairingURL()
+                    }
+                    Button("导入分享码", systemImage: "square.and.arrow.down") {
+                        showingImportShare = true
                     }
                     Button("设置", systemImage: "gearshape.fill") {
                         showingSettings = true
@@ -300,6 +304,13 @@ struct HubView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(apiService: apiService)
+        }
+        .sheet(isPresented: $showingImportShare) {
+            ImportShareSheet(
+                hubStore: quickActionsStore,
+                rulesStore: rulesStore,
+                onDismiss: { showingImportShare = false },
+            )
         }
         .alert(
             pendingChipAction?.confirmTitle ?? "",

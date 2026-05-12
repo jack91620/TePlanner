@@ -1,0 +1,92 @@
+# Real roundtrip: share 锁车, copy the code, dismiss, open import
+# sheet, paste the same code, verify the preview decodes correctly
+# (icon = 锁, name = 锁车, capability = tesla.security.door_lock),
+# import, verify imported action shows up in the slot picker (because
+# all 4 default slots are full, the imported one goes to library
+# only and is reachable via the empty-slot tap → picker).
+#
+# Tests the SF Symbol → semantic ID → SF Symbol round-trip on the
+# same device. Cross-device verification (another platform reads
+# the semantic ID and renders its native icon) needs a real second
+# device; covered manually + by unit tests SemanticIconTests.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+# 1. Share 锁车
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_share"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_share"
+
+- extendedWaitUntil:
+    visible:
+      id: "share_code_text"
+    timeout: 15000
+
+# Copy the code to clipboard via the in-app button — paste comes
+# back via inputText below.
+- tapOn:
+    id: "share_code_copy_button"
+
+- tapOn:
+    id: "share_code_done_button"
+
+# 2. Import the same code
+- tapOn:
+    id: "hub_menu_button"
+- extendedWaitUntil:
+    visible: "导入分享码"
+    timeout: 5000
+- tapOn: "导入分享码"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_code_field"
+    timeout: 5000
+- tapOn:
+    id: "import_share_code_field"
+
+# Maestro 2.x lacks a direct "paste from clipboard" command.
+# Workaround: long-press the field to surface iOS's contextual
+# Paste action, then tap it. The clipboard contains the code from
+# the share_code_copy_button tap above.
+- longPressOn:
+    id: "import_share_code_field"
+- extendedWaitUntil:
+    visible: "粘贴"
+    timeout: 5000
+- tapOn: "粘贴"
+
+- tapOn:
+    id: "import_share_continue_button"
+
+# Preview renders. Action payload shows the lock icon + 锁车 + 1 step.
+- extendedWaitUntil:
+    visible:
+      id: "import_share_preview_action"
+    timeout: 15000
+- assertVisible: "锁车"
+
+- takeScreenshot: tmp/screenshots/share_roundtrip_preview
+
+# Confirm import.
+- tapOn:
+    id: "import_share_confirm_button"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_close_button"
+    timeout: 10000
+- tapOn:
+    id: "import_share_close_button"

@@ -20,6 +20,8 @@ struct AutomationsHomeView: View {
     @State private var pendingDuplicate: RuleRecord?
     @State private var searchText: String = ""
     @State private var snoozeDialogRule: RuleRecord?
+    @State private var shareResult: ShareDetailResponse? = nil
+    @State private var shareErrorMessage: String? = nil
 
     private let apiService: APIServiceProtocol
 
@@ -121,6 +123,12 @@ struct AutomationsHomeView: View {
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
+                                Button {
+                                    Task { await shareRule(record) }
+                                } label: {
+                                    Label("分享", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
                     }
                     .onMove { from, to in moveBucket(.preset, from: from, to: to) }
@@ -144,6 +152,12 @@ struct AutomationsHomeView: View {
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
+                                Button {
+                                    Task { await shareRule(record) }
+                                } label: {
+                                    Label("分享", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
                     }
                     .onMove { from, to in moveBucket(.custom, from: from, to: to) }
@@ -200,6 +214,24 @@ struct AutomationsHomeView: View {
                     capabilitiesStore: capabilitiesStore
                 )
             }
+        }
+        .sheet(item: $shareResult) { detail in
+            ShareCodeSheet(
+                code: detail.code,
+                expiresAt: detail.expiresAt,
+                onDismiss: { shareResult = nil },
+            )
+        }
+        .alert(
+            "分享失败",
+            isPresented: Binding(
+                get: { shareErrorMessage != nil },
+                set: { if !$0 { shareErrorMessage = nil } },
+            )
+        ) {
+            Button("好") { shareErrorMessage = nil }
+        } message: {
+            Text(shareErrorMessage ?? "")
         }
         // 2026-05-11: binary destructive confirmations now use .alert
         // so iOS doesn't render the popover-with-tail style when the
@@ -692,5 +724,32 @@ struct AutomationsHomeView: View {
             target = cal.date(byAdding: .day, value: 1, to: target) ?? target
         }
         Task { await snoozeStore.snooze(ruleId: record.id, until: target, reason: nil) }
+    }
+
+    /// Mint a share code for this rule via the backend and show
+    /// ShareCodeSheet on success. The spec travels intact — capability
+    /// IDs and entity IDs are already platform-neutral.
+    private func shareRule(_ record: RuleRecord) async {
+        let payload = SharedRulePayload(
+            name: record.name,
+            enabled: record.enabled,
+            spec: record.spec,
+        )
+        guard let payloadDict = encodeShareablePayload(payload) else {
+            shareErrorMessage = "无法编码分享内容"
+            return
+        }
+        let result = await APIService.shared.createShare(
+            type: .rule,
+            payload: payloadDict,
+            expiresInDays: 30,
+            minAppVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+        )
+        switch result {
+        case .success(let detail):
+            shareResult = detail
+        case .failure(let err):
+            shareErrorMessage = err.errorDescription ?? "网络错误"
+        }
     }
 }

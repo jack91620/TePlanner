@@ -167,6 +167,32 @@ public final class HubActionsStore: ObservableObject {
         return action.id
     }
 
+    /// Import an action received via share code. The caller has
+    /// already minted a fresh local id (HubAction.init defaults a
+    /// UUID); we only need to drop it into the library and persist.
+    /// Imported actions are NEVER auto-assigned to a slot — the user
+    /// explicitly chooses where it goes via the picker, the same as
+    /// any other user-created action they didn't auto-fill.
+    public func importAction(_ action: HubAction) async {
+        // Defend against an id collision in the (vanishing) chance
+        // a previously-imported share is being re-imported and the
+        // caller passed back the same UUID. Re-mint silently.
+        var importing = action
+        if actions.contains(where: { $0.id == importing.id }) {
+            importing = HubAction(
+                id: UUID().uuidString,
+                name: importing.name,
+                icon: importing.icon,
+                tint: importing.tint,
+                steps: importing.steps,
+                confirmRequired: importing.confirmRequired,
+                isSystem: false,
+            )
+        }
+        actions.append(importing)
+        await persistAll()
+    }
+
     /// Replace fields on an existing action. System actions can have
     /// name / icon / tint / confirmRequired / steps changed but not
     /// `isSystem` itself (caller can't promote a custom to system).
