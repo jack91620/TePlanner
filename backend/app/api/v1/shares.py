@@ -20,7 +20,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -243,12 +243,12 @@ async def get_share(
     )
 
 
-@router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{code}")
 async def revoke_share(
     code: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> None:
+) -> Response:
     """Owner-only revoke. Sets revoked_at; future GETs return 410.
     We don't hard-delete the row so view_count remains visible in
     /shares/mine for the owner's records."""
@@ -263,6 +263,7 @@ async def revoke_share(
     if row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _version_lt(a: str, b: str) -> bool:
