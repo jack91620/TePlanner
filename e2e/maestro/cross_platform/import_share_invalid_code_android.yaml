@@ -1,0 +1,6 @@
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/import_share_invalid_code.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_import_invalid

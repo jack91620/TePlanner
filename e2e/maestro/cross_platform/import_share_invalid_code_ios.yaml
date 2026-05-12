@@ -1,0 +1,5 @@
+appId: com.teplanner.ios
+---
+- runFlow: ../_helpers/ensure_logged_in.yaml
+- runFlow: ../_shared/import_share_invalid_code.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_ios_import_invalid

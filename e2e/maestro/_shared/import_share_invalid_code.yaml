@@ -1,0 +1,40 @@
+# Cross-platform: Hub menu → 导入分享码 → input a definitely-non-
+# existent code → assert the friendly 404 error renders inline
+# instead of a generic failure toast.
+#
+# Catches a regression in the friendlyError() translation: server
+# returns 404, both clients should show "分享码不存在，请检查后重试".
+#
+# Identifier contract:
+#   hub_menu_button             — overflow menu trigger
+#   hub_menu_import_share       — "导入分享码" entry (Android) /
+#                                  "导入分享码" text item (iOS)
+#   import_share_code_field     — code input
+#   import_share_continue_button
+#   import_share_error          — inline error row
+
+appId: com.placeholder.shared
+---
+- tapOn:
+    id: "hub_menu_button"
+
+- extendedWaitUntil:
+    visible: "导入分享码"
+    timeout: 5000
+- tapOn: "导入分享码"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_code_field"
+    timeout: 5000
+- tapOn:
+    id: "import_share_code_field"
+- inputText: "ZZZZZZ"
+
+- tapOn:
+    id: "import_share_continue_button"
+
+- extendedWaitUntil:
+    visible:
+      id: "import_share_error"
+    timeout: 10000
