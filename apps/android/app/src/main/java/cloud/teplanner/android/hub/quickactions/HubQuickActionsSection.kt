@@ -3,6 +3,7 @@ package cloud.teplanner.android.hub.quickactions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +16,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +44,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 /**
  * 2×4 grid of customizable tiles for one-tap Tesla commands. Mirrors
@@ -62,6 +75,11 @@ fun HubQuickActionsSection(
 
     var editingAction by remember { mutableStateOf<HubAction?>(null) }
     var creatingNew by remember { mutableStateOf(false) }
+    // Long-press menu state: the (action, slotIndex) pair the user
+    // long-pressed. Drives the ModalBottomSheet rendering.
+    var longPressTarget by remember { mutableStateOf<LongPressTarget?>(null) }
+    var pendingDeleteAction by remember { mutableStateOf<HubAction?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(modifier = modifier.fillMaxWidth().testTag("hub_quick_actions_section")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -100,6 +118,9 @@ fun HubQuickActionsSection(
                                 action = action,
                                 disabled = vehicleId == null,
                                 onTap = { viewModel.runAction(action.id, vehicleId) },
+                                onLongPress = {
+                                    longPressTarget = LongPressTarget(action, idx)
+                                },
                                 modifier = Modifier.testTag("hub_quick_action_slot_$idx"),
                             )
                         } else {
@@ -128,13 +149,135 @@ fun HubQuickActionsSection(
             viewModel = viewModel,
         )
     }
+    longPressTarget?.let { target ->
+        LongPressMenu(
+            action = target.action,
+            slotIndex = target.slotIndex,
+            onDismiss = { longPressTarget = null },
+            onEdit = {
+                editingAction = target.action
+                longPressTarget = null
+            },
+            onClearSlot = {
+                scope.launch {
+                    viewModel.store.assignSlot(target.slotIndex, actionId = null)
+                }
+                longPressTarget = null
+            },
+            onShare = {
+                // ShareCodeSheet ports in the next slice. For now log
+                // the intent so users see they tapped a real entry.
+                longPressTarget = null
+            },
+            onRequestDelete = {
+                pendingDeleteAction = target.action
+                longPressTarget = null
+            },
+        )
+    }
+    pendingDeleteAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteAction = null },
+            title = { Text("删除「${action.name}」？") },
+            text = { Text("此动作会被永久删除，已分配的槽位将清空。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch { viewModel.store.delete(action.id) }
+                        pendingDeleteAction = null
+                    },
+                    modifier = Modifier.testTag("hub_action_delete_confirm"),
+                ) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteAction = null }) { Text("取消") }
+            },
+        )
+    }
 }
 
+private data class LongPressTarget(
+    val action: HubAction,
+    val slotIndex: Int,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LongPressMenu(
+    action: HubAction,
+    slotIndex: Int,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onClearSlot: () -> Unit,
+    onShare: () -> Unit,
+    onRequestDelete: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            Text(
+                "「${action.name}」",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+            ListItem(
+                headlineContent = { Text("编辑动作") },
+                leadingContent = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                modifier = Modifier
+                    .clickable { onEdit() }
+                    .testTag("hub_action_menu_edit"),
+            )
+            ListItem(
+                headlineContent = { Text("分享给好友") },
+                leadingContent = { Icon(Icons.Filled.Share, contentDescription = null) },
+                modifier = Modifier
+                    .clickable { onShare() }
+                    .testTag("hub_action_menu_share"),
+            )
+            ListItem(
+                headlineContent = { Text("从槽位移除") },
+                leadingContent = {
+                    Icon(Icons.Filled.RemoveCircleOutline, contentDescription = null)
+                },
+                modifier = Modifier
+                    .clickable { onClearSlot() }
+                    .testTag("hub_action_menu_clear_slot"),
+            )
+            if (!action.isSystem) {
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            "删除动作",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    modifier = Modifier
+                        .clickable { onRequestDelete() }
+                        .testTag("hub_action_menu_delete"),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun FilledTile(
     action: cloud.teplanner.android.hub.quickactions.HubAction,
     disabled: Boolean,
     onTap: () -> Unit,
+    onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tint = tintColor(action.tint)
@@ -146,7 +289,11 @@ private fun FilledTile(
             .height(72.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(tint.copy(alpha = 0.12f))
-            .clickable(enabled = !disabled) { onTap() }
+            .combinedClickable(
+                enabled = !disabled,
+                onClick = onTap,
+                onLongClick = onLongPress,
+            )
             .padding(vertical = 10.dp),
     ) {
         Icon(
