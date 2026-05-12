@@ -108,6 +108,8 @@ struct AutomationsHomeView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("automations_snooze_banner")
                 }
                 .listRowBackground(Tokens.colorWashSnooze.opacity(Tokens.colorWashSnoozeAlpha))
             }

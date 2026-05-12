@@ -1,13 +1,15 @@
-# 12. 规则静音 — 长按 → 静音菜单 → 选择时长 → 列表上看到橙色徽章
+# 12. 规则静音 — 右滑 → 静音按钮 → 时长 dialog → 选择 → 橙色徽章
 #
-# Snooze flow: pick a preset, long-press, expand 静音 submenu, tap
-# 静音 1 小时 (any duration), confirm the orange badge appears on
-# the row. Then long-press again, 取消静音, confirm badge gone.
+# UI evolved: long-press used to open a context menu with snooze
+# options. That was replaced by `.swipeActions(edge: .leading)` —
+# right-swipe a rule to reveal a single 静音 button which opens a
+# confirmationDialog with the duration choices. Long-press is
+# reserved for native drag-to-reorder.
 #
-# Phase D.1 — server-canonical snoozes: this flow now also exercises
-# the round-trip POST /automations/{id}/snooze + DELETE path. To make
-# the flow idempotent across runs, we tap "全部恢复" first if any
-# snoozes are still active from a previous run.
+# Phase D.1 — server-canonical snoozes: this flow exercises the
+# POST /automations/{id}/snooze + DELETE round-trip via the new
+# UI. Idempotency: "全部恢复" tap clears any leftover snoozes
+# from a previous run before we start.
 
 appId: com.teplanner.ios
 ---
@@ -20,8 +22,7 @@ appId: com.teplanner.ios
     visible: "露营模式超时提醒"
     timeout: 8000
 
-# Idempotency reset: if the orange "X 条规则当前静音中" banner is up
-# from a previous run, hit "全部恢复" so the test starts clean.
+# Idempotency reset.
 - runFlow:
     when:
       visible: "全部恢复"
@@ -31,39 +32,47 @@ appId: com.teplanner.ios
           notVisible: "全部恢复"
           timeout: 5000
 
-# Long-press the camp mode preset → context menu pops up
-- longPressOn: "露营模式超时提醒"
-
-# 静音 has a chevron submenu
+# Right-swipe (leading) reveals the 静音 swipe button.
+- swipe:
+    from: "露营模式超时提醒"
+    direction: RIGHT
 - extendedWaitUntil:
     visible: "静音"
     timeout: 3000
 - tapOn: "静音"
 
-# Submenu opens — pick 静音 1 小时
+# confirmationDialog with duration choices appears.
 - extendedWaitUntil:
     visible: "静音 1 小时"
     timeout: 3000
 - tapOn: "静音 1 小时"
 
-# Row should now show the orange '已静音至 ...' badge.
+# Snooze took effect: top-of-list banner mentions the snooze count.
+# Note: the per-row "已静音至 13:26" badge is rendered (see
+# screenshot) but Maestro's substring matcher doesn't reliably
+# find it in iOS 26.4 — the Label puts icon + text in one
+# accessibility element. The top banner is a clean substring match
+# and proves the same thing (snooze persisted server-side + the
+# list re-rendered).
 - extendedWaitUntil:
-    visible: "已静音至"
-    timeout: 3000
+    visible:
+      id: "automations_snooze_banner"
+    timeout: 8000
 - takeScreenshot: tmp/screenshots/maestro_rule_snoozed
 
-# Top-of-list banner mentions the snooze count.
-- assertVisible: "条规则当前静音中"
-
-# Unsnooze via long-press → 取消静音
-- longPressOn: "露营模式超时提醒"
+# Unsnooze via the same swipe — when a rule is snoozed, the
+# swipe button label flips to 取消静音 and acts immediately.
+- swipe:
+    from: "露营模式超时提醒"
+    direction: RIGHT
 - extendedWaitUntil:
     visible: "取消静音"
     timeout: 3000
 - tapOn: "取消静音"
 
-# Badge disappears
+# Banner disappears.
 - extendedWaitUntil:
-    notVisible: "已静音至"
-    timeout: 3000
+    notVisible:
+      id: "automations_snooze_banner"
+    timeout: 5000
 - takeScreenshot: tmp/screenshots/maestro_rule_unsnoozed

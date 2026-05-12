@@ -1,0 +1,90 @@
+# Probe: a rule snooze survives app kill + relaunch. Snooze rows
+# live in backend (Phase D.1 migration); the client refreshes on
+# Hub open. A regression where the snooze badge flickers off
+# during the load race would be invisible to a single-session
+# test like flow 12.
+#
+# Steps:
+#  1. Snooze 露营模式超时提醒 for 1 hour via right-swipe + 静音 1 小时.
+#  2. Assert the top-of-list "条规则当前静音中" banner appears.
+#  3. killApp + launchApp (fresh load from cold).
+#  4. Navigate back to automations.
+#  5. Assert the banner is STILL visible (within the 1h window).
+#  6. Cleanup: unsnooze so the test is idempotent across runs.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- tapOn:
+    id: "hub_entry_automations"
+
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Idempotency reset for previous-run snoozes.
+- runFlow:
+    when:
+      visible: "全部恢复"
+    commands:
+      - tapOn: "全部恢复"
+      - extendedWaitUntil:
+          notVisible: "全部恢复"
+          timeout: 5000
+
+# Right-swipe → 静音 → 静音 1 小时 (UI replaced the old context menu).
+- swipe:
+    from: "露营模式超时提醒"
+    direction: RIGHT
+- extendedWaitUntil:
+    visible: "静音"
+    timeout: 3000
+- tapOn: "静音"
+- extendedWaitUntil:
+    visible: "静音 1 小时"
+    timeout: 3000
+- tapOn: "静音 1 小时"
+
+- extendedWaitUntil:
+    visible:
+      id: "automations_snooze_banner"
+    timeout: 8000
+- takeScreenshot: tmp/screenshots/snooze_before_relaunch
+
+# Kill the app and cold-start.
+- killApp
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_status_card"
+    timeout: 15000
+
+- tapOn:
+    id: "hub_entry_automations"
+
+- extendedWaitUntil:
+    visible: "露营模式超时提醒"
+    timeout: 8000
+
+# Banner MUST still be there — backend canonical, not an
+# in-memory flag that died with the previous process.
+- extendedWaitUntil:
+    visible:
+      id: "automations_snooze_banner"
+    timeout: 8000
+
+- takeScreenshot: tmp/screenshots/snooze_after_relaunch
+
+# Cleanup via right-swipe (when snoozed, the swipe button reads 取消静音).
+- swipe:
+    from: "露营模式超时提醒"
+    direction: RIGHT
+- extendedWaitUntil:
+    visible: "取消静音"
+    timeout: 3000
+- tapOn: "取消静音"
+- extendedWaitUntil:
+    notVisible:
+      id: "automations_snooze_banner"
+    timeout: 5000
