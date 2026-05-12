@@ -134,6 +134,16 @@ struct HubView: View {
             }
         }
         .task {
+            // Kick Quick Actions load FIRST + in the background. The
+            // section is one of the most-tapped surfaces on Hub and
+            // its data lives in user_settings, independent of Tesla
+            // state — no reason to gate it behind vehicle.load() which
+            // can take 30s on a sleeping car. Running it as a detached
+            // child task lets the UI render the seeded grid within
+            // a couple hundred ms even while the status card is still
+            // "连接中". Caught by e2e 07 hitting 8 empty slots
+            // intermittently when the sim's Tesla session was cold.
+            async let qaLoad: Void = quickActionsStore.load()
             await viewModel.load()
             await rulesStore.refresh()
             await snoozeStore.refresh()
@@ -144,7 +154,7 @@ struct HubView: View {
             await statsViewModel.refresh(vehicleId: viewModel.vehicle?.id)
             await departureStore.refresh()
             scheduledDeparture = departureStore.current()
-            await quickActionsStore.load()
+            await qaLoad
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
             }

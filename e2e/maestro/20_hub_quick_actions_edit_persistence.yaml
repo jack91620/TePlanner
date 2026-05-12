@@ -1,0 +1,46 @@
+# Edit + relaunch: edits to a system action survive an app kill.
+# Pins that store.update() writes back via persistActions() and
+# the relaunched store.load() round-trips the modified version.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+# Rename 锁车 → 锁车2 via long-press edit.
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_name"
+- eraseText: 4
+- inputText: "锁车2"
+- tapOn:
+    id: "hub_action_editor_save"
+- extendedWaitUntil:
+    visible: "锁车2"
+    timeout: 5000
+
+# Kill + relaunch.
+- killApp: com.teplanner.ios
+- launchApp:
+    appId: com.teplanner.ios
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# After re-load, slot 0 should still read "锁车2", and the OLD name
+# "锁车" should not be present.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 8000
+- assertVisible: "锁车2"
+
+- takeScreenshot: tmp/screenshots/hub_quick_actions_edit_persisted
