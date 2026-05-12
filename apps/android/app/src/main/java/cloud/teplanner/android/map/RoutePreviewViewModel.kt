@@ -15,6 +15,7 @@ import cloud.teplanner.android.core.network.SaveRoutePlanChargingStop
 import cloud.teplanner.android.core.network.SaveRoutePlanLocation
 import cloud.teplanner.android.core.network.SaveRoutePlanRequest
 import cloud.teplanner.android.core.network.VehiclesApi
+import cloud.teplanner.android.util.CoordConverter
 import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -181,14 +182,16 @@ class RoutePreviewViewModel @Inject constructor(
         _state.update { it.copy(sendState = SendState.Sending) }
         viewModelScope.launch {
             // Destination came from AMap POI → GCJ-02. Tesla expects
-            // WGS-84. iOS converts at the outbound boundary; we do
-            // the same here. CoordConverter is not yet ported to
-            // Android — for now we pass GCJ-02 through and accept
-            // the ~50m offset, matching the pre-fix iOS behaviour
-            // until the converter ships in a follow-up.
+            // WGS-84. Convert at the outbound boundary; otherwise
+            // the car navigates to a pin ~50-200m off where the user
+            // tapped on AMap. Mirrors iOS RoutePreviewViewModel
+            // (commit f8f9e06ish) at the sendNavigation call site.
+            val wgs = CoordConverter.gcj02ToWgs84(
+                CoordConverter.LatLng(dest.latitude, dest.longitude)
+            )
             val request = NavigationRequest(
-                latitude = dest.latitude,
-                longitude = dest.longitude,
+                latitude = wgs.lat,
+                longitude = wgs.lng,
                 name = dest.name,
             )
             runCatching {
