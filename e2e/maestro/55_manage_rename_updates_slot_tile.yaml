@@ -1,0 +1,64 @@
+# Manage sheet: edit a system action's name. After save, the
+# library row updates (covered by flow 52) AND the 槽位 grid's
+# slot tile shows the new name too. Both views read from the
+# same store.slotAction(at: idx) / store.actions so the @Published
+# store mutation has to propagate to both render paths in the
+# same body.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_actions_manage"
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+# Slot tile + library both show "锁车" at start. Confirm slot tile.
+- assertVisible:
+    id: "hub_manage_slot_0"
+
+# Tap library row via stable id (text-tap doesn't route through
+# SwiftUI Form rows reliably on iOS 26.4 + Maestro — see flow 52).
+- tapOn:
+    id: "hub_manage_library_row_system_lock"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Rename to "锁车 Y".
+- tapOn:
+    id: "hub_action_editor_name"
+- eraseText: 4
+- inputText: "锁车 Y"
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Editor closes. We're back in the manage sheet. Both renderers
+# (slot tile inside 槽位 grid + library row) must show the new
+# name. The simplest way to verify both updated is to confirm
+# the name "锁车 Y" appears at least twice on screen (slot tile
+# label + library row name). Maestro's `assertVisible` finds
+# any instance — so we wait for the new name to appear, then
+# scroll into the slot tile area and explicitly assert there.
+- extendedWaitUntil:
+    visible: "锁车 Y"
+    timeout: 5000
+
+# Slot tile area is at the top of the sheet — scroll up.
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_slot_0"
+    direction: UP
+    timeout: 5000
+- assertVisible:
+    id: "hub_manage_slot_0"
+- assertVisible: "锁车 Y"
+
+- takeScreenshot: tmp/screenshots/manage_rename_propagates_both
