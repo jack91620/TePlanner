@@ -312,7 +312,7 @@ export-ipa: archive ## Export an IPA from the latest archive (requires deploy/Ex
 	  -allowProvisioningUpdates
 	@echo "IPA: $(EXPORT_DIR)/TePlannerApp.ipa"
 
-upload-testflight: export-ipa ## Upload the latest IPA to App Store Connect via altool
+upload-testflight: export-ipa ## Upload IPA via altool + auto-push release notes if deploy/release_notes/build_<N>.md exists
 	@# Auto-source .env if present so ASC_API_KEY_ID + ASC_API_KEY_ISSUER
 	@# don't have to be in the user's shell profile. .env is gitignored.
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
@@ -323,6 +323,22 @@ upload-testflight: export-ipa ## Upload the latest IPA to App Store Connect via 
 	    --type ios \
 	    --apiKey "$$ASC_API_KEY_ID" \
 	    --apiIssuer "$$ASC_API_KEY_ISSUER"
+	@# Post-upload: kick the release-notes attacher in the background.
+	@# Apple takes 5-30 minutes to make the build visible in ASC, so
+	@# the script polls. Don't block the user on this step.
+	@nohup $(MAKE) -s release-notes > tmp/release-notes-$$(date +%s).log 2>&1 &
+	@echo "release-notes attacher launched in background → tmp/release-notes-*.log"
+
+release-notes: ## Post TestFlight release notes for the current build (idempotent; safe to re-run)
+	@build=$$(grep CURRENT_PROJECT_VERSION $(IOS_DIR)/Config.xcconfig | awk '{print $$3}'); \
+	  notes_path="deploy/release_notes/build_$$build.md"; \
+	  if [ ! -f "$$notes_path" ]; then \
+	    echo "release-notes: no $$notes_path (skipping)"; exit 0; \
+	  fi; \
+	  if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	  test -n "$$ASC_APP_ID" || { echo "Set ASC_APP_ID in .env"; exit 1; }; \
+	  /usr/bin/python3 scripts/asc_set_release_notes.py \
+	    --build "$$build" --notes "$$notes_path"
 
 # --- Simulator helpers (used by Claude to verify UI) ---------------------
 
