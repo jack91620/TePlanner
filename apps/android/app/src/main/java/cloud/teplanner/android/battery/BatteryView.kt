@@ -106,14 +106,24 @@ fun BatteryView(
                     modifier = Modifier.padding(20.dp),
                     color = MaterialTheme.colorScheme.error,
                 )
-                else -> Content(state)
+                else -> Content(
+                    state = state,
+                    vehicleId = hub.vehicle?.id,
+                    currentChargeLimit = hub.vehicleState?.chargeLimitSoc,
+                    onApplyChargeLimit = { hubVm.applySuggestedChargeLimit(it) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun Content(state: ChargingStatsViewModel.State) {
+private fun Content(
+    state: ChargingStatsViewModel.State,
+    vehicleId: String?,
+    currentChargeLimit: Int?,
+    onApplyChargeLimit: (Int) -> Unit,
+) {
     // 2026-05-11 B4: tap-to-detail mirror of iOS ChargingSessionDetailView.
     // Holds the session whose detail dialog is currently open; null = none.
     var detailSession by remember { mutableStateOf<ChargingSessionResponse?>(null) }
@@ -122,6 +132,15 @@ private fun Content(state: ChargingStatsViewModel.State) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (vehicleId != null) {
+            item {
+                ChargeLimitCard(
+                    currentChargeLimit = currentChargeLimit,
+                    onApply = onApplyChargeLimit,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
         if (state.months.isNotEmpty()) {
             item { SectionHeader("月度统计") }
             items(state.months, key = { it.label }) { m ->
@@ -300,6 +319,79 @@ private fun DetailKV(key: String, value: String, emphasize: Boolean = false) {
     }
 }
 
+
+@Composable
+private fun ChargeLimitCard(
+    currentChargeLimit: Int?,
+    onApply: (Int) -> Unit,
+) {
+    // Seed the slider from the car's actual current limit (defaults
+    // to 80 only when the car state hasn't arrived yet). When the
+    // API later resolves, sync once via LaunchedEffect — same fix
+    // as iOS commit e748fd3 (the state-init race that would let
+    // the user accidentally raise their limit by tapping apply on
+    // a stale-default slider position).
+    var manualLimit by remember { mutableStateOf((currentChargeLimit ?: 80).toFloat()) }
+    var lastSyncedCurrent by remember { mutableStateOf<Int?>(null) }
+    androidx.compose.runtime.LaunchedEffect(currentChargeLimit) {
+        // Sync the slider to the real limit when the API arrives —
+        // but only if the user hasn't moved it since the last sync
+        // (defend against clobbering a pending manual edit).
+        if (currentChargeLimit != null && lastSyncedCurrent == null) {
+            manualLimit = currentChargeLimit.toFloat()
+            lastSyncedCurrent = currentChargeLimit
+        }
+    }
+    val target = manualLimit.toInt()
+    val unchanged = target == currentChargeLimit
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("充电限额", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            if (currentChargeLimit != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("车辆当前", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.weight(1f))
+                    Text("$currentChargeLimit%", fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("目标", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "$target%",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            androidx.compose.material3.Slider(
+                value = manualLimit,
+                onValueChange = { manualLimit = it },
+                valueRange = 50f..100f,
+                steps = 9, // 50, 55, …, 100 (50→100 stepped by 5 = 10 buckets = 9 dividers)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("manual_charge_limit_slider"),
+            )
+            androidx.compose.material3.Button(
+                onClick = { onApply(target) },
+                enabled = !unchanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("apply_manual_charge_limit_button"),
+            ) {
+                Text(if (unchanged) "当前限额已是 $target%" else "应用 $target%")
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (unchanged) "当前限额已是 $target%，无需重复发送"
+                else "跳过预设直接发命令到车辆。出长途调到 100% 等一次性场景用此入口。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
 
 private fun formatMinutes(minutes: Int): String {
     if (minutes == 0) return "—"
