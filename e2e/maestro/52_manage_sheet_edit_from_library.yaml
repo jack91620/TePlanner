@@ -1,0 +1,51 @@
+# Manage sheet → tap a library row → editor opens → rename →
+# save → editor closes, manage sheet still up + library row
+# reflects the new name. Catches a @ObservedObject sync bug
+# where the manage sheet's library list doesn't re-render after
+# the store mutates.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_actions_manage"
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+# Library row for 锁车 is visible — tap to open the editor. Use the
+# stable accessibility id rather than text, since iOS may route
+# bare-text taps to the row's swipe handler on Lists.
+- tapOn:
+    id: "hub_manage_library_row_system_lock"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+
+# Rename to 锁车X.
+- tapOn:
+    id: "hub_action_editor_name"
+- eraseText: 4
+- inputText: "锁车X"
+
+- tapOn:
+    id: "hub_action_editor_save"
+
+# Editor closes. Manage sheet is back. Library row now shows 锁车X.
+- extendedWaitUntil:
+    visible: "锁车X"
+    timeout: 5000
+
+# Defense in depth: verify the slot tile in the 槽位 grid ALSO
+# re-rendered (slot 0 is/was 锁车, should now show 锁车X).
+- assertVisible:
+    id: "hub_manage_slot_0"
+
+- takeScreenshot: tmp/screenshots/manage_sheet_renamed

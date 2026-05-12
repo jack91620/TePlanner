@@ -1,0 +1,66 @@
+# Manage sheet → 重置为默认 → confirm dialog → 取消 → state
+# preserved. Complement to flow 50 (which confirms the destructive
+# path); this verifies the user can back out without losing
+# anything.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+
+# 1. Open manage sheet + create a custom action so reset would
+# actually have something to destroy.
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_actions_manage"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_quick_actions_manage"
+- extendedWaitUntil:
+    visible: "管理快捷操作"
+    timeout: 5000
+
+- tapOn:
+    id: "hub_manage_new_action"
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_editor_name"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_editor_name"
+- inputText: "保留我"
+- tapOn:
+    id: "hub_action_editor_capability_0"
+- extendedWaitUntil:
+    visible: "关闭空调"
+    timeout: 5000
+- tapOn:
+    text: "关闭空调"
+- tapOn:
+    id: "hub_action_editor_save"
+
+- extendedWaitUntil:
+    visible: "保留我"
+    timeout: 5000
+
+# 2. Hit 重置为默认 then BACK OUT via 取消.
+- scrollUntilVisible:
+    element:
+      id: "hub_manage_reset_button"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "hub_manage_reset_button"
+
+- extendedWaitUntil:
+    visible: "重置为默认？"
+    timeout: 5000
+- tapOn:
+    text: "取消"
+
+# 3. Dialog dismissed. Custom action still there.
+- extendedWaitUntil:
+    notVisible: "重置为默认？"
+    timeout: 5000
+- assertVisible: "保留我"
+
+- takeScreenshot: tmp/screenshots/manage_sheet_reset_cancelled
