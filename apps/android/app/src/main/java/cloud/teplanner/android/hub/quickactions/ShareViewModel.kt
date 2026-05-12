@@ -2,6 +2,8 @@ package cloud.teplanner.android.hub.quickactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cloud.teplanner.android.core.network.AutomationsApi
+import cloud.teplanner.android.core.network.RuleCreateRequest
 import cloud.teplanner.android.core.network.ShareCreateRequest
 import cloud.teplanner.android.core.network.ShareDetailResponse
 import cloud.teplanner.android.core.network.ShareType
@@ -32,6 +34,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ShareViewModel @Inject constructor(
     private val sharesApi: SharesApi,
+    private val automationsApi: AutomationsApi,
     private val store: HubActionsStore,
 ) : ViewModel() {
 
@@ -115,9 +118,28 @@ class ShareViewModel @Inject constructor(
                 }
             }
             ShareType.RULE -> {
-                // Rule import wires into AutomationRulesStore — port
-                // lands alongside the cross-platform rule-share flow.
-                _lookupState.value = LookupState.Failed("规则分享导入暂不支持（即将到来）")
+                val decoded = decodeRule(detail) ?: run {
+                    _lookupState.value = LookupState.Failed("分享内容损坏，无法导入")
+                    return
+                }
+                viewModelScope.launch {
+                    runCatching {
+                        // Imported rules ALWAYS land disabled — receiver
+                        // reviews spec on the detail page before flipping
+                        // on. Mirrors iOS commit f65d1a3.
+                        automationsApi.create(
+                            RuleCreateRequest(
+                                name = decoded.name,
+                                enabled = false,
+                                spec = decoded.spec,
+                            )
+                        )
+                    }.onSuccess {
+                        _lookupState.value = LookupState.Imported(decoded.name, ShareType.RULE)
+                    }.onFailure { err ->
+                        _lookupState.value = LookupState.Failed(friendlyError(err))
+                    }
+                }
             }
         }
     }
@@ -132,6 +154,16 @@ class ShareViewModel @Inject constructor(
                 detail.payload,
             )
             json.decodeFromString(SharedActionPayload.serializer(), text)
+        }.getOrNull()
+    }
+
+    private fun decodeRule(detail: ShareDetailResponse): SharedRulePayload? {
+        return runCatching {
+            val text = json.encodeToString(
+                kotlinx.serialization.serializer<Map<String, kotlinx.serialization.json.JsonElement>>(),
+                detail.payload,
+            )
+            json.decodeFromString(SharedRulePayload.serializer(), text)
         }.getOrNull()
     }
 

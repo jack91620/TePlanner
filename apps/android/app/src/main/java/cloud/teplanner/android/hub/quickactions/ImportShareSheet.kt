@@ -204,11 +204,47 @@ private fun previewView(
             json.decodeFromString(SharedActionPayload.serializer(), payloadText ?: return@runCatching null)
         }.getOrNull()
     }
+    val rule: SharedRulePayload? = remember(detail) {
+        if (detail.shareType != ShareType.RULE) null
+        else runCatching {
+            json.decodeFromString(SharedRulePayload.serializer(), payloadText ?: return@runCatching null)
+        }.getOrNull()
+    }
 
     Column(modifier = Modifier
         .fillMaxWidth()
-        .testTag("import_share_preview_action")) {
-        if (action != null) {
+        .testTag(
+            if (detail.shareType == ShareType.RULE) "import_share_preview_rule"
+            else "import_share_preview_action"
+        )) {
+        if (rule != null) {
+            Text(rule.name, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    // Mirrors iOS commit f65d1a3: be honest about
+                    // post-import disabled state, not the sharer's
+                    // enabled state which would mislead the receiver.
+                    "导入后默认关闭，需手动开启",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Spec 字段：${rule.spec.keys.sorted().joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (action != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     HubIconLibrary.resolve(SemanticIcon.symbolFor(action.icon)),

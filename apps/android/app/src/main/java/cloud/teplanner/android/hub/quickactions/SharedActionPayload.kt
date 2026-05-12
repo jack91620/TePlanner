@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Wire-format for a shared HubAction. On-device HubAction has
@@ -42,6 +43,18 @@ data class SharedActionPayload(
         )
     }
 }
+
+/**
+ * Wire-format for a shared automation rule. Mirrors iOS
+ * SharedRulePayload.swift. RuleSpec (JsonObject) passes through
+ * intact — capability + entity IDs are platform-neutral.
+ */
+@Serializable
+data class SharedRulePayload(
+    val name: String,
+    val enabled: Boolean,
+    val spec: kotlinx.serialization.json.JsonObject,
+)
 
 /**
  * Encode a Codable share payload into the Map<String, JsonElement>
