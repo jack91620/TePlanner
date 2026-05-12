@@ -1,0 +1,40 @@
+# Cross-platform: long-press slot 0 → 分享给好友 → backend mints
+# a code → ShareCodeSheet renders the 6-char code + send + copy
+# + done buttons.
+#
+# iOS surface: SwiftUI .sheet with system UIActivityViewController.
+# Android surface: ModalBottomSheet with Intent.ACTION_SEND chooser.
+# Same testTags, same outcomes.
+
+appId: com.placeholder.shared
+---
+- scrollUntilVisible:
+    element:
+      id: "hub_quick_action_slot_0"
+    direction: DOWN
+    timeout: 5000
+
+- longPressOn:
+    id: "hub_quick_action_slot_0"
+
+- extendedWaitUntil:
+    visible:
+      id: "hub_action_menu_share"
+    timeout: 5000
+- tapOn:
+    id: "hub_action_menu_share"
+
+# ShareCodeSheet appears after POST /shares (~1-3s on prod).
+- extendedWaitUntil:
+    visible:
+      id: "share_code_text"
+    timeout: 15000
+
+- assertVisible:
+    id: "share_code_send_button"
+- assertVisible:
+    id: "share_code_copy_button"
+
+# Dismiss.
+- tapOn:
+    id: "share_code_done_button"

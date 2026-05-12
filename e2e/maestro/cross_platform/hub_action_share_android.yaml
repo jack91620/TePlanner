@@ -1,0 +1,6 @@
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/hub_action_share.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_share
