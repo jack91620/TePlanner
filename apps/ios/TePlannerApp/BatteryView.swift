@@ -101,6 +101,21 @@ struct BatteryView: View {
             }
             Slider(value: $manualChargeLimit, in: 50...100, step: 5)
                 .accessibilityIdentifier("manual_charge_limit_slider")
+                .onChange(of: currentChargeLimitSoc) { oldValue, newValue in
+                    // SwiftUI @State doesn't re-init from props on
+                    // updates — manualChargeLimit was seeded from
+                    // (currentChargeLimitSoc ?? 80) at construction.
+                    // If the car state was still loading then,
+                    // we got 80 even when the real limit was 70.
+                    // Once the API delivers the actual value (nil
+                    // → non-nil transition), sync the slider so the
+                    // user sees a non-default starting point — and
+                    // the apply button stays disabled until they
+                    // actually move it. Don't clobber a pending
+                    // user edit (oldValue != nil case).
+                    guard oldValue == nil, let newValue else { return }
+                    manualChargeLimit = Double(newValue)
+                }
             Button {
                 applyManualChargeLimit()
             } label: {
