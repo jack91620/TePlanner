@@ -239,3 +239,100 @@ public struct RouteEndpoint: Codable, Equatable {
     public let lng: Double?
     public let address: String?
 }
+
+// MARK: - POST /routes/save (record a trip in 最近 history)
+
+public struct SaveRoutePlanLocation: Codable, Equatable {
+    public let latitude: Double
+    public let longitude: Double
+    public let address: String?
+
+    public init(latitude: Double, longitude: Double, address: String?) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.address = address
+    }
+}
+
+public struct SaveRoutePlanChargingStop: Codable, Equatable {
+    public let stationId: String?
+    public let name: String?
+    public let latitude: Double?
+    public let longitude: Double?
+    public let address: String?
+    public let arrivalSoc: Int?
+    public let departureSoc: Int?
+    public let chargingDurationMinutes: Int?
+
+    public init(
+        stationId: String?,
+        name: String?,
+        latitude: Double?,
+        longitude: Double?,
+        address: String?,
+        arrivalSoc: Int?,
+        departureSoc: Int?,
+        chargingDurationMinutes: Int?,
+    ) {
+        self.stationId = stationId
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.address = address
+        self.arrivalSoc = arrivalSoc
+        self.departureSoc = departureSoc
+        self.chargingDurationMinutes = chargingDurationMinutes
+    }
+
+    public enum CodingKeys: String, CodingKey {
+        case stationId = "station_id"
+        case name
+        case latitude, longitude, address
+        case arrivalSoc = "arrival_soc"
+        case departureSoc = "departure_soc"
+        case chargingDurationMinutes = "charging_duration_minutes"
+    }
+}
+
+public struct SaveRoutePlanRequest: Codable, Equatable {
+    public let origin: SaveRoutePlanLocation
+    public let destination: SaveRoutePlanLocation
+    public let totalDistanceKm: Double?
+    public let totalDurationMinutes: Int?
+    public let polylinePoints: [[Double]]?
+    public let chargingStops: [SaveRoutePlanChargingStop]
+
+    public init(
+        origin: SaveRoutePlanLocation,
+        destination: SaveRoutePlanLocation,
+        totalDistanceKm: Double? = nil,
+        totalDurationMinutes: Int? = nil,
+        polylinePoints: [[Double]]? = nil,
+        chargingStops: [SaveRoutePlanChargingStop] = [],
+    ) {
+        self.origin = origin
+        self.destination = destination
+        self.totalDistanceKm = totalDistanceKm
+        self.totalDurationMinutes = totalDurationMinutes
+        self.polylinePoints = polylinePoints
+        self.chargingStops = chargingStops
+    }
+
+    public enum CodingKeys: String, CodingKey {
+        case origin, destination
+        case totalDistanceKm = "total_distance_km"
+        case totalDurationMinutes = "total_duration_minutes"
+        case polylinePoints = "polyline_points"
+        case chargingStops = "charging_stops"
+    }
+}
+
+public struct SaveRoutePlanResponse: Codable, Equatable {
+    public let id: Int
+    public let createdAt: String
+
+    public enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+    }
+}

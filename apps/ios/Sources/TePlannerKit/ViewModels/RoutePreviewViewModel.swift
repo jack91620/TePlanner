@@ -196,9 +196,44 @@ public final class RoutePreviewViewModel: ObservableObject {
             if let store = commandStatusStore {
                 Task { await store.pollUntilSettled() }
             }
+            // Best-effort save to 最近 history. Fire-and-forget — a
+            // failure here doesn't undo the Tesla nav send. Without
+            // this call the 最近 tab is permanently empty (the
+            // route_plans table had no INSERT site server-side
+            // before /routes/save shipped).
+            Task { await persistToHistory() }
         case .failure(let error):
             Log.search.error("nav send failed: \(error.localizedDescription, privacy: .public)")
             sendState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// POST /routes/save with the loaded plan's origin/dest/totals.
+    /// Polyline and charging stops are omitted intentionally for now —
+    /// the list view doesn't render them yet, and avoiding the heavy
+    /// payload keeps the save call fast. When 最近 grows a detail
+    /// view, plumb them through here.
+    private func persistToHistory() async {
+        guard case .loaded(let plan) = state else { return }
+        let originLoc = SaveRoutePlanLocation(
+            latitude: plan.origin.lat ?? 0,
+            longitude: plan.origin.lng ?? 0,
+            address: plan.origin.name,
+        )
+        let destLoc = SaveRoutePlanLocation(
+            latitude: destination.latitude,
+            longitude: destination.longitude,
+            address: destination.name,
+        )
+        let body = SaveRoutePlanRequest(
+            origin: originLoc,
+            destination: destLoc,
+            totalDistanceKm: plan.totalDistanceKm,
+            totalDurationMinutes: plan.totalDurationMinutes,
+        )
+        let result = await apiService.saveRoutePlan(body)
+        if case .failure(let err) = result {
+            Log.search.notice("route save failed (non-fatal): \(err.localizedDescription, privacy: .public)")
         }
     }
 }

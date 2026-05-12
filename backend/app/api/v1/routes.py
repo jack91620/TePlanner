@@ -402,6 +402,90 @@ async def get_route(
     )
 
 
+class SavedChargingStop(BaseModel):
+    """Charging stop captured for history. Mirrors the iOS-side
+    `ChargingStop` Codable so the saved JSON survives a future
+    re-plan and renders identically. Optional everywhere — partial
+    history rows still beat a permanently-empty 最近 tab."""
+
+    station_id: Optional[str] = None
+    name: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+    arrival_soc: Optional[int] = None
+    departure_soc: Optional[int] = None
+    charging_duration_minutes: Optional[int] = None
+
+
+class SaveRouteRequest(BaseModel):
+    """POST /routes/save body. iOS calls this right after a
+    successful `sendNavigation` so the trip lands in 最近."""
+
+    origin: LocationInput
+    destination: LocationInput
+    total_distance_km: Optional[float] = None
+    total_duration_minutes: Optional[int] = None
+    polyline_points: Optional[List[List[float]]] = Field(
+        default=None,
+        description=(
+            "Array of [lng, lat] pairs. We store as JSON; clients render "
+            "directly. Null = client didn't have a polyline at save time."
+        ),
+    )
+    charging_stops: List[SavedChargingStop] = []
+
+
+class SaveRouteResponse(BaseModel):
+    id: int
+    created_at: str
+
+
+@router.post("/save", response_model=SaveRouteResponse, status_code=status.HTTP_201_CREATED)
+async def save_route(
+    body: SaveRouteRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SaveRouteResponse:
+    """Persist a route plan to the history. Called by iOS after the
+    user taps 发送到车辆 (so we only record routes the user actually
+    intended to take, not every search-preview).
+
+    Bug context: before this endpoint shipped, the `route_plans`
+    table had a GET listing endpoint but no INSERT anywhere — the
+    "最近" tab was permanently empty for every user. The save is
+    best-effort: if it fails (network, payload too large, etc.) the
+    Tesla navigation send still completes. The user just loses
+    the history row for that trip.
+    """
+    row = RoutePlan(
+        user_id=user.id,
+        origin_lat=body.origin.latitude,
+        origin_lng=body.origin.longitude,
+        origin_address=body.origin.address,
+        dest_lat=body.destination.latitude,
+        dest_lng=body.destination.longitude,
+        dest_address=body.destination.address,
+        total_distance_km=body.total_distance_km,
+        total_duration_minutes=body.total_duration_minutes,
+        polyline_json=(
+            json.dumps(body.polyline_points) if body.polyline_points else None
+        ),
+        charging_stops_json=(
+            json.dumps([s.model_dump() for s in body.charging_stops])
+            if body.charging_stops else None
+        ),
+        status="sent_to_car",
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return SaveRouteResponse(
+        id=row.id,
+        created_at=row.created_at.isoformat() + "Z" if row.created_at else "",
+    )
+
+
 @router.get("/")
 async def list_routes(
     user: User = Depends(get_current_user),

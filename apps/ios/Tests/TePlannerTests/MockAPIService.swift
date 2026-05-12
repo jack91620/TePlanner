@@ -251,6 +251,15 @@ final class MockAPIService: APIServiceProtocol {
         return mockRecentRoutesResponse
     }
 
+    var lastSaveRoutePlanRequest: SaveRoutePlanRequest?
+    var mockSaveRoutePlanResponse: Result<SaveRoutePlanResponse, APIError> = .success(
+        SaveRoutePlanResponse(id: 1, createdAt: "2026-05-12T00:00:00Z")
+    )
+    func saveRoutePlan(_ request: SaveRoutePlanRequest) async -> Result<SaveRoutePlanResponse, APIError> {
+        lastSaveRoutePlanRequest = request
+        return mockSaveRoutePlanResponse
+    }
+
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
         return .success(BaseResponse(success: true, message: "ok"))
     }

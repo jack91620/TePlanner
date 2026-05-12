@@ -233,6 +233,10 @@ public final class APIService: APIServiceProtocol {
         return await get(path: "/routes/", query: query)
     }
 
+    public func saveRoutePlan(_ request: SaveRoutePlanRequest) async -> Result<SaveRoutePlanResponse, APIError> {
+        return await postJSON(path: "/routes/save", body: request)
+    }
+
     // MARK: - Push notifications
 
     public func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {

@@ -99,6 +99,12 @@ public protocol APIServiceProtocol {
 
     // Saved routes (history)
     func getRecentRoutes(limit: Int, offset: Int) async -> Result<RecentRoutesResponse, APIError>
+    /// Persist a planned route to the user's 最近 list after the
+    /// destination has been pushed to the car. The 最近 tab has no
+    /// other write path — without this call, history is permanently
+    /// empty. Best-effort: caller treats a failure as a non-fatal
+    /// warning (Tesla nav already succeeded; we just lost the row).
+    func saveRoutePlan(_ request: SaveRoutePlanRequest) async -> Result<SaveRoutePlanResponse, APIError>
 
     // Push notifications
     /// Hand the iOS APNs device token to the backend so the polling
