@@ -144,3 +144,38 @@ data class SaveRoutePlanResponse(
 data class PlaceSearchResponse(
     val results: List<PlaceResult> = emptyList(),
 )
+
+// MARK: - GET /routes/ — list user's 最近 trips
+// Wire schema notes:
+//   - lat/lng come back as `lat` and `lng` (not `latitude`/`longitude`)
+//     because the backend dict literal in routes.list_routes uses those
+//     keys (see backend/app/api/v1/routes.py:512). Don't normalize via
+//     SerialName on the saved-trip side or the decode breaks silently.
+//   - `address` may be null when the user typed a destination without
+//     resolving via geocode (older trip rows).
+//   - `created_at` is the server-side timestamp in ISO 8601 with
+//     timezone offset; never null on saved rows.
+
+@Serializable
+data class RoutePlanLocation(
+    val lat: Double,
+    val lng: Double,
+    val address: String? = null,
+)
+
+@Serializable
+data class RoutePlanSummary(
+    val id: Int,
+    val origin: RoutePlanLocation,
+    val destination: RoutePlanLocation,
+    @SerialName("total_distance_km") val totalDistanceKm: Double? = null,
+    @SerialName("total_duration_minutes") val totalDurationMinutes: Int? = null,
+    val status: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class RoutePlanListResponse(
+    val count: Int = 0,
+    val routes: List<RoutePlanSummary> = emptyList(),
+)

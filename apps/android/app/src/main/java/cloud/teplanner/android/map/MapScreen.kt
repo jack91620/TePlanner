@@ -19,6 +19,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -113,18 +115,50 @@ fun MapScreen(
             )
         },
         sheetContent = {
-            NearbyChargersSheet(
-                state = nearbyState,
-                onFilterChange = { nearbyVm.setFilter(it) },
-                onSelect = { st ->
-                    aMapRef.value?.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(
-                            LatLng(st.latitude, st.longitude), 16f
-                        )
+            var tab by remember { mutableStateOf(0) }
+            Column(modifier = Modifier.fillMaxSize()) {
+                TabRow(
+                    selectedTabIndex = tab,
+                    modifier = Modifier.testTag("map_drawer_tabs"),
+                ) {
+                    Tab(
+                        selected = tab == 0,
+                        onClick = { tab = 0 },
+                        text = { Text("附近") },
+                        modifier = Modifier.testTag("map_drawer_tab_nearby"),
                     )
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+                    Tab(
+                        selected = tab == 1,
+                        onClick = { tab = 1 },
+                        text = { Text("最近") },
+                        modifier = Modifier.testTag("map_drawer_tab_recent"),
+                    )
+                }
+                when (tab) {
+                    0 -> NearbyChargersSheet(
+                        state = nearbyState,
+                        onFilterChange = { nearbyVm.setFilter(it) },
+                        onSelect = { st ->
+                            aMapRef.value?.animateCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    LatLng(st.latitude, st.longitude), 16f
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    else -> RecentTripsSheet(
+                        onSelect = { trip ->
+                            aMapRef.value?.animateCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    LatLng(trip.destination.lat, trip.destination.lng), 14f
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         },
     ) { padding ->
         Box(

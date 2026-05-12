@@ -25,4 +25,12 @@ interface RoutesApi {
     /// shipped the equivalent in commit 60b5162; mirror that here.
     @POST("api/v1/routes/save")
     suspend fun saveRoutePlan(@Body request: SaveRoutePlanRequest): SaveRoutePlanResponse
+
+    /// User's recent saved trips. Backend returns newest-first up to
+    /// `limit` (default 10). Used by Map 最近 tab.
+    @GET("api/v1/routes/")
+    suspend fun listMyRoutePlans(
+        @Query("limit") limit: Int = 10,
+        @Query("offset") offset: Int = 0,
+    ): RoutePlanListResponse
 }
