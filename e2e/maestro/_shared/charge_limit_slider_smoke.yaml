@@ -1,0 +1,30 @@
+# Cross-platform: Hub → 电池管理 → BatteryView renders the manual
+# charge-limit card with slider + apply button. Asserts the card
+# is reachable and renders; doesn't dispatch a real Tesla command
+# (that would change the test car's actual config).
+#
+# Identifier contract:
+#   hub_entry_battery
+#   manual_charge_limit_slider
+#   apply_manual_charge_limit_button
+
+appId: com.placeholder.shared
+---
+- tapOn:
+    id: "hub_entry_battery"
+
+- extendedWaitUntil:
+    visible:
+      id: "battery_view"
+    timeout: 8000
+
+- scrollUntilVisible:
+    element:
+      id: "manual_charge_limit_slider"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible:
+    id: "manual_charge_limit_slider"
+- assertVisible:
+    id: "apply_manual_charge_limit_button"

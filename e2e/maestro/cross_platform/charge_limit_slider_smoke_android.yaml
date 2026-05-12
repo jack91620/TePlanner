@@ -1,0 +1,6 @@
+appId: com.teplanner.android
+---
+- launchApp:
+    appId: com.teplanner.android
+- runFlow: ../_shared/charge_limit_slider_smoke.yaml
+- takeScreenshot: tmp/screenshots/maestro_xplatform_android_charge_limit
