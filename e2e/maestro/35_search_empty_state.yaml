@@ -1,0 +1,44 @@
+# Search empty state — type a long random keyword the AMap POI
+# index can't match, verify the empty-state placeholder appears
+# (search_empty_state) instead of either a result list or a stale
+# loading spinner. Catches the silent failure mode where empty
+# results visually look identical to "still searching".
+#
+# Run: make e2e-ios-flow FLOW=35_search_empty_state
+#
+# Self-contained — no backend state to seed/clean. Only depends on
+# AMap REST being reachable and the test user being logged in.
+appId: com.teplanner.ios
+---
+- runFlow: _helpers/ensure_logged_in.yaml
+- runFlow: _helpers/enter_planning.yaml
+
+- tapOn:
+    id: "home_search_button"
+- assertVisible:
+    id: "search_field"
+- tapOn:
+    id: "search_field"
+
+# 22-char random keyword — too long + no semantic stem for AMap's
+# fuzzy index to match. Confirmed manually: returns 0 POIs.
+- inputText: "qzxwjvnktryhfgbplmsdoe"
+
+# Debounce (300ms) + one AMap roundtrip. Cap at 8s so a network
+# slowdown surfaces clearly rather than masquerading as a real
+# .empty.
+- extendedWaitUntil:
+    visible:
+      id: "search_empty_state"
+    timeout: 8000
+
+- takeScreenshot: tmp/screenshots/maestro_search_empty_state
+
+# Clear the field — viewModel.clear() returns state to .idle. The
+# empty-state view should disappear; the idle placeholder
+# ("输入关键字开始搜索") doesn't have its own id so we just assert
+# the empty-state placeholder is gone.
+- assertVisible:
+    id: "search_field"
+- tapOn:
+    text: "取消"

@@ -89,8 +89,10 @@ struct SearchView: View {
             .accessibilityIdentifier("search_results_list")
         case .empty:
             placeholder("没有找到匹配结果", systemImage: "questionmark.circle")
+                .accessibilityIdentifier("search_empty_state")
         case .error(let message):
             placeholder(message, systemImage: "exclamationmark.triangle")
+                .accessibilityIdentifier("search_error_state")
         }
     }
 
