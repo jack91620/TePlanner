@@ -213,6 +213,53 @@ class ScheduledDeparture(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ActiveTrip(Base):
+    """Sequential-nav state for a multi-stop charging route (migration
+    0012).
+
+    Tesla's Fleet API navigation_request only accepts ONE destination
+    and the next call replaces the previous, not append. To make
+    TePlanner-planned routes (with non-Tesla charging stops) actually
+    drive the user via the car's native nav, we send the stops one at
+    a time. On arrival at stop N (detected by cron or confirmed by
+    user tap), advance to stop N+1.
+
+    One ``active`` row per user — start_trip on a user with an
+    existing active row cancels the old one.
+
+    Columns:
+    - stops_json: ordered list of `{lat, lng, address, kind: "charging"|
+      "final", soc_target?, station_id?}`. Final element is the
+      destination; preceding elements are charging stops.
+    - polyline_json: encoded polyline of the original route. Used by
+      the off-route detector (lateral distance > threshold → replan).
+    - current_segment: 0-based index of the stop currently sent to
+      the car. -1 == not yet started.
+    - status: "active" | "completed" | "cancelled".
+    - replan_count / last_replan_reason: diagnostics. Reason is also
+      surfaced in push notifications + (truncated) in the next stop's
+      address string so the car screen shows it.
+    - last_position_*: cron monitor stash; drives arrival detection.
+    """
+
+    __tablename__ = "active_trip"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(String(64), nullable=False, index=True)
+    stops_json = Column(Text, nullable=False)
+    polyline_json = Column(Text, nullable=True)
+    current_segment = Column(Integer, nullable=False, default=-1)
+    status = Column(String(16), nullable=False, default="active")
+    replan_count = Column(Integer, nullable=False, default=0)
+    last_replan_reason = Column(String(255), nullable=True)
+    last_position_lat = Column(Float, nullable=True)
+    last_position_lng = Column(Float, nullable=True)
+    last_position_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AutomationSnooze(Base):
     """Phase A.1 — per-rule snooze ledger.
 
