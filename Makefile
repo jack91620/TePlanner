@@ -24,7 +24,7 @@ DERIVED_DATA := .derivedData
 SCREENSHOT_DIR := tmp/screenshots
 
 .PHONY: help project build build-ios build-app run-app test test-ios test-all \
-        test-backend precommit \
+        test-backend precommit tokens tokens-verify \
         clean clean-project lint format sim-boot sim-shutdown sim-screenshot \
         sim-log log-app log-device doctor list-devices build-device run-device
 
@@ -263,6 +263,13 @@ codegen: ## Regenerate every client SDK from $(OPENAPI_SNAPSHOT)
 
 codegen-verify: ## CI gate — regenerate SDKs + fail if anything changed
 	@bash scripts/verify-openapi-frozen.sh
+
+tokens: ## Regenerate Tokens.swift + Tokens.kt + tokens-studio.json from packages/design-tokens/tokens.json
+	@python3 scripts/generate-tokens.py
+	@python3 scripts/export-to-tokens-studio.py
+
+tokens-verify: ## CI gate — regenerate design-token artifacts + fail if anything changed
+	@bash scripts/verify-tokens-frozen.sh
 
 # --- Distribution / TestFlight -------------------------------------------
 

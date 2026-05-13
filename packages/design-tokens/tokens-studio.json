@@ -1,0 +1,270 @@
+{
+  "$schema": "https://schemas.tokens.studio/latest/tokens-schema.json",
+  "$metadata": {
+    "tokenSetOrder": [
+      "global"
+    ],
+    "generatedFrom": "packages/design-tokens/tokens.json via scripts/export-to-tokens-studio.py",
+    "skipped": [
+      "surface.canvas (iOS Color(.systemBackground))",
+      "surface.card (iOS Color(.secondarySystemBackground))",
+      "surface.elevated (iOS Color(.tertiarySystemBackground))",
+      "surface.fill (iOS Color(.tertiarySystemFill))"
+    ],
+    "note": "Edit tokens.json (source of truth), not this file. Tokens Studio plugin pulls this via GitHub sync; designer changes flow back as a PR that edits tokens.json. ios_system_color tokens are runtime-adaptive iOS Color references with no Figma Variables equivalent — listed in skipped[]; designers see them only in iOS app, not in Figma."
+  },
+  "global": {
+    "color": {
+      "alert": {
+        "firing": {
+          "bg": {
+            "value": "#D32F2F",
+            "type": "color"
+          },
+          "fg": {
+            "value": "#FFFFFF",
+            "type": "color"
+          },
+          "row_wash": {
+            "value": "#FFE5E5",
+            "type": "color"
+          }
+        },
+        "snooze": {
+          "fg": {
+            "value": "#FF9800",
+            "type": "color"
+          }
+        }
+      },
+      "trigger_accent": {
+        "cron": {
+          "value": "#1976D2",
+          "type": "color"
+        },
+        "geofence": {
+          "value": "#388E3C",
+          "type": "color"
+        },
+        "state_transition": {
+          "value": "#3F51B5",
+          "type": "color"
+        },
+        "state_duration": {
+          "value": "#F57C00",
+          "type": "color"
+        },
+        "default": {
+          "value": "#0066CC",
+          "type": "color"
+        }
+      },
+      "badge": {
+        "preset_bg": {
+          "value": "#1976D2",
+          "type": "color"
+        },
+        "preset_bg_alpha": {
+          "value": "0.15",
+          "type": "opacity"
+        },
+        "preset_fg": {
+          "value": "#1976D2",
+          "type": "color"
+        },
+        "custom_bg": {
+          "value": "#388E3C",
+          "type": "color"
+        },
+        "custom_bg_alpha": {
+          "value": "0.15",
+          "type": "opacity"
+        },
+        "custom_fg": {
+          "value": "#388E3C",
+          "type": "color"
+        }
+      },
+      "wash": {
+        "warning": {
+          "value": "#FFA726",
+          "type": "color"
+        },
+        "warning_alpha": {
+          "value": "0.12",
+          "type": "opacity"
+        },
+        "snooze": {
+          "value": "#FF9800",
+          "type": "color"
+        },
+        "snooze_alpha": {
+          "value": "0.1",
+          "type": "opacity"
+        },
+        "permission": {
+          "value": "#FFA726",
+          "type": "color"
+        },
+        "permission_alpha": {
+          "value": "0.1",
+          "type": "opacity"
+        }
+      }
+    },
+    "spacing": {
+      "xs": {
+        "value": "4px",
+        "type": "spacing"
+      },
+      "sm": {
+        "value": "8px",
+        "type": "spacing"
+      },
+      "sm_plus": {
+        "value": "10px",
+        "type": "spacing"
+      },
+      "md": {
+        "value": "12px",
+        "type": "spacing"
+      },
+      "md_plus": {
+        "value": "14px",
+        "type": "spacing"
+      },
+      "lg": {
+        "value": "16px",
+        "type": "spacing"
+      },
+      "xl": {
+        "value": "24px",
+        "type": "spacing"
+      },
+      "xxl": {
+        "value": "32px",
+        "type": "spacing"
+      }
+    },
+    "radius": {
+      "card": {
+        "value": "12px",
+        "type": "borderRadius"
+      },
+      "tile": {
+        "value": "8px",
+        "type": "borderRadius"
+      },
+      "capsule": {
+        "value": "50px",
+        "type": "borderRadius"
+      }
+    },
+    "shadow": {
+      "subtle": {
+        "value": {
+          "color": "#00000014",
+          "type": "dropShadow",
+          "offsetX": "0px",
+          "offsetY": "0px",
+          "blur": "1px",
+          "spread": "0px"
+        },
+        "type": "boxShadow"
+      },
+      "default": {
+        "value": {
+          "color": "#00000029",
+          "type": "dropShadow",
+          "offsetX": "0px",
+          "offsetY": "0px",
+          "blur": "2px",
+          "spread": "0px"
+        },
+        "type": "boxShadow"
+      },
+      "drawer": {
+        "value": {
+          "color": "#0000001F",
+          "type": "dropShadow",
+          "offsetX": "0px",
+          "offsetY": "-2px",
+          "blur": "8px",
+          "spread": "0px"
+        },
+        "type": "boxShadow"
+      }
+    },
+    "typography": {
+      "metric": {
+        "hero": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "44px",
+            "fontWeight": "SemiBold"
+          },
+          "type": "typography"
+        },
+        "compact": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "22px",
+            "fontWeight": "Bold"
+          },
+          "type": "typography"
+        }
+      },
+      "code": {
+        "display": {
+          "value": {
+            "fontFamily": "Menlo",
+            "fontSize": "48px",
+            "fontWeight": "Bold"
+          },
+          "type": "typography"
+        },
+        "input": {
+          "value": {
+            "fontFamily": "Menlo",
+            "fontSize": "28px",
+            "fontWeight": "SemiBold"
+          },
+          "type": "typography"
+        }
+      },
+      "placeholder_icon": {
+        "sm": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "36px"
+          },
+          "type": "typography"
+        },
+        "md": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "40px"
+          },
+          "type": "typography"
+        },
+        "lg": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "64px"
+          },
+          "type": "typography"
+        }
+      },
+      "splash": {
+        "logo": {
+          "value": {
+            "fontFamily": "System",
+            "fontSize": "96px",
+            "fontWeight": "Bold"
+          },
+          "type": "typography"
+        }
+      }
+    }
+  }
+}
