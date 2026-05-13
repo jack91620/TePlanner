@@ -55,8 +55,8 @@ struct CommandStatusBanner: View {
             }
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Tokens.spacingMdPlus)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(RoundedRectangle(cornerRadius: 12).fill(.thinMaterial))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -82,7 +82,7 @@ struct CommandStatusBanner: View {
             if q.status == "queued", let onCancel = onCancelQueued {
                 Button("取消") { onCancel(q.id) }
                     .font(.caption.weight(.medium))
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, Tokens.spacingSmPlus)
                     .padding(.vertical, 5)
                     .foregroundStyle(.secondary)
                     .background(Color.secondary.opacity(0.15), in: Capsule())
@@ -90,8 +90,8 @@ struct CommandStatusBanner: View {
                     .accessibilityIdentifier("command_queued_cancel_\(q.id)")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Tokens.spacingMdPlus)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(RoundedRectangle(cornerRadius: 12).fill(.thinMaterial))
         .overlay(
             RoundedRectangle(cornerRadius: 12)

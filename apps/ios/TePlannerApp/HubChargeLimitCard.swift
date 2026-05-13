@@ -55,8 +55,8 @@ struct HubChargeLimitCard: View {
                     Spacer()
                     applyButton(target: suggestion.recommendedPercent)
                 }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 16)
+                .padding(.vertical, Tokens.spacingMdPlus)
+                .padding(.horizontal, Tokens.spacingLg)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
@@ -103,7 +103,7 @@ struct HubChargeLimitCard: View {
         case .idle:
             Button("应用") { apply(percent: target) }
                 .font(.caption.weight(.semibold))
-                .padding(.horizontal, 14)
+                .padding(.horizontal, Tokens.spacingMdPlus)
                 .padding(.vertical, 7)
                 .foregroundStyle(.white)
                 .background(Color.accentColor, in: Capsule())

@@ -357,7 +357,7 @@ private struct FilledTile: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, minHeight: 64)
-        .padding(.vertical, 10)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(
             tintColor.opacity(0.12),
             in: RoundedRectangle(cornerRadius: 12)
@@ -415,7 +415,7 @@ private struct EmptyTile: View {
                 Text("添加").font(.caption2).foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, minHeight: 64)
-            .padding(.vertical, 10)
+            .padding(.vertical, Tokens.spacingSmPlus)
             .background(
                 Color.secondary.opacity(0.06),
                 in: RoundedRectangle(cornerRadius: 12)

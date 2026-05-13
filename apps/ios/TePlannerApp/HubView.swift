@@ -968,8 +968,8 @@ struct HubView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Tokens.spacingMdPlus)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(Color.secondary.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityIdentifier("telemetry_waiting_pill")
@@ -1069,8 +1069,8 @@ private struct HubEntryCard: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 16)
+        .padding(.vertical, Tokens.spacingMdPlus)
+        .padding(.horizontal, Tokens.spacingLg)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)

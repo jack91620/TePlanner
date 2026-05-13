@@ -74,7 +74,7 @@ struct GeofenceMapPickerSheet: View {
                     Image(systemName: "mappin")
                         .font(.title)
                         .foregroundStyle(.green)
-                        .shadow(radius: 2)
+                        .tokenShadow(Tokens.shadowDefault)
                     // 4-pt offset so the pin's tip lines up with the
                     // exact map center.
                     Circle()
@@ -144,8 +144,8 @@ struct GeofenceMapPickerSheet: View {
                 .lineLimit(2)
             Spacer(minLength: 4)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Tokens.spacingMdPlus)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
         .padding(.top, 8)

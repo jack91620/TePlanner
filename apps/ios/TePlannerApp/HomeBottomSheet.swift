@@ -224,7 +224,7 @@ private struct RouteSummaryDrawerContent: View {
                 }
             }
         }
-        .padding(14)
+        .padding(Tokens.spacingMdPlus)
         .background(Tokens.surfaceCard, in: RoundedRectangle(cornerRadius: 12))
     }
 
@@ -281,7 +281,7 @@ private struct RouteSummaryDrawerContent: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
-                    .padding(10)
+                    .padding(Tokens.spacingSmPlus)
                     .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)

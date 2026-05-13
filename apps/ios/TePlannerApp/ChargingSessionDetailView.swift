@@ -55,7 +55,7 @@ struct ChargingSessionDetailView: View {
             }
             Spacer()
         }
-        .padding(14)
+        .padding(Tokens.spacingMdPlus)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
     }
 
@@ -123,7 +123,7 @@ struct ChargingSessionDetailView: View {
                 .foregroundStyle(.secondary)
             content()
         }
-        .padding(14)
+        .padding(Tokens.spacingMdPlus)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
     }

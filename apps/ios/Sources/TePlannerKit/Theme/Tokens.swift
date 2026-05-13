@@ -27,13 +27,18 @@ public enum Tokens {
     public static let colorWashPermissionAlpha: CGFloat = 0.1
     public static let spacingXs: CGFloat = 4
     public static let spacingSm: CGFloat = 8
+    public static let spacingSmPlus: CGFloat = 10
     public static let spacingMd: CGFloat = 12
+    public static let spacingMdPlus: CGFloat = 14
     public static let spacingLg: CGFloat = 16
     public static let spacingXl: CGFloat = 24
     public static let spacingXxl: CGFloat = 32
     public static let radiusCard: CGFloat = 12
     public static let radiusTile: CGFloat = 8
     public static let radiusCapsule: CGFloat = 50
+    public static let shadowSubtle: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.08), radius: 1)
+    public static let shadowDefault: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.16), radius: 2)
+    public static let shadowDrawer: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.12), radius: 8, y: -2)
 #if canImport(UIKit)
     public static let surfaceCanvas: Color = Color(.systemBackground)
     public static let surfaceCard: Color = Color(.secondarySystemBackground)

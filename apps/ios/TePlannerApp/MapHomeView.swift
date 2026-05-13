@@ -75,7 +75,7 @@ struct MapHomeView: View {
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(Tokens.surfaceCanvas)
-                            .shadow(color: .black.opacity(0.12), radius: 8, y: -2)
+                            .tokenShadow(Tokens.shadowDrawer)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .ignoresSafeArea(edges: .bottom)
@@ -247,7 +247,7 @@ struct MapHomeView: View {
             Image(systemName: routeState.loadedPlan == nil ? "location.fill" : "arrow.up.left.and.arrow.down.right")
                 .font(.title3)
                 .foregroundStyle(.primary)
-                .padding(10)
+                .padding(Tokens.spacingSmPlus)
                 .background(.thinMaterial, in: Circle())
                 .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
         }

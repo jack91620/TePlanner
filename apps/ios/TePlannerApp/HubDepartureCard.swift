@@ -48,8 +48,8 @@ struct HubDepartureCard: View {
                 Spacer()
                 preheatBadge
             }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 16)
+            .padding(.vertical, Tokens.spacingMdPlus)
+            .padding(.horizontal, Tokens.spacingLg)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)

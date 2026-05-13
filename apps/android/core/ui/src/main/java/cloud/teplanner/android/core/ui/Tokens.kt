@@ -34,13 +34,18 @@ object Tokens {
     val colorWashPermissionAlpha = 0.1.dp
     val spacingXs = 4.dp
     val spacingSm = 8.dp
+    val spacingSmPlus = 10.dp
     val spacingMd = 12.dp
+    val spacingMdPlus = 14.dp
     val spacingLg = 16.dp
     val spacingXl = 24.dp
     val spacingXxl = 32.dp
     val radiusCard = 12.dp
     val radiusTile = 8.dp
     val radiusCapsule = 50.dp
+    // shadowSubtle: shadow spec (color=#000000 opacity=0.08 radius=1 y=0). Phase F: map to Compose elevation dp or custom drawShadow modifier.
+    // shadowDefault: shadow spec (color=#000000 opacity=0.16 radius=2 y=0). Phase F: map to Compose elevation dp or custom drawShadow modifier.
+    // shadowDrawer: shadow spec (color=#000000 opacity=0.12 radius=8 y=-2). Phase F: map to Compose elevation dp or custom drawShadow modifier.
     // surfaceCanvas: iOS-only (Color(.systemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
     // surfaceCard: iOS-only (Color(.secondarySystemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
     // surfaceElevated: iOS-only (Color(.tertiarySystemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.

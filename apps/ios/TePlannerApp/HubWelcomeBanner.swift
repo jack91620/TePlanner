@@ -41,7 +41,7 @@ struct HubWelcomeBanner: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(14)
+        .padding(Tokens.spacingMdPlus)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)

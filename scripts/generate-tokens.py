@@ -34,7 +34,7 @@ def _walk(node: Any, prefix: list[str] = []) -> list[tuple[list[str], dict]]:
     if isinstance(node, dict):
         is_leaf = "value" in node and (
             not isinstance(node["value"], dict)
-            or node.get("type") == "typography"
+            or node.get("type") in ("typography", "shadow")
         )
         if is_leaf:
             out.append((prefix, node))
@@ -68,6 +68,21 @@ def _hex_to_rgba(hexstr: str) -> tuple[float, float, float, float]:
     else:
         raise ValueError(f"bad hex: {hexstr}")
     return r / 255.0, g / 255.0, b / 255.0, a / 255.0
+
+
+def _swift_shadow_expr(spec: dict) -> str:
+    r, g, b, _ = _hex_to_rgba(spec["color"])
+    opacity = spec.get("opacity", 1.0)
+    color = (
+        f"Color(red: {r:.4f}, green: {g:.4f}, blue: {b:.4f})"
+        f".opacity({opacity})"
+    )
+    args = [f"color: {color}", f"radius: {spec['radius']}"]
+    if "x" in spec:
+        args.append(f"x: {spec['x']}")
+    if "y" in spec:
+        args.append(f"y: {spec['y']}")
+    return "ShadowSpec(" + ", ".join(args) + ")"
 
 
 def _swift_font_expr(spec: dict) -> str:
@@ -115,6 +130,8 @@ def emit_swift(tokens: list[tuple[list[str], dict]]) -> str:
             lines.append(f"    public static let {name}: CGFloat = {leaf['value']}")
         elif kind == "typography":
             lines.append(f"    public static let {name}: Font = {_swift_font_expr(leaf['value'])}")
+        elif kind == "shadow":
+            lines.append(f"    public static let {name}: ShadowSpec = {_swift_shadow_expr(leaf['value'])}")
         elif kind == "ios_system_color":
             lines.append(f"    public static let {name}: Color = Color(.{leaf['value']})")
         else:
@@ -178,6 +195,14 @@ def emit_kotlin(tokens: list[tuple[list[str], dict]]) -> str:
             lines.append(f"    val {name} = {leaf['value']}.dp")
         elif kind == "typography":
             lines.append(f"    val {name} = {_kotlin_textstyle_expr(leaf['value'])}")
+        elif kind == "shadow":
+            v = leaf["value"]
+            lines.append(
+                f"    // {name}: shadow spec (color={v['color']} "
+                f"opacity={v.get('opacity', 1.0)} radius={v['radius']} "
+                f"y={v.get('y', 0)}). Phase F: map to Compose elevation dp "
+                "or custom drawShadow modifier."
+            )
         elif kind == "ios_system_color":
             lines.append(
                 f"    // {name}: iOS-only (Color(.{leaf['value']})). "

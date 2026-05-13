@@ -130,7 +130,7 @@ struct HubActionEditorSheet: View {
                                     Circle()
                                         .strokeBorder(.white, lineWidth: tint == t ? 3 : 0)
                                 )
-                                .shadow(color: .black.opacity(0.08), radius: 1)
+                                .tokenShadow(Tokens.shadowSubtle)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("hub_action_editor_tint_\(t.rawValue)")

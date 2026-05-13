@@ -61,7 +61,7 @@ struct SearchView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(Tokens.surfaceCard, in: RoundedRectangle(cornerRadius: 10))
     }
 

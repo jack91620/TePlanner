@@ -58,7 +58,7 @@ struct PermissionBannerView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(14)
+            .padding(Tokens.spacingMdPlus)
             .background(Tokens.colorWashPermission.opacity(Tokens.colorWashPermissionAlpha), in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
             .accessibilityIdentifier("permission_banner")
         }

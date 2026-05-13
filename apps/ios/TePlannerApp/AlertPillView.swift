@@ -58,8 +58,8 @@ struct AlertPillView: View {
                 .accessibilityIdentifier("alert_primary_action_\(alert.kind.rawValue)")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Tokens.spacingMdPlus)
+        .padding(.vertical, Tokens.spacingSmPlus)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(.thinMaterial)

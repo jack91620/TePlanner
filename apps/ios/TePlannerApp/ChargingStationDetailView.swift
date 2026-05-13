@@ -127,7 +127,7 @@ struct ChargingStationDetailView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(14)
+        .padding(Tokens.spacingMdPlus)
         .background(Tokens.surfaceCard, in: RoundedRectangle(cornerRadius: 12))
     }
 
