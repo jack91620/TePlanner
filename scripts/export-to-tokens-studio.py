@@ -73,7 +73,12 @@ def _convert_typography(spec: dict) -> dict:
     if w := spec.get("weight"):
         out["fontWeight"] = _WEIGHT_STUDIO.get(w, "Regular")
     if spec.get("design") == "monospaced":
-        out["fontFamily"] = "Menlo"
+        # "Roboto Mono" is a Google Font shipped with Figma's font picker
+        # by default. Menlo is macOS-only and Figma's font resolver
+        # rejects it ("font family/weight combination" error). iOS still
+        # renders SF Mono via design: .monospaced; this is Figma display
+        # only.
+        out["fontFamily"] = "Roboto Mono"
     return out
 
 

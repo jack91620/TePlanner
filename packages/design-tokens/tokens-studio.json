@@ -217,7 +217,7 @@
       "code": {
         "display": {
           "value": {
-            "fontFamily": "Menlo",
+            "fontFamily": "Roboto Mono",
             "fontSize": "48px",
             "fontWeight": "Bold"
           },
@@ -225,7 +225,7 @@
         },
         "input": {
           "value": {
-            "fontFamily": "Menlo",
+            "fontFamily": "Roboto Mono",
             "fontSize": "28px",
             "fontWeight": "SemiBold"
           },
