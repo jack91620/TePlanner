@@ -21,6 +21,7 @@ struct HubView: View {
     @StateObject private var chargingSessionStore: BackendChargingSessionStore
     @StateObject private var commandStatusStore: CommandStatusStore
     @StateObject private var quickActionsStore: HubActionsStore
+    @StateObject private var activeTripStore: ActiveTripStore
     @Environment(\.scenePhase) private var scenePhase
     private let apiService: APIServiceProtocol
     private let authSession: AuthSession
@@ -97,6 +98,7 @@ struct HubView: View {
         _chargingSessionStore = StateObject(wrappedValue: chargingSessionStore)
         _commandStatusStore = StateObject(wrappedValue: CommandStatusStore(apiService: apiService))
         _quickActionsStore = StateObject(wrappedValue: HubActionsStore(apiService: apiService))
+        _activeTripStore = StateObject(wrappedValue: ActiveTripStore(apiService: apiService))
         _statsViewModel = StateObject(wrappedValue: ChargingStatsViewModel(store: chargingSessionStore))
         _departureStore = StateObject(wrappedValue: BackendScheduledDepartureStore(apiService: apiService))
         self.chargingTracker = ChargingSessionTracker(store: chargingSessionStore)
@@ -148,6 +150,7 @@ struct HubView: View {
             // "连接中". Caught by e2e 07 hitting 8 empty slots
             // intermittently when the sim's Tesla session was cold.
             async let qaLoad: Void = quickActionsStore.load()
+            async let tripLoad: Void = activeTripStore.refresh()
             await viewModel.load()
             await rulesStore.refresh()
             await snoozeStore.refresh()
@@ -159,6 +162,7 @@ struct HubView: View {
             await departureStore.refresh()
             scheduledDeparture = departureStore.current()
             await qaLoad
+            await tripLoad
             LocalNotificationScheduler.shared.onPreheatTapped = { @MainActor in
                 triggerPreheat()
             }
@@ -442,6 +446,7 @@ struct HubView: View {
                 permissionBanner
                 statusCard
                 alertPill
+                activeTripCard
                 departureCard
                 chargeLimitSuggestionCard
                 planningEntry
@@ -987,6 +992,24 @@ struct HubView: View {
             )
         }
         .buttonStyle(PressableCardButtonStyle())
+    }
+
+    /// "进行中行程" card — visible only while an ActiveTrip is in
+    /// flight. Shows the next stop name + remaining count, and lets
+    /// the user manually advance to the next stop (auto-advance
+    /// lives in the cron monitor in phase 2).
+    @ViewBuilder
+    private var activeTripCard: some View {
+        if let trip = activeTripStore.trip,
+           let nextOrCurrent = trip.currentStop ?? trip.stops.first {
+            HubActiveTripCard(
+                trip: trip,
+                nextStop: nextOrCurrent,
+                isLoading: activeTripStore.isLoading,
+                onAdvance: { Task { await activeTripStore.advance() } },
+                onCancel: { Task { await activeTripStore.cancel() } },
+            )
+        }
     }
 
     private var automationsEntry: some View {

@@ -234,7 +234,13 @@ final class RoutePreviewViewModelTests: XCTestCase {
     func testSendToVehicleHappyPath() async {
         let mock = MockAPIService()
         wireMock(mock: mock)
-        mock.mockSendNavigationResponse = .success(BaseResponse(success: true, message: "ok"))
+        let fakeTrip = ActiveTrip(
+            id: 1, vehicleId: "366691338664104", status: .active,
+            currentSegment: 0,
+            stops: [TripStop(latitude: 39.9, longitude: 116.3, kind: .final)],
+            createdAt: Date(), updatedAt: Date(),
+        )
+        mock.mockStartTripResponse = .success(fakeTrip)
         let vm = RoutePreviewViewModel(
             apiService: mock,
             poiProvider: StubPOIProvider(),
@@ -247,7 +253,12 @@ final class RoutePreviewViewModelTests: XCTestCase {
         await vm.sendToVehicle()
 
         XCTAssertEqual(vm.sendState, .sent)
-        XCTAssertEqual(mock.sendNavigationCallCount, 1)
+        XCTAssertEqual(mock.startTripCallCount, 1)
+        // wireMock stub plan defaults to 2 charging stops; final
+        // destination is appended → 3 total stops, last = .final.
+        XCTAssertEqual(mock.lastStartTripRequest?.stops.count, 3)
+        XCTAssertEqual(mock.lastStartTripRequest?.stops.last?.kind, .final)
+        XCTAssertEqual(mock.lastStartTripRequest?.stops.first?.kind, .charging)
     }
 
     func testSendToVehicleWithoutVehicleIdFails() async {
@@ -268,13 +279,13 @@ final class RoutePreviewViewModelTests: XCTestCase {
         } else {
             XCTFail("expected .failed, got \(vm.sendState)")
         }
-        XCTAssertEqual(mock.sendNavigationCallCount, 0)
+        XCTAssertEqual(mock.startTripCallCount, 0)
     }
 
     func testSendFailureSurfacesMessage() async {
         let mock = MockAPIService()
         wireMock(mock: mock)
-        mock.mockSendNavigationResponse = .failure(.serverError(statusCode: 503, message: "vehicle offline"))
+        mock.mockStartTripResponse = .failure(.serverError(statusCode: 503, message: "vehicle offline"))
         let vm = RoutePreviewViewModel(
             apiService: mock,
             poiProvider: StubPOIProvider(),
@@ -283,6 +294,7 @@ final class RoutePreviewViewModelTests: XCTestCase {
             currentSoc: 50,
             vehicleId: "v1"
         )
+        await vm.load()
         await vm.sendToVehicle()
 
         if case .failed(let msg) = vm.sendState {
@@ -302,7 +314,15 @@ final class RoutePreviewViewModelTests: XCTestCase {
     func testSendSuccess_savesRouteToHistory() async {
         let mock = MockAPIService()
         wireMock(mock: mock)
-        mock.mockSendNavigationResponse = .success(BaseResponse(success: true, message: "ok"))
+        let fakeTrip = ActiveTrip(
+            id: 42, vehicleId: "v1", status: .active,
+            currentSegment: 0,
+            stops: [
+                TripStop(latitude: 39.9, longitude: 116.3, name: "目的地", kind: .final),
+            ],
+            createdAt: Date(), updatedAt: Date(),
+        )
+        mock.mockStartTripResponse = .success(fakeTrip)
         let vm = RoutePreviewViewModel(
             apiService: mock,
             poiProvider: StubPOIProvider(),
@@ -334,7 +354,7 @@ final class RoutePreviewViewModelTests: XCTestCase {
     func testSendFailure_doesNotSaveRoute() async {
         let mock = MockAPIService()
         wireMock(mock: mock)
-        mock.mockSendNavigationResponse = .failure(.serverError(statusCode: 503, message: "offline"))
+        mock.mockStartTripResponse = .failure(.serverError(statusCode: 503, message: "offline"))
         let vm = RoutePreviewViewModel(
             apiService: mock,
             poiProvider: StubPOIProvider(),

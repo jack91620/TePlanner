@@ -163,49 +163,84 @@ public final class RoutePreviewViewModel: ObservableObject {
         onPlanLoaded?(merged)
     }
 
-    /// Push the planned destination to the bound vehicle's nav system.
-    /// Requires `vehicleId` — if nil the call is a no-op with an error.
+    /// Push the planned trip (charging stops + final destination) to
+    /// the bound vehicle as a sequential nav trip. Backend takes the
+    /// stops list, persists an active_trip row, and immediately sends
+    /// stops[0] to the car via navigation_request. Subsequent stops
+    /// are sent on user "下一段" tap (phase 1) or auto-advance from
+    /// the cron monitor (phase 2).
+    ///
+    /// Requires `vehicleId` and a loaded plan with at least the final
+    /// destination. Charging stops between origin and destination are
+    /// taken from the merged RoutePlanResponse.chargingStops.
     public func sendToVehicle() async {
         guard let vehicleId else {
             sendState = .failed("未选择车辆")
             return
         }
+        guard case .loaded(let plan) = state else {
+            sendState = .failed("路线规划未完成")
+            return
+        }
         sendState = .sending
-        // Destination came from AMap POI search → GCJ-02. Tesla's
-        // navigation_gps_request expects WGS-84. Convert at the
-        // outbound boundary; otherwise the car navigates to a pin
-        // ~200 m offset from where the user picked it on AMap.
-        let wgs = CoordConverter.gcj02ToWgs84(
+
+        let stops = buildTripStops(plan: plan)
+        let polyline: [[Double]]? = plan.polyline.isEmpty
+            ? nil
+            : plan.polyline.map { [$0.latitude, $0.longitude] }
+        let request = StartTripRequest(
+            vehicleId: vehicleId, stops: stops, polyline: polyline,
+        )
+        let result = await apiService.startTrip(request)
+        switch result {
+        case .success(let trip):
+            Log.search.notice("trip started id=\(trip.id, privacy: .public) (\(stops.count, privacy: .public) stops) to \(vehicleId, privacy: .public)")
+            sendState = .sent
+            if let store = commandStatusStore {
+                Task { await store.pollUntilSettled() }
+            }
+            Task { await persistToHistory() }
+        case .failure(let error):
+            Log.search.error("start trip failed: \(error.localizedDescription, privacy: .public)")
+            sendState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Build the trip's stop list from the loaded plan: each
+    /// `ChargingStop` becomes a `.charging` TripStop in order, then
+    /// the user's chosen destination is appended as the `.final` stop.
+    /// Coordinates are converted GCJ-02 → WGS-84 at the outbound
+    /// boundary (matches the legacy single-destination send path).
+    private func buildTripStops(plan: RoutePlanResponse) -> [TripStop] {
+        var stops: [TripStop] = []
+        for stop in plan.chargingStops {
+            let wgs = CoordConverter.gcj02ToWgs84(
+                CLLocationCoordinate2D(
+                    latitude: stop.latitude, longitude: stop.longitude,
+                ))
+            stops.append(TripStop(
+                latitude: wgs.latitude,
+                longitude: wgs.longitude,
+                address: stop.address,
+                name: stop.name,
+                kind: .charging,
+                stationId: stop.stationId,
+                socTarget: stop.arrivalSoc,
+            ))
+        }
+        let destWgs = CoordConverter.gcj02ToWgs84(
             CLLocationCoordinate2D(
                 latitude: destination.latitude,
                 longitude: destination.longitude,
             ))
-        let request = NavigationRequest(
-            latitude: wgs.latitude,
-            longitude: wgs.longitude,
-            name: destination.name
-        )
-        let result = await apiService.sendNavigation(vehicleId: vehicleId, request: request)
-        switch result {
-        case .success:
-            Log.search.notice("nav sent to \(vehicleId, privacy: .public)")
-            sendState = .sent
-            // Defensive (B2 completion): kick the converge poll so
-            // any future expected_state on the navigate capability
-            // can't leave the Hub banner stuck.
-            if let store = commandStatusStore {
-                Task { await store.pollUntilSettled() }
-            }
-            // Best-effort save to 最近 history. Fire-and-forget — a
-            // failure here doesn't undo the Tesla nav send. Without
-            // this call the 最近 tab is permanently empty (the
-            // route_plans table had no INSERT site server-side
-            // before /routes/save shipped).
-            Task { await persistToHistory() }
-        case .failure(let error):
-            Log.search.error("nav send failed: \(error.localizedDescription, privacy: .public)")
-            sendState = .failed(error.localizedDescription)
-        }
+        stops.append(TripStop(
+            latitude: destWgs.latitude,
+            longitude: destWgs.longitude,
+            address: destination.address,
+            name: destination.name,
+            kind: .final,
+        ))
+        return stops
     }
 
     /// POST /routes/save with the loaded plan's origin/dest/totals.

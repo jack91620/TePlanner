@@ -260,6 +260,39 @@ final class MockAPIService: APIServiceProtocol {
         return mockSaveRoutePlanResponse
     }
 
+    // MARK: - Active trip
+    var lastStartTripRequest: StartTripRequest?
+    var startTripCallCount = 0
+    var mockStartTripResponse: Result<ActiveTrip, APIError> = .failure(.invalidURL)
+    var mockActiveTripResponse: Result<ActiveTrip?, APIError> = .success(nil)
+    var lastAdvanceTripId: Int?
+    var mockAdvanceTripResponse: Result<ActiveTrip, APIError> = .failure(.invalidURL)
+    var lastReplanTripArgs: (tripId: Int, request: ReplanTripRequest)?
+    var mockReplanTripResponse: Result<ActiveTrip, APIError> = .failure(.invalidURL)
+    var lastCancelTripId: Int?
+    var mockCancelTripResponse: Result<ActiveTrip, APIError> = .failure(.invalidURL)
+
+    func startTrip(_ request: StartTripRequest) async -> Result<ActiveTrip, APIError> {
+        lastStartTripRequest = request
+        startTripCallCount += 1
+        return mockStartTripResponse
+    }
+    func fetchActiveTrip() async -> Result<ActiveTrip?, APIError> {
+        return mockActiveTripResponse
+    }
+    func advanceTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError> {
+        lastAdvanceTripId = tripId
+        return mockAdvanceTripResponse
+    }
+    func replanTrip(_ tripId: Int, request: ReplanTripRequest) async -> Result<ActiveTrip, APIError> {
+        lastReplanTripArgs = (tripId, request)
+        return mockReplanTripResponse
+    }
+    func cancelTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError> {
+        lastCancelTripId = tripId
+        return mockCancelTripResponse
+    }
+
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
         return .success(BaseResponse(success: true, message: "ok"))
     }

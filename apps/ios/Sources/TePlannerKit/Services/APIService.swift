@@ -237,6 +237,58 @@ public final class APIService: APIServiceProtocol {
         return await postJSON(path: "/routes/save", body: request)
     }
 
+    // MARK: - Active trip (sequential multi-stop nav)
+
+    /// Kick off a multi-stop trip. Cancels any existing active trip
+    /// for this user. Backend sends stops[0] to the car immediately.
+    public func startTrip(_ request: StartTripRequest) async -> Result<ActiveTrip, APIError> {
+        return await postJSON(path: "/trips/start", body: request)
+    }
+
+    /// User's currently-active trip, or nil. Drives the Hub
+    /// "进行中行程" card. Backend returns literal `null` when there's
+    /// no trip — JSONDecoder rejects that at the top level, so we
+    /// short-circuit and treat empty / null body as `.success(nil)`.
+    public func fetchActiveTrip() async -> Result<ActiveTrip?, APIError> {
+        let result: Result<ActiveTripOrNull, APIError> = await get(
+            path: "/trips/active", query: []
+        )
+        return result.map { $0.value }
+    }
+
+    /// Wrapper that decodes either a full ActiveTrip object or the
+    /// literal `null` body /trips/active returns when nothing's
+    /// active. Stays private to APIService — callers use the
+    /// `ActiveTrip?` shape of fetchActiveTrip().
+    private struct ActiveTripOrNull: Decodable {
+        let value: ActiveTrip?
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() {
+                value = nil
+            } else {
+                value = try container.decode(ActiveTrip.self)
+            }
+        }
+    }
+
+    /// Push the next stop to the car. Returns the updated trip
+    /// (status="completed" if we'd just sent the final stop).
+    public func advanceTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError> {
+        return await post(path: "/trips/\(tripId)/advance")
+    }
+
+    /// Replace stops[current..] with new_stops; backend pushes the
+    /// first new stop to the car with `reason` prepended to the
+    /// address line so the car screen shows why the route changed.
+    public func replanTrip(_ tripId: Int, request: ReplanTripRequest) async -> Result<ActiveTrip, APIError> {
+        return await postJSON(path: "/trips/\(tripId)/replan", body: request)
+    }
+
+    public func cancelTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError> {
+        return await post(path: "/trips/\(tripId)/cancel")
+    }
+
     // MARK: - Push notifications
 
     public func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {

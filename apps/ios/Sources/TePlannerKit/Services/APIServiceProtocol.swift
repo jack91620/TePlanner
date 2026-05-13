@@ -106,6 +106,15 @@ public protocol APIServiceProtocol {
     /// warning (Tesla nav already succeeded; we just lost the row).
     func saveRoutePlan(_ request: SaveRoutePlanRequest) async -> Result<SaveRoutePlanResponse, APIError>
 
+    // Active trip — sequential multi-stop nav. The car can only hold
+    // one destination at a time, so the backend keeps the planned
+    // list and pushes them one-by-one as the user advances.
+    func startTrip(_ request: StartTripRequest) async -> Result<ActiveTrip, APIError>
+    func fetchActiveTrip() async -> Result<ActiveTrip?, APIError>
+    func advanceTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError>
+    func replanTrip(_ tripId: Int, request: ReplanTripRequest) async -> Result<ActiveTrip, APIError>
+    func cancelTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError>
+
     // Push notifications
     /// Hand the iOS APNs device token to the backend so the polling
     /// layer can deliver automation alerts when the app is closed.
