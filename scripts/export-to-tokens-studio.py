@@ -61,9 +61,13 @@ def _convert_typography(spec: dict) -> dict:
     """Our {size,weight?,design?} → Studio typography composite.
 
     Studio has no equivalent for design:monodigit; flagged inline.
-    fontFamily defaults to "System" so designers see SF Pro in Figma."""
+    fontFamily uses "Inter" (Figma's universally available default)
+    rather than "System" — the iOS app actually renders SF Pro via
+    .system font, but Figma can't find a font literally named "System"
+    and the whole composite import fails. Designer can override per-
+    Variable to SF Pro Text if they've installed it locally."""
     out: dict[str, Any] = {
-        "fontFamily": "System",
+        "fontFamily": "Inter",
         "fontSize": f"{spec['size']}px",
     }
     if w := spec.get("weight"):
@@ -74,12 +78,16 @@ def _convert_typography(spec: dict) -> dict:
 
 
 def _convert_shadow(spec: dict) -> dict:
-    """Our {color,opacity?,radius,x?,y?} → Studio boxShadow composite."""
+    """Our {color,opacity?,radius,x?,y?} → Studio boxShadow composite.
+
+    Tokens Studio plugin uses x/y (not offsetX/offsetY — those are the
+    sd-transforms output format for code consumption, NOT the plugin
+    input format)."""
     return {
         "color": _hex_with_alpha(spec["color"], spec.get("opacity", 1.0)),
         "type": "dropShadow",
-        "offsetX": f"{spec.get('x', 0)}px",
-        "offsetY": f"{spec.get('y', 0)}px",
+        "x": f"{spec.get('x', 0)}px",
+        "y": f"{spec.get('y', 0)}px",
         "blur": f"{spec['radius']}px",
         "spread": "0px",
     }

@@ -165,8 +165,8 @@
         "value": {
           "color": "#00000014",
           "type": "dropShadow",
-          "offsetX": "0px",
-          "offsetY": "0px",
+          "x": "0px",
+          "y": "0px",
           "blur": "1px",
           "spread": "0px"
         },
@@ -176,8 +176,8 @@
         "value": {
           "color": "#00000029",
           "type": "dropShadow",
-          "offsetX": "0px",
-          "offsetY": "0px",
+          "x": "0px",
+          "y": "0px",
           "blur": "2px",
           "spread": "0px"
         },
@@ -187,8 +187,8 @@
         "value": {
           "color": "#0000001F",
           "type": "dropShadow",
-          "offsetX": "0px",
-          "offsetY": "-2px",
+          "x": "0px",
+          "y": "-2px",
           "blur": "8px",
           "spread": "0px"
         },
@@ -199,7 +199,7 @@
       "metric": {
         "hero": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "44px",
             "fontWeight": "SemiBold"
           },
@@ -207,7 +207,7 @@
         },
         "compact": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "22px",
             "fontWeight": "Bold"
           },
@@ -235,21 +235,21 @@
       "placeholder_icon": {
         "sm": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "36px"
           },
           "type": "typography"
         },
         "md": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "40px"
           },
           "type": "typography"
         },
         "lg": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "64px"
           },
           "type": "typography"
@@ -258,7 +258,7 @@
       "splash": {
         "logo": {
           "value": {
-            "fontFamily": "System",
+            "fontFamily": "Inter",
             "fontSize": "96px",
             "fontWeight": "Bold"
           },
