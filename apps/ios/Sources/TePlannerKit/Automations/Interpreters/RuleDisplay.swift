@@ -66,14 +66,18 @@ public enum RuleDisplay {
             return true
         case "tesla.closures.sun_roof_vent",
              "tesla.closures.sun_roof_close":
-            // Hide when we know the car has no vent roof. Fall back to
-            // visible when vehicleConfig is unknown — the alternative
-            // (hide-by-default) would show an empty closures category
-            // on first-launch / cold-cache Hub.
+            // Sun roof is Model S only (rare in China). Hide-by-default
+            // when vehicleConfig is unknown — showing a raw wire-format
+            // ID like "tesla.closures.sun_roof_close" in the picker for
+            // the 30 seconds before /state lands looks like the app is
+            // broken. False positive on a Model S user with no cache
+            // yet is acceptable; their next /state will populate config
+            // and unhide. Closures category still has window_vent /
+            // window_close so it doesn't render empty.
             if let config = vehicleConfig {
                 return !config.hasPanoramicSunRoof
             }
-            return false
+            return true
         case "tesla.charging.port_open",
              "tesla.charging.port_close":
             if let motorized = vehicleConfig?.motorizedChargePort {
@@ -130,6 +134,11 @@ public enum RuleDisplay {
         // Closures
         case "tesla.closures.window_vent":              return "车窗通风"
         case "tesla.closures.window_close":             return "关闭车窗"
+        // Sun roof — Model S only. Picker hides these by default
+        // (see isHiddenInPicker), but legacy rules + manage-sheet
+        // display still need the Chinese name.
+        case "tesla.closures.sun_roof_vent":            return "天窗通风"
+        case "tesla.closures.sun_roof_close":           return "关闭天窗"
         // Comfort
         case "tesla.comfort.set_seat_heater":           return "座椅加热"
         case "tesla.comfort.set_steering_wheel_heater": return "方向盘加热"

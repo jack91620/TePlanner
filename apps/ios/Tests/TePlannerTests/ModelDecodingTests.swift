@@ -51,7 +51,7 @@ final class ModelDecodingTests: XCTestCase {
           "state": "online",
           "vehicle_config": {
             "car_type": "modely",
-            "roof_color": "Glass",
+            "roof_color": "RoofColorGlass",
             "motorized_charge_port": true
           }
         }
@@ -59,9 +59,20 @@ final class ModelDecodingTests: XCTestCase {
 
         let state = try decoder.decode(VehicleState.self, from: json)
         XCTAssertEqual(state.vehicleConfig?.carType, "modely")
-        XCTAssertEqual(state.vehicleConfig?.roofColor, "Glass")
+        XCTAssertEqual(state.vehicleConfig?.roofColor, "RoofColorGlass")
         XCTAssertEqual(state.vehicleConfig?.motorizedChargePort, true)
-        XCTAssertFalse(state.vehicleConfig?.hasPanoramicSunRoof ?? true)
+        XCTAssertFalse(state.vehicleConfig?.hasPanoramicSunRoof ?? true,
+                       "RoofColorGlass must NOT match panoramic sun-roof")
+    }
+
+    func testVehicleConfigSunroofMatchesPrefixedString() {
+        // Tesla returns "RoofColorSunroof" on Model S; bare "Sunroof"
+        // appears in older / partial responses. Both must match
+        // hasPanoramicSunRoof so the picker shows sun_roof_* there.
+        let prefixed = VehicleConfig(roofColor: "RoofColorSunroof")
+        XCTAssertTrue(prefixed.hasPanoramicSunRoof)
+        let bare = VehicleConfig(roofColor: "Sunroof")
+        XCTAssertTrue(bare.hasPanoramicSunRoof)
     }
 
     func testVehicleDecodesWithDefaults() throws {

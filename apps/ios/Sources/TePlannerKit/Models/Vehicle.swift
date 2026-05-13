@@ -78,9 +78,11 @@ public struct VehicleConfig: Codable, Equatable {
     /// Tesla model identifier — "modely" / "model3" / "models" /
     /// "modelx" most common.
     public let carType: String?
-    /// "Glass" = fixed (Model Y / late 3 / Cyber); "Sunroof" =
-    /// panoramic vent (Model S / pre-2017 X). sun_roof_* capabilities
-    /// only valid when "Sunroof".
+    /// Tesla returns prefixed strings: "RoofColorGlass" (fixed roof
+    /// — Model Y / late Model 3 / Cyber), "RoofColorSunroof"
+    /// (panoramic vent — Model S / pre-2017 X). Match via
+    /// `hasPanoramicSunRoof` rather than equality; old responses
+    /// without the prefix exist in the wild.
     public let roofColor: String?
     /// Whether the charge port door can be commanded open/closed.
     /// nil = unknown; false = manual-only.
@@ -104,7 +106,12 @@ public struct VehicleConfig: Codable, Equatable {
 
     /// Convenience: does this vehicle have the panoramic vent roof
     /// (vs a fixed glass / steel roof)?
-    public var hasPanoramicSunRoof: Bool { roofColor == "Sunroof" }
+    /// Substring match handles both Tesla wire shapes seen in the
+    /// wild: prefixed "RoofColorSunroof" (current) and bare
+    /// "Sunroof" (older / partial responses).
+    public var hasPanoramicSunRoof: Bool {
+        (roofColor ?? "").contains("Sunroof")
+    }
 }
 
 public struct VehicleState: Codable, Equatable {

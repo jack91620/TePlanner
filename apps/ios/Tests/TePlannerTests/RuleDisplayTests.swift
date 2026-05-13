@@ -250,12 +250,12 @@ final class RuleDisplayTests: XCTestCase {
         ))
         XCTAssertTrue(RuleDisplay.isHiddenInPicker(
             "tesla.navigation.send_address",
-            vehicleConfig: VehicleConfig(carType: "models", roofColor: "Sunroof"),
+            vehicleConfig: VehicleConfig(carType: "models", roofColor: "RoofColorSunroof"),
         ))
     }
 
     func test_isHiddenInPicker_sunRoof_hiddenOnModelY() {
-        let modelY = VehicleConfig(carType: "modely", roofColor: "Glass")
+        let modelY = VehicleConfig(carType: "modely", roofColor: "RoofColorGlass")
         XCTAssertTrue(RuleDisplay.isHiddenInPicker(
             "tesla.closures.sun_roof_vent", vehicleConfig: modelY,
         ))
@@ -265,7 +265,7 @@ final class RuleDisplayTests: XCTestCase {
     }
 
     func test_isHiddenInPicker_sunRoof_visibleOnModelS() {
-        let modelS = VehicleConfig(carType: "models", roofColor: "Sunroof")
+        let modelS = VehicleConfig(carType: "models", roofColor: "RoofColorSunroof")
         XCTAssertFalse(RuleDisplay.isHiddenInPicker(
             "tesla.closures.sun_roof_vent", vehicleConfig: modelS,
         ))
@@ -274,10 +274,12 @@ final class RuleDisplayTests: XCTestCase {
         ))
     }
 
-    func test_isHiddenInPicker_sunRoof_visibleWhenConfigUnknown() {
-        // First-launch / cold-cache safety: rather than hide every
-        // model-specific capability, show them all until /state lands.
-        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+    func test_isHiddenInPicker_sunRoof_hiddenWhenConfigUnknown() {
+        // Model S is rare enough in China that hide-by-default is the
+        // right call: better a Model S user briefly misses sun_roof
+        // (until /state lands and populates config) than a Model Y
+        // user sees raw "tesla.closures.sun_roof_close" in the picker.
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
             "tesla.closures.sun_roof_vent", vehicleConfig: nil,
         ))
     }
@@ -293,7 +295,7 @@ final class RuleDisplayTests: XCTestCase {
     }
 
     func test_isHiddenInPicker_unrelatedCapability_alwaysVisible() {
-        let any = VehicleConfig(carType: "modely", roofColor: "Glass")
+        let any = VehicleConfig(carType: "modely", roofColor: "RoofColorGlass")
         XCTAssertFalse(RuleDisplay.isHiddenInPicker(
             "tesla.security.door_lock", vehicleConfig: any,
         ))
