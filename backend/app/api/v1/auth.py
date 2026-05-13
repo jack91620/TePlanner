@@ -496,6 +496,14 @@ async def tesla_callback(
             db=db, user_id=user_id, access_token=bundle.access_token,
         )
 
+    # 2026-05-13 — fire-and-forget prefetch of static vehicle_config so
+    # the rule-builder picker collapses model-specific capabilities
+    # (天窗 / manual charge port) on the user's *first* picker open
+    # post-binding. Doesn't block the OAuth response. Idempotent —
+    # skips vehicles whose config_fetched_at is already set.
+    from app.services.vehicle_config_prefetch import schedule_prefetch
+    schedule_prefetch(user_id)
+
     jwt_token = None
     if user_id:
         jwt_token = create_access_token(
@@ -553,6 +561,11 @@ async def tesla_callback_post(
         target_user_id = await dedup_anon_by_vin(
             db=db, user_id=target_user_id, access_token=bundle.access_token,
         )
+
+    # 2026-05-13 — fire-and-forget vehicle_config prefetch. See GET
+    # handler comment for rationale.
+    from app.services.vehicle_config_prefetch import schedule_prefetch
+    schedule_prefetch(target_user_id)
 
     return {
         "success": True,
