@@ -293,6 +293,14 @@ final class MockAPIService: APIServiceProtocol {
         return mockCancelTripResponse
     }
 
+    // MARK: - LLM
+    var lastLLMConfigureRequest: LLMConfigureRequest?
+    var mockLLMConfigureResponse: Result<LLMConfigureResponse, APIError> = .failure(.invalidURL)
+    func configureViaLLM(_ request: LLMConfigureRequest) async -> Result<LLMConfigureResponse, APIError> {
+        lastLLMConfigureRequest = request
+        return mockLLMConfigureResponse
+    }
+
     func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
         return .success(BaseResponse(success: true, message: "ok"))
     }

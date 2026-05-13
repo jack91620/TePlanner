@@ -15,6 +15,7 @@ struct AutomationsHomeView: View {
     @ObservedObject private var snoozeStore: BackendSnoozeStore
     @ObservedObject private var automationEngine: AutomationEngine
     @State private var showingBuilder = false
+    @State private var showingLLMConfigure = false
     @State private var workingError: String?
     @State private var pendingDelete: RuleRecord?
     @State private var pendingDuplicate: RuleRecord?
@@ -187,6 +188,12 @@ struct AutomationsHomeView: View {
                     }
                     .accessibilityIdentifier("automations_activity_button")
                     Button {
+                        showingLLMConfigure = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                    .accessibilityIdentifier("automations_llm_button")
+                    Button {
                         showingBuilder = true
                     } label: {
                         Image(systemName: "plus")
@@ -197,6 +204,19 @@ struct AutomationsHomeView: View {
         }
         .task {
             await capabilitiesStore.refreshIfNeeded()
+        }
+        .sheet(isPresented: $showingLLMConfigure) {
+            LLMConfigureSheet(
+                target: .automation,
+                apiService: apiService,
+                onSavedAutomation: { response in
+                    Task { await createRuleFromLLMResponse(response) }
+                },
+                onSavedQuickAction: { _ in
+                    // Should not fire when target=automation, but
+                    // defensively no-op so we don't crash.
+                },
+            )
         }
         .sheet(isPresented: $showingBuilder) {
             NavigationStack {
@@ -330,6 +350,22 @@ struct AutomationsHomeView: View {
 
     private var snoozedCount: Int {
         snoozeStore.activeUntil.count
+    }
+
+    /// Take a validated LLM result and persist it via the same path
+    /// hand-authored rules use. The server has already round-tripped
+    /// the spec through CapabilityRegistry, so the only real failure
+    /// mode here is a network blip during createAutomation.
+    private func createRuleFromLLMResponse(_ r: LLMConfigureResponse) async {
+        guard r.intent == .createAutomation,
+              case .object(let dict)? = r.automationSpec else {
+            return
+        }
+        let name = r.name?.trimmingCharacters(in: .whitespaces).isEmpty == false
+            ? r.name!
+            : (r.summary.split(separator: "\n").first.map(String.init) ?? "AI 规则")
+        let nameTrimmed = String(name.prefix(64))
+        _ = await rulesStore.create(name: nameTrimmed, enabled: true, spec: dict)
     }
 
     @ViewBuilder
