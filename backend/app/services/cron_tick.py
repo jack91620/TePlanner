@@ -35,6 +35,7 @@ from app.services.automation.engine import AutomationEngine
 from app.services.automation.pending_resolver import check_and_resolve
 from app.services.charge_analysis.closer import close_stale_sessions
 from app.services.charge_analysis.opener import open_session_if_charging
+from app.services.active_trip_monitor import monitor_active_trip
 from app.services.command_queue import drain_for_vehicle
 from app.services.telemetry.snapshot import build_snapshot_from_telemetry
 
@@ -97,6 +98,10 @@ async def _tick_one_user(
     await close_stale_sessions(
         db, user_id=user_id, vehicle_id=vin, snap=snapshot,
     )
+    # Active-trip auto-advance: if user has a multi-stop trip in
+    # flight and the car arrived at the current stop, send the next
+    # stop to Tesla automatically + push notify. No-op when no trip.
+    await monitor_active_trip(db, user_id=user_id, snap=snapshot)
     if result.pushed_count or result.cleared_count:
         logger.info(
             "cron tick user=%s vin=%s pushed=%s cleared=%s",
