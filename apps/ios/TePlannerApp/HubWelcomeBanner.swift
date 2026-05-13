@@ -42,9 +42,9 @@ struct HubWelcomeBanner: View {
             }
         }
         .padding(Tokens.spacingMdPlus)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Tokens.radiusHubCard)
                 .strokeBorder(Color.accentColor.opacity(0.25), lineWidth: 1)
         )
         .accessibilityIdentifier("hub_welcome_banner")

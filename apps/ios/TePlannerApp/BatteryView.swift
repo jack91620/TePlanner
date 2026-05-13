@@ -147,7 +147,7 @@ struct BatteryView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
     }
 
     @ViewBuilder
@@ -226,7 +226,7 @@ struct BatteryView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
     }
 
     // MARK: - 充电统计

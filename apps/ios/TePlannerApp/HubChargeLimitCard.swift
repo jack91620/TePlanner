@@ -57,9 +57,9 @@ struct HubChargeLimitCard: View {
                 }
                 .padding(.vertical, Tokens.spacingMdPlus)
                 .padding(.horizontal, Tokens.spacingLg)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: Tokens.radiusHubCard)
                         .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
                 )
                 .accessibilityIdentifier("hub_charge_limit_card")

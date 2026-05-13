@@ -522,9 +522,9 @@ struct HubView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(18)
+        .padding(Tokens.spacingLg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
         .accessibilityIdentifier("hub_status_card")
     }
 
@@ -754,7 +754,7 @@ struct HubView: View {
         let isUnknown = knownLevel == nil
         return ZStack {
             Circle()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 10)
+                .stroke(Color.primary.opacity(Tokens.colorRingTrackAlpha), lineWidth: 10)
             if !isUnknown {
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
@@ -781,10 +781,10 @@ struct HubView: View {
 
     private func batteryColor(for level: Int) -> Color {
         switch level {
-        case ..<20: return .red
-        case ..<50: return .orange
-        case ..<80: return .accentColor
-        default: return .green
+        case ..<20: return Tokens.colorBatteryCritical
+        case ..<50: return Tokens.colorBatteryLow
+        case ..<80: return Tokens.colorBatteryNormal
+        default: return Tokens.colorBatteryFull
         }
     }
 
@@ -809,19 +809,19 @@ struct HubView: View {
             // not "we're on attempt 3 of 10". Hide the bookkeeping.
             Label("连接中", systemImage: "moon.zzz")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Tokens.colorStateWaking)
         case .ready:
             Label(chargingLabel, systemImage: "circle.fill")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.green)
+                .foregroundStyle(Tokens.colorStateReady)
         case .offline:
             Label("离线", systemImage: "circle.slash")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Tokens.colorStateOffline)
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.red)
+                .foregroundStyle(Tokens.colorStateError)
                 .lineLimit(1)
         }
     }
@@ -1071,9 +1071,9 @@ private struct HubEntryCard: View {
         }
         .padding(.vertical, Tokens.spacingMdPlus)
         .padding(.horizontal, Tokens.spacingLg)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Tokens.radiusHubCard))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Tokens.radiusHubCard)
                 .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityId)

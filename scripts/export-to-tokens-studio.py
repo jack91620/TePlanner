@@ -38,6 +38,25 @@ _WEIGHT_STUDIO = {
 }
 
 
+# Light-mode hex equivalents for iOS UIColor system colors. Used to
+# project our ios_system_color tokens into Figma — iOS still renders
+# the dynamic Color(.systemRed) etc. via Tokens.swift, but Tokens
+# Studio + Figma need a concrete hex. Designer-facing approximation
+# only; dark mode looks slightly different at runtime.
+_SYSTEM_COLOR_LIGHT_HEX = {
+    "systemRed":                  "#FF3B30",
+    "systemOrange":               "#FF9500",
+    "systemYellow":               "#FFCC00",
+    "systemGreen":                "#34C759",
+    "systemBlue":                 "#007AFF",
+    "systemGray":                 "#8E8E93",
+    "systemBackground":           "#FFFFFF",
+    "secondarySystemBackground":  "#F2F2F7",
+    "tertiarySystemBackground":   "#FFFFFF",
+    "tertiarySystemFill":         "#76768024",
+}
+
+
 def _studio_dimension_type(path: list[str], name: str) -> str:
     """Map a dimension token's path → Tokens Studio dimension subtype."""
     head = path[0] if path else ""
@@ -128,7 +147,16 @@ def _walk(node: Any, prefix: list[str], out: dict, skipped: list[str]) -> None:
         elif kind == "shadow":
             _set(out, prefix, {"value": _convert_shadow(node["value"]), "type": "boxShadow"})
         elif kind == "ios_system_color":
-            skipped.append(".".join(prefix) + f" (iOS Color(.{node['value']}))")
+            sys_name = node["value"]
+            hex_value = _SYSTEM_COLOR_LIGHT_HEX.get(sys_name)
+            if hex_value is None:
+                skipped.append(".".join(prefix) + f" (unknown ios_system_color {sys_name!r})")
+            else:
+                _set(out, prefix, {
+                    "value": hex_value,
+                    "type": "color",
+                    "description": f"iOS Color(.{sys_name}) light-mode equivalent; runtime is dynamic.",
+                })
         return
     for k, v in node.items():
         if k.startswith("$"):

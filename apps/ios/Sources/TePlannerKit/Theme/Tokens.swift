@@ -25,6 +25,17 @@ public enum Tokens {
     public static let colorWashSnoozeAlpha: CGFloat = 0.1
     public static let colorWashPermission = Color(red: 1.0000, green: 0.6549, blue: 0.1490, opacity: 1.0000)
     public static let colorWashPermissionAlpha: CGFloat = 0.1
+#if canImport(UIKit)
+    public static let colorStateWaking: Color = Color(.systemOrange)
+    public static let colorStateReady: Color = Color(.systemGreen)
+    public static let colorStateOffline: Color = Color(.systemGray)
+    public static let colorStateError: Color = Color(.systemRed)
+    public static let colorBatteryCritical: Color = Color(.systemRed)
+    public static let colorBatteryLow: Color = Color(.systemOrange)
+    public static let colorBatteryNormal: Color = Color(.systemBlue)
+    public static let colorBatteryFull: Color = Color(.systemGreen)
+#endif
+    public static let colorRingTrackAlpha: CGFloat = 0.08
     public static let spacingXs: CGFloat = 4
     public static let spacingSm: CGFloat = 8
     public static let spacingSmPlus: CGFloat = 10
@@ -36,6 +47,7 @@ public enum Tokens {
     public static let radiusCard: CGFloat = 12
     public static let radiusTile: CGFloat = 8
     public static let radiusCapsule: CGFloat = 50
+    public static let radiusHubCard: CGFloat = 14
     public static let shadowSubtle: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.08), radius: 1)
     public static let shadowDefault: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.16), radius: 2)
     public static let shadowDrawer: ShadowSpec = ShadowSpec(color: Color(red: 0.0000, green: 0.0000, blue: 0.0000).opacity(0.12), radius: 8, y: -2)

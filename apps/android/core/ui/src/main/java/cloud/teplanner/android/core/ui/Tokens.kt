@@ -32,6 +32,15 @@ object Tokens {
     val colorWashSnoozeAlpha = 0.1.dp
     val colorWashPermission = Color(0xFFFFA726)
     val colorWashPermissionAlpha = 0.1.dp
+    // colorStateWaking: iOS-only (Color(.systemOrange)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorStateReady: iOS-only (Color(.systemGreen)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorStateOffline: iOS-only (Color(.systemGray)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorStateError: iOS-only (Color(.systemRed)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorBatteryCritical: iOS-only (Color(.systemRed)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorBatteryLow: iOS-only (Color(.systemOrange)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorBatteryNormal: iOS-only (Color(.systemBlue)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // colorBatteryFull: iOS-only (Color(.systemGreen)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    val colorRingTrackAlpha = 0.08.dp
     val spacingXs = 4.dp
     val spacingSm = 8.dp
     val spacingSmPlus = 10.dp
@@ -43,6 +52,7 @@ object Tokens {
     val radiusCard = 12.dp
     val radiusTile = 8.dp
     val radiusCapsule = 50.dp
+    val radiusHubCard = 14.dp
     // shadowSubtle: shadow spec (color=#000000 opacity=0.08 radius=1 y=0). Phase F: map to Compose elevation dp or custom drawShadow modifier.
     // shadowDefault: shadow spec (color=#000000 opacity=0.16 radius=2 y=0). Phase F: map to Compose elevation dp or custom drawShadow modifier.
     // shadowDrawer: shadow spec (color=#000000 opacity=0.12 radius=8 y=-2). Phase F: map to Compose elevation dp or custom drawShadow modifier.

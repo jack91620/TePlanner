@@ -5,12 +5,7 @@
       "global"
     ],
     "generatedFrom": "packages/design-tokens/tokens.json via scripts/export-to-tokens-studio.py",
-    "skipped": [
-      "surface.canvas (iOS Color(.systemBackground))",
-      "surface.card (iOS Color(.secondarySystemBackground))",
-      "surface.elevated (iOS Color(.tertiarySystemBackground))",
-      "surface.fill (iOS Color(.tertiarySystemFill))"
-    ],
+    "skipped": [],
     "note": "Edit tokens.json (source of truth), not this file. Tokens Studio plugin pulls this via GitHub sync; designer changes flow back as a PR that edits tokens.json. ios_system_color tokens are runtime-adaptive iOS Color references with no Figma Variables equivalent — listed in skipped[]; designers see them only in iOS app, not in Figma."
   },
   "global": {
@@ -110,6 +105,56 @@
           "value": "0.1",
           "type": "opacity"
         }
+      },
+      "state": {
+        "waking": {
+          "value": "#FF9500",
+          "type": "color",
+          "description": "iOS Color(.systemOrange) light-mode equivalent; runtime is dynamic."
+        },
+        "ready": {
+          "value": "#34C759",
+          "type": "color",
+          "description": "iOS Color(.systemGreen) light-mode equivalent; runtime is dynamic."
+        },
+        "offline": {
+          "value": "#8E8E93",
+          "type": "color",
+          "description": "iOS Color(.systemGray) light-mode equivalent; runtime is dynamic."
+        },
+        "error": {
+          "value": "#FF3B30",
+          "type": "color",
+          "description": "iOS Color(.systemRed) light-mode equivalent; runtime is dynamic."
+        }
+      },
+      "battery": {
+        "critical": {
+          "value": "#FF3B30",
+          "type": "color",
+          "description": "iOS Color(.systemRed) light-mode equivalent; runtime is dynamic."
+        },
+        "low": {
+          "value": "#FF9500",
+          "type": "color",
+          "description": "iOS Color(.systemOrange) light-mode equivalent; runtime is dynamic."
+        },
+        "normal": {
+          "value": "#007AFF",
+          "type": "color",
+          "description": "iOS Color(.systemBlue) light-mode equivalent; runtime is dynamic."
+        },
+        "full": {
+          "value": "#34C759",
+          "type": "color",
+          "description": "iOS Color(.systemGreen) light-mode equivalent; runtime is dynamic."
+        }
+      },
+      "ring": {
+        "track_alpha": {
+          "value": "0.08",
+          "type": "opacity"
+        }
       }
     },
     "spacing": {
@@ -158,6 +203,10 @@
       "capsule": {
         "value": "50px",
         "type": "borderRadius"
+      },
+      "hub_card": {
+        "value": "14px",
+        "type": "borderRadius"
       }
     },
     "shadow": {
@@ -193,6 +242,28 @@
           "spread": "0px"
         },
         "type": "boxShadow"
+      }
+    },
+    "surface": {
+      "canvas": {
+        "value": "#FFFFFF",
+        "type": "color",
+        "description": "iOS Color(.systemBackground) light-mode equivalent; runtime is dynamic."
+      },
+      "card": {
+        "value": "#F2F2F7",
+        "type": "color",
+        "description": "iOS Color(.secondarySystemBackground) light-mode equivalent; runtime is dynamic."
+      },
+      "elevated": {
+        "value": "#FFFFFF",
+        "type": "color",
+        "description": "iOS Color(.tertiarySystemBackground) light-mode equivalent; runtime is dynamic."
+      },
+      "fill": {
+        "value": "#76768024",
+        "type": "color",
+        "description": "iOS Color(.tertiarySystemFill) light-mode equivalent; runtime is dynamic."
       }
     },
     "typography": {

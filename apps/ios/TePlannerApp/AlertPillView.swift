@@ -61,11 +61,11 @@ struct AlertPillView: View {
         .padding(.horizontal, Tokens.spacingMdPlus)
         .padding(.vertical, Tokens.spacingSmPlus)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Tokens.radiusHubCard)
                 .fill(.thinMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Tokens.radiusHubCard)
                 .strokeBorder(severityColor.opacity(0.4), lineWidth: 1)
         )
         .contextMenu {
