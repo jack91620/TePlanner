@@ -137,7 +137,7 @@ struct AutomationsHomeView: View {
                 } header: {
                     Text("预设 · \(presetRules.count)")
                 } footer: {
-                    Text("右滑静音、左滑删除、长按拖动调整顺序。")
+                    Text("右滑静音、左滑删除、长按弹出分享 / 复制 / 删除菜单。")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -344,13 +344,35 @@ struct AutomationsHomeView: View {
         } label: {
             ruleRowLabel(record)
         }
-        // No .contextMenu here — long-press is reserved for native
-        // drag-to-reorder (.onMove on the parent ForEach). The
-        // previous menu's actions all have other entry points:
-        //   启用 / 停用 → row-trailing Toggle
-        //   静音       → leading swipe + RuleDetail's snooze section
-        //   复制       → "+" toolbar button picks from preset templates
-        //   删除       → trailing swipe (custom rules only)
+        // 2026-05-13: re-introduced contextMenu after user feedback that
+        // both left-swipe + long-press appeared broken on a real iOS 26
+        // device. On iOS 26 the `.searchable` bar lives at the bottom
+        // and absorbs trailing-edge swipes from List rows in some
+        // layouts, so the swipeActions affordance is unreliable. Giving
+        // long-press a context menu provides a guaranteed-discoverable
+        // path to 分享 + 复制. The earlier removal in 3b5ea2c rerouted
+        // long-press to native drag-to-reorder — but that requires
+        // explicit edit mode anyway, which we never expose, so the
+        // long-press gesture was effectively dead. Bring it back; the
+        // .onMove handler stays for future Edit toolbar work.
+        .contextMenu {
+            Button {
+                Task { await shareRule(record) }
+            } label: {
+                Label("分享给好友", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                pendingDuplicate = record
+            } label: {
+                Label("复制为新规则", systemImage: "plus.square.on.square")
+            }
+            Divider()
+            Button(role: .destructive) {
+                pendingDelete = record
+            } label: {
+                Label("删除", systemImage: "trash")
+            }
+        }
     }
 
     /// True iff the rule has a sibling in the same section it could

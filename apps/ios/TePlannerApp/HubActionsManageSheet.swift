@@ -312,6 +312,15 @@ private struct ManageSlotFilled: View {
                     .font(.title3)
                     .foregroundStyle(.white, .black.opacity(0.4))
             }
+            // SwiftUI Form Section + LazyVGrid bug: without .borderless
+            // (or .plain), tapping ANY Button in a row fires every
+            // Button in that row's overlays. With default style,
+            // SwiftUI treats the whole row as a single tappable
+            // container and routes the tap to every child's action.
+            // .borderless makes each Button standalone-hit-tested.
+            // Reproduced 2026-05-13 on iOS 26.4 sim — tapping ×
+            // on slot 0 fired onClear for slots 0/1/2/3 in one tick.
+            .buttonStyle(.borderless)
             .padding(2)
             .accessibilityIdentifier("hub_manage_clear_x_\(slotIndex)")
         }
