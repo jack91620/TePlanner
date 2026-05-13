@@ -173,6 +173,33 @@ class WakeResponse(BaseModel):
     message: str
 
 
+def _build_vehicle_config(
+    raw: Dict[str, Any],
+    cached: Optional[Vehicle],
+) -> Optional[VehicleConfig]:
+    """Merge a fresh Tesla vehicle_config block with the cached row.
+
+    Tesla can return partial blocks (asleep vehicles, transient
+    /vehicle_data hiccups) where individual fields are absent.
+    Prefer freshly-fetched values; fall back to the persisted row;
+    return None only when neither has anything. Caller is responsible
+    for committing the row when it wrote new values.
+    """
+    car_type = raw.get("car_type") or (cached.car_type if cached else None)
+    roof_color = raw.get("roof_color") or (cached.roof_color if cached else None)
+    motorized = raw.get("motorized_charge_port")
+    if motorized is None and cached is not None:
+        motorized = cached.motorized_charge_port
+
+    if car_type is None and roof_color is None and motorized is None:
+        return None
+    return VehicleConfig(
+        car_type=car_type,
+        roof_color=roof_color,
+        motorized_charge_port=motorized,
+    )
+
+
 @router.get("/", response_model=VehicleListResponse)
 async def list_vehicles(
     user: User = Depends(get_current_user),
@@ -249,6 +276,7 @@ async def get_vehicle_state(
     vehicle_id: str,
     user: User = Depends(get_current_user),
     tesla_client: TeslaClient = Depends(get_tesla_client),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get vehicle state (battery, location, etc.).
 
@@ -257,7 +285,19 @@ async def get_vehicle_state(
     - Current location (GPS)
     - Charging state
     - Climate status
+    - vehicle_config (cached from prior fetches; populated on first
+      successful read and reused for every call thereafter — these
+      fields are factory-set, never change for a given VIN).
     """
+    # Pre-fetch the local Vehicle row so we can both seed
+    # vehicle_config from cache and persist a fresh fetch into it.
+    vehicle_row = (await db.execute(
+        select(Vehicle).where(
+            Vehicle.user_id == user.id,
+            Vehicle.vehicle_id == vehicle_id,
+        )
+    )).scalar_one_or_none()
+
     try:
         async with tesla_client:
             # Get comprehensive vehicle data
@@ -279,6 +319,29 @@ async def get_vehicle_state(
             climate_state = v.get("climate_state", {})
             vehicle_state = v.get("vehicle_state", {})
             vehicle_config_raw = v.get("vehicle_config") or {}
+
+            # Persist vehicle_config when Tesla returned it, so future
+            # calls (e.g. car asleep) can still report the model facts
+            # without waking. Only write when at least one field is
+            # present — partial responses (rare but seen) shouldn't
+            # clobber the existing cache.
+            if vehicle_row is not None and (
+                vehicle_config_raw.get("car_type")
+                or vehicle_config_raw.get("roof_color")
+                or vehicle_config_raw.get("motorized_charge_port") is not None
+            ):
+                vehicle_row.car_type = (
+                    vehicle_config_raw.get("car_type") or vehicle_row.car_type
+                )
+                vehicle_row.roof_color = (
+                    vehicle_config_raw.get("roof_color") or vehicle_row.roof_color
+                )
+                if vehicle_config_raw.get("motorized_charge_port") is not None:
+                    vehicle_row.motorized_charge_port = (
+                        vehicle_config_raw.get("motorized_charge_port")
+                    )
+                vehicle_row.config_fetched_at = datetime.utcnow()
+                await db.commit()
 
             # Same diagnostic as get_vehicle — Fleet API sometimes
             # strips display_name on /vehicle_data but returns it on
@@ -319,15 +382,8 @@ async def get_vehicle_state(
                     "cabin_overheat_protection_on"
                 ),
                 charge_limit_soc=charge_state.get("charge_limit_soc"),
-                vehicle_config=(
-                    VehicleConfig(
-                        car_type=vehicle_config_raw.get("car_type"),
-                        roof_color=vehicle_config_raw.get("roof_color"),
-                        motorized_charge_port=vehicle_config_raw.get(
-                            "motorized_charge_port"
-                        ),
-                    )
-                    if vehicle_config_raw else None
+                vehicle_config=_build_vehicle_config(
+                    vehicle_config_raw, vehicle_row
                 ),
             )
 

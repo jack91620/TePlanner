@@ -83,6 +83,17 @@ class Vehicle(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # 2026-05-13: cached vehicle_config (migration 0011). These are
+    # factory-set and never change for a given VIN — fetch once,
+    # serve from DB forever after. Drives client-side capability
+    # picker filtering (hide 天窗 on Model 3/Y, hide 充电口控制 on
+    # manual-port trims). All nullable so the first /state call
+    # against an unpopulated row degrades to "show every capability".
+    car_type = Column(String(32), nullable=True)
+    roof_color = Column(String(32), nullable=True)
+    motorized_charge_port = Column(Boolean, nullable=True)
+    config_fetched_at = Column(DateTime, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="vehicles")
 
