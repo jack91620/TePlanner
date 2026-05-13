@@ -127,6 +127,20 @@ class Settings(BaseSettings):
     HUAWEI_PUSH_TOKEN_URL: str = ""      # default: oauth-login.cloud.huawei.com
     HUAWEI_PUSH_API_URL: str = ""        # default: push-api.cloud.huawei.com
 
+    # LLM (Phase 12 — natural-language automation / quick-action config).
+    # The backend default goes through DeepSeek because it's mainland-
+    # accessible, Chinese-strong, and ~50× cheaper than GPT-4o for the
+    # short prompts this feature produces. Users can override via
+    # user_settings (LLM_PROVIDER + LLM_API_KEY) using their own
+    # OpenAI/Anthropic/Qwen key — BYOK keys are stored encrypted via
+    # the existing TokenEncryption infra (same path as Tesla tokens).
+    # Empty DEEPSEEK_API_KEY disables the server-default; users who
+    # haven't set a BYOK key will get a clear "未配置 LLM 服务" error.
+    LLM_DEFAULT_PROVIDER: str = "deepseek"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
 
