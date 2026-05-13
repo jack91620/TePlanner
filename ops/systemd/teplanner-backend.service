@@ -13,6 +13,13 @@ WorkingDirectory=/home/ubuntu/TePlanner/backend
 # conda 环境 PATH，确保 uvicorn / python 取自 teplanner env
 Environment=PATH=/home/ubuntu/miniconda3/envs/teplanner/bin:/usr/bin:/bin
 
+# 防御：上次部署如果有人手工 `bash start.sh -d -s` 起了 uvicorn 占着
+# 8000 端口，systemd restart 会每 5s 撞 EADDRINUSE 一次（2026-05-14
+# 事件，重启了 6124 次才被发现）。-k 8000/tcp 在我们自己启动之前
+# 强 kill 占用者；`-` 前缀让命令失败也不阻塞 ExecStart（端口空闲
+# 时 fuser 退出非零）。fuser 在 psmisc 包里，Ubuntu 默认有。
+ExecStartPre=-/usr/bin/fuser -k 8000/tcp
+
 # 生产参数：监听 127.0.0.1（前面有 nginx 反代）+ 2 worker，不再用 --reload
 ExecStart=/home/ubuntu/miniconda3/envs/teplanner/bin/uvicorn app.main:app \
     --host 127.0.0.1 \

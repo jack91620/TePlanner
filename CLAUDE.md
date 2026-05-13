@@ -402,8 +402,9 @@ Server tracks `origin/ios-development`. After pushing local commits:
 ssh ubuntu@82.156.248.135
 cd ~/TePlanner && git fetch origin ios-development \
                 && git reset --hard origin/ios-development
-cd backend && echo y | bash start.sh -d -s
+sudo systemctl restart teplanner-backend
 curl -sS https://api.teplanner.cloud/health   # 200
+sudo journalctl -u teplanner-backend --since "30 sec ago" | grep "cron tick complete"
 ```
 
 `reset --hard` instead of `pull` because the server occasionally
@@ -411,6 +412,14 @@ ends up with stray modifications (a daily-review autonomous run, a
 manual experiment); reset converges cleanly. If anything important
 on the server isn't yet in git, commit it locally first via the
 proper flow before resetting.
+
+**Don't run `bash start.sh -d -s` on prod.** `start.sh` is a dev
+convenience wrapper that spawns `uvicorn --reload` outside systemd —
+on prod it collides with the `teplanner-backend.service` unit that's
+supposed to own port 8000, sending systemd into an infinite restart
+loop (6124× in the 2026-05-14 incident). The orphan still serves
+traffic so the issue hides behind `/health` 200, but the monitor's
+journalctl-based polling-stale check fires endlessly. Use systemctl.
 
 Tesla `tesla-http-proxy` is its own systemd service:
 `sudo systemctl status tesla-http-proxy`. Don't restart it casually

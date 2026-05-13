@@ -69,6 +69,32 @@ while getopts "p:h:dkrns" opt; do
     esac
 done
 
+# Refuse to run under daemon mode on a host that already has
+# teplanner-backend.service installed under systemd. Why: a manual
+# `bash start.sh -d -s` spawns uvicorn outside systemd, collides on
+# port 8000, and forces systemd into an infinite restart loop
+# (6124× before triage on 2026-05-14). The intended prod path is
+# `sudo systemctl restart teplanner-backend`. Force ($FORCE_DAEMON=1)
+# overrides for the rare "I really know what I'm doing" case.
+if [ "$DAEMON_MODE" = true ] && [ "$KILL_MODE" = false ] && [ "$RESTART_MODE" = false ]; then
+    if command -v systemctl >/dev/null 2>&1 \
+        && systemctl list-unit-files teplanner-backend.service 2>/dev/null \
+              | grep -q "teplanner-backend.service"; then
+        if [ "${FORCE_DAEMON:-0}" != "1" ]; then
+            echo "${RED}refusing to start: teplanner-backend.service is installed${NC}" >&2
+            echo "" >&2
+            echo "On this host systemd owns the backend. Use:" >&2
+            echo "  sudo systemctl restart teplanner-backend" >&2
+            echo "" >&2
+            echo "If you really want this script to fork its own uvicorn" >&2
+            echo "(dev / debugging on a non-prod host):" >&2
+            echo "  FORCE_DAEMON=1 bash start.sh -d -s" >&2
+            exit 2
+        fi
+        echo "${YELLOW}WARN: FORCE_DAEMON=1 — running alongside systemd unit${NC}" >&2
+    fi
+fi
+
 # Load .env file
 load_env() {
     if [ -f "$SCRIPT_DIR/.env" ]; then
