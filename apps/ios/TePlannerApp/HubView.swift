@@ -451,6 +451,7 @@ struct HubView: View {
                     store: quickActionsStore,
                     vehicleId: viewModel.vehicle?.id,
                     commandStatusStore: commandStatusStore,
+                    vehicleConfig: viewModel.vehicleState?.vehicleConfig,
                 )
             }
             .padding(16)

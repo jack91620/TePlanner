@@ -52,6 +52,33 @@ class VehicleListResponse(BaseModel):
     vehicles: List[VehicleResponse]
 
 
+class VehicleConfig(BaseModel):
+    """Static per-vehicle hardware facts from Tesla `/vehicle_data`
+    `vehicle_config` block. Used by clients to gate model-specific
+    capabilities (e.g. only Model S/old X have a panoramic sun roof
+    that can vent; Model 3/Y don't).
+
+    Only fields we actually act on are surfaced — the raw block has
+    ~50+ keys (paint, wheel type, badging) we don't need.
+    """
+
+    car_type: Optional[str] = None
+    """Tesla's internal model identifier — examples seen:
+    "modely", "model3", "models", "modelx"."""
+
+    roof_color: Optional[str] = None
+    """"Glass" = fixed glass roof (Model Y / late Model 3 / Cyber);
+    "Sunroof" = panoramic vent (Model S / pre-2017 Model X / etc.);
+    "None" = solid steel roof on older trims. Capability filter:
+    sun_roof_* commands only valid when this == "Sunroof"."""
+
+    motorized_charge_port: Optional[bool] = None
+    """Whether the charge port door can be commanded open/closed
+    remotely. Model S/X always; Model 3/Y mostly yes; older trims
+    sometimes false. When false, charge.port_open / port_close
+    capabilities are a no-op at the car."""
+
+
 class VehicleStateResponse(BaseModel):
     """Vehicle state response."""
 
@@ -81,6 +108,12 @@ class VehicleStateResponse(BaseModel):
     # current limit differs from what the user wants for daily / pre-
     # trip use).
     charge_limit_soc: Optional[int] = None
+    # 2026-05-13: vehicle_config drives client-side capability gating
+    # (don't show "天窗通风" to a Model Y owner). Null when the Tesla
+    # response doesn't include the vehicle_config block (rare — most
+    # /vehicle_data calls return it, but cached / partial responses
+    # may omit). Clients should treat absence as "don't filter".
+    vehicle_config: Optional[VehicleConfig] = None
 
 
 class ClimateKeeperModeRequest(BaseModel):
@@ -236,6 +269,7 @@ async def get_vehicle_state(
                     "location_data",
                     "climate_state",
                     "vehicle_state",
+                    "vehicle_config",
                 ],
             )
 
@@ -244,6 +278,7 @@ async def get_vehicle_state(
             drive_state = v.get("drive_state", {})
             climate_state = v.get("climate_state", {})
             vehicle_state = v.get("vehicle_state", {})
+            vehicle_config_raw = v.get("vehicle_config") or {}
 
             # Same diagnostic as get_vehicle — Fleet API sometimes
             # strips display_name on /vehicle_data but returns it on
@@ -284,6 +319,16 @@ async def get_vehicle_state(
                     "cabin_overheat_protection_on"
                 ),
                 charge_limit_soc=charge_state.get("charge_limit_soc"),
+                vehicle_config=(
+                    VehicleConfig(
+                        car_type=vehicle_config_raw.get("car_type"),
+                        roof_color=vehicle_config_raw.get("roof_color"),
+                        motorized_charge_port=vehicle_config_raw.get(
+                            "motorized_charge_port"
+                        ),
+                    )
+                    if vehicle_config_raw else None
+                ),
             )
 
     except TeslaVehicleOfflineError:

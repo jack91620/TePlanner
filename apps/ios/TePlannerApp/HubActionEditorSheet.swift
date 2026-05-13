@@ -9,6 +9,9 @@ struct HubActionEditorSheet: View {
     @ObservedObject var store: HubActionsStore
     /// nil = creating a new action; non-nil = editing existing.
     let editing: HubAction?
+    /// Vehicle hardware facts for capability gating (e.g. hide
+    /// sun_roof_* on a Model Y). nil = no gating.
+    var vehicleConfig: VehicleConfig? = nil
     /// When creating from a tap on an empty slot, fill it on save.
     var slotToFill: Int? = nil
     let onDone: () -> Void
@@ -265,7 +268,9 @@ struct HubActionEditorSheet: View {
         -> [(RuleDisplay.CapabilityCategory, [CapabilityInfo])]
     {
         var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
-        for cap in capStore.capabilities where !RuleDisplay.isHiddenInPicker(cap.id) {
+        for cap in capStore.capabilities
+            where !RuleDisplay.isHiddenInPicker(cap.id, vehicleConfig: vehicleConfig)
+        {
             byCategory[RuleDisplay.capabilityCategory(cap.id), default: []].append(cap)
         }
         return RuleDisplay.CapabilityCategory.allCases.compactMap { cat in

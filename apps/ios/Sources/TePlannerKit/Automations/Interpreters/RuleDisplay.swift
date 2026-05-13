@@ -51,14 +51,35 @@ public enum RuleDisplay {
     /// - `tesla.navigation.send_address` is a wire-format twin of
     ///   `tesla.navigation.send`; clients should only see one entry.
     /// - `tesla.closures.sun_roof_*` only work on the panoramic-roof
-    ///   Model S; Model 3/Y (≈100% of the China user base) get an
-    ///   API error.
-    public static func isHiddenInPicker(_ capabilityId: String) -> Bool {
+    ///   Model S / pre-2017 Model X. Gated by the actual
+    ///   `vehicleConfig.roofColor` field from /vehicle_data —
+    ///   absence (nil) is treated as "don't filter" so the rule
+    ///   builder isn't empty before the first state fetch lands.
+    /// - `tesla.charging.port_open` / `port_close` need a motorized
+    ///   port. Older Roadster / 3 builds without it get a no-op.
+    public static func isHiddenInPicker(
+        _ capabilityId: String,
+        vehicleConfig: VehicleConfig? = nil
+    ) -> Bool {
         switch capabilityId {
-        case "tesla.navigation.send_address",
-             "tesla.closures.sun_roof_vent",
-             "tesla.closures.sun_roof_close":
+        case "tesla.navigation.send_address":
             return true
+        case "tesla.closures.sun_roof_vent",
+             "tesla.closures.sun_roof_close":
+            // Hide when we know the car has no vent roof. Fall back to
+            // visible when vehicleConfig is unknown — the alternative
+            // (hide-by-default) would show an empty closures category
+            // on first-launch / cold-cache Hub.
+            if let config = vehicleConfig {
+                return !config.hasPanoramicSunRoof
+            }
+            return false
+        case "tesla.charging.port_open",
+             "tesla.charging.port_close":
+            if let motorized = vehicleConfig?.motorizedChargePort {
+                return !motorized
+            }
+            return false
         default:
             return false
         }

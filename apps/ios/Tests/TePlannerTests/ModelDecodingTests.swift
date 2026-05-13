@@ -35,6 +35,33 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(state.latitude, 31.2304)
         XCTAssertEqual(state.chargingState, "Disconnected")
         XCTAssertEqual(state.odometer, 12345.6)
+        // vehicle_config absent → nil; capability filter falls back
+        // to "show every capability" rather than hiding by default.
+        XCTAssertNil(state.vehicleConfig)
+    }
+
+    func testVehicleStateDecodesVehicleConfig() throws {
+        // Backend forwards Tesla's vehicle_config block under the same
+        // key; clients use roof_color + motorized_charge_port to gate
+        // model-specific capabilities (天窗 / 充电口控制) out of the
+        // capability picker.
+        let json = """
+        {
+          "vehicle_id": "12345",
+          "state": "online",
+          "vehicle_config": {
+            "car_type": "modely",
+            "roof_color": "Glass",
+            "motorized_charge_port": true
+          }
+        }
+        """.data(using: .utf8)!
+
+        let state = try decoder.decode(VehicleState.self, from: json)
+        XCTAssertEqual(state.vehicleConfig?.carType, "modely")
+        XCTAssertEqual(state.vehicleConfig?.roofColor, "Glass")
+        XCTAssertEqual(state.vehicleConfig?.motorizedChargePort, true)
+        XCTAssertFalse(state.vehicleConfig?.hasPanoramicSunRoof ?? true)
     }
 
     func testVehicleDecodesWithDefaults() throws {

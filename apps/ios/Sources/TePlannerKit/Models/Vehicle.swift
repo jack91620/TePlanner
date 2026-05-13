@@ -69,6 +69,44 @@ public struct Vehicle: Codable, Identifiable, Equatable {
     }
 }
 
+/// Static per-vehicle hardware facts from Tesla `/vehicle_data`
+/// `vehicle_config` block — drives client-side capability gating so
+/// we don't show "天窗通风" to a Model Y owner. nil when the Tesla
+/// response didn't include the block (rare); clients should treat
+/// absence as "don't filter — show everything".
+public struct VehicleConfig: Codable, Equatable {
+    /// Tesla model identifier — "modely" / "model3" / "models" /
+    /// "modelx" most common.
+    public let carType: String?
+    /// "Glass" = fixed (Model Y / late 3 / Cyber); "Sunroof" =
+    /// panoramic vent (Model S / pre-2017 X). sun_roof_* capabilities
+    /// only valid when "Sunroof".
+    public let roofColor: String?
+    /// Whether the charge port door can be commanded open/closed.
+    /// nil = unknown; false = manual-only.
+    public let motorizedChargePort: Bool?
+
+    public init(
+        carType: String? = nil,
+        roofColor: String? = nil,
+        motorizedChargePort: Bool? = nil
+    ) {
+        self.carType = carType
+        self.roofColor = roofColor
+        self.motorizedChargePort = motorizedChargePort
+    }
+
+    public enum CodingKeys: String, CodingKey {
+        case carType = "car_type"
+        case roofColor = "roof_color"
+        case motorizedChargePort = "motorized_charge_port"
+    }
+
+    /// Convenience: does this vehicle have the panoramic vent roof
+    /// (vs a fixed glass / steel roof)?
+    public var hasPanoramicSunRoof: Bool { roofColor == "Sunroof" }
+}
+
 public struct VehicleState: Codable, Equatable {
     public let vehicleId: String?
     public let displayName: String?
@@ -100,6 +138,11 @@ public struct VehicleState: Codable, Equatable {
     public let windowOpen: Bool?
     public let frunkOpen: Bool?
     public let trunkOpen: Bool?
+    /// Static hardware facts (model, roof type, motorized charge port).
+    /// Drives capability picker filtering — see RuleDisplay.isHidden.
+    /// nil before the first /vehicles/{id}/state response lands; treat
+    /// as "no model gating, show every capability".
+    public let vehicleConfig: VehicleConfig?
 
     public init(
         vehicleId: String? = nil,
@@ -126,7 +169,8 @@ public struct VehicleState: Codable, Equatable {
         doorOpen: Bool? = nil,
         windowOpen: Bool? = nil,
         frunkOpen: Bool? = nil,
-        trunkOpen: Bool? = nil
+        trunkOpen: Bool? = nil,
+        vehicleConfig: VehicleConfig? = nil
     ) {
         self.vehicleId = vehicleId
         self.displayName = displayName
@@ -153,6 +197,7 @@ public struct VehicleState: Codable, Equatable {
         self.windowOpen = windowOpen
         self.frunkOpen = frunkOpen
         self.trunkOpen = trunkOpen
+        self.vehicleConfig = vehicleConfig
     }
 
     public enum CodingKeys: String, CodingKey {
@@ -178,6 +223,7 @@ public struct VehicleState: Codable, Equatable {
         case windowOpen = "window_open"
         case frunkOpen = "frunk_open"
         case trunkOpen = "trunk_open"
+        case vehicleConfig = "vehicle_config"
     }
 
     /// Whether the vehicle is currently in 露营模式 (camp mode).

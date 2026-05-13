@@ -238,4 +238,67 @@ final class RuleDisplayTests: XCTestCase {
             )
         }
     }
+
+    // MARK: - isHiddenInPicker (vehicle_config-driven gating)
+
+    func test_isHiddenInPicker_navSendAddress_alwaysHidden() {
+        // Wire-format twin of tesla.navigation.send; client surfaces
+        // only the unified "发送导航目的地" entry. Hidden regardless
+        // of vehicle config.
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.navigation.send_address", vehicleConfig: nil,
+        ))
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.navigation.send_address",
+            vehicleConfig: VehicleConfig(carType: "models", roofColor: "Sunroof"),
+        ))
+    }
+
+    func test_isHiddenInPicker_sunRoof_hiddenOnModelY() {
+        let modelY = VehicleConfig(carType: "modely", roofColor: "Glass")
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.closures.sun_roof_vent", vehicleConfig: modelY,
+        ))
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.closures.sun_roof_close", vehicleConfig: modelY,
+        ))
+    }
+
+    func test_isHiddenInPicker_sunRoof_visibleOnModelS() {
+        let modelS = VehicleConfig(carType: "models", roofColor: "Sunroof")
+        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+            "tesla.closures.sun_roof_vent", vehicleConfig: modelS,
+        ))
+        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+            "tesla.closures.sun_roof_close", vehicleConfig: modelS,
+        ))
+    }
+
+    func test_isHiddenInPicker_sunRoof_visibleWhenConfigUnknown() {
+        // First-launch / cold-cache safety: rather than hide every
+        // model-specific capability, show them all until /state lands.
+        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+            "tesla.closures.sun_roof_vent", vehicleConfig: nil,
+        ))
+    }
+
+    func test_isHiddenInPicker_chargePort_hiddenWhenManual() {
+        let manualPort = VehicleConfig(motorizedChargePort: false)
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.charging.port_open", vehicleConfig: manualPort,
+        ))
+        XCTAssertTrue(RuleDisplay.isHiddenInPicker(
+            "tesla.charging.port_close", vehicleConfig: manualPort,
+        ))
+    }
+
+    func test_isHiddenInPicker_unrelatedCapability_alwaysVisible() {
+        let any = VehicleConfig(carType: "modely", roofColor: "Glass")
+        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+            "tesla.security.door_lock", vehicleConfig: any,
+        ))
+        XCTAssertFalse(RuleDisplay.isHiddenInPicker(
+            "tesla.climate.preheat", vehicleConfig: any,
+        ))
+    }
 }

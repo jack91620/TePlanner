@@ -18,17 +18,23 @@ struct RuleBuilderView: View {
     let template: RuleRecord?
     @ObservedObject var rulesStore: AutomationRulesStore
     @ObservedObject var capabilitiesStore: CapabilitiesStore
+    /// Vehicle hardware facts used to hide unsupported capabilities
+    /// in the action picker (e.g. sun_roof_* on a Model Y). nil =
+    /// don't filter, show everything.
+    let vehicleConfig: VehicleConfig?
 
     init(
         initial: RuleRecord?,
         template: RuleRecord? = nil,
         rulesStore: AutomationRulesStore,
         capabilitiesStore: CapabilitiesStore,
+        vehicleConfig: VehicleConfig? = nil,
     ) {
         self.initial = initial
         self.template = template
         self.rulesStore = rulesStore
         self.capabilitiesStore = capabilitiesStore
+        self.vehicleConfig = vehicleConfig
     }
 
     @Environment(\.dismiss) private var dismiss
@@ -1461,7 +1467,9 @@ struct RuleBuilderView: View {
     private var capabilityPicker: some View {
         let buckets: [(RuleDisplay.CapabilityCategory, [CapabilityInfo])] = {
             var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
-            for cap in capabilitiesStore.capabilities where !RuleDisplay.isHiddenInPicker(cap.id) {
+            for cap in capabilitiesStore.capabilities
+                where !RuleDisplay.isHiddenInPicker(cap.id, vehicleConfig: vehicleConfig)
+            {
                 byCategory[RuleDisplay.capabilityCategory(cap.id), default: []].append(cap)
             }
             return RuleDisplay.CapabilityCategory.allCases.compactMap { cat in

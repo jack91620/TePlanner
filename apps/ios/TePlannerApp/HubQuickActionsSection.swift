@@ -25,6 +25,10 @@ struct HubQuickActionsSection: View {
     /// on a quick action shows "切换 X 中… → 已确认" identical to
     /// other dispatch surfaces.
     let commandStatusStore: CommandStatusStore?
+    /// Static hardware facts (roof / charge port / model) that drive
+    /// model-aware capability filtering in the editor's picker.
+    /// nil = no gating; show every capability.
+    var vehicleConfig: VehicleConfig? = nil
 
     @State private var editingAction: HubAction? = nil
     @State private var creatingNew: Bool = false
@@ -95,6 +99,7 @@ struct HubQuickActionsSection: View {
             HubActionEditorSheet(
                 store: store,
                 editing: action,
+                vehicleConfig: vehicleConfig,
                 onDone: { editingAction = nil },
             )
         }
@@ -102,6 +107,7 @@ struct HubQuickActionsSection: View {
             HubActionEditorSheet(
                 store: store,
                 editing: nil,
+                vehicleConfig: vehicleConfig,
                 slotToFill: createSlotIndex,
                 onDone: {
                     creatingNew = false
