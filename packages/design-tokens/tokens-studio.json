@@ -201,7 +201,7 @@
           "value": {
             "fontFamily": "Inter",
             "fontSize": "44px",
-            "fontWeight": "SemiBold"
+            "fontWeight": "600"
           },
           "type": "typography"
         },
@@ -209,7 +209,7 @@
           "value": {
             "fontFamily": "Inter",
             "fontSize": "22px",
-            "fontWeight": "Bold"
+            "fontWeight": "700"
           },
           "type": "typography"
         }
@@ -219,7 +219,7 @@
           "value": {
             "fontFamily": "Roboto Mono",
             "fontSize": "48px",
-            "fontWeight": "Bold"
+            "fontWeight": "700"
           },
           "type": "typography"
         },
@@ -227,7 +227,7 @@
           "value": {
             "fontFamily": "Roboto Mono",
             "fontSize": "28px",
-            "fontWeight": "SemiBold"
+            "fontWeight": "600"
           },
           "type": "typography"
         }
@@ -260,7 +260,7 @@
           "value": {
             "fontFamily": "Inter",
             "fontSize": "96px",
-            "fontWeight": "Bold"
+            "fontWeight": "700"
           },
           "type": "typography"
         }

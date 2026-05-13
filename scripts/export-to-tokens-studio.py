@@ -31,10 +31,10 @@ OUT = ROOT / "packages" / "design-tokens" / "tokens-studio.json"
 
 
 _WEIGHT_STUDIO = {
-    "regular": "Regular",
-    "medium": "Medium",
-    "semibold": "SemiBold",
-    "bold": "Bold",
+    "regular": "400",
+    "medium": "500",
+    "semibold": "600",
+    "bold": "700",
 }
 
 
