@@ -59,7 +59,7 @@ struct NearbyChargersView: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(selected ? Color.accentColor : Color(.secondarySystemBackground),
+                .background(selected ? Color.accentColor : Tokens.surfaceCard,
                             in: Capsule())
                 .foregroundStyle(selected ? Color.white : Color.primary)
         }

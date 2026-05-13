@@ -74,7 +74,7 @@ struct MapHomeView: View {
                     .frame(height: drawerHeight(in: geo))
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(.systemBackground))
+                            .fill(Tokens.surfaceCanvas)
                             .shadow(color: .black.opacity(0.12), radius: 8, y: -2)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

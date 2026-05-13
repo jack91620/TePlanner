@@ -94,9 +94,17 @@ def emit_swift(tokens: list[tuple[list[str], dict]]) -> str:
         "",
         "public enum Tokens {",
     ]
+    ios_only_open = False
     for path, leaf in tokens:
         name = _camel(path)
         kind = leaf.get("type", "")
+        needs_ios_gate = kind == "ios_system_color"
+        if needs_ios_gate and not ios_only_open:
+            lines.append("#if canImport(UIKit)")
+            ios_only_open = True
+        elif not needs_ios_gate and ios_only_open:
+            lines.append("#endif")
+            ios_only_open = False
         if kind == "color":
             r, g, b, a = _hex_to_rgba(leaf["value"])
             lines.append(
@@ -107,8 +115,12 @@ def emit_swift(tokens: list[tuple[list[str], dict]]) -> str:
             lines.append(f"    public static let {name}: CGFloat = {leaf['value']}")
         elif kind == "typography":
             lines.append(f"    public static let {name}: Font = {_swift_font_expr(leaf['value'])}")
+        elif kind == "ios_system_color":
+            lines.append(f"    public static let {name}: Color = Color(.{leaf['value']})")
         else:
             lines.append(f"    // skipped {name} (unknown type {kind!r})")
+    if ios_only_open:
+        lines.append("#endif")
     lines.append("}")
     lines.append("")
     return "\n".join(lines)
@@ -166,6 +178,11 @@ def emit_kotlin(tokens: list[tuple[list[str], dict]]) -> str:
             lines.append(f"    val {name} = {leaf['value']}.dp")
         elif kind == "typography":
             lines.append(f"    val {name} = {_kotlin_textstyle_expr(leaf['value'])}")
+        elif kind == "ios_system_color":
+            lines.append(
+                f"    // {name}: iOS-only (Color(.{leaf['value']})). "
+                "Phase F: map to MaterialTheme.colorScheme.* equivalent."
+            )
         else:
             lines.append(f"    // skipped {name} (unknown type {kind!r})")
     lines.append("}")

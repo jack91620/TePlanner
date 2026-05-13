@@ -128,7 +128,7 @@ struct ChargingStationDetailView: View {
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Tokens.surfaceCard, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var actions: some View {

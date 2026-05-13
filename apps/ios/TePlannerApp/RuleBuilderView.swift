@@ -624,7 +624,7 @@ struct RuleBuilderView: View {
                         .font(.caption)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
-                        .background(on ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemFill), in: Capsule())
+                        .background(on ? Color.accentColor.opacity(0.2) : Tokens.surfaceFill, in: Capsule())
                         .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                         .onTapGesture {
                             if on { cronWeekdays.remove(day) }
@@ -644,7 +644,7 @@ struct RuleBuilderView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                active ? Color.accentColor.opacity(0.18) : Color(.tertiarySystemFill),
+                active ? Color.accentColor.opacity(0.18) : Tokens.surfaceFill,
                 in: Capsule()
             )
             .foregroundStyle(active ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))

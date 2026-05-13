@@ -125,7 +125,7 @@ struct ChargingSessionDetailView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
+        .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: Tokens.radiusCard))
     }
 
     private func kvRow(_ key: String, value: String, emphasize: Bool = false) -> some View {

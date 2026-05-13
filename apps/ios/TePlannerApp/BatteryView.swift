@@ -282,7 +282,7 @@ struct BatteryView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func statCard(
@@ -351,7 +351,7 @@ struct BatteryView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func formatMinutes(_ minutes: Int) -> String {

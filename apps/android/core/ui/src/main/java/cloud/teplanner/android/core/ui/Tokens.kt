@@ -41,6 +41,10 @@ object Tokens {
     val radiusCard = 12.dp
     val radiusTile = 8.dp
     val radiusCapsule = 50.dp
+    // surfaceCanvas: iOS-only (Color(.systemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // surfaceCard: iOS-only (Color(.secondarySystemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // surfaceElevated: iOS-only (Color(.tertiarySystemBackground)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
+    // surfaceFill: iOS-only (Color(.tertiarySystemFill)). Phase F: map to MaterialTheme.colorScheme.* equivalent.
     val typographyMetricHero = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "\"tnum\"")
     val typographyMetricCompact = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "\"tnum\"")
     val typographyCodeDisplay = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)

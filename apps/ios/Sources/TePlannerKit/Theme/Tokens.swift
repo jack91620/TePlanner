@@ -34,6 +34,12 @@ public enum Tokens {
     public static let radiusCard: CGFloat = 12
     public static let radiusTile: CGFloat = 8
     public static let radiusCapsule: CGFloat = 50
+#if canImport(UIKit)
+    public static let surfaceCanvas: Color = Color(.systemBackground)
+    public static let surfaceCard: Color = Color(.secondarySystemBackground)
+    public static let surfaceElevated: Color = Color(.tertiarySystemBackground)
+    public static let surfaceFill: Color = Color(.tertiarySystemFill)
+#endif
     public static let typographyMetricHero: Font = .system(size: 44, weight: .semibold).monospacedDigit()
     public static let typographyMetricCompact: Font = .system(size: 22, weight: .bold).monospacedDigit()
     public static let typographyCodeDisplay: Font = .system(size: 48, weight: .bold, design: .monospaced)

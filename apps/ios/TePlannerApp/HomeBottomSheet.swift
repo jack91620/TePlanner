@@ -225,7 +225,7 @@ private struct RouteSummaryDrawerContent: View {
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Tokens.surfaceCard, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var warningsCard: some View {
@@ -282,7 +282,7 @@ private struct RouteSummaryDrawerContent: View {
                             .foregroundStyle(.tertiary)
                     }
                     .padding(10)
-                    .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+                    .background(Tokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("route_stop_\(stop.stationId)")

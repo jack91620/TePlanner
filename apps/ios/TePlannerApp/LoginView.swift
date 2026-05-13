@@ -69,7 +69,7 @@ struct LoginView: View {
                 .font(Tokens.typographySplashLogo)
                 .foregroundStyle(.red)
                 .frame(width: 160, height: 160)
-                .background(Color(.secondarySystemBackground), in: Circle())
+                .background(Tokens.surfaceCard, in: Circle())
 
             VStack(spacing: 8) {
                 Text("Tautomation")
