@@ -30,7 +30,7 @@ struct ShareCodeSheet: View {
             VStack(spacing: 24) {
                 Spacer()
                 Text(formattedCode)
-                    .font(.system(size: 48, weight: .bold, design: .monospaced))
+                    .font(Tokens.typographyCodeDisplay)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 24)
                     .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 18))

@@ -66,7 +66,7 @@ struct LoginView: View {
         VStack(spacing: 32) {
             Spacer()
             Text("T")
-                .font(.system(size: 96, weight: .bold))
+                .font(Tokens.typographySplashLogo)
                 .foregroundStyle(.red)
                 .frame(width: 160, height: 160)
                 .background(Color(.secondarySystemBackground), in: Circle())

@@ -52,7 +52,7 @@ struct ImportShareSheet: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             TextField("ABCD-EF", text: $codeInput)
-                .font(.system(size: 28, weight: .semibold, design: .monospaced))
+                .font(Tokens.typographyCodeInput)
                 .multilineTextAlignment(.center)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
@@ -201,7 +201,7 @@ struct ImportShareSheet: View {
         VStack(spacing: 18) {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
+                .font(Tokens.typographyPlaceholderIconLg)
                 .foregroundStyle(.green)
             Text("已导入「\(name)」")
                 .font(.title3.weight(.semibold))

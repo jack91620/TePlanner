@@ -4,7 +4,11 @@
 package cloud.teplanner.android.core.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 object Tokens {
     val colorAlertFiringBg = Color(0xFFD32F2F)
@@ -37,4 +41,12 @@ object Tokens {
     val radiusCard = 12.dp
     val radiusTile = 8.dp
     val radiusCapsule = 50.dp
+    val typographyMetricHero = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "\"tnum\"")
+    val typographyMetricCompact = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "\"tnum\"")
+    val typographyCodeDisplay = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+    val typographyCodeInput = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+    val typographyPlaceholderIconSm = TextStyle(fontSize = 36.sp)
+    val typographyPlaceholderIconMd = TextStyle(fontSize = 40.sp)
+    val typographyPlaceholderIconLg = TextStyle(fontSize = 64.sp)
+    val typographySplashLogo = TextStyle(fontSize = 96.sp, fontWeight = FontWeight.Bold)
 }

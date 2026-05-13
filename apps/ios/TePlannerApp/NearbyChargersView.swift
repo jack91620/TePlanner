@@ -139,7 +139,7 @@ struct NearbyChargersView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: systemImage)
-                .font(.system(size: 40))
+                .font(Tokens.typographyPlaceholderIconMd)
                 .foregroundStyle(.tertiary)
             Text(message).foregroundStyle(.secondary)
             Spacer()

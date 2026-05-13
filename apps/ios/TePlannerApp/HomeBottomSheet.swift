@@ -117,7 +117,7 @@ struct HomeBottomSheet: View {
         VStack(spacing: 14) {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 36))
+                .font(Tokens.typographyPlaceholderIconSm)
                 .foregroundStyle(.orange)
             Text("路线规划失败").font(.headline)
             Text(message)

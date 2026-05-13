@@ -492,14 +492,14 @@ struct HubView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let range = viewModel.batteryRangeKm {
                         Text("\(Int(range))")
-                            .font(.system(size: 44, weight: .semibold).monospacedDigit())
+                            .font(Tokens.typographyMetricHero)
                             .foregroundStyle(.primary)
                         Text("km 续航")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
                         Text("—")
-                            .font(.system(size: 44, weight: .semibold))
+                            .font(Tokens.typographyMetricHero)
                             .foregroundStyle(.secondary)
                         Text("续航未知")
                             .font(.caption)
@@ -766,7 +766,7 @@ struct HubView: View {
             }
             VStack(spacing: 0) {
                 Text(isUnknown ? "—" : "\(level)%")
-                    .font(.system(size: 22, weight: .bold).monospacedDigit())
+                    .font(Tokens.typographyMetricCompact)
                     .foregroundStyle(isUnknown ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 Image(systemName: isUnknown ? "battery.50" : batteryIcon)
                     .font(.caption)

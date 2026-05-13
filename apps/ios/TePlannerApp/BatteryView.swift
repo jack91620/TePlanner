@@ -271,7 +271,7 @@ struct BatteryView: View {
     private var statsEmptyHint: some View {
         VStack(spacing: 8) {
             Image(systemName: "chart.bar.fill")
-                .font(.system(size: 36))
+                .font(Tokens.typographyPlaceholderIconSm)
                 .foregroundStyle(.tint.opacity(0.6))
             Text("暂无充电记录").font(.subheadline.weight(.semibold))
             Text("从下次充电开始，App 会自动记录每次会话——前提是 App 在车辆插枪 / 拔枪时处于打开状态。")

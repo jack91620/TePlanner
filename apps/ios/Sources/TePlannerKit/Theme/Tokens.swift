@@ -34,4 +34,12 @@ public enum Tokens {
     public static let radiusCard: CGFloat = 12
     public static let radiusTile: CGFloat = 8
     public static let radiusCapsule: CGFloat = 50
+    public static let typographyMetricHero: Font = .system(size: 44, weight: .semibold).monospacedDigit()
+    public static let typographyMetricCompact: Font = .system(size: 22, weight: .bold).monospacedDigit()
+    public static let typographyCodeDisplay: Font = .system(size: 48, weight: .bold, design: .monospaced)
+    public static let typographyCodeInput: Font = .system(size: 28, weight: .semibold, design: .monospaced)
+    public static let typographyPlaceholderIconSm: Font = .system(size: 36)
+    public static let typographyPlaceholderIconMd: Font = .system(size: 40)
+    public static let typographyPlaceholderIconLg: Font = .system(size: 64)
+    public static let typographySplashLogo: Font = .system(size: 96, weight: .bold)
 }
