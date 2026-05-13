@@ -1461,7 +1461,7 @@ struct RuleBuilderView: View {
     private var capabilityPicker: some View {
         let buckets: [(RuleDisplay.CapabilityCategory, [CapabilityInfo])] = {
             var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
-            for cap in capabilitiesStore.capabilities {
+            for cap in capabilitiesStore.capabilities where !RuleDisplay.isHiddenInPicker(cap.id) {
                 byCategory[RuleDisplay.capabilityCategory(cap.id), default: []].append(cap)
             }
             return RuleDisplay.CapabilityCategory.allCases.compactMap { cat in

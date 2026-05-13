@@ -356,14 +356,10 @@ private struct FilledTile: View {
             tintColor.opacity(0.12),
             in: RoundedRectangle(cornerRadius: 12)
         )
-        .overlay(alignment: .topTrailing) {
-            if action.confirmRequired {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(tintColor)
-                    .padding(4)
-            }
-        }
+        // No corner badge: confirmRequired actions already gate behind
+        // a confirm dialog on tap; users figured "this is going to ask
+        // me" within one or two taps. An unlabeled "!" badge read as
+        // "error/warning" to first-time users (2026-05-13 feedback).
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .animation(.easeOut(duration: 0.12), value: isPressed)
         .opacity(disabled ? 0.4 : 1.0)

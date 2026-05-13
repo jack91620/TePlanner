@@ -265,7 +265,7 @@ struct HubActionEditorSheet: View {
         -> [(RuleDisplay.CapabilityCategory, [CapabilityInfo])]
     {
         var byCategory: [RuleDisplay.CapabilityCategory: [CapabilityInfo]] = [:]
-        for cap in capStore.capabilities {
+        for cap in capStore.capabilities where !RuleDisplay.isHiddenInPicker(cap.id) {
             byCategory[RuleDisplay.capabilityCategory(cap.id), default: []].append(cap)
         }
         return RuleDisplay.CapabilityCategory.allCases.compactMap { cat in
