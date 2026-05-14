@@ -30,6 +30,7 @@ struct HomeBottomSheet: View {
     private let coordinate: (latitude: Double, longitude: Double)?
     private let vehicleId: String?
     private let commandStatusStore: CommandStatusStore?
+    private let activeTripStore: ActiveTripStore?
     private let onSelectStation: (ChargingStation) -> Void
     private let onSelectTrip: (RecentRoute) -> Void
     private let onClearRoute: () -> Void
@@ -40,6 +41,7 @@ struct HomeBottomSheet: View {
         coordinate: (latitude: Double, longitude: Double)?,
         vehicleId: String?,
         commandStatusStore: CommandStatusStore? = nil,
+        activeTripStore: ActiveTripStore? = nil,
         onSelectStation: @escaping (ChargingStation) -> Void,
         onSelectTrip: @escaping (RecentRoute) -> Void,
         onClearRoute: @escaping () -> Void
@@ -49,6 +51,7 @@ struct HomeBottomSheet: View {
         self.coordinate = coordinate
         self.vehicleId = vehicleId
         self.commandStatusStore = commandStatusStore
+        self.activeTripStore = activeTripStore
         self.onSelectStation = onSelectStation
         self.onSelectTrip = onSelectTrip
         self.onClearRoute = onClearRoute
@@ -68,6 +71,7 @@ struct HomeBottomSheet: View {
                 apiService: apiService,
                 vehicleId: vehicleId,
                 commandStatusStore: commandStatusStore,
+                activeTripStore: activeTripStore,
                 onClearRoute: onClearRoute
             )
         }
@@ -147,6 +151,7 @@ private struct RouteSummaryDrawerContent: View {
     let apiService: APIServiceProtocol
     let vehicleId: String?
     let commandStatusStore: CommandStatusStore?
+    let activeTripStore: ActiveTripStore?
     let onClearRoute: () -> Void
 
     @State private var sendState: SendState = .idle
@@ -337,36 +342,40 @@ private struct RouteSummaryDrawerContent: View {
             sendState = .failed("未选择车辆")
             return
         }
-        guard let lat = plan.destination.lat, let lng = plan.destination.lng else {
+        guard let stops = TripStop.stops(from: plan), !stops.isEmpty else {
             sendState = .failed("目的地缺少坐标")
             return
         }
         sendState = .sending
-        // Destination came from AMap POI search → GCJ-02. Tesla's
-        // navigation_gps_request expects WGS-84. Convert at the
-        // outbound boundary so the car navigates to the right pin
-        // (otherwise it'd land ~200 m off in mainland China).
-        let wgs = CoordConverter.gcj02ToWgs84(
-            CLLocationCoordinate2D(latitude: lat, longitude: lng))
-        let request = NavigationRequest(
-            latitude: wgs.latitude, longitude: wgs.longitude,
-            name: plan.destination.name,
+        // Multi-stop trip: persist server-side and only the *first*
+        // stop is pushed to Tesla now; subsequent stops fire from the
+        // cron auto-advance (charging_state==Charging or final-stop
+        // arrival). Hub picks up the active trip via ActiveTripStore.
+        let polyline: [[Double]]? = plan.polyline.isEmpty ? nil
+            : plan.polyline.map { [$0.latitude, $0.longitude] }
+        guard let store = activeTripStore else {
+            // Without an injected store we can't drive the Hub card or
+            // the auto-advance loop. Surface the misconfiguration
+            // loudly rather than silently fall back to a one-shot nav
+            // that would orphan the trip.
+            sendState = .failed("内部错误：缺少 ActiveTripStore")
+            return
+        }
+        let ok = await store.start(
+            vehicleId: vehicleId,
+            stops: stops,
+            polyline: polyline,
         )
-        let result = await apiService.sendNavigation(vehicleId: vehicleId, request: request)
-        switch result {
-        case .success:
-            Log.search.notice("nav sent from drawer to \(vehicleId, privacy: .public)")
+        if ok {
+            Log.search.notice("active trip started from drawer to \(vehicleId, privacy: .public) (\(stops.count, privacy: .public) stops)")
             sendState = .sent
-            // Defensive (B2 completion): if Tesla nav ever gains an
-            // expected_state on the backend, this would start writing
-            // CommandPending rows; kick the converge poll preemptively
-            // so the Hub banner can't get stuck on "正在...等待".
-            if let store = commandStatusStore {
-                Task { await store.pollUntilSettled() }
+            if let statusStore = commandStatusStore {
+                Task { await statusStore.pollUntilSettled() }
             }
-        case .failure(let error):
-            Log.search.error("drawer nav send failed: \(error.localizedDescription, privacy: .public)")
-            sendState = .failed(error.localizedDescription)
+        } else {
+            let msg = store.lastError ?? "未知错误"
+            Log.search.error("active trip start failed: \(msg, privacy: .public)")
+            sendState = .failed(msg)
         }
     }
 

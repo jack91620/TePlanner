@@ -206,41 +206,14 @@ public final class RoutePreviewViewModel: ObservableObject {
         }
     }
 
-    /// Build the trip's stop list from the loaded plan: each
-    /// `ChargingStop` becomes a `.charging` TripStop in order, then
-    /// the user's chosen destination is appended as the `.final` stop.
-    /// Coordinates are converted GCJ-02 → WGS-84 at the outbound
-    /// boundary (matches the legacy single-destination send path).
+    /// Build the trip's stop list from the loaded plan. Delegates to
+    /// `TripStop.stops(from:)` so the drawer's send button and any
+    /// future caller produce identical payloads. The viewmodel's own
+    /// `destination` (POIResult) is preserved as the plan's final
+    /// destination by the load step, so the helper's plan-based path
+    /// reaches the same coordinates.
     private func buildTripStops(plan: RoutePlanResponse) -> [TripStop] {
-        var stops: [TripStop] = []
-        for stop in plan.chargingStops {
-            let wgs = CoordConverter.gcj02ToWgs84(
-                CLLocationCoordinate2D(
-                    latitude: stop.latitude, longitude: stop.longitude,
-                ))
-            stops.append(TripStop(
-                latitude: wgs.latitude,
-                longitude: wgs.longitude,
-                address: stop.address,
-                name: stop.name,
-                kind: .charging,
-                stationId: stop.stationId,
-                socTarget: stop.arrivalSoc,
-            ))
-        }
-        let destWgs = CoordConverter.gcj02ToWgs84(
-            CLLocationCoordinate2D(
-                latitude: destination.latitude,
-                longitude: destination.longitude,
-            ))
-        stops.append(TripStop(
-            latitude: destWgs.latitude,
-            longitude: destWgs.longitude,
-            address: destination.address,
-            name: destination.name,
-            kind: .final,
-        ))
-        return stops
+        TripStop.stops(from: plan) ?? []
     }
 
     /// POST /routes/save with the loaded plan's origin/dest/totals.

@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 /// One stop in a planned multi-stop trip. `kind` distinguishes
@@ -46,6 +47,54 @@ public struct TripStop: Codable, Hashable, Identifiable {
         case latitude, longitude, address, name, kind
         case stationId = "station_id"
         case socTarget = "soc_target"
+    }
+
+    /// Convert a `RoutePlanResponse` (origin → charging stops → final
+    /// destination) into the `[TripStop]` payload that `/trips/start`
+    /// expects. AMap returns GCJ-02 coordinates; Tesla's nav expects
+    /// WGS-84, so we run each pair through `gcj02ToWgs84` here at the
+    /// outbound boundary.
+    ///
+    /// Returns `nil` when the plan's destination is missing
+    /// coordinates — callers should surface "目的地缺少坐标" rather
+    /// than send a half-defined trip.
+    public static func stops(
+        from plan: RoutePlanResponse,
+        convert: (Double, Double) -> (Double, Double) = TripStop._gcjToWgsDefault,
+    ) -> [TripStop]? {
+        guard let destLat = plan.destination.lat,
+              let destLng = plan.destination.lng else {
+            return nil
+        }
+        var stops: [TripStop] = []
+        for s in plan.chargingStops {
+            let (lat, lng) = convert(s.latitude, s.longitude)
+            stops.append(TripStop(
+                latitude: lat,
+                longitude: lng,
+                address: s.address,
+                name: s.name,
+                kind: .charging,
+                stationId: s.stationId,
+                socTarget: s.arrivalSoc,
+            ))
+        }
+        let (dLat, dLng) = convert(destLat, destLng)
+        stops.append(TripStop(
+            latitude: dLat,
+            longitude: dLng,
+            address: nil,
+            name: plan.destination.name,
+            kind: .final,
+        ))
+        return stops
+    }
+
+    public static func _gcjToWgsDefault(_ lat: Double, _ lng: Double) -> (Double, Double) {
+        let wgs = CoordConverter.gcj02ToWgs84(
+            CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        )
+        return (wgs.latitude, wgs.longitude)
     }
 }
 

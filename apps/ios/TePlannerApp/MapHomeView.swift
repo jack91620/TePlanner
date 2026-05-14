@@ -37,15 +37,18 @@ struct MapHomeView: View {
     }
 
     private let commandStatusStore: CommandStatusStore?
+    private let activeTripStore: ActiveTripStore?
 
     init(
         apiService: APIServiceProtocol,
         viewModel: HomeViewModel,
-        commandStatusStore: CommandStatusStore? = nil
+        commandStatusStore: CommandStatusStore? = nil,
+        activeTripStore: ActiveTripStore? = nil
     ) {
         self.apiService = apiService
         self.viewModel = viewModel
         self.commandStatusStore = commandStatusStore
+        self.activeTripStore = activeTripStore
     }
 
     var body: some View {
@@ -167,6 +170,7 @@ struct MapHomeView: View {
                 coordinate: viewModel.coordinate,
                 vehicleId: viewModel.vehicle?.id,
                 commandStatusStore: commandStatusStore,
+                activeTripStore: activeTripStore,
                 onSelectStation: { station in
                     pendingStation = station
                 },

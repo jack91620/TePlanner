@@ -983,7 +983,8 @@ struct HubView: View {
     private var planningEntry: some View {
         NavigationLink {
             MapHomeView(apiService: apiService, viewModel: viewModel,
-                        commandStatusStore: commandStatusStore)
+                        commandStatusStore: commandStatusStore,
+                        activeTripStore: activeTripStore)
         } label: {
             HubEntryCard(
                 icon: "bolt.fill",
