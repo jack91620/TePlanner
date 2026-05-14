@@ -278,7 +278,22 @@ async def _check_soc_sufficiency(
         user_id, trip.id, soc, distance_km, projected,
     )
 
+    # Phase 3b — try to fix it ourselves. Search nearby chargers
+    # reachable on remaining SOC, replace the next stop with the
+    # best candidate, push notification. If no candidate is reachable
+    # we fall through to the phase 3a warning so the user can pull
+    # over manually.
+    replanned_to = await _try_soc_auto_replan(
+        db, user_id, trip, snap, capacity_kwh=capacity,
+    )
     trip.last_soc_warning_at = datetime.utcnow()
+    if replanned_to is not None:
+        await _push_soc_replanned(
+            db, user_id,
+            from_soc=soc, original_stop=current_stop, new_stop=replanned_to,
+        )
+        return
+
     await _push_soc_warning(
         db, user_id,
         next_stop=current_stop,
@@ -286,6 +301,196 @@ async def _check_soc_sufficiency(
         distance_km=distance_km,
         projected_soc=projected,
     )
+
+
+# ---- SOC auto-replan (phase 3b) -----------------------------------
+
+
+def _reachable_radius_km(
+    current_soc_pct: int,
+    capacity_kwh: float,
+    safety_reserve_pct: int = _SOC_SAFETY_THRESHOLD_PCT,
+    consumption_kwh_per_km: float = _DEFAULT_CONSUMPTION_KWH_PER_KM,
+) -> float:
+    """How far can the car drive while still arriving with the safety
+    reserve in the pack? Same simple model as the projection — no
+    terrain / wind / regen accounting (phase 3c can layer it on)."""
+    usable_pct = max(current_soc_pct - safety_reserve_pct, 0)
+    usable_kwh = (usable_pct / 100.0) * capacity_kwh
+    return usable_kwh / consumption_kwh_per_km
+
+
+async def _try_soc_auto_replan(
+    db: AsyncSession,
+    user_id: int,
+    trip: ActiveTrip,
+    snap: VehicleStateSnapshot,
+    capacity_kwh: float,
+) -> Optional[dict]:
+    """Find a closer reachable charger via AMap, replace the next stop
+    with it, send to Tesla. Returns the new stop dict on success or
+    None when no candidate works (caller falls back to a warning).
+    """
+    if snap.battery_level is None or snap.latitude is None or snap.longitude is None:
+        return None
+    stops = svc.decode_stops(trip)
+    cur_idx = trip.current_segment
+    if cur_idx < 0 or cur_idx >= len(stops):
+        return None
+    original_target = stops[cur_idx]
+    if original_target.get("kind") != "charging":
+        # Final-stop SOC mismatch — replan doesn't help; user has to
+        # pull over manually.
+        return None
+
+    reachable_km = _reachable_radius_km(snap.battery_level, capacity_kwh)
+    # AMap caps `radius` at 50 km. We use min(reachable, 50) but
+    # filter the response by reachability in road-km terms below.
+    search_radius_m = int(min(reachable_km, 50.0) * 1000)
+    if search_radius_m < 1000:
+        # Not enough room to plausibly find a different station; nothing
+        # we can usefully suggest.
+        logger.info(
+            "active_trip_monitor: trip=%s reachable_km too small (%.1f)",
+            trip.id, reachable_km,
+        )
+        return None
+
+    from app.integrations.amap.coord import gcj02_to_wgs84
+    from app.integrations.amap.web_client import AmapWebClient
+
+    try:
+        async with AmapWebClient() as amap:
+            candidates = await amap.search_charging_stations(
+                latitude=float(snap.latitude),
+                longitude=float(snap.longitude),
+                radius=search_radius_m,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "active_trip_monitor: AMap charging search failed user=%s: %s",
+            user_id, exc,
+        )
+        return None
+
+    if not candidates:
+        return None
+
+    # Filter to reachable (haversine × road factor ≤ reachable_km) and
+    # skip the original target (its station_id, when known) — if it's
+    # close enough to count as a candidate, the projection wouldn't
+    # have tripped in the first place; skipping is defensive.
+    original_id = original_target.get("station_id")
+    viable: list[tuple[float, dict]] = []
+    for poi in candidates:
+        loc = poi.get("location") or {}
+        gcj_lat = loc.get("lat")
+        gcj_lng = loc.get("lng")
+        if gcj_lat is None or gcj_lng is None:
+            continue
+        wgs_lat, wgs_lng = gcj02_to_wgs84(float(gcj_lat), float(gcj_lng))
+        d_m = _haversine_m(
+            float(snap.latitude), float(snap.longitude), wgs_lat, wgs_lng,
+        )
+        d_km = (d_m / 1000.0) * _ROAD_FACTOR
+        if d_km > reachable_km:
+            continue
+        if original_id and poi.get("id") == original_id:
+            continue
+        viable.append((d_km, {
+            "latitude": wgs_lat,
+            "longitude": wgs_lng,
+            "name": poi.get("title") or "充电站",
+            "address": poi.get("address") or None,
+            "kind": "charging",
+            "station_id": poi.get("id") or None,
+            "soc_target": original_target.get("soc_target"),
+        }))
+
+    if not viable:
+        logger.info(
+            "active_trip_monitor: trip=%s no reachable charger found "
+            "among %d candidates",
+            trip.id, len(candidates),
+        )
+        return None
+
+    # Pick closest reachable. Phase 3c can prefer "closest to original
+    # route" to minimise detour distance.
+    viable.sort(key=lambda t: t[0])
+    new_stop = viable[0][1]
+
+    # Replace stops[cur_idx..-1] with [new_stop, final_destination].
+    # Originally-planned stops AFTER cur_idx are dropped — they're
+    # likely on the other side of the unreachable original target,
+    # so we'd have to re-plan past the new charger to know whether
+    # they're still on the route. Phase 3c can re-run the full
+    # RoutePlanner from the new charger; phase 3b is simpler.
+    final_stop = stops[-1]
+    if final_stop.get("kind") != "final":
+        # Defensive: schema invariant from /trips/start guarantees
+        # final is last, but log if we ever see a violation.
+        logger.warning(
+            "active_trip_monitor: trip=%s last stop kind != 'final' "
+            "— refusing to replan", trip.id,
+        )
+        return None
+    new_stops = stops[:cur_idx] + [new_stop, final_stop]
+    trip.stops_json = svc.encode_stops(new_stops)
+    trip.replan_count += 1
+    reason = "电耗高于预期"
+    trip.last_replan_reason = reason
+
+    # Send the new charger to Tesla. cur_idx now refers to the new
+    # charger position in the rewritten stops list.
+    token = (await db.execute(
+        select(TeslaToken).where(TeslaToken.user_id == user_id)
+    )).scalar_one_or_none()
+    if token is None:
+        logger.warning(
+            "active_trip_monitor: trip=%s user=%s no TeslaToken — "
+            "stops rewritten but new stop not sent to car",
+            trip.id, user_id,
+        )
+        return new_stop
+
+    try:
+        async with TeslaClient(access_token=token.access_token) as client:
+            await svc.send_stop_to_vehicle(
+                client, trip, stop_index=cur_idx, reason=reason,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "active_trip_monitor: trip=%s send_stop after replan failed: %s",
+            trip.id, exc,
+        )
+        # We've already mutated the row; the iOS Hub card will show
+        # the new plan even though the car still has the old nav.
+        # Next manual /trips/{id}/advance call will retry.
+
+    return new_stop
+
+
+async def _push_soc_replanned(
+    db: AsyncSession, user_id: int,
+    from_soc: int, original_stop: dict, new_stop: dict,
+) -> None:
+    orig_name = original_stop.get("name") or "原桩"
+    new_name = new_stop.get("name") or "新桩"
+    try:
+        await push_dispatcher.send(
+            db=db, user_id=user_id,
+            title="已自动切换充电站",
+            body=(
+                f"电耗高于预期（当前 {from_soc}%），按原计划无法到达"
+                f"「{orig_name}」。已切换到更近的「{new_name}」并发到车机。"
+            ),
+            category="active_trip_soc_replanned",
+            thread_id="active_trip",
+            custom_data={"event": "soc_replanned"},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("active_trip_monitor: SOC replan push failed user=%s", user_id)
 
 
 # ---- off-route detection (phase 4) --------------------------------

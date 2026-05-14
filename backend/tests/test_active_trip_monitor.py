@@ -201,8 +201,8 @@ async def test_monitor_advances_on_charging_arrival():
 
 
 @pytest.mark.asyncio
-async def test_soc_warning_fires_when_projected_below_safety():
-    """Phase 3a: car is en route to next stop, SOC won't last."""
+async def test_soc_warning_fires_when_no_replan_available():
+    """Phase 3a fallback: SOC unsafe + no reachable charger → warn."""
     trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
     # Car ~78 km north of A — well outside arrival radius — only 15% SOC.
     snap = VehicleStateSnapshot(
@@ -217,6 +217,7 @@ async def test_soc_warning_fires_when_projected_below_safety():
 
     from app.services import active_trip_service as svc
     with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_try_soc_auto_replan", AsyncMock(return_value=None)), \
          patch.object(monitor, "_push_soc_warning", AsyncMock()) as push_fn:
         await monitor.monitor_active_trip(db, user_id=1, snap=snap)
 
@@ -459,3 +460,182 @@ async def test_monitor_no_advance_when_token_missing():
 
     # current_segment unchanged.
     assert trip.current_segment == 0
+
+
+# ---- phase 3b — SOC auto-replan -----------------------------------
+
+
+def test_reachable_radius_math():
+    # 30% SOC, 75 kWh, 0.18 kWh/km, 5% safety reserve →
+    # usable = 25% → 18.75 kWh → 104.16 km
+    r = monitor._reachable_radius_km(
+        current_soc_pct=30, capacity_kwh=75.0,
+    )
+    assert 100 < r < 108
+
+
+def test_reachable_radius_zero_when_below_reserve():
+    # 3% < 5% reserve → 0 km reachable.
+    r = monitor._reachable_radius_km(
+        current_soc_pct=3, capacity_kwh=75.0,
+    )
+    assert r == 0
+
+
+@pytest.mark.asyncio
+async def test_replan_picks_closest_reachable_amap_candidate():
+    """When AMap returns several candidates, pick the closest that's
+    within the reachable radius. Skip ones too far away."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.stops_json = json.dumps([
+        {"latitude": A_LAT, "longitude": A_LNG, "name": "原桩",
+         "kind": "charging", "station_id": "ORIG"},
+        {"latitude": B_LAT, "longitude": B_LNG, "name": "终点",
+         "kind": "final"},
+    ], ensure_ascii=False)
+    snap = VehicleStateSnapshot(
+        latitude=31.235, longitude=121.4737,  # near A
+        battery_level=20,
+    )
+    fake_token = SimpleNamespace(access_token="t")
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=fake_token),
+    ))
+
+    # Fake AMap returns three candidates at varying distances.
+    fake_candidates = [
+        # Use GCJ-02-ish coords; gcj02_to_wgs84 will round-trip back
+        # close enough. For test simplicity use raw lat/lng — the
+        # converter is no-op outside China bbox.
+        {"id": "FAR", "title": "远站", "address": "远",
+         "location": {"lat": 30.5, "lng": 122.0}},  # very far
+        {"id": "NEAR1", "title": "最近站", "address": "近",
+         "location": {"lat": 31.236, "lng": 121.475}},  # ~200 m
+        {"id": "NEAR2", "title": "稍远", "address": "稍远",
+         "location": {"lat": 31.245, "lng": 121.475}},  # ~1.2 km
+    ]
+
+    class _FakeAmap:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        async def search_charging_stations(self, **kw):
+            return fake_candidates
+
+    class _FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        async def navigation_request(self, **kw): pass
+
+    sent_indices: list[int] = []
+    sent_reasons: list[str] = []
+
+    async def _fake_send(client, trip_obj, stop_index, reason=None):
+        sent_indices.append(stop_index)
+        sent_reasons.append(reason or "")
+        trip_obj.current_segment = stop_index
+
+    from app.services import active_trip_service as svc
+    from app.integrations.amap import web_client as amap_web
+    with patch.object(amap_web, "AmapWebClient", _FakeAmap), \
+         patch.object(monitor, "TeslaClient", _FakeClient), \
+         patch.object(svc, "send_stop_to_vehicle", AsyncMock(side_effect=_fake_send)):
+        result = await monitor._try_soc_auto_replan(
+            db=db, user_id=1, trip=trip, snap=snap, capacity_kwh=75.0,
+        )
+
+    assert result is not None
+    # Closest viable candidate was NEAR1.
+    assert result["station_id"] == "NEAR1"
+    # Stops were rewritten: [new, final].
+    stops = json.loads(trip.stops_json)
+    assert len(stops) == 2
+    assert stops[0]["station_id"] == "NEAR1"
+    assert stops[1]["kind"] == "final"
+    # Replan counter bumped and reason recorded.
+    assert trip.replan_count == 1
+    assert trip.last_replan_reason == "电耗高于预期"
+    # New stop pushed to Tesla at the new charger index (0 here, since
+    # cur_idx=0 means we replaced from the very first slot).
+    assert sent_indices == [0]
+    assert sent_reasons == ["电耗高于预期"]
+
+
+@pytest.mark.asyncio
+async def test_replan_returns_none_when_no_amap_candidate_reachable():
+    """All AMap results outside reachable radius → no replan."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT, longitude=A_LNG, battery_level=20,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    class _FakeAmap:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        async def search_charging_stations(self, **kw):
+            # All candidates 200 km away — beyond reachable radius.
+            return [{"id": "FAR", "title": "远",
+                     "location": {"lat": A_LAT + 2.0, "lng": A_LNG}}]
+
+    from app.services import active_trip_service as svc
+    from app.integrations.amap import web_client as amap_web
+    with patch.object(amap_web, "AmapWebClient", _FakeAmap):
+        result = await monitor._try_soc_auto_replan(
+            db=db, user_id=1, trip=trip, snap=snap, capacity_kwh=75.0,
+        )
+
+    assert result is None
+    assert trip.replan_count == 0
+
+
+@pytest.mark.asyncio
+async def test_replan_skips_when_current_stop_is_final():
+    """SOC won't reach final destination → replan can't help."""
+    trip = _trip_with_stops([
+        {"latitude": A_LAT, "longitude": A_LNG, "kind": "final"},
+    ], current_segment=0)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.1, longitude=A_LNG, battery_level=10,
+    )
+    db = MagicMock()
+
+    result = await monitor._try_soc_auto_replan(
+        db=db, user_id=1, trip=trip, snap=snap, capacity_kwh=75.0,
+    )
+    assert result is None
+    assert trip.replan_count == 0
+
+
+@pytest.mark.asyncio
+async def test_soc_unsafe_triggers_replan_then_push_replanned():
+    """End-to-end: monitor detects unsafe SOC + replan succeeds →
+    we push the 'replanned' notification, NOT the warning one."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.7, longitude=A_LNG,  # far from current target
+        battery_level=15, charging_state="Disconnected",
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    fake_new_stop = {"name": "新桩", "kind": "charging"}
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_try_soc_auto_replan",
+                      AsyncMock(return_value=fake_new_stop)), \
+         patch.object(monitor, "_push_soc_replanned", AsyncMock()) as push_replanned, \
+         patch.object(monitor, "_push_soc_warning", AsyncMock()) as push_warning:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_replanned.assert_awaited_once()
+    push_warning.assert_not_awaited()

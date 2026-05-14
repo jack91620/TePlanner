@@ -45,6 +45,25 @@ def wgs84_to_gcj02(lat: float, lng: float) -> Tuple[float, float]:
     return lat + d_lat_final, lng + d_lng_final
 
 
+def gcj02_to_wgs84(lat: float, lng: float) -> Tuple[float, float]:
+    """Inverse of ``wgs84_to_gcj02``, by iterative refinement. The
+    forward transform isn't analytically invertible, so we Newton-style
+    converge on the WGS-84 input that — when passed through
+    ``wgs84_to_gcj02`` — produces the given GCJ-02 coordinates.
+
+    Three iterations is enough for ~10 m precision anywhere in mainland
+    China. Outside the China bbox the GCJ-02 offset is zero so we
+    return the input unchanged."""
+    if not _in_china(lat, lng):
+        return lat, lng
+    wgs_lat, wgs_lng = lat, lng
+    for _ in range(3):
+        approx_lat, approx_lng = wgs84_to_gcj02(wgs_lat, wgs_lng)
+        wgs_lat = lat - (approx_lat - wgs_lat)
+        wgs_lng = lng - (approx_lng - wgs_lng)
+    return wgs_lat, wgs_lng
+
+
 def _in_china(lat: float, lng: float) -> bool:
     """Loose mainland bbox; same as iOS CoordConverter.isInChina."""
     return 72.004 <= lng <= 137.8347 and 0.8293 <= lat <= 55.8271
