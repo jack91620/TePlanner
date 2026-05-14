@@ -151,6 +151,7 @@ _FIELD_HANDLERS = {
     "CabinOverheatProtectionMode":  ("vehicle.cabin_overheat_protection_on", _decode_cabin_overheat),
     "ChargeState":                  ("vehicle.charging.state",              _decode_charging),
     "BatteryLevel":                 ("vehicle.battery_level",               _decode_int),
+    "ChargeLimitSoc":               ("vehicle.charge_limit_pct",            _decode_int),
     "Locked":                       ("vehicle.locked",                      _decode_bool),
     "Gear":                         ("vehicle.shift_state",                 _decode_gear),
     # Phase 7 — physical-state scalars useful for automation rules.

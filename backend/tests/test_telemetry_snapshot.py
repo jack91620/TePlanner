@@ -236,3 +236,30 @@ async def test_sticky_entity_drops_at_24h_ceiling(user, db_session):
     await db_session.commit()
     snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
     assert snap.locked is None
+
+
+# ---------- charge_limit_pct (sticky, idempotence-driving) ----------
+
+async def test_charge_limit_pct_round_trips(user, db_session):
+    db_session.add(_value_row(user.id, "vehicle.charge_limit_pct", 80))
+    await db_session.commit()
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.charge_limit_pct == 80
+
+
+async def test_charge_limit_pct_sticky_survives_30min(user, db_session):
+    """Charge limit only changes on explicit command, so it has the
+    24h sticky TTL — a value written hours ago must still feed the
+    idempotence guard. Without this, set_charge_limit would re-fire
+    every time the car woke up after a long park."""
+    old = datetime.utcnow() - timedelta(hours=3)
+    row = AutomationState(
+        user_id=user.id, vehicle_id=VIN,
+        key="tel:vehicle.charge_limit_pct:value",
+        value=json.dumps(80),
+        updated_at=old,
+    )
+    db_session.add(row)
+    await db_session.commit()
+    snap = await build_snapshot_from_telemetry(db_session, user.id, VIN)
+    assert snap.charge_limit_pct == 80

@@ -67,6 +67,11 @@ STICKY_ENTITIES: frozenset[str] = frozenset({
     "vehicle.frunk_open",
     "vehicle.trunk_open",
     "vehicle.shift_state",
+    # Charge limit only changes on explicit user (or rule) command;
+    # treating it as sticky lets the idempotence guard short-circuit
+    # set_charge_limit even when the car has been asleep for hours
+    # and battery_level / charging.state have aged out.
+    "vehicle.charge_limit_pct",
     # Derived parked_* entities depend on shift_state + locked/door/etc;
     # they're computed in build_snapshot_from_telemetry so adding their
     # base entities here is sufficient.
@@ -159,6 +164,7 @@ async def build_snapshot_from_telemetry(
     charger_power = await _read_value(db, user_id, vehicle_id, "vehicle.charger_power_kw")
     software_version = await _read_value(db, user_id, vehicle_id, "vehicle.software_version")
     connectivity = await _read_value(db, user_id, vehicle_id, "vehicle.connectivity")
+    charge_limit_pct = await _read_value(db, user_id, vehicle_id, "vehicle.charge_limit_pct")
 
     return VehicleStateSnapshot(
         battery_level=int(battery_level) if isinstance(battery_level, (int, float)) else None,
@@ -184,6 +190,9 @@ async def build_snapshot_from_telemetry(
         ),
         software_version=software_version if isinstance(software_version, str) else None,
         connectivity=connectivity if isinstance(connectivity, str) else None,
+        charge_limit_pct=(
+            int(charge_limit_pct) if isinstance(charge_limit_pct, (int, float)) else None
+        ),
     )
 
 

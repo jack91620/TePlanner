@@ -125,6 +125,41 @@ async def test_already_at_target_skips_when_keeper_mode_matches(db_session):
     assert out["current"]["vehicle.climate.keeper_mode"] == 3
 
 
+@pytest.mark.asyncio
+async def test_already_at_target_skips_when_charge_limit_matches(db_session):
+    """Highest-collision case with Tesla 车机 Routines: both systems
+    aim charge_limit_pct at the same daily target. Guard must engage."""
+    user = await _user(db_session)
+    db_session.add(_value_row(user.id, "vehicle.charge_limit_pct", 80))
+    await db_session.commit()
+    cap = get_capability("tesla.charging.set_limit")
+    out = await _already_at_target(db_session, user.id, VIN, cap, {"percent": 80})
+    assert out is not None
+    assert out["current"]["vehicle.charge_limit_pct"] == 80
+    assert out["target"]["vehicle.charge_limit_pct"] == 80
+
+
+@pytest.mark.asyncio
+async def test_already_at_target_charge_limit_mismatch_dispatches(db_session):
+    user = await _user(db_session)
+    db_session.add(_value_row(user.id, "vehicle.charge_limit_pct", 70))
+    await db_session.commit()
+    cap = get_capability("tesla.charging.set_limit")
+    out = await _already_at_target(db_session, user.id, VIN, cap, {"percent": 80})
+    assert out is None  # mismatch → must dispatch
+
+
+def test_set_charge_limit_expected_state_validates_bounds():
+    """Out-of-range percent → empty expected_state so the regular
+    validation error path in `invoke` runs and the user gets a 400."""
+    cap = get_capability("tesla.charging.set_limit")
+    assert cap.expected_state({"percent": 80}) == {"vehicle.charge_limit_pct": 80}
+    assert cap.expected_state({"percent": 49}) == {}
+    assert cap.expected_state({"percent": 101}) == {}
+    assert cap.expected_state({}) == {}
+    assert cap.expected_state({"percent": "80"}) == {}
+
+
 # ---------------------- invoke_capability skip path ----------------------
 
 class _FakeTeslaClient:

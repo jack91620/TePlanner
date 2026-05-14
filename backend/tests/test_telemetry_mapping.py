@@ -75,6 +75,14 @@ def test_battery_level_decoded_as_int():
     assert _decode({"BatteryLevel": 100})["vehicle.battery_level"] == 100
 
 
+def test_charge_limit_soc_decoded_as_int():
+    """ChargeLimitSoc drives the SetChargeLimit idempotence guard —
+    if this mapping breaks, every set_charge_limit re-fires."""
+    assert _decode({"ChargeLimitSoc": 80})["vehicle.charge_limit_pct"] == 80
+    assert _decode({"ChargeLimitSoc": 80.4})["vehicle.charge_limit_pct"] == 80
+    assert _decode({"ChargeLimitSoc": 100})["vehicle.charge_limit_pct"] == 100
+
+
 def test_locked_passthrough():
     assert _decode({"Locked": True}) == {"vehicle.locked": True}
     assert _decode({"Locked": False}) == {"vehicle.locked": False}

@@ -46,5 +46,15 @@ class SetChargeLimit(Capability):
         await ctx.tesla_client.set_charge_limit(ctx.vin, percent)
         return CapabilityResult(success=True, data={"percent": percent})
 
+    def expected_state(self, params: dict) -> dict:
+        # Charge limit changes are sticky in telemetry; idempotence
+        # guard reads vehicle.charge_limit_pct and short-circuits when
+        # the car already reports the requested percent. Bad params
+        # fall through to the regular validation error in `invoke`.
+        percent = params.get("percent")
+        if not isinstance(percent, int) or not (50 <= percent <= 100):
+            return {}
+        return {"vehicle.charge_limit_pct": percent}
+
 
 register(SetChargeLimit())

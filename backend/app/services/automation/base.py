@@ -95,6 +95,11 @@ class VehicleStateSnapshot:
     # Phase 8 — fleet-telemetry connectivity channel.
     # "CONNECTED" / "DISCONNECTED"; None until first observation.
     connectivity: Optional[str] = None
+    # Daily charge limit SOC (50..100). Fed in so the command
+    # idempotence guard can short-circuit redundant
+    # tesla.charging.set_limit calls — the most likely setting to
+    # collide with Tesla 车机 Routines.
+    charge_limit_pct: Optional[int] = None
 
     @property
     def is_camp_mode_on(self) -> bool:
