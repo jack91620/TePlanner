@@ -260,6 +260,13 @@ class ActiveTrip(Base):
     # NULL = never warned; on each tick the monitor checks
     # `now - last_soc_warning_at > WARN_DEBOUNCE` before firing again.
     last_soc_warning_at = Column(DateTime, nullable=True)
+    # Phase 4 (migration 0014) — off-route tracking. off_route_since
+    # is set on the first tick the car crosses the deviation threshold
+    # and cleared when it returns within bounds. We require it to be
+    # set for N ticks (≈90s) before firing a warning — parking-lot
+    # detours shouldn't trigger replan suggestions.
+    off_route_since = Column(DateTime, nullable=True)
+    last_off_route_warning_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

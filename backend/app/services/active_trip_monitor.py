@@ -29,6 +29,7 @@ Decisions:
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 from datetime import datetime, timedelta
@@ -66,6 +67,17 @@ _ROAD_FACTOR = 1.15
 _SOC_SAFETY_THRESHOLD_PCT = 5
 # Don't push more than once per debounce window even if SOC stays low.
 _SOC_WARN_DEBOUNCE = timedelta(minutes=5)
+
+# Phase 4 — off-route detection. We compute the minimum perpendicular
+# distance from the car's current position to the trip's polyline.
+# When the lateral deviation exceeds the threshold for at least
+# `_OFF_ROUTE_SUSTAIN_S` seconds (set off_route_since on first miss,
+# fire when sustained), push a warning. Returning within threshold
+# clears the timer so a brief detour doesn't lock the user out of
+# future warnings.
+_OFF_ROUTE_THRESHOLD_M = 2000.0     # 2 km lateral
+_OFF_ROUTE_SUSTAIN_S = 90.0          # ≈3 cron ticks
+_OFF_ROUTE_WARN_DEBOUNCE = timedelta(minutes=5)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -147,6 +159,10 @@ async def monitor_active_trip(
         # the projected SOC at the next stop is below safety. The
         # warning is debounced so we don't ping every 30s.
         await _check_soc_sufficiency(db, user_id, trip, snap, current)
+        # Phase 4 — also check for polyline deviation. Independent
+        # from SOC: a car can be on-route + low SOC, or off-route +
+        # high SOC. Both can fire on the same tick.
+        await _check_off_route(db, user_id, trip, snap)
         return
 
     logger.info(
@@ -270,6 +286,139 @@ async def _check_soc_sufficiency(
         distance_km=distance_km,
         projected_soc=projected,
     )
+
+
+# ---- off-route detection (phase 4) --------------------------------
+
+
+def _point_to_segment_m(
+    plat: float, plng: float,
+    a_lat: float, a_lng: float,
+    b_lat: float, b_lng: float,
+) -> float:
+    """Perpendicular distance in metres from point P to the segment AB.
+    For small distances (< 50 km between A and B) we approximate by
+    projecting onto a local flat coordinate system — earth curvature
+    error is negligible at this scale and the math is 10× cheaper than
+    great-circle. Falls back to endpoint distance when A == B.
+    """
+    if a_lat == b_lat and a_lng == b_lng:
+        return _haversine_m(plat, plng, a_lat, a_lng)
+
+    # Local equirectangular projection — good enough for the scale we
+    # care about (polyline points are usually 100m–1km apart).
+    lat0 = math.radians((a_lat + b_lat) / 2)
+    mx = math.cos(lat0) * 111_320  # m per degree longitude at this lat
+    my = 111_320                     # m per degree latitude
+
+    ax, ay = a_lng * mx, a_lat * my
+    bx, by = b_lng * mx, b_lat * my
+    px, py = plng * mx, plat * my
+
+    dx, dy = bx - ax, by - ay
+    seg_len2 = dx * dx + dy * dy
+    if seg_len2 <= 0:
+        return _haversine_m(plat, plng, a_lat, a_lng)
+    t = ((px - ax) * dx + (py - ay) * dy) / seg_len2
+    t = max(0.0, min(1.0, t))
+    qx, qy = ax + t * dx, ay + t * dy
+    return math.hypot(px - qx, py - qy)
+
+
+def _min_distance_to_polyline_m(
+    plat: float, plng: float, polyline: list[list[float]],
+) -> float:
+    """Closest perpendicular distance from (plat, plng) to any segment
+    of the polyline. Returns +inf if polyline is empty / has <2 points
+    (caller should skip off-route detection in that case)."""
+    if not polyline or len(polyline) < 2:
+        return float("inf")
+    best = float("inf")
+    for i in range(len(polyline) - 1):
+        a = polyline[i]
+        b = polyline[i + 1]
+        if len(a) < 2 or len(b) < 2:
+            continue
+        d = _point_to_segment_m(plat, plng, a[0], a[1], b[0], b[1])
+        if d < best:
+            best = d
+    return best
+
+
+async def _check_off_route(
+    db: AsyncSession,
+    user_id: int,
+    trip: ActiveTrip,
+    snap: VehicleStateSnapshot,
+) -> None:
+    """Maintain off_route_since state machine + fire a debounced push
+    once the car has been off-route for `_OFF_ROUTE_SUSTAIN_S` seconds."""
+    if not trip.polyline_json:
+        return  # Old trips without polyline saved; skip detection.
+    if snap.latitude is None or snap.longitude is None:
+        return
+
+    try:
+        polyline: list[list[float]] = json.loads(trip.polyline_json)
+    except (json.JSONDecodeError, TypeError):
+        return
+
+    distance_m = _min_distance_to_polyline_m(
+        float(snap.latitude), float(snap.longitude), polyline,
+    )
+    now = datetime.utcnow()
+
+    if distance_m <= _OFF_ROUTE_THRESHOLD_M:
+        # Back on track — reset the sustain timer so a future deviation
+        # has to accumulate again before warning.
+        if trip.off_route_since is not None:
+            logger.info(
+                "active_trip_monitor: trip=%s back on route (dist=%.0f m)",
+                trip.id, distance_m,
+            )
+        trip.off_route_since = None
+        return
+
+    if trip.off_route_since is None:
+        trip.off_route_since = now
+        return
+
+    # Off-route for how long?
+    sustained = (now - trip.off_route_since).total_seconds()
+    if sustained < _OFF_ROUTE_SUSTAIN_S:
+        return
+
+    # Debounce: don't re-push within the warning window.
+    if trip.last_off_route_warning_at:
+        if now - trip.last_off_route_warning_at < _OFF_ROUTE_WARN_DEBOUNCE:
+            return
+
+    logger.warning(
+        "active_trip_monitor: trip=%s off-route user=%s dist=%.0f m sustained=%.0f s",
+        trip.id, user_id, distance_m, sustained,
+    )
+    trip.last_off_route_warning_at = now
+    await _push_off_route(db, user_id, distance_m=distance_m)
+
+
+async def _push_off_route(
+    db: AsyncSession, user_id: int, distance_m: float,
+) -> None:
+    km = distance_m / 1000.0
+    try:
+        await push_dispatcher.send(
+            db=db, user_id=user_id,
+            title="已偏离原线路",
+            body=(
+                f"距规划路线 {km:.1f} km。如需切换路线，在 App "
+                f"的进行中行程卡片点「重新规划」。"
+            ),
+            category="active_trip_off_route",
+            thread_id="active_trip",
+            custom_data={"event": "off_route"},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("active_trip_monitor: off-route push failed user=%s", user_id)
 
 
 async def _push_soc_warning(

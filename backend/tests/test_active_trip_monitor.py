@@ -4,7 +4,7 @@ push) so these tests run in-memory without touching the network.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -280,6 +280,164 @@ def test_project_arrival_soc_below_zero_possible():
     # do with it. We don't clamp here.
     projected = monitor._project_arrival_soc(10, 200)
     assert projected < 0
+
+
+# ---- phase 4 — off-route detection --------------------------------
+
+
+def test_point_to_segment_on_segment_is_near_zero():
+    # Point exactly between A and B → distance ~0.
+    d = monitor._point_to_segment_m(
+        31.235, 121.4737,    # P
+        31.230, 121.4737,    # A
+        31.240, 121.4737,    # B (straight north of A)
+    )
+    assert d < 50
+
+
+def test_point_to_segment_perpendicular_offset():
+    # Shift P ~0.005° east of a north-running segment at lat 31.
+    # 0.005° lng at lat 31 ≈ 475 m.
+    d = monitor._point_to_segment_m(
+        31.235, 121.479,
+        31.230, 121.4737,
+        31.240, 121.4737,
+    )
+    assert 400 < d < 600
+
+
+def test_min_distance_to_polyline_empty_returns_inf():
+    assert monitor._min_distance_to_polyline_m(31.0, 121.0, []) == float("inf")
+    assert monitor._min_distance_to_polyline_m(
+        31.0, 121.0, [[31.0, 121.0]]
+    ) == float("inf")
+
+
+def test_min_distance_to_polyline_finds_closest_segment():
+    polyline = [[31.0, 121.0], [31.05, 121.0], [31.1, 121.0]]
+    d = monitor._min_distance_to_polyline_m(31.05, 121.01, polyline)
+    # 0.01° lng at lat 31 ≈ 950 m
+    assert 800 < d < 1100
+
+
+@pytest.mark.asyncio
+async def test_off_route_first_tick_sets_marker_no_push():
+    """First tick off-route → record timestamp, don't push yet."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    # A→B runs east. Move car ~3.3 km north of the line.
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.03, longitude=A_LNG,
+        battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    assert trip.off_route_since is not None
+    push_fn.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_off_route_sustained_fires_warning():
+    """Off-route for > sustain window → push fires."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    trip.off_route_since = datetime.utcnow() - timedelta(seconds=120)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.03, longitude=A_LNG,
+        battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_awaited_once()
+    assert trip.last_off_route_warning_at is not None
+
+
+@pytest.mark.asyncio
+async def test_off_route_returning_clears_marker():
+    """Car comes back to polyline → off_route_since reset to None."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    trip.off_route_since = datetime.utcnow() - timedelta(seconds=200)
+    # Snap onto the polyline.
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT, longitude=A_LNG + 0.005,
+        battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    assert trip.off_route_since is None
+    push_fn.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_off_route_no_polyline_skips_check():
+    """Trip without polyline_json (legacy) → don't crash, don't fire."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = None
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 1.0, longitude=A_LNG + 1.0,  # very far
+        battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    assert trip.off_route_since is None
+    push_fn.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_off_route_debounced_within_window():
+    """Already warned recently → don't re-push even if still off-route."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    trip.off_route_since = datetime.utcnow() - timedelta(seconds=200)
+    trip.last_off_route_warning_at = datetime.utcnow() - timedelta(seconds=10)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.03, longitude=A_LNG,
+        battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_not_awaited()
 
 
 @pytest.mark.asyncio
