@@ -65,8 +65,18 @@ public struct ActiveTrip: Codable, Identifiable {
     public let lastPositionLat: Double?
     public let lastPositionLng: Double?
     public let lastPositionAt: Date?
+    public let lastSpeedKmh: Double?
+    public let lastBatteryLevelPct: Int?
     public let createdAt: Date
     public let updatedAt: Date
+    /// Distance + ETA + projected arrival SOC for the next stop.
+    /// Backend computes these live in /trips/active using the cached
+    /// position + speed + SOC. nil whenever an input was unavailable
+    /// (cold cache, car asleep, segment past end). iOS hides the
+    /// line(s) gracefully rather than rendering "?? km".
+    public let nextStopDistanceKm: Double?
+    public let nextStopEtaSeconds: Int?
+    public let nextStopProjectedSocPct: Int?
 
     public enum Status: String, Codable {
         case active, completed, cancelled
@@ -83,6 +93,11 @@ public struct ActiveTrip: Codable, Identifiable {
         lastPositionLat: Double? = nil,
         lastPositionLng: Double? = nil,
         lastPositionAt: Date? = nil,
+        lastSpeedKmh: Double? = nil,
+        lastBatteryLevelPct: Int? = nil,
+        nextStopDistanceKm: Double? = nil,
+        nextStopEtaSeconds: Int? = nil,
+        nextStopProjectedSocPct: Int? = nil,
         createdAt: Date,
         updatedAt: Date
     ) {
@@ -96,6 +111,11 @@ public struct ActiveTrip: Codable, Identifiable {
         self.lastPositionLat = lastPositionLat
         self.lastPositionLng = lastPositionLng
         self.lastPositionAt = lastPositionAt
+        self.lastSpeedKmh = lastSpeedKmh
+        self.lastBatteryLevelPct = lastBatteryLevelPct
+        self.nextStopDistanceKm = nextStopDistanceKm
+        self.nextStopEtaSeconds = nextStopEtaSeconds
+        self.nextStopProjectedSocPct = nextStopProjectedSocPct
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -109,6 +129,11 @@ public struct ActiveTrip: Codable, Identifiable {
         case lastPositionLat = "last_position_lat"
         case lastPositionLng = "last_position_lng"
         case lastPositionAt = "last_position_at"
+        case lastSpeedKmh = "last_speed_kmh"
+        case lastBatteryLevelPct = "last_battery_level_pct"
+        case nextStopDistanceKm = "next_stop_distance_km"
+        case nextStopEtaSeconds = "next_stop_eta_seconds"
+        case nextStopProjectedSocPct = "next_stop_projected_soc_pct"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }

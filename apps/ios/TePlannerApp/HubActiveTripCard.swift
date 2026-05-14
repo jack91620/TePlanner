@@ -22,6 +22,7 @@ struct HubActiveTripCard: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             stopRow
+            telemetryRow
             if let reason = trip.lastReplanReason, !reason.isEmpty {
                 replanBanner(reason: reason)
             }
@@ -86,6 +87,88 @@ struct HubActiveTripCard: View {
                 }
             }
         }
+    }
+
+    /// One-line summary of the trip's live state: distance, ETA, and
+    /// projected SOC at the next stop. Each chip is rendered only
+    /// when the backend populated its value (cold cache hides all
+    /// three; gentle progressive enhancement as telemetry arrives).
+    @ViewBuilder
+    private var telemetryRow: some View {
+        if hasAnyTelemetry {
+            HStack(spacing: 10) {
+                if let distance = trip.nextStopDistanceKm {
+                    telemetryChip(
+                        icon: "ruler",
+                        text: distanceString(distance),
+                        tint: .secondary,
+                    )
+                    .accessibilityIdentifier("hub_active_trip_distance")
+                }
+                if let eta = trip.nextStopEtaSeconds {
+                    telemetryChip(
+                        icon: "clock",
+                        text: etaString(eta),
+                        tint: .secondary,
+                    )
+                    .accessibilityIdentifier("hub_active_trip_eta")
+                }
+                if let soc = trip.nextStopProjectedSocPct {
+                    telemetryChip(
+                        icon: "bolt.fill",
+                        text: socString(soc),
+                        tint: socTint(soc),
+                    )
+                    .accessibilityIdentifier("hub_active_trip_arrival_soc")
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var hasAnyTelemetry: Bool {
+        trip.nextStopDistanceKm != nil
+            || trip.nextStopEtaSeconds != nil
+            || trip.nextStopProjectedSocPct != nil
+    }
+
+    private func telemetryChip(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2.weight(.medium))
+            Text(text)
+                .font(.caption.weight(.medium))
+                .monospacedDigit()
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(tint.opacity(0.1), in: Capsule())
+    }
+
+    private func distanceString(_ km: Double) -> String {
+        if km < 1 { return "\(Int(km * 1000)) m" }
+        if km < 10 { return String(format: "%.1f km", km) }
+        return "\(Int(km.rounded())) km"
+    }
+
+    private func etaString(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        if mins < 60 { return "约 \(max(mins, 1)) 分钟" }
+        let h = mins / 60
+        let m = mins % 60
+        if m == 0 { return "约 \(h) 小时" }
+        return "约 \(h) 小时 \(m) 分钟"
+    }
+
+    private func socString(_ pct: Int) -> String {
+        "到达约 \(max(pct, 0))%"
+    }
+
+    private func socTint(_ pct: Int) -> Color {
+        if pct >= 20 { return .green }
+        if pct >= 5 { return .orange }
+        return .red
     }
 
     private func replanBanner(reason: String) -> some View {

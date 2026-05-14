@@ -143,6 +143,12 @@ async def monitor_active_trip(
         trip.last_position_lat = float(snap.latitude)
         trip.last_position_lng = float(snap.longitude)
         trip.last_position_at = datetime.utcnow()
+    # Cache speed + SOC so /trips/active can derive distance / ETA /
+    # arrival-SOC without re-reading telemetry on every iOS poll.
+    if snap.speed_kmh is not None:
+        trip.last_speed_kmh = float(snap.speed_kmh)
+    if snap.battery_level is not None:
+        trip.last_battery_level_pct = int(snap.battery_level)
 
     stops = svc.decode_stops(trip)
     cur_idx = trip.current_segment

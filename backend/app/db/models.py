@@ -256,6 +256,12 @@ class ActiveTrip(Base):
     last_position_lat = Column(Float, nullable=True)
     last_position_lng = Column(Float, nullable=True)
     last_position_at = Column(DateTime, nullable=True)
+    # Phase 5 (migration 0015) — cached speed + SOC the cron monitor
+    # writes each tick. Lets /trips/active compute distance / ETA /
+    # projected-arrival-SOC client-side without re-querying telemetry
+    # on every iOS Hub refresh.
+    last_speed_kmh = Column(Float, nullable=True)
+    last_battery_level_pct = Column(Integer, nullable=True)
     # Phase 3a (migration 0013) — debounce for the "电量不足" push.
     # NULL = never warned; on each tick the monitor checks
     # `now - last_soc_warning_at > WARN_DEBOUNCE` before firing again.

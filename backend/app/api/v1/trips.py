@@ -77,8 +77,17 @@ class TripResponse(BaseModel):
     last_position_lat: Optional[float] = None
     last_position_lng: Optional[float] = None
     last_position_at: Optional[datetime] = None
+    last_speed_kmh: Optional[float] = None
+    last_battery_level_pct: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+    # Derived fields the iOS Hub trip card renders below the next-stop
+    # name. All optional — populated only when we have the inputs
+    # (last_position_* + the relevant cached telemetry field). iOS
+    # falls back to hiding the row when these are None.
+    next_stop_distance_km: Optional[float] = None
+    next_stop_eta_seconds: Optional[int] = None
+    next_stop_projected_soc_pct: Optional[int] = None
 
 
 class ReplanRequest(BaseModel):
@@ -94,8 +103,70 @@ class ReplanRequest(BaseModel):
 # ---- helpers ------------------------------------------------------
 
 
+import math
+
+# Same defaults the cron monitor uses for SOC projection — keep in
+# sync if you change one. Reused here to compute the
+# next_stop_projected_soc_pct field returned to iOS.
+_DEFAULT_CONSUMPTION_KWH_PER_KM = 0.18
+_DEFAULT_BATTERY_CAPACITY_KWH = 75.0
+_ROAD_FACTOR = 1.15
+# Below this speed (km/h) we don't trust the ETA — the car is likely
+# parked / crawling. iOS hides the ETA line in that case.
+_ETA_MIN_SPEED_KMH = 5.0
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    φ1 = math.radians(lat1)
+    φ2 = math.radians(lat2)
+    Δφ = math.radians(lat2 - lat1)
+    Δλ = math.radians(lon2 - lon1)
+    a = math.sin(Δφ / 2) ** 2 + math.cos(φ1) * math.cos(φ2) * math.sin(Δλ / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _compute_derived(
+    trip: ActiveTrip, stops: List[dict],
+) -> tuple[Optional[float], Optional[int], Optional[int]]:
+    """Returns (distance_km, eta_seconds, projected_soc_pct) for the
+    next stop. Any element may be None when its inputs aren't
+    populated yet — iOS hides those lines gracefully."""
+    if trip.current_segment < 0 or trip.current_segment >= len(stops):
+        return None, None, None
+    if trip.last_position_lat is None or trip.last_position_lng is None:
+        return None, None, None
+    target = stops[trip.current_segment]
+    tlat = target.get("latitude")
+    tlng = target.get("longitude")
+    if tlat is None or tlng is None:
+        return None, None, None
+
+    distance_km = _haversine_km(
+        float(trip.last_position_lat), float(trip.last_position_lng),
+        float(tlat), float(tlng),
+    ) * _ROAD_FACTOR
+
+    eta_seconds: Optional[int] = None
+    if trip.last_speed_kmh and trip.last_speed_kmh >= _ETA_MIN_SPEED_KMH:
+        eta_seconds = int(distance_km / trip.last_speed_kmh * 3600)
+
+    projected: Optional[int] = None
+    if trip.last_battery_level_pct is not None:
+        # Use cached pack capacity from the vehicles row when we have
+        # it; otherwise fall back to default. Keeping this in iOS-
+        # surface helpers rather than re-querying — the column is on
+        # vehicles, which we don't load here; close enough for display.
+        capacity = _DEFAULT_BATTERY_CAPACITY_KWH
+        drop = (distance_km * _DEFAULT_CONSUMPTION_KWH_PER_KM / capacity) * 100
+        projected = int(round(trip.last_battery_level_pct - drop))
+
+    return round(distance_km, 1), eta_seconds, projected
+
+
 def _row_to_response(trip: ActiveTrip) -> TripResponse:
     stops_raw = svc.decode_stops(trip)
+    distance_km, eta_seconds, projected_soc = _compute_derived(trip, stops_raw)
     return TripResponse(
         id=trip.id,
         vehicle_id=trip.vehicle_id,
@@ -107,6 +178,11 @@ def _row_to_response(trip: ActiveTrip) -> TripResponse:
         last_position_lat=trip.last_position_lat,
         last_position_lng=trip.last_position_lng,
         last_position_at=trip.last_position_at,
+        last_speed_kmh=trip.last_speed_kmh,
+        last_battery_level_pct=trip.last_battery_level_pct,
+        next_stop_distance_km=distance_km,
+        next_stop_eta_seconds=eta_seconds,
+        next_stop_projected_soc_pct=projected_soc,
         created_at=trip.created_at,
         updated_at=trip.updated_at,
     )
