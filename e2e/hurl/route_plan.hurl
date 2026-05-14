@@ -25,3 +25,12 @@ jsonpath "$.driving_duration_minutes" > 600
 # Polyline must come back populated — the iOS app needs it for the
 # AMap overlay AND for the SDK along-route POI search.
 jsonpath "$.polyline" count > 10
+# Destination + origin must come back with {lat, lng} keys — the iOS
+# LocationDetail decoder reads `lat` / `lng`, not `latitude` /
+# `longitude`. Build 43 shipped with the wrong keys, decoded
+# silently to nil, and the multi-stop send-to-vehicle button fell
+# back to "目的地缺少坐标" — pin the contract here.
+jsonpath "$.destination.lat" exists
+jsonpath "$.destination.lng" exists
+jsonpath "$.origin.lat" exists
+jsonpath "$.origin.lng" exists

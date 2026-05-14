@@ -173,14 +173,21 @@ async def route_only(request: RouteOnlyRequest):
             for pt in (result.polyline or [])
         ]
         return RouteOnlyResponse(
+            # iOS `LocationDetail` decodes {lat, lng, name}. Earlier
+            # versions of this handler emitted {latitude, longitude},
+            # which silently decoded to nil on the client — route
+            # rendered fine (different keys for polyline) but the
+            # destination's coordinates were dropped, so the new
+            # multi-stop "发送到车辆" path tripped "目的地缺少坐标"
+            # despite the route obviously having a destination.
             origin={
-                "latitude": result.origin[0],
-                "longitude": result.origin[1],
+                "lat": result.origin[0],
+                "lng": result.origin[1],
                 "name": result.origin_name,
             },
             destination={
-                "latitude": result.destination[0],
-                "longitude": result.destination[1],
+                "lat": result.destination[0],
+                "lng": result.destination[1],
                 "name": result.destination_name,
             },
             total_distance_km=result.total_distance_km,
