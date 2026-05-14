@@ -67,6 +67,24 @@ struct AutomationsHomeView: View {
             } else if rulesStore.rules.isEmpty && !rulesStore.isLoading {
                 emptyStateSection
             }
+            if !rulesStore.rules.isEmpty {
+                Section {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("可能与车机自动化重合")
+                                .font(.subheadline.weight(.medium))
+                            Text("Tesla 车机自带的自动化也能控制相同状态（充电限额、哨兵、出行预热…）。如两边同时配置相同类规则，可能产生重复通知或彼此覆盖；服务端在状态已匹配目标时会自动跳过本端命令。")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("automations_conflict_hint")
+                }
+            }
             if !firingRules.isEmpty {
                 Section {
                     HStack(spacing: 12) {

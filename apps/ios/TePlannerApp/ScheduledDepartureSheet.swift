@@ -45,7 +45,12 @@ struct ScheduledDepartureSheet: View {
                 } header: {
                     Text("下次出行")
                 } footer: {
-                    Text("App 会在出发前提醒你启动空调，点击通知后自动调用车辆 HVAC。")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("App 会在出发前提醒你启动空调，点击通知后自动调用车辆 HVAC。")
+                        Text("提示：Tesla 车机也有「预定出行」功能，如果在车机上已配置类似计划，建议只保留一处，避免双重预热。")
+                            .foregroundStyle(.orange)
+                    }
+                    .accessibilityIdentifier("departure_conflict_hint")
                 }
 
                 Section {

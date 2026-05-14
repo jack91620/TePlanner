@@ -46,11 +46,60 @@ from app.integrations.tesla import TeslaClient
 from app.integrations.tesla.exceptions import TeslaAPIError, TeslaVehicleOfflineError
 from app.services.capabilities import dispatch as capability_dispatch
 from app.services.capabilities import get as get_capability
-from app.services.capabilities.base import CapabilityCallContext
+from app.services.capabilities.base import Capability, CapabilityCallContext
 from app.services.command_queue import connectivity_state, enqueue
 from app.services.automation.pending_resolver import write_pending
+from app.services.telemetry.snapshot import _read_value
 
 logger = logging.getLogger(__name__)
+
+
+def _values_equal(observed: object, target: object) -> bool:
+    """Compare a fresh telemetry reading against the capability's
+    declared post-state target. Telemetry decoders return native
+    Python types (bool / int / float / str); we mostly need exact
+    equality but normalize numeric comparisons so an int target
+    matches a float reading.
+    """
+    if isinstance(target, bool):
+        return isinstance(observed, bool) and observed == target
+    if isinstance(target, (int, float)) and not isinstance(target, bool):
+        if isinstance(observed, bool) or not isinstance(observed, (int, float)):
+            return False
+        return float(observed) == float(target)
+    return observed == target
+
+
+async def _already_at_target(
+    db: AsyncSession,
+    user_id: int,
+    vin: str,
+    cap: Capability,
+    params: dict,
+) -> Optional[dict]:
+    """Return ``{"current": {...}, "target": {...}}`` when fresh
+    telemetry shows every entity the capability would mutate is
+    already at the declared target value — meaning dispatching the
+    command is a no-op. Returns ``None`` whenever the target cannot
+    be verified (empty expected_state, any entity stale or never
+    observed, mismatch).
+
+    Why: avoids colliding with Tesla on-car Routines (and our own
+    re-fires) when both systems aim at the same end state. ``_read_value``
+    already enforces a staleness gate so we never treat a 3-hour-old
+    reading as proof of "no command needed".
+    """
+    target = cap.expected_state(params)
+    if not target:
+        return None
+    snapshot: dict = {}
+    for entity in target:
+        snapshot[entity] = await _read_value(db, user_id, vin, entity)
+    if any(v is None for v in snapshot.values()):
+        return None
+    if not all(_values_equal(snapshot[e], target[e]) for e in target):
+        return None
+    return {"current": snapshot, "target": dict(target)}
 
 
 async def resolve_vin(
@@ -101,6 +150,26 @@ async def invoke_capability(
 
     if vin:
         cap = get_capability(capability_id)
+        # Idempotence — if fresh telemetry already shows the car at the
+        # target state, don't dispatch. Prevents collisions with Tesla
+        # 车机 Routines and our own re-fires within the cron window.
+        # Runs before the connectivity branch so we don't queue a
+        # no-op for an offline car either.
+        if cap is not None:
+            match = await _already_at_target(db, user.id, vin, cap, params)
+            if match is not None:
+                logger.info(
+                    "skip command idempotence: capability=%s vin=%s "
+                    "user=%s target=%s",
+                    capability_id, vin, user.id, match["target"],
+                )
+                return {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "already_at_target",
+                    "current": match["current"],
+                    "target": match["target"],
+                }
         conn = await connectivity_state(db, user.id, vin)
         if cap is not None and conn == "DISCONNECTED":
             policy = cap.dispatch_policy
