@@ -201,6 +201,88 @@ async def test_monitor_advances_on_charging_arrival():
 
 
 @pytest.mark.asyncio
+async def test_soc_warning_fires_when_projected_below_safety():
+    """Phase 3a: car is en route to next stop, SOC won't last."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    # Car ~78 km north of A — well outside arrival radius — only 15% SOC.
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.7, longitude=A_LNG,
+        battery_level=15, charging_state="Disconnected",
+        speed_kmh=80.0,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_soc_warning", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_awaited_once()
+    assert trip.last_soc_warning_at is not None
+
+
+@pytest.mark.asyncio
+async def test_soc_warning_debounced():
+    """Second tick within the debounce window — no re-push."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.last_soc_warning_at = datetime.utcnow()
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.7, longitude=A_LNG,
+        battery_level=15, charging_state="Disconnected",
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_soc_warning", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_soc_warning_not_fired_when_soc_sufficient():
+    """Healthy SOC → no warning."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.7, longitude=A_LNG,
+        battery_level=80, charging_state="Disconnected",
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_soc_warning", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_not_awaited()
+    assert trip.last_soc_warning_at is None
+
+
+def test_project_arrival_soc_math():
+    # 80 km × 0.18 kWh/km = 14.4 kWh ÷ 75 kWh = 19.2% drop
+    # 50 - 19.2 ≈ 30.8
+    projected = monitor._project_arrival_soc(50, 80)
+    assert 30 < projected < 32
+
+
+def test_project_arrival_soc_below_zero_possible():
+    # Pessimistic projection can dip below 0 — caller decides what to
+    # do with it. We don't clamp here.
+    projected = monitor._project_arrival_soc(10, 200)
+    assert projected < 0
+
+
+@pytest.mark.asyncio
 async def test_monitor_no_advance_when_token_missing():
     """No TeslaToken on file → don't crash, don't advance."""
     trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)

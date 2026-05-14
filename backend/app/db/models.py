@@ -256,6 +256,10 @@ class ActiveTrip(Base):
     last_position_lat = Column(Float, nullable=True)
     last_position_lng = Column(Float, nullable=True)
     last_position_at = Column(DateTime, nullable=True)
+    # Phase 3a (migration 0013) — debounce for the "电量不足" push.
+    # NULL = never warned; on each tick the monitor checks
+    # `now - last_soc_warning_at > WARN_DEBOUNCE` before firing again.
+    last_soc_warning_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

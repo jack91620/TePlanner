@@ -31,12 +31,12 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ActiveTrip, TeslaToken
+from app.db.models import ActiveTrip, TeslaToken, Vehicle
 from app.integrations.tesla import TeslaClient
 from app.services import active_trip_service as svc
 from app.services.automation.base import VehicleStateSnapshot
@@ -46,13 +46,26 @@ from sqlalchemy import select
 logger = logging.getLogger(__name__)
 
 
-# Tunables. Charging-stop detection is bullet-proof (relies on the
-# car reporting charging_state); the final-stop heuristic is fuzzier
-# because we can't know whether the user "arrived" or is just stopped
-# at a red light in front of the destination.
+# Arrival-detection tunables. Charging-stop detection is bullet-proof
+# (relies on the car reporting charging_state); final-stop heuristic
+# is fuzzier because we can't know whether the user "arrived" or is
+# just stopped at a red light in front of the destination.
 _FINAL_STOP_RADIUS_M = 200.0
 _FINAL_STOP_MAX_SPEED_KMH = 5.0
 _CHARGING_FALLBACK_RADIUS_M = 300.0  # used when charging_state unknown
+
+# Phase 3a — SOC-aware projection. 0.18 kWh/km is a ballpark for
+# Model Y in 中国 mixed driving; 75 kWh approximates the long-range
+# pack we'd guess when vehicle_config doesn't provide a model lookup.
+# Phase 3b refines these with rolling actual-usage telemetry.
+_DEFAULT_CONSUMPTION_KWH_PER_KM = 0.18
+_DEFAULT_BATTERY_CAPACITY_KWH = 75.0
+# Haversine → road distance fudge factor. Avoids a routing call per tick.
+_ROAD_FACTOR = 1.15
+# Arrival SOC below this triggers the warning push.
+_SOC_SAFETY_THRESHOLD_PCT = 5
+# Don't push more than once per debounce window even if SOC stays low.
+_SOC_WARN_DEBOUNCE = timedelta(minutes=5)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -130,6 +143,10 @@ async def monitor_active_trip(
     is_final_current = (cur_idx == len(stops) - 1)
 
     if not _has_arrived(snap, current, is_final_current):
+        # Phase 3a — while the car is still en route, evaluate whether
+        # the projected SOC at the next stop is below safety. The
+        # warning is debounced so we don't ping every 30s.
+        await _check_soc_sufficiency(db, user_id, trip, snap, current)
         return
 
     logger.info(
@@ -168,6 +185,114 @@ async def monitor_active_trip(
         return
 
     await _push_advanced(db, user_id, arrived=current, next_stop=nxt_stop)
+
+
+# ---- SOC sufficiency (phase 3a) -----------------------------------
+
+
+def _project_arrival_soc(
+    current_soc_pct: int,
+    distance_km: float,
+    capacity_kwh: float = _DEFAULT_BATTERY_CAPACITY_KWH,
+    consumption_kwh_per_km: float = _DEFAULT_CONSUMPTION_KWH_PER_KM,
+) -> float:
+    """Linear SOC projection. Pessimistic by design — assumes flat
+    consumption with no regen, no terrain factor. Phase 3b can layer
+    a rolling-actual-consumption estimator on top."""
+    energy_needed = distance_km * consumption_kwh_per_km
+    drop_pct = (energy_needed / capacity_kwh) * 100.0
+    return current_soc_pct - drop_pct
+
+
+def _capacity_for_vehicle(vehicle: Optional[Vehicle]) -> float:
+    """Pick a sensible pack capacity for the SOC math. Falls back to
+    the default when the vehicles row hasn't been populated yet."""
+    if vehicle is None or not vehicle.battery_capacity_kwh:
+        return _DEFAULT_BATTERY_CAPACITY_KWH
+    return float(vehicle.battery_capacity_kwh)
+
+
+async def _check_soc_sufficiency(
+    db: AsyncSession,
+    user_id: int,
+    trip: ActiveTrip,
+    snap: VehicleStateSnapshot,
+    current_stop: dict,
+) -> None:
+    """If the car's projected SOC at the current target stop is below
+    the safety threshold, push a one-shot warning (debounced)."""
+    soc = snap.battery_level
+    if soc is None:
+        # No telemetry → can't project. Tick again later when we have
+        # a fresh SOC reading.
+        return
+    if snap.latitude is None or snap.longitude is None:
+        return
+    if current_stop.get("latitude") is None or current_stop.get("longitude") is None:
+        return
+
+    # Recently pushed? Hold off.
+    if trip.last_soc_warning_at:
+        if datetime.utcnow() - trip.last_soc_warning_at < _SOC_WARN_DEBOUNCE:
+            return
+
+    distance_m = _haversine_m(
+        float(snap.latitude), float(snap.longitude),
+        float(current_stop["latitude"]), float(current_stop["longitude"]),
+    )
+    distance_km = (distance_m / 1000.0) * _ROAD_FACTOR
+
+    # Look up pack capacity from the user's vehicles row when we
+    # cached it; otherwise default.
+    vehicle_row: Optional[Vehicle] = (await db.execute(
+        select(Vehicle)
+        .where(Vehicle.user_id == user_id)
+        .order_by(Vehicle.id.asc())
+        .limit(1)
+    )).scalar_one_or_none()
+    capacity = _capacity_for_vehicle(vehicle_row)
+
+    projected = _project_arrival_soc(soc, distance_km, capacity_kwh=capacity)
+    if projected >= _SOC_SAFETY_THRESHOLD_PCT:
+        return
+
+    logger.warning(
+        "active_trip_monitor: SOC unsafe user=%s trip=%s soc=%s "
+        "distance_km=%.1f projected=%.1f%%",
+        user_id, trip.id, soc, distance_km, projected,
+    )
+
+    trip.last_soc_warning_at = datetime.utcnow()
+    await _push_soc_warning(
+        db, user_id,
+        next_stop=current_stop,
+        current_soc=soc,
+        distance_km=distance_km,
+        projected_soc=projected,
+    )
+
+
+async def _push_soc_warning(
+    db: AsyncSession, user_id: int,
+    next_stop: dict, current_soc: int, distance_km: float,
+    projected_soc: float,
+) -> None:
+    name = next_stop.get("name") or next_stop.get("address") or "下一站"
+    try:
+        await push_dispatcher.send(
+            db=db, user_id=user_id,
+            title="电量预警",
+            body=(
+                f"距「{name}」约 {distance_km:.0f} km，"
+                f"当前 {current_soc}% 估计到达 {projected_soc:.0f}%。"
+                f"建议立即就近补电。"
+            ),
+            category="active_trip_soc_warning",
+            thread_id="active_trip",
+            custom_data={"event": "soc_warning"},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("active_trip_monitor: SOC push failed user=%s", user_id)
 
 
 # ---- push helpers -------------------------------------------------
