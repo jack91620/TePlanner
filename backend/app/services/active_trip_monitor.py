@@ -603,24 +603,73 @@ async def _check_off_route(
         trip.id, user_id, distance_m, sustained,
     )
     trip.last_off_route_warning_at = now
-    await _push_off_route(db, user_id, distance_m=distance_m)
+
+    # Phase 4b — auto re-send the current next stop to Tesla so the
+    # car's nav recomputes a route from the new position. Tesla
+    # handles the actual route geometry; we just nudge it. If the
+    # detour put the planned stop out of SOC range, phase 3b will
+    # take over on the next tick.
+    resent = await _try_off_route_resend(db, user_id, trip)
+    await _push_off_route(
+        db, user_id, distance_m=distance_m, resent=resent,
+    )
+
+
+async def _try_off_route_resend(
+    db: AsyncSession, user_id: int, trip: ActiveTrip,
+) -> bool:
+    """Re-push the current next stop to Tesla so its nav recomputes
+    from current position. Returns True on success, False otherwise
+    (missing token, send failure, no current segment)."""
+    stops = svc.decode_stops(trip)
+    cur_idx = trip.current_segment
+    if cur_idx < 0 or cur_idx >= len(stops):
+        return False
+    token = (await db.execute(
+        select(TeslaToken).where(TeslaToken.user_id == user_id)
+    )).scalar_one_or_none()
+    if token is None:
+        logger.info(
+            "active_trip_monitor: trip=%s off-route resend skipped — "
+            "no TeslaToken", trip.id,
+        )
+        return False
+    try:
+        async with TeslaClient(access_token=token.access_token) as client:
+            await svc.send_stop_to_vehicle(
+                client, trip, stop_index=cur_idx, reason="偏离原线路",
+            )
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "active_trip_monitor: trip=%s off-route resend failed: %s",
+            trip.id, exc,
+        )
+        return False
 
 
 async def _push_off_route(
-    db: AsyncSession, user_id: int, distance_m: float,
+    db: AsyncSession, user_id: int, distance_m: float, resent: bool,
 ) -> None:
     km = distance_m / 1000.0
+    if resent:
+        body = (
+            f"距规划路线 {km:.1f} km。已重新把下一站发到车机，"
+            f"Tesla 将从当前位置重新规划路线。"
+        )
+    else:
+        body = (
+            f"距规划路线 {km:.1f} km。如需切换路线，在 App 的"
+            f"进行中行程卡片点「重新规划」。"
+        )
     try:
         await push_dispatcher.send(
             db=db, user_id=user_id,
             title="已偏离原线路",
-            body=(
-                f"距规划路线 {km:.1f} km。如需切换路线，在 App "
-                f"的进行中行程卡片点「重新规划」。"
-            ),
+            body=body,
             category="active_trip_off_route",
             thread_id="active_trip",
-            custom_data={"event": "off_route"},
+            custom_data={"event": "off_route", "auto_resent": resent},
         )
     except Exception:  # noqa: BLE001
         logger.exception("active_trip_monitor: off-route push failed user=%s", user_id)

@@ -613,6 +613,80 @@ async def test_replan_skips_when_current_stop_is_final():
     assert trip.replan_count == 0
 
 
+# ---- phase 4b — off-route auto re-send ----------------------------
+
+
+@pytest.mark.asyncio
+async def test_off_route_sustained_resends_current_stop():
+    """When off-route fires, re-send the current next stop to Tesla
+    so the car re-plans from new position. Push reflects the resend."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    trip.off_route_since = datetime.utcnow() - timedelta(seconds=120)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.03, longitude=A_LNG,
+        battery_level=80,
+    )
+    fake_token = SimpleNamespace(access_token="t")
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=fake_token),
+    ))
+
+    sent_indices: list[int] = []
+    sent_reasons: list[str] = []
+
+    class _FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        async def navigation_request(self, **kw): pass
+
+    async def _fake_send(client, trip_obj, stop_index, reason=None):
+        sent_indices.append(stop_index)
+        sent_reasons.append(reason or "")
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_check_soc_sufficiency", AsyncMock()), \
+         patch.object(monitor, "TeslaClient", _FakeClient), \
+         patch.object(svc, "send_stop_to_vehicle", AsyncMock(side_effect=_fake_send)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    assert sent_indices == [0]
+    assert sent_reasons == ["偏离原线路"]
+    push_fn.assert_awaited_once()
+    # Push was told that we DID resend.
+    kwargs = push_fn.await_args.kwargs
+    assert kwargs.get("resent") is True
+
+
+@pytest.mark.asyncio
+async def test_off_route_sustained_no_token_pushes_resent_false():
+    """Sustained off-route but no TeslaToken → push but mark resent=False
+    so the body falls back to the manual-replan copy."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    trip.polyline_json = json.dumps([[A_LAT, A_LNG], [B_LAT, B_LNG]])
+    trip.off_route_since = datetime.utcnow() - timedelta(seconds=120)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.03, longitude=A_LNG, battery_level=80,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_push_off_route", AsyncMock()) as push_fn:
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    push_fn.assert_awaited_once()
+    kwargs = push_fn.await_args.kwargs
+    assert kwargs.get("resent") is False
+
+
 @pytest.mark.asyncio
 async def test_soc_unsafe_triggers_replan_then_push_replanned():
     """End-to-end: monitor detects unsafe SOC + replan succeeds →
