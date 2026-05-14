@@ -284,29 +284,44 @@ async def _check_soc_sufficiency(
         user_id, trip.id, soc, distance_km, projected,
     )
 
-    # Phase 3b — try to fix it ourselves. Search nearby chargers
-    # reachable on remaining SOC, replace the next stop with the
-    # best candidate, push notification. If no candidate is reachable
-    # we fall through to the phase 3a warning so the user can pull
-    # over manually.
-    replanned_to = await _try_soc_auto_replan(
-        db, user_id, trip, snap, capacity_kwh=capacity,
-    )
+    # Stamp the debounce **before** the AMap call AND swallow any
+    # exception from the replan / push code below. If we stamped after
+    # the work and anything raised, the cron-tick wrapper would roll
+    # back this user's transaction — including the stamp — and the
+    # next 30 s tick would hit AMap again, indefinitely. Order matters,
+    # and so does keeping the function exception-safe relative to the
+    # parent commit.
     trip.last_soc_warning_at = datetime.utcnow()
-    if replanned_to is not None:
-        await _push_soc_replanned(
-            db, user_id,
-            from_soc=soc, original_stop=current_stop, new_stop=replanned_to,
-        )
-        return
 
-    await _push_soc_warning(
-        db, user_id,
-        next_stop=current_stop,
-        current_soc=soc,
-        distance_km=distance_km,
-        projected_soc=projected,
-    )
+    try:
+        # Phase 3b — try to fix it ourselves. Search nearby chargers
+        # reachable on remaining SOC, replace the next stop with the
+        # best candidate, push notification. If no candidate is reachable
+        # we fall through to the phase 3a warning so the user can pull
+        # over manually.
+        replanned_to = await _try_soc_auto_replan(
+            db, user_id, trip, snap, capacity_kwh=capacity,
+        )
+        if replanned_to is not None:
+            await _push_soc_replanned(
+                db, user_id,
+                from_soc=soc, original_stop=current_stop, new_stop=replanned_to,
+            )
+            return
+
+        await _push_soc_warning(
+            db, user_id,
+            next_stop=current_stop,
+            current_soc=soc,
+            distance_km=distance_km,
+            projected_soc=projected,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "active_trip_monitor: SOC handler crashed user=%s trip=%s "
+            "(debounce stamped, will retry in %s)",
+            user_id, trip.id, _SOC_WARN_DEBOUNCE,
+        )
 
 
 # ---- SOC auto-replan (phase 3b) -----------------------------------

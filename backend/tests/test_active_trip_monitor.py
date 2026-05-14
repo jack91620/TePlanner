@@ -248,6 +248,36 @@ async def test_soc_warning_debounced():
 
 
 @pytest.mark.asyncio
+async def test_soc_handler_exception_still_stamps_debounce():
+    """If _try_soc_auto_replan raises (unexpected AMap response shape,
+    encoding bug, etc.), the next 30s tick must NOT hit AMap again.
+    The debounce stamp has to be written before the call AND the
+    exception must be swallowed so the parent cron commit persists it."""
+    trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
+    snap = VehicleStateSnapshot(
+        latitude=A_LAT + 0.7, longitude=A_LNG,
+        battery_level=15, charging_state="Disconnected",
+        speed_kmh=80.0,
+    )
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalar_one_or_none=MagicMock(return_value=None),
+    ))
+
+    from app.services import active_trip_service as svc
+    with patch.object(svc, "get_active_trip", AsyncMock(return_value=trip)), \
+         patch.object(monitor, "_try_soc_auto_replan",
+                      AsyncMock(side_effect=RuntimeError("amap shape change"))), \
+         patch.object(monitor, "_push_soc_warning", AsyncMock()):
+        # The crash must NOT propagate to the cron-tick wrapper —
+        # otherwise the per-user transaction rolls back and the stamp
+        # is lost. Run without raising → assert stamp set.
+        await monitor.monitor_active_trip(db, user_id=1, snap=snap)
+
+    assert trip.last_soc_warning_at is not None
+
+
+@pytest.mark.asyncio
 async def test_soc_warning_not_fired_when_soc_sufficient():
     """Healthy SOC → no warning."""
     trip = _trip_with_stops(_stops_a_to_b(), current_segment=0)
