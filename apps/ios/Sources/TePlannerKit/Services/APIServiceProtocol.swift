@@ -115,12 +115,6 @@ public protocol APIServiceProtocol {
     func replanTrip(_ tripId: Int, request: ReplanTripRequest) async -> Result<ActiveTrip, APIError>
     func cancelTrip(_ tripId: Int) async -> Result<ActiveTrip, APIError>
 
-    // LLM-driven config (Phase 12). User types a sentence; backend
-    // calls an LLM, returns a previewable rule/quick-action spec.
-    // Save happens via the existing /automations or /user/settings
-    // endpoints — this endpoint never persists.
-    func configureViaLLM(_ request: LLMConfigureRequest) async -> Result<LLMConfigureResponse, APIError>
-
     // Push notifications
     /// Hand the iOS APNs device token to the backend so the polling
     /// layer can deliver automation alerts when the app is closed.

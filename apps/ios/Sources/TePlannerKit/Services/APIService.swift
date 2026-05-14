@@ -289,12 +289,6 @@ public final class APIService: APIServiceProtocol {
         return await post(path: "/trips/\(tripId)/cancel")
     }
 
-    // MARK: - LLM (Phase 12)
-
-    public func configureViaLLM(_ request: LLMConfigureRequest) async -> Result<LLMConfigureResponse, APIError> {
-        return await postJSON(path: "/llm/configure", body: request)
-    }
-
     // MARK: - Push notifications
 
     public func registerDeviceToken(_ token: String, bundleId: String?) async -> Result<BaseResponse, APIError> {
