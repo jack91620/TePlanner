@@ -159,6 +159,20 @@ fun ScheduledDepartureSheet(
                 steps = 9,
             )
             Spacer(Modifier.height(8.dp))
+            // Mirror of iOS ScheduledDepartureSheet conflict hint
+            // (commit 4cc1c54). Tesla 车机 has its own "预定出行"
+            // feature; double-configuring leads to two preheats and
+            // potential collisions. Server-side idempotence guard
+            // catches the worst case, but a UI nudge is cheaper.
+            Text(
+                "App 会在出发前提醒你启动空调，点击通知后自动调用车辆 HVAC。\n" +
+                    "提示：Tesla 车机也有「预定出行」功能，如果在车机上已配置类似计划，" +
+                    "建议只保留一处，避免双重预热。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.testTag("departure_conflict_hint"),
+            )
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
