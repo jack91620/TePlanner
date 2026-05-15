@@ -3,6 +3,7 @@ package cloud.teplanner.android.auth
 import android.content.Context
 import cloud.teplanner.android.core.network.AuthApi
 import cloud.teplanner.android.core.network.TokenStore
+import cloud.teplanner.android.core.network.UserApi
 import cloud.teplanner.android.push.PushRegistrar
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenStore: TokenStore,
     private val authApi: AuthApi,
+    private val userApi: UserApi,
 ) {
     data class Account(
         val userId: Long,
@@ -66,6 +68,19 @@ class AuthRepository @Inject constructor(
         val result = runCatching { authApi.unbindTesla(uid) }
         logout()
         return result.map { }
+    }
+
+    /** Apple 5.1.1(v) + Play Store account-deletion mandate. Retrofit
+     *  raises HttpException on non-2xx so [runCatching] captures any
+     *  error and leaves local creds in place — the user still has
+     *  data on the backend, so retrying is safer than orphaning the
+     *  account. On 204 we logout locally; mirror of iOS
+     *  AuthSession.deleteAccount. */
+    suspend fun deleteAccount(): Result<Unit> {
+        return runCatching {
+            userApi.deleteAccount()
+            logout()
+        }
     }
 
     private fun currentAccount(): Account? {

@@ -66,7 +66,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import cloud.teplanner.android.BuildConfig
 import cloud.teplanner.android.R
 import cloud.teplanner.android.util.FeatureFlags
+import cloud.teplanner.android.util.LegalLinks
 import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Description
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,8 +77,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cloud.teplanner.android.auth.AuthSession
 import cloud.teplanner.android.core.network.AutomationsApi
 import cloud.teplanner.android.core.network.ReorderRequest
+import androidx.compose.material.icons.filled.Delete
 import javax.inject.Inject
 
 /**
@@ -95,12 +100,15 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onActivity: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
+    authSession: AuthSession = hiltViewModel(),
 ) {
     val ctx = LocalContext.current
     val resetState by vm.resetState.collectAsState()
+    val deleteAccountState by vm.deleteAccountState.collectAsState()
     var pushStatus by remember { mutableStateOf(currentPushStatus(ctx)) }
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetResult by remember { mutableStateOf(false) }
+    var showDeleteAccountConfirm by remember { mutableStateOf(false) }
 
     // Re-check on every recomposition triggered by lifecycle resume.
     // SettingsScreen is short-lived so a manual refresh on click is
@@ -245,16 +253,84 @@ fun SettingsScreen(
                             try { ctx.startActivity(intent) } catch (_: Throwable) {}
                         },
                     )
+                    HorizontalDivider()
+                    ActionRow(
+                        icon = Icons.Filled.PrivacyTip,
+                        label = "隐私政策",
+                        testTag = "settings_privacy_policy",
+                        onClick = { LegalLinks.open(ctx, LegalLinks.PRIVACY_POLICY_URL) },
+                    )
+                    HorizontalDivider()
+                    ActionRow(
+                        icon = Icons.Filled.Description,
+                        label = "用户协议",
+                        testTag = "settings_terms_of_service",
+                        onClick = { LegalLinks.open(ctx, LegalLinks.TERMS_OF_SERVICE_URL) },
+                    )
                 }
             }
             Text(
                 "升级 App 不会丢失自动化规则、出行计划、充电限额等设置。规则数据存于" +
-                    "后端，与 Tesla 账户绑定；本地偏好（VCP 配对状态、自定义排序等）" +
+                    "后端，与 Tesla 账户绑定；本地偏好（VCP 配对状态、自定义排序等)" +
                     "保存在设备 DataStore 里，重新安装才会清空。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Spacer(Modifier.height(4.dp))
+            SectionLabel("危险操作")
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    ActionRow(
+                        icon = Icons.Filled.Delete,
+                        label = if (deleteAccountState is SettingsViewModel.DeleteAccountState.InProgress)
+                            "正在删除…" else "删除账号",
+                        testTag = "settings_delete_account",
+                        onClick = { showDeleteAccountConfirm = true },
+                    )
+                }
+            }
+            Text(
+                "永久删除该 Tautomation 账号及其所有数据（自动化规则、出行计划、充电记录、" +
+                    "车辆绑定、推送 token 等）。不可恢复。\n" +
+                    "注意：删除 Tautomation 账号不会注销你的 Tesla 账号。如需撤销本应用对" +
+                    "Tesla 数据的访问，请到 Tesla 官方 App 或 tesla.com 操作。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            (deleteAccountState as? SettingsViewModel.DeleteAccountState.Failed)?.let { err ->
+                Text(
+                    "删除失败：${err.message}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
+    }
+
+    if (showDeleteAccountConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountConfirm = false },
+            title = { Text("确认删除账号？此操作不可恢复") },
+            text = {
+                Text("此操作会删除你在 Tautomation 服务器上的所有数据。Tesla 账号本身不受影响。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAccountConfirm = false
+                        vm.deleteAccount(authSession)
+                    },
+                    modifier = Modifier.testTag("delete_account_confirm"),
+                ) { Text("永久删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountConfirm = false }) { Text("取消") }
+            },
+        )
     }
 
     if (showResetConfirm) {
@@ -519,8 +595,37 @@ class SettingsViewModel @Inject constructor(
         data class Failed(val message: String) : ResetState()
     }
 
+    sealed class DeleteAccountState {
+        data object Idle : DeleteAccountState()
+        data object InProgress : DeleteAccountState()
+        data class Failed(val message: String) : DeleteAccountState()
+    }
+
     private val _resetState = MutableStateFlow<ResetState>(ResetState.Idle)
     val resetState: StateFlow<ResetState> = _resetState.asStateFlow()
+
+    private val _deleteAccountState =
+        MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
+    val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
+
+    fun deleteAccount(authSession: AuthSession) {
+        if (_deleteAccountState.value is DeleteAccountState.InProgress) return
+        _deleteAccountState.value = DeleteAccountState.InProgress
+        viewModelScope.launch {
+            val result = authSession.deleteAccount()
+            _deleteAccountState.value = result.fold(
+                onSuccess = {
+                    // AuthSession dropped local creds; RootView observes
+                    // and bounces back to LoginScreen. No further work
+                    // needed here; reset state for next session.
+                    DeleteAccountState.Idle
+                },
+                onFailure = { t ->
+                    DeleteAccountState.Failed(t.localizedMessage ?: "未知错误")
+                },
+            )
+        }
+    }
 
     fun resetOrder() {
         if (_resetState.value == ResetState.InProgress) return

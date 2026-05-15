@@ -268,4 +268,5 @@ private class FakeUserApi : UserApi {
     ): ScheduledDepartureResponse = error("unused in HubActionsStore tests")
     override suspend fun clearScheduledDeparture(): ClearResponse =
         ClearResponse(success = true)
+    override suspend fun deleteAccount() = error("unused in HubActionsStore tests")
 }

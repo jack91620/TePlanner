@@ -30,4 +30,14 @@ interface UserApi {
     suspend fun putUserSettings(
         @Body request: UserSettingsRequest,
     ): UserSettingsResponse
+
+    /// Apple 5.1.1(v) + Play Store equivalent: permanently delete the
+    /// authenticated user's account and all associated server data
+    /// (Tesla tokens, vehicles, automations, sessions, settings, ...).
+    /// Returns 204 No Content on success; Retrofit raises HttpException
+    /// on non-2xx, so a clean return implies the delete went through.
+    /// Local Keychain / token store must be cleared by the caller —
+    /// see [AuthSession.deleteAccount].
+    @DELETE("api/v1/user/me")
+    suspend fun deleteAccount()
 }

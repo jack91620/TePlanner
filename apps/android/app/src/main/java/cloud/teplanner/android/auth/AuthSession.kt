@@ -28,4 +28,6 @@ class AuthSession @Inject constructor(
     fun logout() = repo.logout()
 
     suspend fun unbindTesla(): Result<Unit> = repo.unbindTesla()
+
+    suspend fun deleteAccount(): Result<Unit> = repo.deleteAccount()
 }

@@ -203,6 +203,8 @@ private fun Splash(
                     Text("连接 Tesla 账户")
                 }
             }
+            Spacer(Modifier.height(4.dp))
+            ConsentLine()
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -222,6 +224,44 @@ private fun Splash(
     }
 }
 
+
+/** Bottom-of-login "登录即同意《用户协议》《隐私政策》" small print.
+ *  Two link spans open the URLs in the system browser; matches iOS
+ *  LoginView's consent line. */
+@Composable
+private fun ConsentLine() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val primary = MaterialTheme.colorScheme.primary
+    val annotated = androidx.compose.ui.text.buildAnnotatedString {
+        append("登录即表示同意 ")
+        pushStringAnnotation(tag = "terms", annotation = cloud.teplanner.android.util.LegalLinks.TERMS_OF_SERVICE_URL)
+        pushStyle(androidx.compose.ui.text.SpanStyle(color = primary))
+        append("《用户协议》")
+        pop()
+        pop()
+        append(" 与 ")
+        pushStringAnnotation(tag = "privacy", annotation = cloud.teplanner.android.util.LegalLinks.PRIVACY_POLICY_URL)
+        pushStyle(androidx.compose.ui.text.SpanStyle(color = primary))
+        append("《隐私政策》")
+        pop()
+        pop()
+    }
+    androidx.compose.foundation.text.ClickableText(
+        text = annotated,
+        modifier = androidx.compose.ui.Modifier
+            .fillMaxWidth()
+            .testTag("login_consent_line"),
+        style = MaterialTheme.typography.bodySmall.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        ),
+        onClick = { offset ->
+            annotated.getStringAnnotations(start = offset, end = offset).firstOrNull()?.let {
+                cloud.teplanner.android.util.LegalLinks.open(ctx, it.item)
+            }
+        },
+    )
+}
 
 @Composable
 private fun Feature(icon: ImageVector, label: String) {
