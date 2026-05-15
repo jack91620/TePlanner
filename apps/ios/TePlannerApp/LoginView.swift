@@ -104,8 +104,12 @@ struct LoginView: View {
             .controlSize(.large)
             .disabled(viewModel.state == .loadingAuthUrl)
             .padding(.horizontal, 24)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
             .accessibilityIdentifier("login_button")
+
+            consentLine
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
 
             if Self.debugUIEnabled {
                 // DEBUG-only — only renders when app launched with
@@ -121,6 +125,28 @@ struct LoginView: View {
                 .accessibilityIdentifier("debug_ui_demo")
             }
         }
+    }
+
+    /// 登录页底部的"登录即同意"小字。两个文档链接走系统浏览器
+    /// (Link → Safari) 而不是 WKWebView——审核期 Apple 会真访问
+    /// 这两个 URL，能在 Safari 打开等于证明链接有效，比内嵌 webview
+    /// 更稳妥。Both URLs live in `LegalLinks` so they're easy to
+    /// swap when hosting moves.
+    private var consentLine: some View {
+        Group {
+            Text("登录即表示同意 ")
+                .foregroundStyle(.secondary) +
+            Text("[《用户协议》](\(LegalLinks.termsOfService.absoluteString))")
+                .foregroundStyle(.tint) +
+            Text(" 与 ")
+                .foregroundStyle(.secondary) +
+            Text("[《隐私政策》](\(LegalLinks.privacyPolicy.absoluteString))")
+                .foregroundStyle(.tint)
+        }
+        .font(.caption2)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("login_consent_line")
     }
 
     private func feature(icon: String, text: String) -> some View {

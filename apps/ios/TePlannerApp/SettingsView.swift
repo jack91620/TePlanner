@@ -88,6 +88,28 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("版本", value: "\(appVersion) (\(buildNumber))")
+                    Link(destination: LegalLinks.privacyPolicy) {
+                        HStack {
+                            Label("隐私政策", systemImage: "hand.raised.fill")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .accessibilityIdentifier("settings_privacy_policy")
+                    Link(destination: LegalLinks.termsOfService) {
+                        HStack {
+                            Label("用户协议", systemImage: "doc.text.fill")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .accessibilityIdentifier("settings_terms_of_service")
                 } header: {
                     Text("关于")
                 } footer: {
