@@ -91,6 +91,10 @@ struct SettingsView: View {
                          + "这些数据与你的 Tesla 账户绑定，重新安装也会自动同步回来。")
                         .font(.caption2)
                 }
+
+                if FeatureFlags.isInternalBuild {
+                    FeatureFlagsSection()
+                }
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
@@ -163,6 +167,50 @@ struct SettingsView: View {
         }
     }
 }
+
+/// TestFlight + dev-only: flip feature flags from the UI without
+/// shipping a new build. Hidden from App Store users via
+/// `FeatureFlags.isInternalBuild`. Tapping a toggle persists via
+/// UserDefaults; "重置为默认值" wipes the override.
+private struct FeatureFlagsSection: View {
+    @State private var refreshTrigger: Int = 0
+
+    var body: some View {
+        Section {
+            ForEach(FeatureFlags.Flag.allCases, id: \.rawValue) { flag in
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(flag.displayName, isOn: binding(for: flag))
+                        .accessibilityIdentifier("feature_flag_\(flag.rawValue)")
+                    Text(flag.description)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+            Button("重置为默认值", role: .destructive) {
+                for flag in FeatureFlags.Flag.allCases {
+                    FeatureFlags.setOverride(flag, to: nil)
+                }
+                refreshTrigger &+= 1
+            }
+            .accessibilityIdentifier("feature_flags_reset")
+        } header: {
+            Text("功能开关 (内部测试)")
+        } footer: {
+            Text("仅 TestFlight / 开发安装可见。修改后请回到 Hub 查看效果，部分变化需要重新进入页面才能生效。")
+                .font(.caption2)
+        }
+        .id(refreshTrigger)
+    }
+
+    private func binding(for flag: FeatureFlags.Flag) -> Binding<Bool> {
+        Binding(
+            get: { FeatureFlags.isOn(flag) },
+            set: { FeatureFlags.setOverride(flag, to: $0) },
+        )
+    }
+}
+
 
 private struct AutomationOrderResetView: View {
     @Environment(\.dismiss) private var dismiss

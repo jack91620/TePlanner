@@ -446,10 +446,14 @@ struct HubView: View {
                 permissionBanner
                 statusCard
                 alertPill
-                activeTripCard
+                if FeatureFlags.isOn(.chargingPlanning) {
+                    activeTripCard
+                }
                 departureCard
                 chargeLimitSuggestionCard
-                planningEntry
+                if FeatureFlags.isOn(.chargingPlanning) {
+                    planningEntry
+                }
                 automationsEntry
                 batteryEntry
                 HubQuickActionsSection(
