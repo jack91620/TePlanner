@@ -21,13 +21,32 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.db.models import ScheduledDeparture, User, UserSetting
+from app.db.models import (
+    ActiveTrip,
+    AutomationRule,
+    AutomationSnooze,
+    AutomationState,
+    ChargingSession,
+    CommandPending,
+    CommandQueue,
+    DeviceToken,
+    OAuthState,
+    PendingWait,
+    PushedAlert,
+    RoutePlan,
+    ScheduledDeparture,
+    Share,
+    TeslaToken,
+    User,
+    UserSetting,
+    Vehicle,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -199,6 +218,83 @@ def _decode_value(raw: str) -> Any:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return raw
+
+
+# ---------------------------------------------------------------------------
+# Account deletion — App Store 5.1.1(v) hard requirement (since 2022-06).
+#
+# Removes every row keyed on user_id across the schema, then the User row
+# itself. Idempotent inside a single transaction — caller commits or
+# rolls back atomically. We do NOT call Tesla's token-revoke endpoint;
+# that's the user's choice in tesla.com / app, and partial-permission
+# revocation is fragile. The local TeslaToken row is deleted so we
+# stop using the credential immediately.
+
+# Tables fanned out per user_id. Order matters: anything that might
+# carry an FK to another row in this list goes first. Today no such
+# child-of-child FKs exist, but if a future migration adds one
+# (e.g. push_history.device_token_id) it has to land before device_tokens.
+_DELETION_TABLES = (
+    CommandPending,        # tied to vehicle telemetry/commands
+    CommandQueue,
+    PendingWait,
+    DeviceToken,
+    PushedAlert,
+    AutomationState,
+    AutomationSnooze,
+    AutomationRule,
+    ActiveTrip,
+    ScheduledDeparture,
+    ChargingSession,
+    UserSetting,
+    RoutePlan,
+    Vehicle,
+    TeslaToken,
+)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Permanently delete the authenticated user's account.
+
+    Apple's 5.1.1(v) review rule (mandatory since June 2022) requires
+    in-app account deletion that produces real data removal — not
+    deactivation. iOS surfaces this via Settings → 危险操作 → 删除账号.
+
+    What we wipe, in dependency-safe order:
+      - All vehicle-scoped queued / pending commands and waits
+      - Push device tokens and the per-rule pushed_alerts ledger
+      - Automation rules / state / snoozes
+      - Active trip, scheduled departure, charging session history
+      - User settings dict, saved route plans, vehicles, Tesla tokens
+      - Shares the user originated (owner_user_id)
+      - OAuth state rows tied to this user
+      - The User row itself
+
+    We deliberately don't touch the Tesla account at api.tesla.com —
+    that's the user's choice (revoke at tesla.com/account-settings).
+    Re-authenticating later via Tesla OAuth simply creates a new User
+    row; the existing VIN-dedup logic in tesla_auth_service handles
+    the rebuild of vehicle bindings.
+    """
+    user_id = user.id
+
+    for model in _DELETION_TABLES:
+        await db.execute(delete(model).where(model.user_id == user_id))
+
+    # Tables with non-standard FK column names.
+    await db.execute(delete(Share).where(Share.owner_user_id == user_id))
+    await db.execute(delete(OAuthState).where(OAuthState.user_id == user_id))
+
+    # Finally drop the User row.
+    await db.execute(delete(User).where(User.id == user_id))
+    await db.commit()
+
+    logger.warning("user %s deleted their account via DELETE /user/me", user_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/settings", response_model=UserSettingsResponse)

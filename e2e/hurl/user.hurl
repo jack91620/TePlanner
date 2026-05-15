@@ -35,3 +35,13 @@ Content-Type: application/json
   "settings": {"any_key": 1}
 }
 HTTP 401
+
+
+# 6. DELETE /user/me without auth → 401. Apple's 5.1.1(v) account-
+# deletion endpoint; this contract pins the URL exists and is auth-
+# gated, so the iOS Settings entry can never accidentally hit an
+# unprotected route.
+DELETE {{base_url}}/api/v1/user/me
+HTTP 401
+[Asserts]
+jsonpath "$.detail" exists
