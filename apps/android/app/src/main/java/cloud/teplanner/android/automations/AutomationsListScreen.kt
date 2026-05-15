@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -224,6 +226,11 @@ private fun ReorderableList(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (localOrder.isNotEmpty()) {
+            item(key = "__conflict_hint__") {
+                ConflictHintCard()
+            }
+        }
         items(localOrder, key = { it.id }) { rule ->
             ReorderableItem(reorderState, key = rule.id) { isDragging ->
                 val snooze = snoozes[rule.id]
@@ -479,6 +486,52 @@ private fun SnoozeBanner(count: Int, onUnsnoozeAll: () -> Unit) {
                 onClick = onUnsnoozeAll,
                 modifier = Modifier.testTag("automations_unsnooze_all"),
             ) { Text("全部恢复") }
+        }
+    }
+}
+
+/**
+ * Tells users that Tesla's own 车机 Routines may control the same
+ * states our rules target — and clarifies our defense (server-side
+ * idempotence guard). Mirrors the iOS AutomationsHomeView banner
+ * (commit 4cc1c54). Lives outside the swipeable row list so it
+ * doesn't react to reorder / drag gestures.
+ */
+@Composable
+private fun ConflictHintCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("automations_conflict_hint"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = androidx.compose.material.icons.Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Column {
+                Text(
+                    "可能与车机自动化重合",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Tesla 车机自带的自动化也能控制相同状态（充电限额、哨兵、" +
+                        "出行预热…）。如两边同时配置相同类规则，可能产生重复通知" +
+                        "或彼此覆盖；服务端在状态已匹配目标时会自动跳过本端命令。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
