@@ -670,13 +670,12 @@ private fun HubChargeLimitCard(
                 modifier = Modifier.size(24.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
-                val verb = if (suggestion.recommendedPercent > current) "调高" else "调低"
                 Text(
-                    "建议${verb}充电限额到 ${suggestion.recommendedPercent}%",
+                    chargeLimitTitle(suggestion),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    "当前 ${current}% · ${suggestion.reason}",
+                    chargeLimitSubtitle(suggestion, current),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -689,4 +688,31 @@ private fun HubChargeLimitCard(
             }
         }
     }
+}
+
+/**
+ * Title / subtitle copy aligned with iOS HubChargeLimitCard. The
+ * server returns a `reason` enum ("daily" / "upcoming_departure") and
+ * raw percentages; iOS turns those into human-readable Chinese; we
+ * mirror that here so cross-platform users see identical wording.
+ */
+internal fun chargeLimitTitle(
+    suggestion: cloud.teplanner.android.core.network.SuggestChargeLimitResponse,
+): String = when (suggestion.reason) {
+    "daily" -> "调低充电限额到 ${suggestion.recommendedPercent}%"
+    "upcoming_departure" -> "调高充电限额到 ${suggestion.recommendedPercent}%"
+    else -> "建议充电限额 ${suggestion.recommendedPercent}%"
+}
+
+internal fun chargeLimitSubtitle(
+    suggestion: cloud.teplanner.android.core.network.SuggestChargeLimitResponse,
+    current: Int,
+): String = when (suggestion.reason) {
+    "daily" -> "当前 ${current}% · 长期日常使用更友好"
+    "upcoming_departure" -> {
+        val h = suggestion.hoursAway
+        if (h != null && h > 0) "当前 ${current}% · 还有 ${h} 小时出发"
+        else "当前 ${current}% · 即将出行"
+    }
+    else -> "当前 ${current}%"
 }

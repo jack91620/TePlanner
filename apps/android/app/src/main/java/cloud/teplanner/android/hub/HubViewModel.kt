@@ -121,9 +121,20 @@ class HubViewModel @Inject constructor(
     private fun fetchChargeLimitSuggestion(vehicleId: String, currentLimit: Int?) {
         viewModelScope.launch {
             runCatching {
+                // Daily / trip defaults pinned to iOS values (70 / 90)
+                // — backend's own defaults are 80 / 100, but iOS has
+                // shipped on 70 / 90 since Phase D.5; aligning here
+                // keeps cross-device suggestions consistent for users
+                // who haven't customised the values yet. When a proper
+                // settings sync lands these will read from
+                // /api/v1/user/settings instead of being hard-coded.
                 vehiclesApi.suggestChargeLimit(
                     vehicleId,
-                    SuggestChargeLimitRequest(currentLimit = currentLimit),
+                    SuggestChargeLimitRequest(
+                        currentLimit = currentLimit,
+                        dailyLimitSoc = 70,
+                        tripLimitSoc = 90,
+                    ),
                 )
             }.onSuccess { resp ->
                 _state.update { it.copy(chargeLimitSuggestion = resp) }
