@@ -180,6 +180,10 @@ public protocol APIServiceProtocol {
     ) async -> Result<ScheduledDepartureResponse, APIError>
     func clearScheduledDeparture() async -> Result<BaseResponse, APIError>
 
+    /// Apple 5.1.1(v) — permanently delete the user's account + all
+    /// associated data on the backend. 204 on success.
+    func deleteAccount() async -> Result<BaseResponse, APIError>
+
     // Phase D.4 — server-canonical charging sessions. Replaces
     // UserDefaultsChargingSessionStore.
     func upsertChargingSession(

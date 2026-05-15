@@ -102,6 +102,39 @@ final class AuthSessionTests: XCTestCase {
         XCTAssertEqual(session.authToken, "new")
         XCTAssertEqual(session.refreshToken, "r1")
     }
+
+    // MARK: - Apple 5.1.1(v) account deletion
+
+    func testDeleteAccountSuccessLogsOut() async {
+        session.login(token: "tok", refreshToken: "ref", userId: "42")
+        let api = MockAPIService()
+        api.mockDeleteAccountResponse = .success(BaseResponse(success: true, message: nil))
+
+        let result = await session.deleteAccount(api: api)
+
+        XCTAssertEqual(api.deleteAccountCallCount, 1)
+        XCTAssertFalse(session.isLoggedIn, "successful delete must wipe local creds")
+        XCTAssertNil(session.authToken)
+        XCTAssertNil(session.userId)
+        XCTAssertFalse(settings.teslaLinked)
+        if case .failure = result { XCTFail("expected success") }
+    }
+
+    func testDeleteAccountFailureKeepsUserLoggedIn() async {
+        // The whole point of NOT logging out on server failure: the
+        // user's data still exists on the backend, so leaving them
+        // signed in lets them retry rather than orphaning the account.
+        session.login(token: "tok", refreshToken: "ref", userId: "42")
+        let api = MockAPIService()
+        api.mockDeleteAccountResponse = .failure(.serverError(statusCode: 500, message: "boom"))
+
+        let result = await session.deleteAccount(api: api)
+
+        XCTAssertEqual(api.deleteAccountCallCount, 1)
+        XCTAssertTrue(session.isLoggedIn, "failed delete must NOT clear local creds")
+        XCTAssertEqual(session.authToken, "tok")
+        if case .success = result { XCTFail("expected failure") }
+    }
 }
 
 /// In-memory SettingsStore used only in tests. Does NOT belong in the

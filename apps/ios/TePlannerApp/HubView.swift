@@ -308,6 +308,7 @@ struct HubView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(apiService: apiService)
+                .environmentObject(authSession)
         }
         .sheet(isPresented: $showingImportShare) {
             ImportShareSheet(

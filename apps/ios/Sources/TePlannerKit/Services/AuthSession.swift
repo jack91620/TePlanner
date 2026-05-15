@@ -86,6 +86,26 @@ public final class AuthSession: ObservableObject {
         return result
     }
 
+    /// Apple 5.1.1(v) — permanently delete the account on the backend
+    /// and wipe local credentials. Tesla's own account at tesla.com
+    /// is untouched (only the user can revoke that). On server
+    /// success we always logout locally; on server failure we surface
+    /// the error but DO NOT logout — the user still has data on the
+    /// server, so it's better to show "删除失败，请稍后再试" than to
+    /// leave them in a half-deleted state.
+    public func deleteAccount(api: APIServiceProtocol) async -> Result<BaseResponse, APIError> {
+        Log.auth.warning("account deletion requested by user")
+        let result = await api.deleteAccount()
+        switch result {
+        case .success:
+            logout()
+            Log.auth.warning("account deleted — local credentials cleared")
+        case .failure(let err):
+            Log.auth.error("account deletion failed: \(err.localizedDescription, privacy: .public)")
+        }
+        return result
+    }
+
     private func refreshState() {
         isLoggedIn = Self.computeLoggedIn(secureStorage: secureStorage, settings: settings)
     }

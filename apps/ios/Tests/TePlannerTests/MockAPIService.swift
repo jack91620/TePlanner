@@ -477,6 +477,15 @@ final class MockAPIService: APIServiceProtocol {
         return mockClearScheduledDepartureResponse
     }
 
+    var mockDeleteAccountResponse: Result<BaseResponse, APIError> =
+        .success(BaseResponse(success: true, message: nil))
+    private(set) var deleteAccountCallCount: Int = 0
+
+    func deleteAccount() async -> Result<BaseResponse, APIError> {
+        deleteAccountCallCount += 1
+        return mockDeleteAccountResponse
+    }
+
     // Phase D.4 — charging sessions
     var mockUpsertChargingSessionResponse: Result<ChargingSessionResponse, APIError>?
     var mockListChargingSessionsResponse: Result<ChargingSessionListResponse, APIError> =

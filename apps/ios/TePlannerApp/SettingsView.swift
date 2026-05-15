@@ -7,7 +7,11 @@ import UserNotifications
 /// per-rule, this is the place for cross-cutting prefs.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authSession: AuthSession
     @State private var pushStatus: PushStatus = .unknown
+    @State private var showingDeleteAccountConfirm = false
+    @State private var deleteAccountInFlight = false
+    @State private var deleteAccountError: String?
     private let appVersion: String
     private let buildNumber: String
     private let apiService: APIServiceProtocol?
@@ -95,6 +99,49 @@ struct SettingsView: View {
                 if FeatureFlags.isInternalBuild {
                     FeatureFlagsSection()
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteAccountConfirm = true
+                    } label: {
+                        HStack {
+                            Label("删除账号", systemImage: "trash.fill")
+                            Spacer()
+                            if deleteAccountInFlight {
+                                ProgressView()
+                                    .controlSize(.mini)
+                            }
+                        }
+                    }
+                    .disabled(deleteAccountInFlight || apiService == nil)
+                    .accessibilityIdentifier("settings_delete_account")
+                } header: {
+                    Text("危险操作")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("永久删除该 Tautomation 账号及其所有数据（自动化规则、出行计划、充电记录、车辆绑定、推送 token 等）。不可恢复。")
+                        Text("注意：删除 Tautomation 账号不会注销你的 Tesla 账号。如需撤销本应用对 Tesla 数据的访问，请到 Tesla 官方 App 或 tesla.com 操作。")
+                            .foregroundStyle(.secondary)
+                        if let err = deleteAccountError {
+                            Text("删除失败：\(err)")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .font(.caption2)
+                }
+            }
+            .confirmationDialog(
+                "确认删除账号？此操作不可恢复",
+                isPresented: $showingDeleteAccountConfirm,
+                titleVisibility: .visible,
+            ) {
+                Button("永久删除", role: .destructive) {
+                    Task { await performDeleteAccount() }
+                }
+                .accessibilityIdentifier("delete_account_confirm")
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("此操作会删除你在 Tautomation 服务器上的所有数据。Tesla 账号本身不受影响。")
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
@@ -106,6 +153,24 @@ struct SettingsView: View {
             .task {
                 await refreshPushStatus()
             }
+        }
+    }
+
+    private func performDeleteAccount() async {
+        guard let api = apiService, !deleteAccountInFlight else { return }
+        deleteAccountInFlight = true
+        deleteAccountError = nil
+        let result = await authSession.deleteAccount(api: api)
+        deleteAccountInFlight = false
+        switch result {
+        case .success:
+            // logout() inside authSession.deleteAccount already wiped
+            // local credentials; the RootView observer flips us back
+            // to the login screen. Just close the settings sheet so
+            // the transition is visible.
+            dismiss()
+        case .failure(let err):
+            deleteAccountError = err.localizedDescription
         }
     }
 

@@ -473,6 +473,15 @@ public final class APIService: APIServiceProtocol {
         return await delete(path: "/user/scheduled-departure")
     }
 
+    /// Apple 5.1.1(v) account deletion. Wipes the User row + every
+    /// FK-related row on the backend (Tesla tokens, vehicles, rules,
+    /// trips, sessions, settings, ...). 204 success → no body. Caller
+    /// is responsible for clearing the local Keychain / UserDefaults
+    /// and dropping the user back to the login screen.
+    public func deleteAccount() async -> Result<BaseResponse, APIError> {
+        return await delete(path: "/user/me")
+    }
+
     // MARK: - Phase D.4 — charging sessions
 
     public func upsertChargingSession(
