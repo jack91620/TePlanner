@@ -3,6 +3,7 @@ package cloud.teplanner.android
 import android.app.Application
 import android.util.Log
 import cn.jpush.android.api.JPushInterface
+import cloud.teplanner.android.util.FeatureFlags
 import dagger.hilt.android.HiltAndroidApp
 
 /**
@@ -22,6 +23,7 @@ class TautomationApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        FeatureFlags.setInternalBuildFlag(BuildConfig.DEBUG)
         bootstrapJPush()
         Log.i(TAG, "Tautomation Android booted (Phase F.4)")
     }

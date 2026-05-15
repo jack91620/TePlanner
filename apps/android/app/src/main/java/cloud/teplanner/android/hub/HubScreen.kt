@@ -227,13 +227,18 @@ fun HubScreen(
                 onClick = { showDepartureSheet = true },
                 testTag = "hub_departure_card",
             )
-            EntryCard(
-                title = "充电规划",
-                subtitle = "附近充电桩 · 路线规划",
-                icon = Icons.Filled.EvStation,
-                onClick = onMap,
-                testTag = "hub_entry_planning",
-            )
+            if (cloud.teplanner.android.util.FeatureFlags.isOn(
+                    ctx, cloud.teplanner.android.util.FeatureFlags.Flag.ChargingPlanning,
+                )
+            ) {
+                EntryCard(
+                    title = "充电规划",
+                    subtitle = "附近充电桩 · 路线规划",
+                    icon = Icons.Filled.EvStation,
+                    onClick = onMap,
+                    testTag = "hub_entry_planning",
+                )
+            }
             EntryCard(
                 title = "自动化提醒",
                 subtitle = "管理预设规则与自定义触发",

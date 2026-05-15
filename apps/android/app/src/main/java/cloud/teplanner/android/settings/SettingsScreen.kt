@@ -65,6 +65,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import cloud.teplanner.android.BuildConfig
 import cloud.teplanner.android.R
+import cloud.teplanner.android.util.FeatureFlags
+import androidx.compose.material3.Switch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -199,6 +201,18 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            if (FeatureFlags.isInternalBuild()) {
+                Spacer(Modifier.height(4.dp))
+                SectionLabel("功能开关 (内部测试)")
+                FeatureFlagsCard()
+                Text(
+                    "仅 Debug / 内部测试版本可见。修改后请回到 Hub 查看效果，部分变化" +
+                        "需要重新进入页面才能生效。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             Spacer(Modifier.height(4.dp))
             SectionLabel("关于")
             Card(
@@ -288,6 +302,54 @@ fun SettingsScreen(
                     }) { Text("好") }
                 },
             )
+        }
+    }
+}
+
+/**
+ * Internal-only feature-flag toggles. Mirrors iOS
+ * FeatureFlagsSection. Each toggle reads/writes SharedPreferences via
+ * FeatureFlags.setOverride; flipping a flag updates the local state
+ * immediately and the UI section consumer (e.g. HubScreen) re-reads
+ * on next recomposition.
+ */
+@Composable
+private fun FeatureFlagsCard() {
+    val ctx = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            FeatureFlags.Flag.all().forEachIndexed { idx, flag ->
+                // Local mutable mirror so the Switch responds without
+                // forcing a full Composition tree reload.
+                var on by remember(flag.key) { mutableStateOf(FeatureFlags.isOn(ctx, flag)) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("feature_flag_${flag.key}")
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(flag.displayName, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            flag.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = on,
+                        onCheckedChange = { newValue ->
+                            on = newValue
+                            FeatureFlags.setOverride(ctx, flag, newValue)
+                        },
+                    )
+                }
+                if (idx < FeatureFlags.Flag.all().lastIndex) HorizontalDivider()
+            }
         }
     }
 }
